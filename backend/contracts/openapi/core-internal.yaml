@@ -118,7 +118,9 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
     Unauthorized:
-      description: Token de servicio o del usuario ausente o inválido (code 001-14).
+      description: >-
+        Token de servicio o del usuario ausente o inválido, o el sid del cuerpo no es el del token
+        del usuario (code 001-14).
       content:
         application/problem+json:
           schema:
@@ -128,8 +130,8 @@ components:
             $ref: '#/components/schemas/Problem'
     SessionRejected:
       description: >-
-        Sesión rechazada. code: 001-05 (usuario desactivado), 001-17 (administración inexistente,
-        inactiva o distinta de la registrada) o 001-14 (el sid no es el del token del usuario).
+        Sesión rechazada. code: 001-05 (usuario desactivado) o 001-17 (administración inexistente,
+        inactiva o distinta de la registrada).
       content:
         application/problem+json:
           schema:
