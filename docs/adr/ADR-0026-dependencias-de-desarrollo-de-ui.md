@@ -1,8 +1,8 @@
 # ADR-0026 · Dependencias de desarrollo de `ui/` (pruebas, estilos y catálogo) y excepción de vulnerabilidades
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 2026-11-02
-- **Decisores:** arquitecto y líder de frontend (pendiente de aprobación)
+- **Decisores:** responsable del proyecto, el 2026-11-02, tras revisar el catálogo de Storybook y `npm audit` (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** ADR 0018, ADR 0023; `AGENTS.md` §4.5; `docs/arquitectura/02` §11; `docs/arquitectura/04` §6 (Q02, Q14); PR [#30](https://github.com/jorgearaujoSap/liv/pull/30) (tarea T03 de la feature 001)
 
 ## Contexto
@@ -37,10 +37,10 @@ No se agregan `zone.js` ni `@angular/animations` (pares opcionales de Storybook 
 - no se ejecuta el servidor de Storybook en redes no confiables;
 - el catálogo compilado (`build-storybook`) no se despliega con datos reales ni credenciales;
 - `npm audit --omit=dev` debe seguir en 0;
-- se revisa en cada versión de Storybook y vence el **2027-01-31** (fecha propuesta, a confirmar por el aprobador), cuando se corrige o se renueva con motivo.
+- se revisa en cada versión de Storybook y vence el **2027-01-31** (fecha confirmada por el aprobador), cuando se corrige o se renueva con motivo.
 
 ## Consecuencias
 
 - **Positivas:** componentes con accesibilidad probada de forma automática, estilos por tokens y catálogo vivo, con las herramientas estándar del ecosistema.
-- **Negativas o costos:** unos 600 paquetes más en el *lockfile* de `ui/`, con alertas de `npm audit` que Dependabot seguirá mostrando; el contraste de color no se prueba en jsdom y queda para las pruebas de navegador (Q14).
-- **Qué cambia en el repositorio:** la tabla de ADR del doc. 00 §6 (fila 0026) y, al aceptarlo, la lista de dependencias de `ui/` en `ui/README.md` si se desea.
+- **Negativas o costos:** unos 600 paquetes más en el *lockfile* de `ui/`, con alertas de `npm audit` en desarrollo; el contraste de color no se prueba en jsdom y queda para las pruebas de navegador (Q14).
+- **Qué cambia en el repositorio:** la tabla de ADR del doc. 00 §6 (fila 0026). La lista de dependencias de `ui/` vive en `ui/package.json`, con versiones exactas; `ui/README.md` no la repite.

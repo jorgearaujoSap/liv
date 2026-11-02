@@ -40,8 +40,12 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## `ui/` — `liv-components` 0.2.0
 
-- [ ] **T03** · *Tokens* nuevos (4 estilos y la colección `Layout`) y los componentes `Icon` (38 SVG de Lucide), `Logo`, `Spinner`, `Skeleton`, `Badge` y `Avatar`.
+- [x] **T03** · *Tokens* nuevos (4 estilos y la colección `Layout`) y los componentes `Icon` (38 SVG de Lucide), `Logo`, `Spinner`, `Skeleton`, `Badge` y `Avatar`. — Hecha: PR #30, con el ADR 0026 (PR #31) para sus dependencias de desarrollo; el PR #32 corrige `npm run storybook` y `format:check` en Windows.
   - Archivos: `ui/projects/liv-components/src/{styles/theme.css,lib/icon/**,lib/logo/**,lib/spinner/**,lib/skeleton/**,lib/badge/**,lib/avatar/**,public-api.ts}`, `ui/.storybook/**`, `ui/THIRD_PARTY_NOTICES.md`, `ui/package.json`.
+  - **Desviaciones declaradas:**
+    - se tocaron además `angular.json`, `README.md`, `.postcssrc.json`, `tsconfig.lib.json`, `tsconfig.spec.json`, `src/testing/axe.ts`, `src/lib/tailwind-reference.css` y `scripts/copy-notices.mjs`, necesarios para Vitest, Tailwind y el aviso de licencia;
+    - el PR superó las ~400 líneas (unas 1.650 sin el *lockfile*: 297 de datos de iconos, 390 de pruebas y 269 de historias), porque Storybook, Tailwind y los componentes se prueban juntos;
+    - dependencias de desarrollo nuevas, aprobadas en el ADR 0026.
   - Prueba primero: por componente, variantes, propiedades y atributos ARIA (`aria-hidden` en el icono decorativo; texto alternativo en `Logo`), más axe.
 - [ ] **T04** · `Button` (tamaños, iconos, `Loading`), `IconButton`, `TextField` (icono, acción, `Content`), `CodeInput` y `Alert`.
   - Archivos: `ui/projects/liv-components/src/lib/{button,icon-button,text-field,code-input,alert}/**`, `public-api.ts`.
