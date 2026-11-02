@@ -159,8 +159,30 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - la publicación de los contratos en CI pasa a una tarea aparte de F0‑07 (ver T02);
     - la segunda ronda de revisión trajo un alto, corregido con TDD; el responsable decidió no hacer tercera ronda.
   - Prueba primero: una regla de ArchUnit que exige que los controladores implementen las interfaces generadas, y una validación del OpenAPI en el *build*.
-- [ ] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details.
+- [ ] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details. — **Parte 1 hecha** (PR #45): servidor de recursos, filtros, Problem Details, correlación y enmascarado. **Parte 2 pendiente**, en otro PR:
+    - el gestor de transacciones que fija `app.administration_id`, con las pruebas de RLS, `REQUIRES_NEW` y oyentes;
+    - la comprobación al arrancar de que el rol conectado es `liv_app` (alto de la lente de riesgo, diferido);
+    - `spring.modulith.events.jdbc.schema=platform` (de T10).
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/platform/**`, `application.yml`, `backend/src/test/**/platform/**`, `ArchitectureRulesTest` (sin `org.keycloak`).
+  - **Desviaciones de la parte 1:**
+    - archivos fuera de la lista:
+      - `core/infrastructure/UserDirectoryAdapter.java` (era de T13: sin él, el contexto no arranca);
+      - `logback-spring.xml`;
+      - `config/application-dev.yml`;
+      - `pom.xml` (el *starter* del servidor de recursos, ADR 0023);
+      - `isolation/LivDatabase.java` y `FlywayProfilesTest.java`;
+      - `LivApplicationTests.java`;
+      - `README.md` y `CHANGELOG.md`;
+    - unas 2.500 líneas, la mayoría pruebas;
+    - los controladores de prueba de `/internal/v1/sessions` (`PlatformWebTest`) chocarán con los de T13, que los quitará;
+    - códigos técnicos `SYS-<estado>` para los errores sin criterio (404, 500, 503), pendientes de confirmar por el responsable.
+  - **Decisiones pendientes del responsable** (salieron de la revisión; detalle en el PR #45):
+    - atar el token de usuario a `azp = liv-bff`;
+    - una prueba de la API contra Keycloak real;
+    - aceptar `typ: at+jwt`;
+    - exigir `https://` para el emisor fuera de `dev` y `test`;
+    - el esquema `SYS-<estado>`;
+    - el enmascarado de datos personales y del log estructurado (F0‑09).
   - **De T11:**
     - el filtro valida `X-User-Token` antes de llegar al controlador: si falta o es inválido, 401 con `001-14`;
     - el límite de tamaño de cabeceras admite `Authorization` más un `X-User-Token` de hasta 8.192 caracteres;
