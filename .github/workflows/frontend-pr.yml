@@ -1,0 +1,51 @@
+# CI de PR del frontend (doc. 04 §9, IN‑08): solo orquesta los scripts de npm del proyecto, desde su carpeta.
+# Compuertas cubiertas hoy: Q01 (lint, formato y build) y Q02 (pruebas unitarias).
+name: frontend-pr
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: frontend · verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias (versiones exactas del lock)
+        run: npm ci
+
+      - name: Lint (Q01)
+        run: npm run lint
+
+      - name: Formato (Q01)
+        run: npm run format:check
+
+      - name: Pruebas (Q02)
+        run: npm test
+
+      - name: Build (Q01)
+        run: npm run build

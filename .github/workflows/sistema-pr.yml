@@ -1,0 +1,53 @@
+# Verificaciones de todo PR, sin importar la carpeta (doc. 04 §9):
+# - título del PR en Conventional Commits (Q13): con squash merge, el título es el mensaje del commit en main;
+# - búsqueda de secretos en los commits del PR (doc. 02 §10).
+# El guardián SDD (Q11, Q15) y el e2e de humo (Q10) se agregan con sus tareas (F0‑07, F0‑12).
+name: sistema-pr
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sistema-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: sistema · título Conventional Commits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      # El título llega por variable de entorno, nunca interpolado en el script (evita inyección).
+      - name: Verificar el título (Q13)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .+'
+          if ! printf '%s' "$PR_TITLE" | grep -Eq "$pattern"; then
+            echo "::error::El título del PR no sigue Conventional Commits, p. ej. 'feat(001): …' o 'ci(f0-07): …'."
+            exit 1
+          fi
+
+  secrets:
+    name: sistema · secretos
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # gitleaks-action lista los commits del PR por la API de GitHub.
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false

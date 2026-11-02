@@ -1,0 +1,42 @@
+# CI de PR del backend (doc. 04 §9, IN‑08): solo orquesta los comandos del proyecto, desde su carpeta.
+# Compuertas cubiertas hoy: Q01 (compilación y formato), Q02 (pruebas) y Q03 (arquitectura). El resto
+# (cobertura, mutación, seguridad, contrato) se agrega cuando existan sus herramientas (F0‑07).
+name: backend-pr
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: backend · verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      # `sh` porque mvnw aún no tiene permiso de ejecución en Git; se corrige en el primer PR del backend.
+      - name: Compilación, formato, arquitectura y pruebas (Q01–Q03)
+        run: sh mvnw -B -ntp verify
