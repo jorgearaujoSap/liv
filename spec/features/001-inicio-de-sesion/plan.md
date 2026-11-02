@@ -5,7 +5,7 @@ _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` 
 **Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
 
-**Ajustes posteriores:** T07, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
+**Ajustes posteriores:** T07 y T11, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
 
 ## Enfoque
 
@@ -102,7 +102,7 @@ Entre corchetes, el proyecto y su PR (IN‑07).
    - **Puerto `UserDirectory`**, en el paquete raíz de `platform`, como el puerto `IdentityProviderEvents` (doc. 04 §3.1); lo implementa `core`: `resolve(issuer, subject)` devuelve id, administración registrada y estado.
    - **Filtro `CurrentUserFilter`.** En cada petición a `/api/**`:
      1. resuelve al usuario con el puerto;
-     2. responde **401** si no existe (no hay sesión iniciada), si está inactivo (`001-05`) o si el `administration_id` del *token* difiere del registrado (`001-17`);
+     2. responde **401** si no existe (no hay sesión iniciada: `001-14`, ajuste de T11), si está inactivo (`001-05`) o si el `administration_id` del *token* difiere del registrado (`001-17`);
      3. guarda la administración **registrada** (no la del *claim*) en un `AdministrationContext` de la petición. El filtro **no toca la base de datos**.
    - **Contexto RLS por transacción** (doc. 02 §5.1). El gestor de transacciones de `platform` (`JpaTransactionManager` extendido) ejecuta `set_config('app.administration_id', ?, true)` al iniciar **cada** transacción, también las `REQUIRES_NEW`, con el valor del `AdministrationContext`. Como el alcance es local, al terminar la transacción no queda nada en la conexión del *pool*.
      - Los oyentes asíncronos y el importador fijan el `AdministrationContext` con la administración del evento antes de abrir su transacción.
@@ -122,6 +122,7 @@ Entre corchetes, el proyecto y su PR (IN‑07).
        - `Authorization`: *token* de *client credentials* del cliente `liv-bff-service`. Se exige la audiencia `liv-internal` y que `azp` sea `liv-bff-service`. Un *token* de usuario nunca cumple las dos condiciones, aunque el usuario agregue alcances en la URL de autorización. La prueba usa un *token* de usuario que pidió todos los alcances posibles y comprueba que recibe 401.
        - `X-User-Token`: *token* de acceso del usuario, validado con el mismo decodificador.
      - **De dónde salen los datos:** emisor, `sub`, `administration_id`, nombre y correo salen del *token* del usuario.
+     - **`sid`** (ajuste de T11): el del cuerpo debe ser el *claim* `sid` del *token* del usuario; si no coincide, 401 con `001-14`. Un reintento con el mismo `sid` y el mismo usuario devuelve 200 con la sesión ya creada.
      - **Validaciones:**
        - la administración existe y está activa (`001-17`);
        - alta con `INSERT … ON CONFLICT DO NOTHING` y relectura **con la función**;
@@ -129,9 +130,8 @@ Entre corchetes, el proyecto y su PR (IN‑07).
      - **Si pasa:** actualiza `last_login_at`, crea el registro `core.user_session` (`sid`, usuario, emisor, `sub`, inicio) y publica `SessionStarted` (y `UserProvisioned` si es nuevo), en la misma transacción.
      - **Si se rechaza:** publica `SessionDenied` (motivo y código) en una transacción aparte (`REQUIRES_NEW`), para que el rechazo quede auditado, y responde 403.
    - **`POST /internal/v1/sessions/{sid}/end` (`EndSession`).** Solo con el *token* de servicio. El cuerpo trae emisor, `sub` y motivo (`LOGOUT`, `IDLE`, `ABSOLUTE`, `PROVIDER`).
-     - Verifica que el `sid` exista en `core.user_session` y pertenezca a ese emisor y ese `sub`.
-     - **Es idempotente:** si la sesión ya terminó, no hace nada. Así, un cierre del usuario seguido del cierre por canal trasero produce un solo `SessionEnded`.
-     - Guarda el fin y el motivo, y publica `SessionEnded`.
+     - Si el `sid` existe en `core.user_session`, pertenece a ese emisor y ese `sub` y la sesión sigue abierta, guarda el fin y el motivo y publica `SessionEnded`.
+     - **Siempre responde 204** (ajuste de T11): si la sesión ya terminó, si el `sid` no existe o si es de otro emisor o `sub`, no hace nada. Así es idempotente (un cierre del usuario seguido del cierre por canal trasero produce un solo `SessionEnded`) y no revela si un `sid` existe.
    - **Eventos `SessionStarted`, `SessionDenied`, `SessionEnded` y `UserProvisioned`:** son *records* del paquete raíz de `core`. Usan el *outbox* de Spring Modulith (JDBC).
    - **`GET /me`** es solo lectura.
 9. **[backend] `audit` (técnico; ADR 0025: `audit → core` y `audit → platform`).**
@@ -292,8 +292,8 @@ El e2e prueba la combinación.
   |---|---|---|
   | `GET /api/v1/me` (`core.yaml`) | `id`, `fullName`, `email`, `administration {id, name}`, `roles[]`, `permissions[]` | 401 (`001-14`, `001-05`, `001-17`) |
   | `GET /api/v1/me/capabilities` | Árbol de `code`, `children[]`, `status` (`AVAILABLE` \| `COMING_SOON`) | 401 |
-  | `POST /internal/v1/sessions` (*token* de servicio + `X-User-Token`) | 201 con `userId` y `sessionAuditId`. Cuerpo: `sid` | 401, 403 (`001-17`, `001-05`) |
-  | `POST /internal/v1/sessions/{sid}/end` (*token* de servicio) | 204. Cuerpo: `issuer`, `subject`, `reason` | 401, 403 |
+  | `POST /internal/v1/sessions` (*token* de servicio + `X-User-Token`) | 201 con `userId`; 200 si es un reintento con el mismo `sid`. Cuerpo: `sid`, igual al del *token* del usuario | 400, 401 (`001-14`), 403 (`001-17`, `001-05`) |
+  | `POST /internal/v1/sessions/{sid}/end` (*token* de servicio) | 204 siempre, también si el `sid` no existe o es de otro usuario. Cuerpo: `issuer`, `subject`, `reason` | 400, 401 |
   | `bff.yaml` | Ver el paso 10 | 401, 403 (CSRF), 429 |
 
 - **Permisos.** La matriz inicial (D-001-5) se somete completa al responsable funcional en H2. Una vez aprobada, se lleva a Doc. 01 §4 (o a un anexo funcional) en un cambio aparte, como exige doc. 02 §4.4.
@@ -404,6 +404,12 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T11 (aprobados por el responsable el 2026-11-02, PR #40).** Salieron de la revisión adversarial de los contratos:
+  - `StartSession` devuelve solo `userId`: se quita `sessionAuditId`, que no tenía origen (la sesión se identifica por su `sid`);
+  - el `sid` del cuerpo debe ser el del *token* del usuario (401 con `001-14` si no) y un reintento es idempotente (200);
+  - `EndSession` responde siempre 204;
+  - en el filtro de `/api/**`, el usuario no registrado recibe 401 con `001-14`; `001-05` queda solo para el usuario desactivado (en `StartSession` el usuario se da de alta, así que no aplica);
+  - la publicación de los contratos en CI y el comparador de cambios incompatibles van en una tarea aparte de F0‑07, antes de T20.
 - **Ajustes de T10 (PR #25 y #28; revisados por la adversarial y las cuatro lentes, pendientes de aprobación humana donde se indica).**
   - **Integrados tras la revisión del PR (H3):**
     - la primera migración comprueba el contrato de la base y de los roles (dueño de la base, PostgreSQL 16 o superior, roles sin `BYPASSRLS` ni inicio de sesión, `liv_app` sin membresías) y revoca `TEMP` y los permisos por defecto;

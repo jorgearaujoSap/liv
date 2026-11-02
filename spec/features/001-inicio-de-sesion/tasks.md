@@ -36,7 +36,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - en todo PR: título en Conventional Commits (Q13) y búsqueda de secretos con gitleaks;
     - acciones fijadas por SHA, permisos mínimos y `concurrency`.
   - Prueba primero: los comandos de cada *workflow* ejecutados en local; los *workflows* corren sobre su propio PR. La expresión del título se probó con casos válidos e inválidos.
-  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T11, T16 y T21; verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
+  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T16 y T21; la de los contratos del backend y su comparador de cambios incompatibles, en una tarea aparte de F0‑07 antes de T20 (decisión del responsable, 2026-11-02); verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
 
 ## `ui/` — `liv-components` 0.2.0
 
@@ -151,11 +151,21 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `FindUserByIdentityTest`: llamada desde otro rol, conflicto con otra administración y `search_path`;
     - `AuditPlatformRowsTest`: solo los dos caminos permitidos;
     - `AuditAppendOnlyTest`.
-- [ ] **T11** · Contratos y generación.
+- [x] **T11** · Contratos y generación. — Hecha: PR #40.
   - Archivos: `backend/contracts/openapi/{core,platform,core-internal}.yaml`, `backend/pom.xml` (`openapi-generator-maven-plugin`).
+  - **Desviaciones declaradas:**
+    - se agregaron `backend/src/test/**/architecture/ContractRules*.java`, `backend/src/test/**/contracts/**`, `backend/README.md` y `backend/CHANGELOG.md`;
+    - el PR tiene unas 1.200 líneas, la mayoría pruebas y contratos;
+    - la publicación de los contratos en CI pasa a una tarea aparte de F0‑07 (ver T02);
+    - la segunda ronda de revisión trajo un alto, corregido con TDD; el responsable decidió no hacer tercera ronda.
   - Prueba primero: una regla de ArchUnit que exige que los controladores implementen las interfaces generadas, y una validación del OpenAPI en el *build*.
 - [ ] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details.
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/platform/**`, `application.yml`, `backend/src/test/**/platform/**`, `ArchitectureRulesTest` (sin `org.keycloak`).
+  - **De T11:**
+    - el filtro valida `X-User-Token` antes de llegar al controlador: si falta o es inválido, 401 con `001-14`;
+    - el límite de tamaño de cabeceras admite `Authorization` más un `X-User-Token` de hasta 8.192 caracteres;
+    - `X-User-Token` se enmascara en los *logs*;
+    - ningún modelo generado (`..api.contract.model..`) se pasa a un *logger*: su `toString` incluye datos personales.
   - Prueba primero:
     - 001-14: seis casos contra `mock-oauth2-server` con la configuración de producción, un `sub` registrado y el código `001-14`;
     - RLS con un *pool* de una sola conexión, la petición de A y luego la de B;
@@ -164,6 +174,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - 001-20, parte de la API.
 - [ ] **T13** · `core`: `UserDirectoryAdapter`, `StartSession`, `EndSession`, `GET /me`, `core.user_session` y los eventos.
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/core/**`, `backend/src/test/**/core/**`.
+  - **De T11:** los controladores implementan `CurrentUserApi` e `InternalSessionsApi`. `StartSession` exige que el `sid` del cuerpo sea el del *token* (401 con `001-14`) y es idempotente (200 con la sesión ya creada). `EndSession` responde siempre 204. Prueba de `EndSession` con `Accept: application/json`.
   - Prueba primero:
     - 001-13: `/me` con datos del servidor;
     - 001-17 y 001-05: rechazos en el inicio de sesión y en cada petición;
@@ -194,7 +205,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - Contenido:
     - cliente OIDC con `prompt=login` y `returnTo` validado;
     - cambio de id de sesión;
-    - `StartSession` con los dos *tokens*;
+    - `StartSession` con los dos *tokens*; un 200 es un reintento con la sesión ya creada (T11);
     - Spring Session JDBC con *tokens* cifrados;
     - `/bff/logout` con revocación y la ruta de LIV;
     - cierre por canal trasero en `/bff/backchannel-logout`: fijar el puerto del BFF en `LIV_BFF_BACKCHANNEL_URL` de `backend/dev/.env.example` (hoy apunta a `host.docker.internal:4200`, el proxy del frontend);
