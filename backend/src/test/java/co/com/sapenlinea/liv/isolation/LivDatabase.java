@@ -26,15 +26,15 @@ import org.testcontainers.utility.DockerImageName;
  * dev/initdb}, aplica las migraciones como {@code liv_owner} (igual que el despliegue) y entrega
  * conexiones con el rol que pida cada prueba. Un solo contenedor por ejecución de pruebas.
  */
-final class LivDatabase {
+public final class LivDatabase {
 
-  static final String OWNER = "liv_owner";
-  static final String APP = "liv_app";
+  public static final String OWNER = "liv_owner";
+  public static final String APP = "liv_app";
   static final String BFF = "liv_bff";
   static final String OWNER_PASSWORD = "owner-test-pw";
 
-  static final UUID ADMIN_A = UUID.fromString("10000000-0000-0000-0000-00000000000a");
-  static final UUID ADMIN_B = UUID.fromString("10000000-0000-0000-0000-00000000000b");
+  public static final UUID ADMIN_A = UUID.fromString("10000000-0000-0000-0000-00000000000a");
+  public static final UUID ADMIN_B = UUID.fromString("10000000-0000-0000-0000-00000000000b");
   static final UUID USER_A = UUID.fromString("20000000-0000-0000-0000-00000000000a");
   static final UUID USER_B = UUID.fromString("20000000-0000-0000-0000-00000000000b");
   static final String ISSUER = "https://idp.test/realms/liv";
@@ -65,7 +65,7 @@ final class LivDatabase {
     T apply(Connection connection) throws SQLException;
   }
 
-  static String jdbcUrl() {
+  public static String jdbcUrl() {
     return jdbcUrl("liv");
   }
 
@@ -104,7 +104,7 @@ final class LivDatabase {
     return DriverManager.getConnection(jdbcUrl(), role, password(role));
   }
 
-  static String password(String role) {
+  public static String password(String role) {
     return OWNER.equals(role) ? OWNER_PASSWORD : role + "-test-pw";
   }
 
@@ -157,7 +157,7 @@ final class LivDatabase {
         administration.toString());
   }
 
-  static int update(String role, UUID administration, String sql, Object... args)
+  public static int update(String role, UUID administration, String sql, Object... args)
       throws SQLException {
     return inTx(role, administration, c -> update(c, sql, args));
   }

@@ -117,4 +117,40 @@ class ArchitectureRulesTest {
           .beAnnotatedWith(Autowired.class)
           .because("dependencies are injected through constructors (CC-08)")
           .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule noIdentityProviderLibraries =
+      noClasses()
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("org.keycloak..")
+          .because("authentication uses only standard OIDC and OAuth 2.0 (D-001-6, 001-20)");
+
+  @ArchTest
+  static final ArchRule generatedModelsStayInTheApiLayer =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage("..liv.*.api..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..api.contract..model")
+          .because(
+              "the generated models carry personal data in toString; only controllers map them"
+                  + " (T11)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule controllersDoNotLog =
+      noClasses()
+          .that()
+          .resideInAPackage("..liv.*.api..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("org.slf4j..", "java.util.logging..", "org.apache.commons.logging..")
+          .orShould()
+          .dependOnClassesThat()
+          .areAssignableTo(System.Logger.class)
+          .because(
+              "a generated model must never reach a logger: its toString has personal data (T11)")
+          .allowEmptyShould(true);
 }
