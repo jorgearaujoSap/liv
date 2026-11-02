@@ -29,8 +29,8 @@ export function declaredPlaceholderStyle(element: Element, property: string): st
 /**
  * Sombra que Tailwind declara para el elemento (`--tw-shadow`, la que aplica `shadow-*`), con los colores
  * ya sacados de `var(--tw-shadow-color, …)`: así se compara con el token de `theme.css`. Ignora la regla
- * universal (`*, ::before, …`) con la que Tailwind da el valor inicial, que va después de las de los
- * componentes y ganaría por orden aunque pierde por especificidad.
+ * universal (`*, ::before, …`) con la que Tailwind da el valor inicial: va después de las de los
+ * componentes, pero dentro de `@layer properties`, así que en el navegador pierde siempre.
  */
 export function declaredShadow(element: Element): string {
   return lastDeclared(
@@ -42,6 +42,17 @@ export function declaredShadow(element: Element): string {
     .replace(/var\(--tw-shadow-color,\s*([^)]*\)?)\)/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Si el elemento pinta ahora la sombra `shadow` de Tailwind: la declara en `--tw-shadow` y su
+ * `box-shadow` usa esa variable (una regla posterior con `box-shadow: none` la anularía).
+ */
+export function paintsShadow(element: Element, shadow: string): boolean {
+  return (
+    declaredShadow(element) === shadow &&
+    declaredStyle(element, 'box-shadow').includes('var(--tw-shadow)')
+  );
 }
 
 /**
@@ -89,21 +100,29 @@ function lastDeclared(
   return value;
 }
 
-/** Separa una lista de selectores por las comas de primer nivel, sin cortar `:is(a, b)` ni `[x="a,b"]`. */
+/**
+ * Separa una lista de selectores por las comas de primer nivel, sin cortar `:is(a, b)`, `[x="a,b"]` ni
+ * los caracteres escapados (`.w-1\,5`).
+ */
 function splitSelectorList(selectorList: string): string[] {
   const selectors: string[] = [];
   let depth = 0;
   let quote = '';
   let current = '';
+  let escaped = false;
   for (const char of selectorList) {
-    if (quote) {
+    if (escaped) {
+      escaped = false;
+    } else if (char === '\\') {
+      escaped = true;
+    } else if (quote) {
       quote = char === quote ? '' : quote;
     } else if (char === '"' || char === "'") {
       quote = char;
     } else if (char === '(' || char === '[') {
       depth++;
     } else if (char === ')' || char === ']') {
-      depth--;
+      depth = Math.max(0, depth - 1);
     } else if (char === ',' && depth === 0) {
       selectors.push(current.trim());
       current = '';

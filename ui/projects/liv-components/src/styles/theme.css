@@ -2,10 +2,10 @@
  * @liv/ui — tokens de diseño.
  *
  * Transcritos de los estilos locales y de la colección de variables `Layout` del archivo de Figma
- * LIV-Diseño (última actualización: 2026-11-02), con los mismos nombres: el estilo `text/primary` es el token
- * `--color-text-primary` y la utilidad `text-text-primary`; la variable `spacing/4` es `--spacing-4` y
- * `radius/lg` es `--radius-lg`. No se editan a mano: un cambio se hace primero en Figma y luego se
- * regenera este archivo.
+ * LIV-Diseño (por última vez el 2026-11-02), con los mismos nombres: el estilo `text/primary` es el
+ * token `--color-text-primary` y la utilidad `text-text-primary`; la variable `spacing/4` es
+ * `--spacing-4` y `radius/lg` es `--radius-lg`. No se editan a mano: un cambio se hace primero en
+ * Figma y luego se regenera este archivo.
  *
  * `static` hace que Tailwind emita siempre todas las variables en `:root`, también las que la aplicación
  * no usa en sus propias plantillas: los componentes de la librería las leen desde `node_modules`, donde

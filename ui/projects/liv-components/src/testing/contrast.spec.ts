@@ -1,4 +1,4 @@
-import { contrastRatio, shadowColors, solidColor, visibleColor } from './contrast';
+import { contrastRatio, shadowLayers, solidColor, visibleColor } from './contrast';
 
 // Valores de referencia conocidos, para que un error en la fórmula no ponga en verde las pruebas de theme.
 describe('contrast (ayudante de pruebas)', () => {
@@ -23,13 +23,14 @@ describe('contrast (ayudante de pruebas)', () => {
   it('rechaza los formatos que no sabe leer en lugar de adivinar', () => {
     expect(() => solidColor('#fff')).toThrow();
     expect(() => visibleColor('rgba(0, 0, 0, 0.5)', white)).toThrow();
-    expect(() => shadowColors('0 0 0 3px var(--x)')).toThrow();
+    expect(() => shadowLayers('0 0 0 3px var(--x)')).toThrow();
+    expect(() => shadowLayers('inset 0 0 0 1px #2563eb')).toThrow();
   });
 
-  it('separa las capas de una sombra sin cortar rgb()', () => {
-    expect(shadowColors('0 0 0 2px #ffffff, 0 0 0 4px rgb(37 99 235 / 0.4)')).toEqual([
-      '#ffffff',
-      'rgb(37 99 235 / 0.4)',
+  it('separa las capas de una sombra sin cortar rgb() y lee sus medidas', () => {
+    expect(shadowLayers('0 0 0 2px #ffffff, 0 1px 2px rgb(37 99 235 / 0.4)')).toEqual([
+      { offsetX: 0, offsetY: 0, blur: 0, spread: 2, color: '#ffffff' },
+      { offsetX: 0, offsetY: 1, blur: 2, spread: 0, color: 'rgb(37 99 235 / 0.4)' },
     ]);
   });
 });

@@ -24,17 +24,30 @@ export function visibleColor(color: string, background: Rgb): Rgb {
   ) as Rgb;
 }
 
+export interface ShadowLayer {
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  spread: number;
+  color: string;
+}
+
 /**
- * Colores de cada capa de una sombra (`0 0 0 2px #fff, 0 0 0 4px #2563eb`), en el orden declarado: la
- * primera se pinta encima. Falla si alguna capa no termina en un color.
+ * Capas de una sombra exterior (`0 0 0 2px #ffffff, 0 0 0 4px #2563eb`), en el orden declarado: la primera
+ * se pinta encima. Medidas en px. Falla si una capa no es `x y [desenfoque [extensión]] color`, para no
+ * medir a medias una sombra que no sabe leer (p. ej. `inset` o un color en otra posición).
  */
-export function shadowColors(shadow: string): string[] {
+export function shadowLayers(shadow: string): ShadowLayer[] {
   return shadow.split(/,(?![^(]*\))/).map((layer) => {
-    const color = /(#[0-9a-f]{6}|rgb\([^)]*\))\s*$/i.exec(layer.trim())?.[1];
-    if (!color) {
-      throw new Error(`La capa de sombra no termina en un color: ${layer}`);
+    const match = /^(.*?)\s*(#[0-9a-f]{6}|rgb\([^)]*\))$/i.exec(layer.trim());
+    const lengths = (match?.[1] ?? '')
+      .split(/\s+/)
+      .map((length) => /^(-?[\d.]+)(px)?$/.exec(length));
+    if (!match || lengths.length < 2 || lengths.length > 4 || lengths.some((length) => !length)) {
+      throw new Error(`Capa de sombra no admitida: ${layer}`);
     }
-    return color;
+    const [offsetX, offsetY, blur = 0, spread = 0] = lengths.map((length) => Number(length?.[1]));
+    return { offsetX, offsetY, blur, spread, color: match[2] };
   });
 }
 

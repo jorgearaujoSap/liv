@@ -5,8 +5,8 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import {
   cssVariable,
   declaredPlaceholderStyle,
-  declaredShadow,
   declaredStyle,
+  paintsShadow,
 } from '../../testing/css';
 import { CodeInputComponent } from './code-input.component';
 
@@ -219,12 +219,19 @@ describe('CodeInput', () => {
     expect(declaredStyle(control({}), 'box-sizing')).toBe('border-box');
   });
 
-  it('el foco usa el anillo focus/ring de theme.css', () => {
-    const { host, input } = render();
-    input.focus();
-    const control = host.querySelector('.code-input__control') as HTMLElement;
-    expect(declaredShadow(control)).toBe(cssVariable(theme, '--shadow-focus-ring'));
-  });
+  it.each([{}, { error: 'No es válido.' }])(
+    'pinta el anillo focus/ring de theme.css solo con el foco (%o)',
+    (inputs) => {
+      const { host, input } = render(inputs);
+      const control = host.querySelector('.code-input__control') as HTMLElement;
+      const ring = cssVariable(theme, '--shadow-focus-ring');
+      expect(paintsShadow(control, ring)).toBe(false);
+      input.focus();
+      expect(paintsShadow(control, ring)).toBe(true);
+      input.blur();
+      expect(paintsShadow(control, ring)).toBe(false);
+    },
+  );
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
     const { host, input } = render();

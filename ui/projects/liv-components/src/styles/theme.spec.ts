@@ -1,5 +1,5 @@
 import theme from './theme.css' with { loader: 'text' };
-import { contrastRatio, shadowColors, solidColor, visibleColor } from '../testing/contrast';
+import { contrastRatio, shadowLayers, solidColor, visibleColor } from '../testing/contrast';
 import { cssVariable } from '../testing/css';
 
 /*
@@ -8,6 +8,13 @@ import { cssVariable } from '../testing/css';
  * donde se colocan los componentes (bg/canvas y bg/subtle).
  */
 const lightBackgrounds = ['--color-bg-surface', '--color-bg-canvas', '--color-bg-subtle'];
+
+/** Capas de focus/ring: la separación (encima) y el anillo (debajo, más ancho). */
+function focusRing() {
+  const [separation, ring, ...rest] = shadowLayers(cssVariable(theme, '--shadow-focus-ring'));
+  expect(rest).toEqual([]);
+  return { separation, ring };
+}
 
 function contrastOn(color: string, backgroundVar: string): number {
   const background = solidColor(cssVariable(theme, backgroundVar));
@@ -27,17 +34,26 @@ describe('theme.css · contraste', () => {
       ).toBeGreaterThanOrEqual(3);
     });
 
-    it('el anillo exterior de focus/ring llega a 3:1 (WCAG 1.4.11)', () => {
-      const ring = shadowColors(cssVariable(theme, '--shadow-focus-ring')).at(-1) ?? '';
-      expect(contrastOn(ring, backgroundVar)).toBeGreaterThanOrEqual(3);
+    it('el anillo de focus/ring llega a 3:1 (WCAG 1.4.11)', () => {
+      expect(contrastOn(focusRing().ring.color, backgroundVar)).toBeGreaterThanOrEqual(3);
     });
   });
 
   it('focus/ring separa el anillo del componente con bg/surface, con 3:1 entre ambos (WCAG 1.4.11)', () => {
     // Sin separación, el anillo queda pegado al relleno de Button Primary o al borde de Error.
-    const [separation, ring] = shadowColors(cssVariable(theme, '--shadow-focus-ring'));
-    expect(separation).toBe(cssVariable(theme, '--color-bg-surface'));
-    expect(contrastOn(ring ?? '', '--color-bg-surface')).toBeGreaterThanOrEqual(3);
+    const { separation, ring } = focusRing();
+    expect(separation.color).toBe(cssVariable(theme, '--color-bg-surface'));
+    expect(contrastOn(ring.color, '--color-bg-surface')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('focus/ring es un contorno nítido: separación visible y al menos 2 px de anillo por fuera (Figma)', () => {
+    // Si la separación igualara o superara al anillo, lo taparía: el foco no se vería.
+    const { separation, ring } = focusRing();
+    for (const layer of [separation, ring]) {
+      expect([layer.offsetX, layer.offsetY, layer.blur]).toEqual([0, 0, 0]);
+    }
+    expect(separation.spread).toBeGreaterThan(0);
+    expect(ring.spread - separation.spread).toBeGreaterThanOrEqual(2);
   });
 
   it('text/muted, el token del placeholder, llega a 4,5:1 sobre bg/surface (WCAG 1.4.3)', () => {
