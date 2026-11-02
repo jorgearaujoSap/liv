@@ -262,7 +262,7 @@ Cada tarea usa el modelo más económico que la resuelve bien. Los tokens se gas
 Reglas:
 
 1. **Se sube de nivel solo con motivo:** el nivel asignado falló dos veces en la misma tarea, o la tarea resultó crítica. Se anota en el PR.
-2. **La revisión de un cambio crítico nunca baja del nivel alto.** La de un cambio normal puede usar el estándar.
+2. **En un cambio crítico, la revisión adversarial y la lente de riesgo nunca bajan del nivel alto.** Las lentes de resiliencia y confiabilidad usan el estándar y la de legibilidad el económico, como dice la tabla de arriba y `liv-revision-4r`. La revisión de un cambio normal puede usar el estándar.
 3. **La segunda ronda de una revisión** examina solo lo corregido, con el mismo nivel de la primera.
 4. **Quien revisa no comparte el contexto de quien implementó** (§4.1, principio 7): se usa un subagente o una sesión nueva.
 
