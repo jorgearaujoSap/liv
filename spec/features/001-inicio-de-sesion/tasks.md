@@ -47,8 +47,14 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el PR superó las ~400 líneas (unas 1.650 sin el *lockfile*: 297 de datos de iconos, 390 de pruebas y 269 de historias), porque Storybook, Tailwind y los componentes se prueban juntos;
     - dependencias de desarrollo nuevas, aprobadas en el ADR 0026.
   - Prueba primero: por componente, variantes, propiedades y atributos ARIA (`aria-hidden` en el icono decorativo; texto alternativo en `Logo`), más axe.
-- [ ] **T04** · `Button` (tamaños, iconos, `Loading`), `IconButton`, `TextField` (icono, acción, `Content`), `CodeInput` y `Alert`.
+- [x] **T04** · `Button` (tamaños, iconos, `Loading`), `IconButton`, `TextField` (icono, acción, `Content`), `CodeInput` y `Alert`. — Hecha: PR #36.
   - Archivos: `ui/projects/liv-components/src/lib/{button,icon-button,text-field,code-input,alert}/**`, `public-api.ts`.
+  - **Desviaciones declaradas:**
+    - se agregó `ui/projects/liv-components/src/testing/css.ts`, un ayudante de pruebas como `testing/axe.ts`: lee el valor declarado de una propiedad CSS, porque jsdom no calcula `border-color` con `var()`;
+    - el PR superó las ~400 líneas (unas 2.140, de ellas 1.310 de pruebas e historias), porque son cinco componentes;
+    - Loading anuncia la entrada `loadingLabel` y el texto visible no cambia, como en Figma. La prueba en rojo pedía anunciar el texto del botón, que no se puede leer de forma fiable con zone.js;
+    - nombres respecto de Figma: `Title` de `Alert` es `heading`, para no chocar con el atributo `title`; `Label` y `Message` se proyectan como contenido; `State=Error` se activa con la entrada `error`.
+  - **Pendiente de decisión del responsable:** el icono de ayuda de `TextField` y `CodeInput` mide 14 px en Figma, pero `Icon` solo admite 16, 20 o 24. Se usa 16 hasta que se decida.
   - Prueba primero:
     - `Loading` no emite clic;
     - `TextField` en error expone `aria-invalid` y `aria-describedby`;
