@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm",
+    "schematicCollections": ["angular-eslint"]
+  },
+  "newProjectRoot": "projects",
+  "projects": {
+    "liv-components": {
+      "projectType": "library",
+      "root": "projects/liv-components",
+      "sourceRoot": "projects/liv-components/src",
+      "prefix": "liv",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/liv-components/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/liv-components/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/liv-components/**/*.ts",
+              "projects/liv-components/**/*.html"
+            ],
+            "eslintConfig": "projects/liv-components/eslint.config.js"
+          }
+        }
+      }
+    }
+  }
+}

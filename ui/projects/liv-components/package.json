@@ -1,0 +1,32 @@
+{
+  "name": "liv-components",
+  "version": "0.1.0",
+  "description": "Librería de componentes y tokens de diseño del sistema LIV (impuesto vehicular).",
+  "license": "UNLICENSED",
+  "keywords": [
+    "angular",
+    "components",
+    "design-tokens",
+    "tailwindcss"
+  ],
+  "peerDependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "tailwindcss": "^4.3.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "exports": {
+    "./styles/theme.css": {
+      "style": "./styles/theme.css",
+      "default": "./styles/theme.css"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}
