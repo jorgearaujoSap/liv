@@ -7,6 +7,9 @@
  * `radius/lg` es `--radius-lg`. No se editan a mano: un cambio se hace primero en Figma y luego se
  * regenera este archivo.
  *
+ * 2026-11-02 (tarea T04a): `border/strong` y `focus/ring` se oscurecieron en Figma para llegar a 3:1
+ * sobre los fondos claros (WCAG 1.4.11); `theme.spec.ts` lo comprueba.
+ *
  * `static` hace que Tailwind emita siempre todas las variables en `:root`, también las que la aplicación
  * no usa en sus propias plantillas: los componentes de la librería las leen desde `node_modules`, donde
  * Tailwind no busca clases.
@@ -40,7 +43,7 @@
 
   /* Color · bordes */
   --color-border-default: #e2e8f0;
-  --color-border-strong: #cbd5e1;
+  --color-border-strong: #64748b;
   --color-border-focus: #2563eb;
 
   /* Color · acción */
@@ -112,7 +115,7 @@
   --shadow-elevation-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-elevation-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-elevation-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-focus-ring: 0 0 0 3px rgb(37 99 235 / 0.4);
+  --shadow-focus-ring: 0 0 0 3px #2563eb;
 
   /* Layout · espaciado (variables spacing/N) */
   --spacing-0: 0px;

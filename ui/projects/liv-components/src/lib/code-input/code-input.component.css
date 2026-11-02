@@ -25,7 +25,7 @@
 }
 
 .code-input__input::placeholder {
-  @apply text-text-disabled opacity-100;
+  @apply text-text-muted opacity-100;
 }
 
 .code-input__help {

@@ -26,7 +26,6 @@
 @if (message(); as text) {
   <p class="text-field__help" [id]="messageId">
     @if (errorText()) {
-      <!-- Figma dibuja este icono a 14 px, pero Icon solo admite 16, 20 o 24 (decisión pendiente). -->
       <liv-icon name="circle-alert" [size]="16" />
     }
     <span>{{ text }}</span>
