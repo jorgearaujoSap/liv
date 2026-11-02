@@ -1,0 +1,51 @@
+import { Component } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { expectNoAxeViolations } from '../../testing/axe';
+import { BadgeComponent, BadgeTone } from './badge.component';
+
+@Component({
+  imports: [BadgeComponent],
+  template: `<liv-badge [tone]="tone" [showDot]="showDot">Próximamente</liv-badge>`,
+})
+class HostComponent {
+  tone: BadgeTone = 'neutral';
+  showDot = false;
+}
+
+function render(inputs: Partial<HostComponent> = {}) {
+  const fixture = TestBed.createComponent(HostComponent);
+  Object.assign(fixture.componentInstance, inputs);
+  fixture.detectChanges();
+  return fixture.nativeElement.querySelector('liv-badge') as HTMLElement;
+}
+
+describe('Badge', () => {
+  it('muestra el texto proyectado como etiqueta', () => {
+    expect(render().querySelector('.badge__label')?.textContent?.trim()).toBe('Próximamente');
+  });
+
+  it.each<BadgeTone>(['neutral', 'primary', 'success', 'warning', 'danger', 'info'])(
+    'admite el tono %s',
+    (tone) => {
+      expect(render({ tone }).dataset['tone']).toBe(tone);
+    },
+  );
+
+  it('usa el tono Neutral por defecto', () => {
+    const fixture = TestBed.createComponent(BadgeComponent);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).dataset['tone']).toBe('neutral');
+  });
+
+  it('no muestra el punto salvo que se pida, y entonces es decorativo', () => {
+    expect(render().querySelector('.badge__dot')).toBeNull();
+    const dot = render({ showDot: true }).querySelector('.badge__dot');
+    expect(dot).not.toBeNull();
+    expect(dot?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('cumple axe con y sin punto', async () => {
+    await expectNoAxeViolations(render());
+    await expectNoAxeViolations(render({ tone: 'danger', showDot: true }));
+  });
+});
