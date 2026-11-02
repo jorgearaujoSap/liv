@@ -48,7 +48,7 @@ describe('ResultState', () => {
   it('muestra el icono, la etiqueta, el título, la descripción y las acciones proyectadas', () => {
     const host = render();
     expect(host.querySelector('liv-icon svg')?.innerHTML).toBe(iconMarkup('shield-x'));
-    expect(host.querySelector('liv-icon svg')?.getAttribute('width')).toBe('24');
+    expect(host.querySelector('liv-icon svg')?.getAttribute('width')).toBe('28');
     expect(host.querySelector('.result-state__eyebrow')?.textContent?.trim()).toBe('Error 403');
     expect(host.querySelector('.result-state__title')?.textContent?.trim()).toBe(
       'No tienes permiso para ver esta página',
