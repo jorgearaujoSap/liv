@@ -23,6 +23,7 @@
     <archunit.version>1.5.1</archunit.version>
     <spotless.version>3.10.4</spotless.version>
     <google-java-format.version>2.0.0</google-java-format.version>
+    <openapi-generator.version>7.26.0</openapi-generator.version>
   </properties>
 
   <dependencyManagement>
@@ -108,6 +109,83 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- API contract-first (ADR 0005, doc. 01 §10): interfaces de servidor generadas desde
+           contracts/openapi, una ejecución por contrato. La generación valida el OpenAPI y falla el
+           build si no es válido. El código generado queda en target/ y no se edita. -->
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+        <version>${openapi-generator.version}</version>
+        <configuration>
+          <generatorName>spring</generatorName>
+          <validateSpec>true</validateSpec>
+          <generateApiTests>false</generateApiTests>
+          <generateModelTests>false</generateModelTests>
+          <generateApiDocumentation>false</generateApiDocumentation>
+          <generateModelDocumentation>false</generateModelDocumentation>
+          <generateSupportingFiles>false</generateSupportingFiles>
+          <!-- Problem se responde con el ProblemDetail de Spring (RFC 9457); no se genera. -->
+          <schemaMappings>
+            <schemaMapping>Problem=org.springframework.http.ProblemDetail</schemaMapping>
+          </schemaMappings>
+          <cleanupOutput>true</cleanupOutput>
+          <configOptions>
+            <interfaceOnly>true</interfaceOnly>
+            <skipDefaultInterface>true</skipDefaultInterface>
+            <!-- Spring Boot 4: Jackson 3 y JSpecify. Sin @Validated en la interfaz, para que la
+                 validación la haga Spring MVC y responda 400 con Problem Details, no 500. -->
+            <useSpringBoot4>true</useSpringBoot4>
+            <useJackson3>true</useJackson3>
+            <useJspecify>true</useJspecify>
+            <useSpringBuiltInValidation>true</useSpringBuiltInValidation>
+            <useTags>true</useTags>
+            <useBeanValidation>true</useBeanValidation>
+            <openApiNullable>false</openApiNullable>
+            <documentationProvider>none</documentationProvider>
+            <annotationLibrary>none</annotationLibrary>
+            <hideGenerationTimestamp>true</hideGenerationTimestamp>
+            <sourceFolder>src/main/java</sourceFolder>
+          </configOptions>
+        </configuration>
+        <executions>
+          <execution>
+            <id>contract-core</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/contracts/openapi/core.yaml</inputSpec>
+              <output>${project.build.directory}/generated-sources/openapi/core</output>
+              <apiPackage>co.com.sapenlinea.liv.core.api.contract</apiPackage>
+              <modelPackage>co.com.sapenlinea.liv.core.api.contract.model</modelPackage>
+            </configuration>
+          </execution>
+          <execution>
+            <id>contract-core-internal</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/contracts/openapi/core-internal.yaml</inputSpec>
+              <output>${project.build.directory}/generated-sources/openapi/core-internal</output>
+              <apiPackage>co.com.sapenlinea.liv.core.api.contract.internal</apiPackage>
+              <modelPackage>co.com.sapenlinea.liv.core.api.contract.internal.model</modelPackage>
+            </configuration>
+          </execution>
+          <execution>
+            <id>contract-platform</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/contracts/openapi/platform.yaml</inputSpec>
+              <output>${project.build.directory}/generated-sources/openapi/platform</output>
+              <apiPackage>co.com.sapenlinea.liv.platform.api.contract</apiPackage>
+              <modelPackage>co.com.sapenlinea.liv.platform.api.contract.model</modelPackage>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <!-- Formato con Google Java Format (2 espacios, convención del equipo). spotless:check corre en verify. -->
       <plugin>

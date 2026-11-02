@@ -1,0 +1,204 @@
+openapi: 3.0.3
+info:
+  title: LIV · core (interno)
+  version: 1.0.0
+  description: >-
+    Endpoints entre servicios del módulo core, que solo llama el BFF (ADR 0025). El prefijo
+    /internal/v1 marca que no se publican hacia el navegador. Feature 001 · Inicio de sesión.
+    Los errores se sirven como application/problem+json y también como application/json, para que
+    un cliente que pida JSON no reciba 406 en las respuestas sin cuerpo.
+tags:
+  - name: InternalSessions
+    description: Inicio y fin de las sesiones de LIV.
+security:
+  - serviceToken: []
+paths:
+  /internal/v1/sessions:
+    post:
+      tags: [InternalSessions]
+      operationId: startSession
+      summary: Inicia la sesión de LIV del usuario que acaba de autenticarse (StartSession).
+      description: >-
+        Exige el token de client credentials de liv-bff-service (audiencia liv-internal) en
+        Authorization y el token del usuario en X-User-Token. Emisor, sub, administración, nombre y
+        correo salen del token del usuario, y el sid del cuerpo debe ser el del claim sid de ese
+        token. Es idempotente: repetir la llamada con el mismo sid y el mismo usuario devuelve 200
+        con la sesión ya creada. Un rechazo queda auditado (evento SessionDenied).
+      parameters:
+        - name: X-User-Token
+          in: header
+          required: true
+          description: >-
+            Token de acceso del usuario, validado con el mismo decodificador. Es una credencial:
+            nunca se registra en logs.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 8192
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartSessionRequest'
+      responses:
+        '201':
+          description: Sesión iniciada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartSessionResponse'
+        '200':
+          description: La sesión ya existía con ese sid y ese usuario (reintento del BFF).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/SessionRejected'
+  /internal/v1/sessions/{sid}/end:
+    post:
+      tags: [InternalSessions]
+      operationId: endSession
+      summary: Termina la sesión indicada con su motivo (EndSession).
+      description: >-
+        Solo con el token de servicio. Siempre responde 204: si la sesión ya terminó, si el sid no
+        existe o si pertenece a otro emisor o sub, no hace nada. Así es idempotente (el cierre del
+        usuario seguido del cierre por canal trasero produce un solo SessionEnded) y no revela si
+        un sid existe.
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          description: >-
+            Identificador de la sesión del proveedor de identidad (claim sid). Hasta 100
+            caracteres, como core.user_session.sid; sin espacios ni caracteres de control.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            pattern: '^[!-~]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndSessionRequest'
+      responses:
+        '204':
+          description: Sesión terminada, o nada que terminar.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Token de client credentials de liv-bff-service, con audiencia liv-internal y azp
+        liv-bff-service. Un token de usuario nunca cumple las dos condiciones.
+  responses:
+    BadRequest:
+      description: >-
+        Solicitud mal formada: cuerpo o ruta que no cumplen este contrato. code: el de la validación
+        que falló. Un X-User-Token ausente o inválido es 401: lo valida el filtro de seguridad
+        antes de llegar al controlador.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: >-
+        Token de servicio o del usuario ausente o inválido, o el sid del cuerpo no es el del token
+        del usuario (code 001-14).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    SessionRejected:
+      description: >-
+        Sesión rechazada. code: 001-05 (usuario desactivado) o 001-17 (administración inexistente,
+        inactiva o distinta de la registrada).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    StartSessionRequest:
+      type: object
+      required: [sid]
+      properties:
+        sid:
+          type: string
+          description: Identificador de la sesión del proveedor; debe ser el claim sid del token.
+          minLength: 1
+          maxLength: 100
+          pattern: '^[!-~]+$'
+    StartSessionResponse:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+    EndSessionRequest:
+      type: object
+      required: [issuer, subject, reason]
+      properties:
+        issuer:
+          type: string
+          description: URL del emisor del token (claim iss). Texto, no format uri, para validarla.
+          minLength: 1
+          maxLength: 255
+          pattern: '^https?://[!-~]+$'
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: '^[!-~]+$'
+        reason:
+          $ref: '#/components/schemas/SessionEndReason'
+    SessionEndReason:
+      type: string
+      description: >-
+        LOGOUT (el usuario sale), IDLE (inactividad), ABSOLUTE (duración máxima) o PROVIDER (el
+        proveedor la cerró o falló la renovación).
+      enum: [LOGOUT, IDLE, ABSOLUTE, PROVIDER]
+    Problem:
+      type: object
+      description: Problem Details (RFC 9457) con el código de la regla o criterio (doc. 01 §10).
+      required: [status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        code:
+          type: string
+          description: Código de la regla o del criterio, por ejemplo 001-14.
+          maxLength: 32
