@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { declaredStyle } from '../../testing/css';
 import { IconName } from '../icon/icons';
 import { ButtonComponent, ButtonSize, ButtonType, ButtonVariant } from './button.component';
 
@@ -40,12 +41,10 @@ class HostComponent {
   }
 }
 
-/** Anfitrión con señales, como lo usaría una pantalla: el texto visible cambia junto con `loading`. */
+/** Anfitrión con señales, como lo usaría una pantalla. El texto visible no cambia (Figma, Loading). */
 @Component({
   imports: [ButtonComponent],
-  template: `<liv-button [loading]="loading()" loadingLabel="Ingresando…">{{
-    loading() ? 'Ingresando…' : 'Ingresar'
-  }}</liv-button>`,
+  template: `<liv-button [loading]="loading()" loadingLabel="Ingresando…">Ingresar</liv-button>`,
 })
 class LiveHostComponent {
   readonly loading = signal(false);
@@ -140,11 +139,43 @@ describe('Button', () => {
       await fixture.whenStable();
       expect(host.querySelector(':scope > [role="status"]')).toBe(status);
       expect(status.textContent?.trim()).toBe('Ingresando…');
+      expect(host.querySelector('button')?.textContent?.trim()).toBe('Ingresar');
 
       fixture.componentInstance.loading.set(false);
       await fixture.whenStable();
       expect(status.textContent?.trim()).toBe('');
     });
+
+    it('sin loadingLabel anuncia "Cargando"', () => {
+      const { host } = render({ loading: true });
+      expect(host.querySelector(':scope > [role="status"]')?.textContent?.trim()).toBe('Cargando');
+    });
+
+    it.each<[ButtonVariant, string]>([
+      ['primary', '--color-action-primary-hover'],
+      ['secondary', '--color-bg-subtle'],
+      ['ghost', '--color-action-primary-subtle'],
+    ])('en %s usa el fondo de Figma (%s)', (variant, background) => {
+      const { button } = render({ variant, loading: true });
+      expect(getComputedStyle(button).backgroundColor).toContain(`var(${background}`);
+    });
+  });
+
+  it.each<[ButtonVariant, string]>([
+    ['primary', '--color-bg-subtle'],
+    ['secondary', '--color-bg-surface'],
+  ])('deshabilitado en %s usa el fondo %s y el texto text/disabled', (variant, background) => {
+    const style = getComputedStyle(render({ variant, disabled: true }).button);
+    expect(style.backgroundColor).toContain(`var(${background}`);
+    expect(style.color).toContain('var(--color-text-disabled');
+  });
+
+  it('Disabled prevalece sobre Loading: sin spinner, sin anuncio y deshabilitado', () => {
+    const { host, button } = render({ disabled: true, loading: true });
+    expect(button.disabled).toBe(true);
+    expect(button.hasAttribute('aria-disabled')).toBe(false);
+    expect(button.querySelector('liv-spinner')).toBeNull();
+    expect(host.querySelector(':scope > [role="status"]')?.textContent?.trim()).toBe('');
   });
 
   it('deshabilitado no emite clic', () => {
@@ -189,6 +220,19 @@ describe('Button', () => {
     );
   });
 
+  it('la variante Secondary tiene borde border/strong y, deshabilitada, border/default', () => {
+    expect(declaredStyle(render({ variant: 'secondary' }).button, 'border-color')).toBe(
+      'var(--color-border-strong)',
+    );
+    expect(
+      declaredStyle(render({ variant: 'secondary', disabled: true }).button, 'border-color'),
+    ).toBe('var(--color-border-default)');
+  });
+
+  it('el foco sigue visible en alto contraste (forced-colors)', () => {
+    expect(declaredStyle(render().button, 'outline-style', 'forced-colors')).not.toBe('');
+  });
+
   it.each<[ButtonSize, string]>([
     ['md', '--spacing-10'],
     ['lg', '--spacing-12'],
@@ -196,7 +240,7 @@ describe('Button', () => {
     expect(getComputedStyle(render({ size }).button).height).toContain(`var(${height}`);
   });
 
-  it('cumple axe en cada variante y estado', async () => {
+  it('cumple axe (001-19) en cada variante y estado', async () => {
     for (const variant of ['primary', 'secondary', 'ghost'] as ButtonVariant[]) {
       await expectNoAxeViolations(render({ variant }).host);
     }

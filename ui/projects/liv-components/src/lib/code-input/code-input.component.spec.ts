@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { declaredStyle } from '../../testing/css';
 import { CodeInputComponent } from './code-input.component';
 
 @Component({
@@ -40,6 +41,19 @@ function type(
   fixture.detectChanges();
 }
 
+/** Pegado como lo hace el navegador: con el texto en `clipboardData` y antes de aplicar maxlength. */
+function paste(
+  fixture: ReturnType<typeof render>['fixture'],
+  input: HTMLInputElement,
+  text: string,
+) {
+  const event = new Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', { value: { getData: () => text } });
+  input.dispatchEvent(event);
+  fixture.detectChanges();
+  return event;
+}
+
 describe('CodeInput', () => {
   it('es un solo input con teclado numérico y autocompletado del código de un solo uso', () => {
     const { host, input } = render();
@@ -75,6 +89,36 @@ describe('CodeInput', () => {
     expect(page.value).toBe('482193');
   });
 
+  it('al pegar filtra antes de que maxlength recorte: no pierde dígitos', () => {
+    const { fixture, input, page } = render();
+    const event = paste(fixture, input, ' 482-193 ');
+    expect(event.defaultPrevented).toBe(true);
+    expect(input.value).toBe('482193');
+    expect(page.value).toBe('482193');
+
+    const second = render();
+    paste(second.fixture, second.input, '482 193');
+    expect(second.input.value).toBe('482193');
+  });
+
+  it('convierte los dígitos de ancho completo a dígitos ASCII', () => {
+    const { fixture, input, page } = render();
+    paste(fixture, input, '４８２１９３');
+    expect(page.value).toBe('482193');
+  });
+
+  it('toma el valor también del evento change (autocompletado)', () => {
+    const { fixture, input, page } = render();
+    input.value = '482193';
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(page.value).toBe('482193');
+  });
+
+  it('muestra solo dígitos aunque el valor llegue de fuera con otros caracteres', () => {
+    expect(render({ value: '482 193' }).input.value).toBe('482193');
+  });
+
   it('descarta lo que no es dígito', () => {
     const { fixture, input, page } = render();
     type(fixture, input, '4a8');
@@ -87,6 +131,7 @@ describe('CodeInput', () => {
     const help = host.querySelector(`#${input.getAttribute('aria-describedby')}`);
     expect(help?.textContent?.trim()).toBe('El código cambia cada 30 segundos.');
     expect(input.hasAttribute('aria-invalid')).toBe(false);
+    expect(help?.querySelector('liv-icon')).toBeNull();
   });
 
   it('en error expone aria-invalid y aria-describedby con el mensaje', () => {
@@ -100,6 +145,21 @@ describe('CodeInput', () => {
     );
   });
 
+  it('el borde es border/strong y, en error, status/danger', () => {
+    const control = (inputs: Partial<HostComponent>) =>
+      render(inputs).host.querySelector('.code-input__control') as HTMLElement;
+    expect(declaredStyle(control({}), 'border-color')).toBe('var(--color-border-strong)');
+    expect(declaredStyle(control({ error: 'No es válido.' }), 'border-color')).toBe(
+      'var(--color-status-danger)',
+    );
+    expect(declaredStyle(control({}), 'box-sizing')).toBe('border-box');
+  });
+
+  it('el foco sigue visible en alto contraste (forced-colors)', () => {
+    const control = render().host.querySelector('.code-input__control') as HTMLElement;
+    expect(declaredStyle(control, 'outline-style', 'forced-colors')).not.toBe('');
+  });
+
   it('usa el estilo code/lg y el alto de 56 px de Figma', () => {
     const { host, input } = render();
     expect(getComputedStyle(input).fontSize).toContain('var(--text-code-lg');
@@ -107,7 +167,7 @@ describe('CodeInput', () => {
     expect(getComputedStyle(control).height).toContain('56px');
   });
 
-  it('cumple axe con ayuda, con error y sin ayuda', async () => {
+  it('cumple axe (001-19) con ayuda, con error y sin ayuda', async () => {
     await expectNoAxeViolations(render({ value: '482193' }).host);
     await expectNoAxeViolations(render({ error: 'El código no es válido.' }).host);
     await expectNoAxeViolations(render({ help: undefined }).host);

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { declaredStyle } from '../../testing/css';
 import { IconName } from '../icon/icons';
 import { IconButtonComponent, IconButtonSize, IconButtonVariant } from './icon-button.component';
 
@@ -72,11 +73,17 @@ describe('IconButton', () => {
     expect(render({ variant }).host.dataset['variant']).toBe(variant);
   });
 
-  it('el icono usa text/secondary y la variante Secondary tiene fondo', () => {
+  it('el icono usa text/secondary y la variante Secondary tiene fondo y borde', () => {
     expect(getComputedStyle(render().button).color).toContain('var(--color-text-secondary');
     const secondary = getComputedStyle(render({ variant: 'secondary' }).button);
     expect(secondary.backgroundColor).toContain('var(--color-bg-surface');
-    // jsdom no calcula `border-color` con var(): el color del borde se revisa en Storybook.
+    expect(declaredStyle(render({ variant: 'secondary' }).button, 'border-color')).toBe(
+      'var(--color-border-strong)',
+    );
+  });
+
+  it('el foco sigue visible en alto contraste (forced-colors)', () => {
+    expect(declaredStyle(render().button, 'outline-style', 'forced-colors')).not.toBe('');
   });
 
   it('emite clic y, deshabilitado, no lo emite', () => {
@@ -90,7 +97,7 @@ describe('IconButton', () => {
     expect(disabled.page.clicks).toBe(0);
   });
 
-  it('cumple axe en cada variante y deshabilitado', async () => {
+  it('cumple axe (001-19) en cada variante y deshabilitado', async () => {
     await expectNoAxeViolations(render().host);
     await expectNoAxeViolations(render({ variant: 'secondary', size: 'md' }).host);
     await expectNoAxeViolations(render({ disabled: true }).host);

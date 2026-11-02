@@ -73,7 +73,7 @@ describe('Alert', () => {
     expect(iconHost.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('cumple axe en cada estado, con y sin título', async () => {
+  it('cumple axe (001-19) en cada estado, con y sin título', async () => {
     for (const status of ['error', 'warning', 'info', 'success'] as AlertStatus[]) {
       await expectNoAxeViolations(render({ status }));
     }

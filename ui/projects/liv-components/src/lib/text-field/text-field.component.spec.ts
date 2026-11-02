@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { declaredStyle } from '../../testing/css';
 import { IconButtonComponent } from '../icon-button/icon-button.component';
 import { IconName } from '../icon/icons';
 import { TextFieldComponent, TextFieldType } from './text-field.component';
@@ -17,6 +18,7 @@ import { TextFieldComponent, TextFieldType } from './text-field.component';
       [error]="error"
       [leadingIcon]="leadingIcon"
       [disabled]="disabled"
+      [sensitive]="sensitive"
       autocomplete="username"
     >
       @if (withAction) {
@@ -33,6 +35,7 @@ class HostComponent {
   error?: string;
   leadingIcon?: IconName;
   disabled = false;
+  sensitive = false;
   withAction = false;
 }
 
@@ -83,6 +86,8 @@ describe('TextField', () => {
     const help = host.querySelector(`#${input.getAttribute('aria-describedby')}`);
     expect(help?.textContent?.trim()).toBe('Tu usuario de la entidad.');
     expect(input.hasAttribute('aria-invalid')).toBe(false);
+    expect(help?.querySelector('liv-icon')).toBeNull();
+    expect(getComputedStyle(help as Element).color).toContain('var(--color-text-secondary');
   });
 
   describe('Error', () => {
@@ -105,8 +110,10 @@ describe('TextField', () => {
       expect(icon?.getAttribute('aria-hidden')).toBe('true');
     });
 
-    it('la ayuda usa status/danger', () => {
+    it('el borde y la ayuda usan status/danger', () => {
       const { host } = render({ error: 'Escribe tu usuario.' });
+      const control = host.querySelector('.text-field__control') as HTMLElement;
+      expect(declaredStyle(control, 'border-color')).toBe('var(--color-status-danger)');
       const help = host.querySelector('.text-field__help') as HTMLElement;
       expect(getComputedStyle(help).color).toContain('var(--color-status-danger');
     });
@@ -122,6 +129,50 @@ describe('TextField', () => {
     const { host, input } = render({ disabled: true });
     expect(input.disabled).toBe(true);
     expect(host.dataset['state']).toBe('disabled');
+    const control = host.querySelector('.text-field__control') as HTMLElement;
+    expect(declaredStyle(control, 'border-color')).toBe('var(--color-border-default)');
+    expect(getComputedStyle(control).backgroundColor).toContain('var(--color-bg-subtle');
+    expect(getComputedStyle(input).color).toContain('var(--color-text-disabled');
+  });
+
+  it('deshabilitado prevalece sobre el error: no marca aria-invalid y muestra la ayuda', () => {
+    const { host, input } = render({
+      disabled: true,
+      error: 'Escribe tu usuario.',
+      help: 'Ayuda.',
+    });
+    expect(host.dataset['state']).toBe('disabled');
+    expect(input.hasAttribute('aria-invalid')).toBe(false);
+    expect(host.querySelector('.text-field__help')?.textContent?.trim()).toBe('Ayuda.');
+    expect(host.querySelector('.text-field__help liv-icon')).toBeNull();
+  });
+
+  it('toma el valor también del evento change (autocompletado)', () => {
+    const { fixture, input, page } = render();
+    input.value = 'lmartinez';
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(page.value).toBe('lmartinez');
+  });
+
+  it('sin corrector ni mayúscula automática en contraseñas, correos y campos sensibles', () => {
+    const plain = render().input;
+    expect(plain.hasAttribute('spellcheck')).toBe(false);
+    expect(plain.hasAttribute('autocapitalize')).toBe(false);
+    for (const input of [
+      render({ type: 'password' }).input,
+      render({ type: 'email' }).input,
+      render({ sensitive: true }).input,
+    ]) {
+      expect(input.getAttribute('spellcheck')).toBe('false');
+      expect(input.getAttribute('autocapitalize')).toBe('none');
+      expect(input.getAttribute('autocorrect')).toBe('off');
+    }
+  });
+
+  it('el foco sigue visible en alto contraste (forced-colors)', () => {
+    const control = render().host.querySelector('.text-field__control') as HTMLElement;
+    expect(declaredStyle(control, 'outline-style', 'forced-colors')).not.toBe('');
   });
 
   it('el icono inicial es opcional, de 20 px y decorativo', () => {
@@ -141,10 +192,11 @@ describe('TextField', () => {
   it('el campo mide 44 px de alto', () => {
     const control = render().host.querySelector('.text-field__control') as HTMLElement;
     expect(getComputedStyle(control).height).toContain('44px');
-    // jsdom no calcula `border-color` con var(): el color del borde se revisa en Storybook.
+    expect(declaredStyle(control, 'border-color')).toBe('var(--color-border-strong)');
+    expect(declaredStyle(control, 'box-sizing')).toBe('border-box');
   });
 
-  it('cumple axe en cada estado', async () => {
+  it('cumple axe (001-19) en cada estado', async () => {
     await expectNoAxeViolations(render({ leadingIcon: 'user', value: 'lmartinez' }).host);
     await expectNoAxeViolations(render({ placeholder: 'lmartinez', help: 'Ayuda.' }).host);
     await expectNoAxeViolations(render({ error: 'Escribe tu usuario.' }).host);
