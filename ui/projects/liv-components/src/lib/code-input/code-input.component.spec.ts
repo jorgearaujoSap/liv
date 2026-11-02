@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredStyle } from '../../testing/css';
+import { declaredPlaceholderStyle, declaredStyle } from '../../testing/css';
 import { CodeInputComponent } from './code-input.component';
 
 @Component({
@@ -191,9 +191,14 @@ describe('CodeInput', () => {
     expect(host.dataset['state']).toBe('error');
     const message = host.querySelector(`#${input.getAttribute('aria-describedby')}`);
     expect(message?.textContent?.trim()).toBe('El código no es válido. Escribe el código actual.');
-    expect(host.querySelector('.code-input__help liv-icon svg')?.getAttribute('aria-hidden')).toBe(
-      'true',
-    );
+    const icon = host.querySelector('.code-input__help liv-icon svg');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.getAttribute('width')).toBe('16');
+  });
+
+  it('el placeholder usa text/muted, que cumple 4,5:1 (T04a)', () => {
+    const { input } = render();
+    expect(declaredPlaceholderStyle(input, 'color')).toContain('var(--color-text-muted,');
   });
 
   it('el borde es border/strong y, en error, status/danger', () => {

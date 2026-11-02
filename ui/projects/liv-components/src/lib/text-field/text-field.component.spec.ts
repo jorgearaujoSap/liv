@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredStyle } from '../../testing/css';
+import { declaredPlaceholderStyle, declaredStyle } from '../../testing/css';
 import { IconButtonComponent } from '../icon-button/icon-button.component';
 import { IconName } from '../icon/icons';
 import { TextFieldComponent, TextFieldType } from './text-field.component';
@@ -69,6 +69,11 @@ describe('TextField', () => {
     expect(input.getAttribute('autocomplete')).toBe('username');
   });
 
+  it('el placeholder usa text/muted, que cumple 4,5:1 (T04a)', () => {
+    const { input } = render({ placeholder: 'lmartinez' });
+    expect(declaredPlaceholderStyle(input, 'color')).toContain('var(--color-text-muted,');
+  });
+
   it('enlaza el valor en los dos sentidos', () => {
     const { fixture, input, page } = render({ value: 'lmartinez' });
     expect(input.value).toBe('lmartinez');
@@ -109,6 +114,7 @@ describe('TextField', () => {
       expect(host.dataset['state']).toBe('error');
       const icon = host.querySelector('.text-field__help liv-icon svg');
       expect(icon?.getAttribute('aria-hidden')).toBe('true');
+      expect(icon?.getAttribute('width')).toBe('16');
     });
 
     it('el borde y la ayuda usan status/danger', () => {

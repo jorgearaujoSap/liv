@@ -30,3 +30,36 @@ export function declaredStyle(element: Element, property: string, media?: string
   }
   return value;
 }
+
+/**
+ * Valor declarado de una propiedad CSS para el texto de ejemplo (`::placeholder`) del elemento. Igual que
+ * `declaredStyle`, pero solo con las reglas cuyo selector termina en `::placeholder`, que
+ * `Element.matches` no reconoce.
+ */
+export function declaredPlaceholderStyle(element: Element, property: string): string {
+  const pseudo = '::placeholder';
+  let value = '';
+  const visit = (rules: CSSRuleList) => {
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSStyleRule) {
+        const declared = rule.style.getPropertyValue(property);
+        const matches = rule.selectorText
+          .split(',')
+          .map((selector) => selector.trim())
+          .some(
+            (selector) =>
+              selector.endsWith(pseudo) && element.matches(selector.slice(0, -pseudo.length)),
+          );
+        if (declared && matches) {
+          value = declared;
+        }
+      } else if ('cssRules' in rule && !(rule instanceof CSSMediaRule)) {
+        visit((rule as CSSGroupingRule).cssRules);
+      }
+    }
+  };
+  for (const sheet of Array.from(element.ownerDocument.styleSheets)) {
+    visit(sheet.cssRules);
+  }
+  return value;
+}
