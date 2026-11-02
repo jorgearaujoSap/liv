@@ -1,0 +1,115 @@
+import { Component } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { expectNoAxeViolations } from '../../testing/axe';
+import { CodeInputComponent } from './code-input.component';
+
+@Component({
+  imports: [CodeInputComponent],
+  template: `
+    <liv-code-input
+      label="Código de verificación"
+      [(value)]="value"
+      [help]="help"
+      [error]="error"
+      placeholder="000000"
+    />
+  `,
+})
+class HostComponent {
+  value = '';
+  help?: string = 'El código cambia cada 30 segundos.';
+  error?: string;
+}
+
+function render(inputs: Partial<HostComponent> = {}) {
+  const fixture = TestBed.createComponent(HostComponent);
+  Object.assign(fixture.componentInstance, inputs);
+  fixture.detectChanges();
+  const host = fixture.nativeElement.querySelector('liv-code-input') as HTMLElement;
+  const input = host.querySelector('input') as HTMLInputElement;
+  return { fixture, host, input, page: fixture.componentInstance };
+}
+
+function type(
+  fixture: ReturnType<typeof render>['fixture'],
+  input: HTMLInputElement,
+  text: string,
+) {
+  input.value = text;
+  input.dispatchEvent(new Event('input'));
+  fixture.detectChanges();
+}
+
+describe('CodeInput', () => {
+  it('es un solo input con teclado numérico y autocompletado del código de un solo uso', () => {
+    const { host, input } = render();
+    expect(host.querySelectorAll('input')).toHaveLength(1);
+    expect(input.getAttribute('inputmode')).toBe('numeric');
+    expect(input.getAttribute('autocomplete')).toBe('one-time-code');
+    expect(input.getAttribute('maxlength')).toBe('6');
+    expect(input.type).toBe('text');
+  });
+
+  it('la etiqueta siempre está visible y nombra al campo', () => {
+    const { host, input } = render();
+    const label = host.querySelector('label') as HTMLLabelElement;
+    expect(label.textContent?.trim()).toBe('Código de verificación');
+    expect(label.htmlFor).toBe(input.id);
+  });
+
+  it('enlaza el valor en los dos sentidos', () => {
+    const { fixture, input, page } = render({ value: '482193' });
+    expect(input.value).toBe('482193');
+    type(fixture, input, '123');
+    expect(page.value).toBe('123');
+  });
+
+  it('acepta pegar el código completo con espacios o guiones y deja solo seis dígitos', () => {
+    const { fixture, input, page } = render();
+    type(fixture, input, ' 482-193 ');
+    expect(input.value).toBe('482193');
+    expect(page.value).toBe('482193');
+
+    type(fixture, input, '48219399');
+    expect(input.value).toBe('482193');
+    expect(page.value).toBe('482193');
+  });
+
+  it('descarta lo que no es dígito', () => {
+    const { fixture, input, page } = render();
+    type(fixture, input, '4a8');
+    expect(input.value).toBe('48');
+    expect(page.value).toBe('48');
+  });
+
+  it('enlaza la ayuda por aria-describedby, sin aria-invalid', () => {
+    const { host, input } = render();
+    const help = host.querySelector(`#${input.getAttribute('aria-describedby')}`);
+    expect(help?.textContent?.trim()).toBe('El código cambia cada 30 segundos.');
+    expect(input.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('en error expone aria-invalid y aria-describedby con el mensaje', () => {
+    const { host, input } = render({ error: 'El código no es válido. Escribe el código actual.' });
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(host.dataset['state']).toBe('error');
+    const message = host.querySelector(`#${input.getAttribute('aria-describedby')}`);
+    expect(message?.textContent?.trim()).toBe('El código no es válido. Escribe el código actual.');
+    expect(host.querySelector('.code-input__help liv-icon svg')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
+  });
+
+  it('usa el estilo code/lg y el alto de 56 px de Figma', () => {
+    const { host, input } = render();
+    expect(getComputedStyle(input).fontSize).toContain('var(--text-code-lg');
+    const control = host.querySelector('.code-input__control') as HTMLElement;
+    expect(getComputedStyle(control).height).toContain('56px');
+  });
+
+  it('cumple axe con ayuda, con error y sin ayuda', async () => {
+    await expectNoAxeViolations(render({ value: '482193' }).host);
+    await expectNoAxeViolations(render({ error: 'El código no es válido.' }).host);
+    await expectNoAxeViolations(render({ help: undefined }).host);
+  });
+});
