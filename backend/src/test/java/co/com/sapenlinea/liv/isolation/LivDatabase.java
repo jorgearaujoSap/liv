@@ -43,6 +43,12 @@ final class LivDatabase {
 
   private static final String IMAGE =
       "postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81";
+
+  /**
+   * rwxr-xr-x: la imagen de PostgreSQL solo ejecuta los scripts de inicio con permiso de ejecución.
+   */
+  private static final int EXECUTABLE = 0755;
+
   private static final String INIT_SCRIPT = "dev/initdb/01-roles-y-bases.sh";
 
   private static final PostgreSQLContainer POSTGRES = startPostgres();
@@ -60,8 +66,26 @@ final class LivDatabase {
   }
 
   static String jdbcUrl() {
-    return "jdbc:postgresql://%s:%d/liv"
-        .formatted(POSTGRES.getHost(), POSTGRES.getMappedPort(5432));
+    return jdbcUrl("liv");
+  }
+
+  static String jdbcUrl(String database) {
+    return "jdbc:postgresql://%s:%d/%s"
+        .formatted(POSTGRES.getHost(), POSTGRES.getMappedPort(5432), database);
+  }
+
+  /** Una base vacía propia (dueño liv_owner), para probar que las migraciones parten de cero. */
+  static String createEmptyDatabase(String name) throws SQLException {
+    try (Connection superuser =
+            DriverManager.getConnection(jdbcUrl("postgres"), "postgres", "postgres-test-pw");
+        var statement = superuser.createStatement()) {
+      statement.execute("CREATE DATABASE " + name + " OWNER liv_owner");
+    }
+    return jdbcUrl(name);
+  }
+
+  static Connection connect(String role) throws SQLException {
+    return DriverManager.getConnection(jdbcUrl(), role, password(role));
   }
 
   static String password(String role) {
@@ -70,7 +94,7 @@ final class LivDatabase {
 
   /** Una transacción con el rol dado y, si hay administración, su contexto RLS local. */
   static <T> T inTx(String role, UUID administration, SqlWork<T> work) throws SQLException {
-    try (Connection connection = DriverManager.getConnection(jdbcUrl(), role, password(role))) {
+    try (Connection connection = connect(role)) {
       connection.setAutoCommit(false);
       try {
         if (administration != null) {
@@ -84,6 +108,30 @@ final class LivDatabase {
         throw e;
       }
     }
+  }
+
+  static void insertUser(String role, UUID administration, UUID id, String subject, String status)
+      throws SQLException {
+    insertUser(role, administration, administration, id, subject, status);
+  }
+
+  /** Alta de un usuario de {@code rowAdministration} bajo el contexto de {@code context}. */
+  static void insertUser(
+      String role, UUID context, UUID rowAdministration, UUID id, String subject, String status)
+      throws SQLException {
+    update(
+        role,
+        context,
+        """
+        INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
+                                     identity_issuer, identity_subject)
+        VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
+        """,
+        id,
+        rowAdministration,
+        status,
+        ISSUER,
+        subject);
   }
 
   static void setContext(Connection connection, UUID administration) throws SQLException {
@@ -158,7 +206,8 @@ final class LivDatabase {
     container.withEnv("LIV_BFF_PASSWORD", password(BFF));
     container.withEnv("KEYCLOAK_DB_PASSWORD", password("keycloak"));
     container.withCopyToContainer(
-        Transferable.of(initScript(), 0755), "/docker-entrypoint-initdb.d/01-roles-y-bases.sh");
+        Transferable.of(initScript(), EXECUTABLE),
+        "/docker-entrypoint-initdb.d/01-roles-y-bases.sh");
     container.start();
     return container;
   }
@@ -203,14 +252,8 @@ final class LivDatabase {
             ('10000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-00000000000a', 'Admin A'),
             ('10000000-0000-0000-0000-00000000000b', '30000000-0000-0000-0000-00000000000b', 'Admin B')
           """);
-      String user =
-          """
-          INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
-                                       identity_issuer, identity_subject)
-          VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?)
-          """;
-      update(OWNER, null, user, USER_A, ADMIN_A, "Usuario A", "a@test.invalid", ISSUER, SUBJECT_A);
-      update(OWNER, null, user, USER_B, ADMIN_B, "Usuario B", "b@test.invalid", ISSUER, SUBJECT_B);
+      insertUser(OWNER, ADMIN_A, USER_A, SUBJECT_A, "ACTIVE");
+      insertUser(OWNER, ADMIN_B, USER_B, SUBJECT_B, "ACTIVE");
     } catch (SQLException e) {
       throw new IllegalStateException("No se pudieron sembrar las administraciones de prueba", e);
     }

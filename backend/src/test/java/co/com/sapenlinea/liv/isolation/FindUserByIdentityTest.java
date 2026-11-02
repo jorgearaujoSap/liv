@@ -12,6 +12,7 @@ import static co.com.sapenlinea.liv.isolation.LivDatabase.USER_A;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.USER_B;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.failureOf;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.inTx;
+import static co.com.sapenlinea.liv.isolation.LivDatabase.insertUser;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.rows;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.update;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,6 +21,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.Test;
  * antes de conocer su administración (001-17). Es {@code SECURITY DEFINER}, así que se prueba su
  * resultado y también su endurecimiento (ADR 0025).
  */
+@Tag("001-17")
 class FindUserByIdentityTest {
 
   private static final String FIND = "SELECT * FROM core.find_user_by_identity(?, ?)";
@@ -62,7 +65,7 @@ class FindUserByIdentityTest {
             INSERT INTO core.admin_user (administration_id, full_name, email, status,
                                          identity_issuer, identity_subject)
             VALUES (?, 'Duplicado', 'd@test.invalid', 'ACTIVE', ?, ?)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT ON CONSTRAINT admin_user_identity_key DO NOTHING
             """,
             ADMIN_A,
             ISSUER,
@@ -73,19 +76,35 @@ class FindUserByIdentityTest {
   }
 
   @Test
-  @DisplayName("001-05 · Una identidad desconocida no devuelve filas")
+  @DisplayName("001-17 · Una identidad desconocida no devuelve filas")
   void unknownIdentityReturnsNothing() throws SQLException {
     assertThat(rows(APP, ADMIN_A, FIND, ISSUER, "no-existe")).isEmpty();
     assertThat(rows(APP, ADMIN_A, FIND, "https://otro-emisor.test", SUBJECT_A)).isEmpty();
   }
 
   @Test
-  @DisplayName("001-17 · Solo liv_app puede ejecutarla: otro rol recibe permiso denegado")
+  @Tag("001-05")
+  @DisplayName(
+      "001-05 · Un usuario desactivado se encuentra con su estado, para que la aplicación lo rechace")
+  void inactiveUserIsReportedAsInactive() throws SQLException {
+    String subject = "inactivo-" + UUID.randomUUID();
+    insertUser(OWNER, ADMIN_A, UUID.randomUUID(), subject, "INACTIVE");
+
+    List<Object[]> found = rows(APP, ADMIN_A, FIND, ISSUER, subject);
+
+    assertThat(found).hasSize(1);
+    assertThat(found.get(0)[2]).isEqualTo("INACTIVE");
+  }
+
+  @Test
+  @DisplayName(
+      "001-17 · Solo liv_app puede ejecutarla: otro rol, ni el dueño de las tablas, la ejecuta")
   void otherRolesCannotExecuteIt() {
-    for (String role : new String[] {BFF, OWNER}) {
-      SQLException denied = failureOf(() -> rows(role, null, FIND, ISSUER, SUBJECT_A));
-      assertThat(denied.getSQLState()).as(role).isEqualTo("42501");
-    }
+    SQLException owner = failureOf(() -> rows(OWNER, null, FIND, ISSUER, SUBJECT_A));
+    assertThat(owner.getMessage()).contains("permission denied for function find_user_by_identity");
+
+    SQLException bff = failureOf(() -> rows(BFF, null, FIND, ISSUER, SUBJECT_A));
+    assertThat(bff.getSQLState()).isEqualTo("42501");
   }
 
   @Test
@@ -100,6 +119,9 @@ class FindUserByIdentityTest {
             SELECT p.prosecdef, r.rolname, r.rolcanlogin, r.rolbypassrls,
                    array_to_string(p.proconfig, ','),
                    has_function_privilege('public', p.oid, 'EXECUTE'),
+                   has_function_privilege('liv_bff', p.oid, 'EXECUTE'),
+                   has_function_privilege('liv_owner', p.oid, 'EXECUTE'),
+                   has_function_privilege('liv_audit_platform', p.oid, 'EXECUTE'),
                    has_function_privilege('liv_app', p.oid, 'EXECUTE')
               FROM pg_proc p
               JOIN pg_roles r ON r.oid = p.proowner
@@ -113,6 +135,9 @@ class FindUserByIdentityTest {
             false,
             false,
             "search_path=pg_catalog, core, pg_temp",
+            false,
+            false,
+            false,
             false,
             true);
   }
@@ -144,33 +169,71 @@ class FindUserByIdentityTest {
             "status=true");
   }
 
+  /**
+   * Un operador {@code =(varchar, text)} en un esquema que el llamante antepone a su search_path
+   * ganaría la resolución de operadores frente al {@code =(text, text)} del catálogo. La función de
+   * control, sin search_path fijo, cae en la trampa; la real no.
+   */
   @Test
-  @DisplayName("001-17 · Un search_path del llamante con un esquema falso no cambia el resultado")
+  @DisplayName("001-17 · Un operador falso en el search_path del llamante no cambia el resultado")
   void callerSearchPathCannotRedirectIt() throws SQLException {
-    String subject = "falso-" + UUID.randomUUID();
-    update(OWNER, null, "CREATE SCHEMA IF NOT EXISTS evil");
-    update(OWNER, null, "CREATE TABLE IF NOT EXISTS evil.admin_user (LIKE core.admin_user)");
-    update(OWNER, null, "GRANT USAGE ON SCHEMA evil TO liv_app");
-    update(OWNER, null, "GRANT SELECT ON evil.admin_user TO liv_app");
+    try {
+      createHijackedOperatorSchema();
+      String attack = "SET LOCAL search_path = evil, public";
+
+      List<Object[]> control =
+          inTx(
+              APP,
+              null,
+              c -> {
+                update(c, attack);
+                return rows(c, "SELECT * FROM evil.unprotected_lookup(?, ?)", ISSUER, "no-existe");
+              });
+      assertThat(control).as("la trampa funciona contra una función sin search_path").isNotEmpty();
+
+      List<Object[]> protectedLookup =
+          inTx(
+              APP,
+              null,
+              c -> {
+                update(c, attack);
+                return rows(c, FIND, ISSUER, "no-existe");
+              });
+      assertThat(protectedLookup).isEmpty();
+    } finally {
+      update(OWNER, null, "DROP SCHEMA IF EXISTS evil CASCADE");
+    }
+  }
+
+  private static void createHijackedOperatorSchema() throws SQLException {
+    update(OWNER, null, "DROP SCHEMA IF EXISTS evil CASCADE");
+    update(OWNER, null, "CREATE SCHEMA evil");
+    update(OWNER, null, "GRANT USAGE ON SCHEMA evil TO PUBLIC");
     update(
         OWNER,
         null,
-        "INSERT INTO evil.admin_user (id, administration_id, full_name, email, status,"
-            + " identity_issuer, identity_subject) VALUES (?, ?, 'X', 'x@test.invalid', 'ACTIVE', ?, ?)",
-        UUID.randomUUID(),
-        ADMIN_A,
-        ISSUER,
-        subject);
-
-    List<Object[]> found =
-        inTx(
-            APP,
-            null,
-            c -> {
-              update(c, "SET LOCAL search_path = evil, public");
-              return rows(c, FIND, ISSUER, subject);
-            });
-
-    assertThat(found).isEmpty();
+        "CREATE FUNCTION evil.always_true(varchar, text) RETURNS boolean"
+            + " LANGUAGE sql IMMUTABLE AS 'SELECT true'");
+    update(OWNER, null, "GRANT EXECUTE ON FUNCTION evil.always_true(varchar, text) TO PUBLIC");
+    update(
+        OWNER,
+        null,
+        "CREATE OPERATOR evil.= (LEFTARG = varchar, RIGHTARG = text, FUNCTION = evil.always_true)");
+    update(
+        OWNER,
+        null,
+        """
+        CREATE FUNCTION evil.unprotected_lookup(p_issuer text, p_subject text)
+        RETURNS TABLE (user_id uuid) LANGUAGE sql SECURITY DEFINER AS $$
+          SELECT u.id FROM core.admin_user u
+           WHERE u.identity_issuer = p_issuer AND u.identity_subject = p_subject
+        $$
+        """);
+    update(OWNER, null, "GRANT EXECUTE ON FUNCTION evil.unprotected_lookup(text, text) TO PUBLIC");
+    update(OWNER, null, "GRANT CREATE ON SCHEMA evil TO liv_identity_lookup");
+    update(
+        OWNER,
+        null,
+        "ALTER FUNCTION evil.unprotected_lookup(text, text) OWNER TO liv_identity_lookup");
   }
 }
