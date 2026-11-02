@@ -1,0 +1,15 @@
+/*
+ * Estilos globales: solo lo reutilizado en toda la interfaz (docs/arquitectura/01 §11). Cada componente
+ * declara sus clases en su propio .component.css. Los tokens de diseño vienen del paquete
+ * liv-components (versión fijada en package.json).
+ */
+@import 'tailwindcss';
+@import 'liv-components/styles/theme.css';
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-canvas);
+  }
+}
