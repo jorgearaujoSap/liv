@@ -1,0 +1,131 @@
+# Capa SOLO DE DESARROLLO del realm liv (tarea T07 de la feature 001). Vive en backend/dev, fuera de
+# identity/config, para que ninguna imagen ni despliegue la copie; RealmConfigTest lo comprueba.
+# keycloak-config-cli la aplica después de la base y solo cambia lo que este archivo declara.
+# Datos ficticios. Contraseña de todos: Liv-Dev-2026!
+# Sin credenciales TOTP: los usuarios con rol de MFA lo configuran en su primer ingreso, como en producción
+# (001-06). keycloak-config-cli no actualiza credenciales TOTP sin duplicarlas al reaplicar; los usuarios con
+# TOTP conocido para las pruebas e2e van en infra/ (tarea T23).
+# administration_id usa los UUID de la semilla backend/dev/seed/R__core_dev_seed.sql.
+realm: liv
+# En el equipo de desarrollo Keycloak se usa por http://localhost; la base exige HTTPS siempre.
+sslRequired: external
+users:
+  - username: dev.admin.sistema
+    enabled: true
+    email: dev.admin.sistema@example.test
+    firstName: Laura
+    lastName: Martínez Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [ADMIN_SISTEMA]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.cargador.tablas
+    enabled: true
+    email: dev.cargador.tablas@example.test
+    firstName: Carlos
+    lastName: Pérez Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [CARGADOR_TABLAS]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.aprobador.tablas
+    enabled: true
+    email: dev.aprobador.tablas@example.test
+    firstName: Ana
+    lastName: Gómez Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [APROBADOR_TABLAS]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.liquidador
+    enabled: true
+    email: dev.liquidador@example.test
+    firstName: Diana
+    lastName: López Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [LIQUIDADOR]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.aprobador.liquidacion
+    enabled: true
+    email: dev.aprobador.liquidacion@example.test
+    firstName: Jorge
+    lastName: Díaz Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [APROBADOR_LIQUIDACION]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.recaudo
+    enabled: true
+    email: dev.recaudo@example.test
+    firstName: Marta
+    lastName: Rojas Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [RECAUDO]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.tesoreria
+    enabled: true
+    email: dev.tesoreria@example.test
+    firstName: Pablo
+    lastName: Castro Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [TESORERIA]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.aprobador.recaudo
+    enabled: true
+    email: dev.aprobador.recaudo@example.test
+    firstName: Sofía
+    lastName: Vargas Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [APROBADOR_RECAUDO]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.juridico
+    enabled: true
+    email: dev.juridico@example.test
+    firstName: Elena
+    lastName: Torres Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [JURIDICO]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.consulta
+    enabled: true
+    email: dev.consulta@example.test
+    firstName: Luis
+    lastName: Moreno Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [CONSULTA]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  - username: dev.auditor
+    enabled: true
+    email: dev.auditor@example.test
+    firstName: Teresa
+    lastName: Navarro Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [AUDITOR]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  # Administración de prueba B: para las pruebas de aislamiento (001-17).
+  - username: dev.consulta.b
+    enabled: true
+    email: dev.consulta.b@example.test
+    firstName: Raúl
+    lastName: Peña Prueba B
+    attributes: { administration_id: ["10000000-0000-0000-0000-0000000b0001"] }
+    realmRoles: [CONSULTA]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }
+  # Desactivado: debe ver el mensaje genérico (001-05).
+  - username: dev.desactivado
+    enabled: false
+    email: dev.desactivado@example.test
+    firstName: Inés
+    lastName: Ortiz Prueba
+    attributes: { administration_id: ["10000000-0000-0000-0000-000000052356"] }
+    realmRoles: [CONSULTA]
+    credentials:
+      - { type: password, value: "Liv-Dev-2026!", temporary: false }

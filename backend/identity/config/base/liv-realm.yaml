@@ -1,0 +1,327 @@
+# Realm liv de Keycloak como código (ADR 0024; tarea T07 de la feature 001).
+# Configuración de seguridad para TODOS los entornos. La aplica keycloak-config-cli con sustitución de
+# variables: $(env:VAR:-valor) toma el valor de producción por defecto; los secretos y las URL de cada
+# entorno no tienen valor por defecto. Los controles de seguridad (HTTPS, bloqueo) son literales para que
+# ningún entorno los debilite. Usuarios de prueba: solo en backend/dev/keycloak (nunca en identity/config).
+# Las decisiones vienen de spec/features/001-inicio-de-sesion/plan.md (paso 3 y "Sesión y tiempos") y del
+# spike de Keycloak (backend/identity/spike/RESULTADOS.md).
+realm: liv
+enabled: true
+displayName: LIV
+sslRequired: all
+
+# Idioma y opciones de la cuenta: sin registro, sin recuperación por correo ("Mi cuenta" es otra feature).
+internationalizationEnabled: true
+supportedLocales: [es]
+defaultLocale: es
+registrationAllowed: false
+resetPasswordAllowed: false
+rememberMe: false
+editUsernameAllowed: false
+loginWithEmailAllowed: false
+duplicateEmailsAllowed: false
+verifyEmail: false
+
+# 001-04: bloqueo de 15 minutos tras 5 intentos fallidos seguidos (también los de TOTP). El mensaje es
+# único para todo fallo (enmienda 2); lo define el tema.
+bruteForceProtected: true
+permanentLockout: false
+failureFactor: 5
+waitIncrementSeconds: 900
+maxFailureWaitSeconds: 900
+# Valores de Keycloak contra intentos automáticos: dos fallos en menos de 1 s bloquean 60 s.
+minimumQuickLoginWaitSeconds: 60
+quickLoginCheckMilliSeconds: 1000
+maxDeltaTimeSeconds: 43200
+
+# D-001-7: mínimo 12 caracteres, sin reutilizar las últimas 5, distinta del usuario, sin vencimiento forzado.
+passwordPolicy: length(12) and passwordHistory(5) and notUsername
+
+# 001-06 y 001-07: TOTP de 6 dígitos cada 30 segundos.
+otpPolicyType: totp
+otpPolicyAlgorithm: HmacSHA1
+otpPolicyDigits: 6
+otpPolicyPeriod: 30
+otpPolicyLookAheadWindow: 1
+
+# 001-10 y tabla "Sesión y tiempos" del plan. El BFF manda la inactividad (15 min); la de Keycloak es
+# mayor (inactividad del BFF + vida del token + margen) para que "Seguir conectado" pueda renovar.
+# El máximo es 8 h + 10 min porque empieza unos segundos antes que el del BFF.
+accessTokenLifespan: $(env:LIV_KC_ACCESS_TOKEN_SECONDS:-300)
+ssoSessionIdleTimeout: $(env:LIV_KC_SSO_IDLE_SECONDS:-1500)
+ssoSessionMaxLifespan: $(env:LIV_KC_SSO_MAX_SECONDS:-29400)
+# Sin rotación del refresh token: el BFF puede renovar dos veces a la vez (varias peticiones o réplicas) y
+# la segunda cerraría la sesión. El refresh token nunca sale del BFF.
+revokeRefreshToken: false
+
+# 001-18: eventos de usuario y de administración, con detalle; caducan a los 30 días porque el importador
+# de LIV los copia a la auditoría inmutable antes. Se guardan en la base de Keycloak; sin jboss-logging,
+# que escribiría en el log el usuario intentado y la IP sin enmascarar (doc. 02 §6).
+eventsEnabled: true
+eventsExpiration: 2592000
+eventsListeners: []
+adminEventsEnabled: true
+adminEventsDetailsEnabled: true
+attributes:
+  adminEventsExpiration: "2592000"
+
+# Roles de doc. 02 §4.2. Siete roles exigen segundo factor: cada uno se compone con liv-mfa-requerido, que
+# es el rol que consulta el flujo de navegador (liv-browser-mfa). LIV ignora los roles que no están en su
+# catálogo (default-roles-liv y liv-mfa-requerido).
+roles:
+  realm:
+    # 001-20: el rol por defecto queda vacío. Keycloak le pone offline_access, uma_authorization y roles de la
+    # consola de cuenta, que llegarían en el claim roles de todos los usuarios.
+    - name: default-roles-liv
+      description: Rol por defecto del realm, sin roles compuestos.
+      composite: false
+      composites: { realm: [], client: {} }
+    - name: liv-mfa-requerido
+      description: Rol técnico. Quien lo tiene (por un rol compuesto) debe usar segundo factor.
+    - name: ADMIN_SISTEMA
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+    - name: CARGADOR_TABLAS
+    - name: APROBADOR_TABLAS
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+    - name: LIQUIDADOR
+    - name: APROBADOR_LIQUIDACION
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+    - name: RECAUDO
+    - name: TESORERIA
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+    - name: APROBADOR_RECAUDO
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+    - name: JURIDICO
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+    - name: CONSULTA
+    - name: AUDITOR
+      composite: true
+      composites: { realm: [liv-mfa-requerido] }
+
+# 001-06: copia del flujo de navegador con TOTP condicionado al rol liv-mfa-requerido. Si el usuario aún no
+# configuró su segundo factor, Keycloak le pide configurarlo (acción CONFIGURE_TOTP) antes de entrar.
+browserFlow: liv-browser
+authenticatorConfig:
+  - alias: liv-mfa-por-rol
+    config:
+      condUserRole: liv-mfa-requerido
+      negate: "false"
+authenticationFlows:
+  - alias: liv-browser
+    description: Inicio de sesión de LIV con segundo factor por rol
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: auth-cookie
+        authenticatorFlow: false
+        requirement: ALTERNATIVE
+        priority: 10
+        userSetupAllowed: false
+      - flowAlias: liv-browser-forms
+        authenticatorFlow: true
+        requirement: ALTERNATIVE
+        priority: 20
+        userSetupAllowed: false
+  - alias: liv-browser-forms
+    description: Usuario y contraseña, y segundo factor si el rol lo exige
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: auth-username-password-form
+        authenticatorFlow: false
+        requirement: REQUIRED
+        priority: 10
+        userSetupAllowed: false
+      - flowAlias: liv-browser-mfa
+        authenticatorFlow: true
+        requirement: CONDITIONAL
+        priority: 20
+        userSetupAllowed: false
+  - alias: liv-browser-mfa
+    description: TOTP para los roles con liv-mfa-requerido
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: conditional-user-role
+        authenticatorConfig: liv-mfa-por-rol
+        authenticatorFlow: false
+        requirement: REQUIRED
+        priority: 10
+        userSetupAllowed: false
+      - authenticator: auth-otp-form
+        authenticatorFlow: false
+        requirement: REQUIRED
+        priority: 20
+        userSetupAllowed: false
+  - alias: liv-direct-grant-denegado
+    description: Niega siempre el inicio de sesión con usuario y contraseña por API
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: deny-access-authenticator
+        authenticatorFlow: false
+        requirement: REQUIRED
+        priority: 10
+        userSetupAllowed: false
+
+# 001-06: el flujo de contraseña directa (direct grant) siempre niega el acceso. Sin esto, cualquier
+# cliente con ese flujo daría un token solo con la contraseña a quien aún no configuró su TOTP.
+directGrantFlow: liv-direct-grant-denegado
+
+requiredActions:
+  - alias: CONFIGURE_TOTP
+    name: Configure OTP
+    providerId: CONFIGURE_TOTP
+    enabled: true
+    defaultAction: false
+    priority: 10
+  - alias: UPDATE_PASSWORD
+    name: Update Password
+    providerId: UPDATE_PASSWORD
+    enabled: true
+    defaultAction: false
+    priority: 20
+  - alias: VERIFY_PROFILE
+    name: Verify Profile
+    providerId: VERIFY_PROFILE
+    enabled: false
+    defaultAction: false
+    priority: 90
+
+# 001-17: perfil de usuario declarativo. administration_id solo lo ve y lo edita un administrador del
+# proveedor; el usuario no puede cambiarlo. Sin atributos no declarados.
+components:
+  org.keycloak.userprofile.UserProfileProvider:
+    - providerId: declarative-user-profile
+      config:
+        kc.user.profile.config:
+          - >-
+            {"attributes":[
+            {"name":"username","displayName":"${username}","validations":{"length":{"min":3,"max":255},"username-prohibited-characters":{},"up-username-not-idn-homograph":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"email","displayName":"${email}","validations":{"email":{},"length":{"max":255}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"firstName","displayName":"${firstName}","validations":{"length":{"max":255},"person-name-prohibited-characters":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"lastName","displayName":"${lastName}","validations":{"length":{"max":255},"person-name-prohibited-characters":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"administration_id","displayName":"Administración (UUID)","validations":{"pattern":{"pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$","error-message":"Debe ser un UUID de administración"}},"permissions":{"view":["admin"],"edit":["admin"]},"multivalued":false}
+            ],"groups":[]}
+
+clients:
+  # 001-20: el BFF es un cliente OIDC estándar (código + PKCE). Los tokens llevan claims planos (roles,
+  # administration_id) y la audiencia liv-api; sin el claim anidado realm_access ni tokens offline.
+  - clientId: liv-bff
+    name: LIV BFF
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:LIV_BFF_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    consentRequired: false
+    frontchannelLogout: false
+    redirectUris:
+      - $(env:LIV_BFF_BASE_URL)/login/oauth2/code/liv
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      # Por la red interna: /bff/backchannel-logout no se publica en internet (plan, paso 6).
+      backchannel.logout.url: $(env:LIV_BFF_BACKCHANNEL_URL)/bff/backchannel-logout
+      backchannel.logout.session.required: "true"
+      backchannel.logout.revoke.offline.tokens: "false"
+    defaultClientScopes: [basic, profile, email]
+    optionalClientScopes: []
+    protocolMappers:
+      - name: audiencia-liv-api
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config:
+          included.custom.audience: liv-api
+          access.token.claim: "true"
+          id.token.claim: "false"
+          introspection.token.claim: "true"
+      - name: roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-realm-role-mapper
+        config:
+          claim.name: roles
+          multivalued: "true"
+          jsonType.label: String
+          access.token.claim: "true"
+          id.token.claim: "false"
+          userinfo.token.claim: "false"
+          introspection.token.claim: "true"
+      - name: administration_id
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-attribute-mapper
+        config:
+          user.attribute: administration_id
+          claim.name: administration_id
+          jsonType.label: String
+          access.token.claim: "true"
+          id.token.claim: "false"
+          userinfo.token.claim: "false"
+          introspection.token.claim: "true"
+
+  # ADR 0025: cuenta de servicio del BFF para /internal/v1. Solo client credentials; su audiencia exclusiva
+  # liv-internal la agrega un mapper de este cliente, así que ningún token de usuario puede traerla.
+  - clientId: liv-bff-service
+    name: LIV BFF (servicio)
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:LIV_BFF_SERVICE_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    defaultClientScopes: [basic]
+    optionalClientScopes: []
+    protocolMappers:
+      - name: audiencia-liv-internal
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config:
+          included.custom.audience: liv-internal
+          access.token.claim: "true"
+          id.token.claim: "false"
+          introspection.token.claim: "true"
+
+  # 001-18: cuenta de servicio del importador de eventos de LIV, con solo lectura de eventos y usuarios.
+  - clientId: liv-audit-importer
+    name: LIV importador de eventos
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:LIV_AUDIT_IMPORTER_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    defaultClientScopes: [basic]
+    optionalClientScopes: []
+
+  # La consola de cuenta no tiene diseño aprobado; "Mi cuenta" es una feature posterior (enmienda 1).
+  # admin-cli de este realm no lo usa nadie (keycloak-config-cli entra por el realm master).
+  - clientId: account
+    enabled: false
+  - clientId: account-console
+    enabled: false
+  - clientId: admin-cli
+    enabled: false
+
+users:
+  - username: service-account-liv-audit-importer
+    enabled: true
+    serviceAccountClientId: liv-audit-importer
+    clientRoles:
+      realm-management: [view-events, view-users]
