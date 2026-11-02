@@ -40,10 +40,12 @@ public final class AdministrationContext {
 
   /**
    * Removes a context that earlier work left open on this thread and returns it, so the thread can
-   * serve the next request. Only the platform guard calls it (ArchitectureRulesTest).
+   * serve the next request. LeakedContextFilter calls it; ArchitectureRulesTest limits who may.
    */
   public static Optional<UUID> discardLeaked() {
-    return Optional.empty();
+    Optional<UUID> leaked = current();
+    CURRENT.remove();
+    return leaked;
   }
 
   /** A scope of {@link #open}; its close never throws. */

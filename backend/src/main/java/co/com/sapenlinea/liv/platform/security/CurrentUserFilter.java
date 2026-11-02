@@ -37,11 +37,6 @@ final class CurrentUserFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    if (AdministrationContext.current().isPresent()) {
-      // A listener, job or earlier request that ran on this thread did not close its scope:
-      // serving this request with it could show another administration's data (001-17).
-      throw new IllegalStateException("An administration context is already open");
-    }
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (!(authentication instanceof JwtAuthenticationToken token)) {
       throw rejected(ErrorCodes.NOT_AUTHENTICATED, "No bearer token");

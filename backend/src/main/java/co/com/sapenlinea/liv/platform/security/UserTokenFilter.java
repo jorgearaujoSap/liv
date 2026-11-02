@@ -45,8 +45,12 @@ final class UserTokenFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     String token = request.getHeader(HEADER);
-    if (!StringUtils.hasText(token) || token.length() > MAX_LENGTH) {
+    if (!StringUtils.hasText(token)) {
       throw new AuthenticationRejectedException(ErrorCodes.NOT_AUTHENTICATED, "No user token");
+    }
+    if (token.length() > MAX_LENGTH) {
+      throw new AuthenticationRejectedException(
+          ErrorCodes.NOT_AUTHENTICATED, "User token over " + MAX_LENGTH + " characters");
     }
     try {
       request.setAttribute(VerifiedUserToken.ATTRIBUTE, userTokens.decode(token));

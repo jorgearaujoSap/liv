@@ -18,14 +18,18 @@ public class MaskingMessageConverter extends MessageConverter {
   /** A JWT starts with {@code eyJ} ({@code {"} in base64url); the signature part is optional. */
   private static final Pattern JWT = Pattern.compile("eyJ[\\w-]*\\.[\\w-]*(?:\\.[\\w-]*)?");
 
-  /** {@code X-User-Token: "abc"} → {@code X-User-Token: "[oculto]"}; keeps the name (group 1). */
+  /**
+   * {@code X-User-Token: "abc"} → {@code X-User-Token: "[oculto]"}, also after an authorization
+   * scheme ({@code Basic}, {@code DPoP}…) and with escaped quotes; keeps the name (group 1). Parts:
+   * name, optional escaped quote, separator, optional escaped quote, optional scheme, value.
+   */
   private static final Pattern CREDENTIAL =
       Pattern.compile(
           "(?i)((?:x-user-token|authorization|client_secret|access_token|refresh_token|id_token)"
-              + "[\"']?\\s*[:=]\\s*[\"']?)(?:bearer\\s+)?[^\\s,;\"'}]+");
+              + "\\\\?[\"']?\\s*[:=]\\s*\\\\?[\"']?)(?:[a-z-]+\\s+)?[^\\s,;\"'}\\\\]+");
 
   /** {@code Bearer abc} → {@code Bearer [oculto]}. */
-  private static final Pattern BEARER = Pattern.compile("(?i)(bearer\\s+)[^\\s,;\"'}]+");
+  private static final Pattern BEARER = Pattern.compile("(?i)(bearer\\s+)[^\\s,;\"'}\\\\]+");
 
   @Override
   public String convert(ILoggingEvent event) {

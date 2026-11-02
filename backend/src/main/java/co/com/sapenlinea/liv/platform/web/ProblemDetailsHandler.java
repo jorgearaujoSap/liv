@@ -4,7 +4,8 @@ import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -16,6 +17,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoderInitializationException;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -56,13 +58,17 @@ class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
   }
 
   /**
-   * The database or the identity provider does not answer. Spring Security reports a provider that
-   * cannot be reached as {@link AuthenticationServiceException} on {@code /api}, and the decoder of
-   * {@code X-User-Token} as {@link JwtDecoderInitializationException} or a plain {@link
-   * JwtException} (a bad token is a {@link BadJwtException}, handled above).
+   * The database or the identity provider does not answer. Other database errors (integrity, RLS,
+   * SQL) are not an outage: they are a 500, so a write into another administration is not retried.
+   * Spring Security reports a provider that cannot be reached as {@link
+   * AuthenticationServiceException} on {@code /api}, and the decoder of {@code X-User-Token} as
+   * {@link JwtDecoderInitializationException} or a plain {@link JwtException} (a bad token is a
+   * {@link BadJwtException}, handled above).
    */
   @ExceptionHandler({
-    DataAccessException.class,
+    DataAccessResourceFailureException.class,
+    TransientDataAccessException.class,
+    CannotCreateTransactionException.class,
     AuthenticationServiceException.class,
     JwtDecoderInitializationException.class,
     JwtException.class
@@ -83,6 +89,20 @@ class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(
             problem(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno", ErrorCodes.INTERNAL_ERROR));
+  }
+
+  /** The standard Spring MVC errors that are the server's fault go to the log, like ours. */
+  @Override
+  protected ResponseEntity<Object> handleExceptionInternal(
+      Exception exception,
+      Object body,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    if (status.is5xxServerError()) {
+      LOG.error("Request failed with {}", status.value(), exception);
+    }
+    return super.handleExceptionInternal(exception, body, headers, status, request);
   }
 
   /** The standard Spring MVC errors: same status, without detail, with the technical code. */
