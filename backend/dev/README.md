@@ -34,7 +34,7 @@ Los puertos solo escuchan en `127.0.0.1` y se cambian en `dev/.env`. Las contras
 
 ## Roles de base de datos
 
-Los crea `dev/initdb/01-roles-y-bases.sh` la primera vez (doc. 02 §5.2, ADR 0025). Ninguno tiene `BYPASSRLS` ni privilegios de administración.
+Los crea `dev/initdb/01-roles-y-bases.sh` la primera vez (doc. 02 §5.2, ADR 0025). Ninguno tiene `BYPASSRLS` ni privilegios de administración. `liv_owner` puede asumir `liv_identity_lookup` y `liv_audit_platform` (sin heredar sus permisos): es lo que permite a Flyway entregarles las funciones `SECURITY DEFINER`. La primera migración comprueba este contrato y se detiene con un mensaje claro si no se cumple. En AWS la infraestructura como código debe cumplirlo igual: PostgreSQL 16 o superior, los tres roles sin `BYPASSRLS`, y esa pertenencia. Si tu volumen es anterior a la tarea T10, recréalo (ver "Empezar de cero") o ejecuta como `postgres`: `GRANT liv_identity_lookup, liv_audit_platform TO liv_owner WITH INHERIT FALSE, SET TRUE;`.
 
 | Rol | Inicio de sesión | Uso |
 |---|---|---|
@@ -42,13 +42,27 @@ Los crea `dev/initdb/01-roles-y-bases.sh` la primera vez (doc. 02 §5.2, ADR 002
 | `liv_app` | Sí | Aplicación (API y worker); sin `TEMP` ni acceso al esquema `bff` |
 | `liv_bff_owner` | Sí | Dueño del esquema `bff`; migraciones del BFF |
 | `liv_bff` | Sí | Aplicación BFF |
-| `liv_identity_lookup` | No | Dueño de la función de búsqueda de identidad (T10) |
-| `liv_audit_platform` | No | Dueño de la función de rechazos de plataforma (T10) |
+| `liv_identity_lookup` | No | Dueño de `core.find_user_by_identity` |
+| `liv_audit_platform` | No | Dueño de `audit.record_platform_session_denied` |
 | `keycloak` | Sí | Base propia de Keycloak |
 
 ## Datos de prueba
 
-`dev/seed/R__core_dev_seed.sql` tiene datos ficticios: Nariño, Ipiales y una "Administración de prueba B" (código `PRUEBA-B`, claramente falso) para las pruebas de aislamiento. Las tablas las crean las migraciones de la tarea T10, y Flyway aplica esta semilla solo con el perfil `dev`. Los UUID de las administraciones son fijos porque los usuarios de prueba de Keycloak (T07) los usan.
+`dev/seed/R__core_dev_seed.sql` tiene datos ficticios: Nariño, Ipiales y una "Administración de prueba B" (código `PRUEBA-B`, claramente falso) para las pruebas de aislamiento. Las tablas las crean las migraciones de `src/main/resources/db/migration`, y Flyway aplica esta semilla solo con el perfil `dev`. Los UUID de las administraciones son fijos porque los usuarios de prueba de Keycloak (T07) los usan.
+
+## Arrancar la API contra este entorno
+
+La aplicación se conecta siempre como `liv_app` y, con el perfil `dev`, Flyway migra como `liv_owner` y aplica la semilla. El perfil `dev` vive en `backend/config/application-dev.yml` (fuera del jar), así que hay que arrancar desde `backend/`. Las contraseñas llegan por variables de entorno (las de `dev/.env`). Desde `backend/`, en Git Bash:
+
+```bash
+set -a; . dev/.env; set +a
+```
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+Las pruebas de base de datos (`./mvnw verify`) no usan este entorno: levantan su propio PostgreSQL con Testcontainers y necesitan Docker.
 
 ## Empezar de cero
 

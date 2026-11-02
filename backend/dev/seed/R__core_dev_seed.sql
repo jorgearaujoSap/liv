@@ -2,7 +2,7 @@
 -- Los aplica Flyway solo con el perfil dev, desde backend/dev/seed (tarea T10): no se empaquetan en la imagen.
 -- Solo entidades territoriales y administraciones; nunca datos de contribuyentes (AGENTS.md §4.5).
 -- Los UUID son fijos: los usuarios de prueba de Keycloak (tarea T07) usan estos mismos valores en administration_id.
--- Pendiente para T10: confirmar los valores de entity_type cuando la migración defina su catálogo (el ERD no los fija).
+-- entity_type: DEPARTAMENTO, DISTRITO_CAPITAL, DISTRITO o MUNICIPIO (restricción de core.territorial_entity, migración de T10).
 
 INSERT INTO core.territorial_entity (id, dane_code, name, entity_type, parent_id, active) VALUES
   ('00000000-0000-0000-0000-000000000052', '52',    'Nariño',                'DEPARTAMENTO', NULL,                                   true),

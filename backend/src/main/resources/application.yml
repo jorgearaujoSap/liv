@@ -4,6 +4,17 @@ spring:
   threads:
     virtual:
       enabled: true
+  # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
+  # llegan por variables de entorno y no tienen valor por defecto (sin LIV_DB_URL no arranca; sin la contraseña no
+  # se autentica). El despliegue no debe sobrescribir el usuario; T12 agrega la comprobación al arrancar.
+  datasource:
+    url: ${LIV_DB_URL}
+    username: liv_app
+    password: ${LIV_APP_PASSWORD}
+  # Flyway (liv_owner) corre solo en los perfiles dev y test. En staging y producción migra la imagen
+  # liv-migrations como paso del despliegue.
+  flyway:
+    enabled: false
 
 server:
   port: ${SERVER_PORT:8080}
