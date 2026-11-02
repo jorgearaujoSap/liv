@@ -4,11 +4,12 @@ spring:
   threads:
     virtual:
       enabled: true
-  # La aplicación se conecta como liv_app (sujeto a RLS). Credenciales solo por variables de entorno.
+  # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
+  # llegan por variables de entorno y no tienen valor por defecto: sin ellas la aplicación no arranca.
   datasource:
-    url: ${LIV_DB_URL:jdbc:postgresql://localhost:5433/liv}
-    username: ${LIV_DB_USER:liv_app}
-    password: ${LIV_APP_PASSWORD:}
+    url: ${LIV_DB_URL}
+    username: liv_app
+    password: ${LIV_APP_PASSWORD}
   # Flyway (liv_owner) corre solo en los perfiles dev y test. En staging y producción migra la imagen
   # liv-migrations como paso del despliegue.
   flyway:

@@ -1,0 +1,16 @@
+# Perfil de desarrollo local (backend/dev/README.md). Está fuera de src/main/resources a propósito: Spring lo
+# lee de ./config cuando se arranca desde backend/, y nunca viaja dentro del jar ni de la imagen.
+# Migra con liv_owner, aplica la semilla ficticia y conecta la aplicación como liv_app al entorno local.
+# Variables: las de dev/.env (LIV_OWNER_PASSWORD y LIV_APP_PASSWORD).
+spring:
+  datasource:
+    url: ${LIV_DB_URL:jdbc:postgresql://localhost:5433/liv}
+  flyway:
+    enabled: true
+    url: ${LIV_DB_URL:jdbc:postgresql://localhost:5433/liv}
+    user: liv_owner
+    password: ${LIV_OWNER_PASSWORD}
+    # La semilla vive fuera de src/main/resources (no se empaqueta). Ruta relativa a backend/: si no existe,
+    # el arranque falla en lugar de omitirla en silencio.
+    locations: classpath:db/migration,filesystem:dev/seed
+    fail-on-missing-locations: true

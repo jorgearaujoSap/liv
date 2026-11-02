@@ -7,7 +7,10 @@ CREATE TABLE core.territorial_entity (
   id          UUID PRIMARY KEY,
   dane_code   VARCHAR(20)  NOT NULL UNIQUE,
   name        VARCHAR(150) NOT NULL,
-  entity_type VARCHAR(20)  NOT NULL CHECK (entity_type IN ('DEPARTAMENTO', 'DISTRITO', 'MUNICIPIO')),
+  -- Mismos tipos que "jurisdiccion.tipo" de los YAML de jurisdicción (docs/funcional/anexos). El ERD no fija
+  -- los valores: propuesta pendiente de registrar en el ERD con el responsable funcional.
+  entity_type VARCHAR(20)  NOT NULL
+    CHECK (entity_type IN ('DEPARTAMENTO', 'DISTRITO_CAPITAL', 'DISTRITO', 'MUNICIPIO')),
   parent_id   UUID REFERENCES core.territorial_entity (id),
   active      BOOLEAN      NOT NULL DEFAULT true
 );
@@ -27,13 +30,16 @@ CREATE TABLE core.admin_user (
   administration_id UUID         NOT NULL REFERENCES core.tax_administration (id),
   full_name         VARCHAR(150) NOT NULL,
   email             VARCHAR(200) NOT NULL,
+  -- El ERD no fija los valores de status: propuesta pendiente de registrar en el ERD (001-05 usa "desactivado").
   status            VARCHAR(30)  NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')),
   identity_issuer   VARCHAR(255) NOT NULL,
   identity_subject  VARCHAR(255) NOT NULL,
   last_login_at     TIMESTAMP WITH TIME ZONE,
   CONSTRAINT admin_user_identity_key UNIQUE (identity_issuer, identity_subject),
-  -- Destino de las FK compuestas: una fila hija no puede apuntar a un usuario de otra administración.
-  CONSTRAINT admin_user_id_administration_key UNIQUE (id, administration_id)
+  -- Destino de las FK compuestas: una fila hija no puede apuntar a un usuario de otra administración
+  -- (ni, en una sesión, a la identidad de otro usuario).
+  CONSTRAINT admin_user_id_administration_key UNIQUE (id, administration_id),
+  CONSTRAINT admin_user_session_key UNIQUE (id, administration_id, identity_issuer, identity_subject)
 );
 CREATE INDEX admin_user_administration_idx ON core.admin_user (administration_id);
 
@@ -46,8 +52,10 @@ CREATE TABLE core.user_session (
   started_at        TIMESTAMP WITH TIME ZONE NOT NULL,
   ended_at          TIMESTAMP WITH TIME ZONE,
   end_reason        VARCHAR(20) CHECK (end_reason IN ('LOGOUT', 'IDLE', 'ABSOLUTE', 'PROVIDER')),
-  FOREIGN KEY (user_id, administration_id) REFERENCES core.admin_user (id, administration_id),
-  CHECK ((ended_at IS NULL) = (end_reason IS NULL))
+  FOREIGN KEY (user_id, administration_id, identity_issuer, identity_subject)
+    REFERENCES core.admin_user (id, administration_id, identity_issuer, identity_subject),
+  CHECK ((ended_at IS NULL) = (end_reason IS NULL)),
+  CHECK (ended_at IS NULL OR ended_at >= started_at)
 );
 CREATE INDEX user_session_user_idx ON core.user_session (user_id, administration_id);
 
@@ -60,9 +68,19 @@ CREATE POLICY administration_isolation ON core.tax_administration FOR SELECT TO 
 CREATE POLICY administration_isolation ON core.admin_user FOR ALL TO liv_app
   USING (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid)
   WITH CHECK (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid);
-CREATE POLICY administration_isolation ON core.user_session FOR ALL TO liv_app
-  USING (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid)
-  WITH CHECK (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid);
+
+-- Una sesión se abre sin fin y se cierra una sola vez (EndSession es idempotente): una sesión cerrada no se
+-- reabre ni cambia de motivo, ni siquiera por error de la aplicación.
+CREATE POLICY administration_read ON core.user_session FOR SELECT TO liv_app
+  USING (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid);
+CREATE POLICY administration_start ON core.user_session FOR INSERT TO liv_app
+  WITH CHECK (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid
+              AND ended_at IS NULL);
+CREATE POLICY administration_end ON core.user_session FOR UPDATE TO liv_app
+  USING (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid
+         AND ended_at IS NULL)
+  WITH CHECK (administration_id = NULLIF(current_setting('app.administration_id', true), '')::uuid
+              AND ended_at IS NOT NULL);
 
 -- La entidad territorial es un catálogo nacional: la lee toda la aplicación y solo la escribe la carga de catálogos.
 GRANT SELECT ON core.territorial_entity, core.tax_administration TO liv_app;
@@ -72,7 +90,8 @@ GRANT UPDATE (ended_at, end_reason) ON core.user_session TO liv_app;
 
 -- Búsqueda de identidad antes de conocer la administración (001-17; ADR 0025). Necesita ver a todos los usuarios,
 -- por eso es SECURITY DEFINER de un rol propio sin inicio de sesión y sin BYPASSRLS, con una política solo para él.
--- search_path fijo con pg_temp al final (documentación de PostgreSQL sobre SECURITY DEFINER).
+-- search_path fijo con pg_temp al final (documentación de PostgreSQL sobre SECURITY DEFINER). Si se modifica la
+-- función, hay que repetir el patrón de abajo (CREATE temporal en el esquema, cambio de dueño y REVOKE).
 CREATE FUNCTION core.find_user_by_identity(p_issuer text, p_subject text)
 RETURNS TABLE (user_id uuid, administration_id uuid, status varchar)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -83,7 +102,7 @@ AS $$
    WHERE u.identity_issuer = p_issuer AND u.identity_subject = p_subject
 $$;
 
--- Los permisos se fijan antes de cambiar el dueño: después, liv_owner ya no puede modificar la función.
+-- Los permisos se fijan antes del cambio de dueño: es más simple que asumir el rol después.
 REVOKE ALL ON FUNCTION core.find_user_by_identity(text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION core.find_user_by_identity(text, text) TO liv_app;
 
