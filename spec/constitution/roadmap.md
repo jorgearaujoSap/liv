@@ -14,6 +14,7 @@ _(ninguna todavía)_
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
+- 🔄 **[001 · Inicio de sesión](../features/001-inicio-de-sesion/spec.md)** — en curso: spec (H1, con enmienda 1), diseño y plan (H2) aprobados; `tasks.md` con 23 tareas, lista para implementar. Feature de plataforma (no de negocio) y guía de referencia del flujo SDD; incluye el entregable F0‑05b (diseños de inicio de sesión, *layout* y menú).
 - **Fase 0 — Fundaciones** — no son features de negocio: se siguen como entregables F0‑01 a F0‑12 en `ESTADO.md`. Ninguna feature de negocio empieza antes de cerrar la Fase 0.
 
 ## Backlog / ideas 💡

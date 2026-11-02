@@ -17,6 +17,11 @@ Objetivo: que alguien distinto de quien escribió el trabajo intente demostrar q
 - Si tu herramienta permite subagentes, lanza **dos en paralelo**, con contexto nuevo. Ninguno ve el resultado del otro.
 - Si no los permite, haz **dos pasadas separadas**, idealmente en sesiones nuevas, y no relees la primera hasta terminar la segunda.
 - Cada revisor recibe solo el objetivo y esta lista, nunca la opinión de quien implementó.
+- **Nivel de modelo** (`AGENTS.md` §10):
+  - **Alto** para planes de features críticas y para cambios críticos (§4.3). En Claude Code, dos subagentes `liv-revisor-critico`.
+  - **Estándar** para planes y cambios normales. En Claude Code, dos subagentes `liv-revisor`.
+  - En otras herramientas se usa el modelo equivalente.
+- **Encargo cerrado:** rutas de los archivos y secciones de las fuentes que deben leer, no su contenido pegado.
 
 Cada revisor busca, como mínimo:
 
@@ -43,7 +48,7 @@ Formato de cada hallazgo: **severidad** (crítico / alto / medio / bajo), **ubic
 ## 4. Corregir y volver a juzgar
 
 1. Corrige los hallazgos confirmados (con TDD si es código).
-2. Repite la revisión solo sobre lo corregido. **Máximo dos rondas**; si en la segunda siguen apareciendo críticos o altos, detente y escala al humano.
+2. Repite la revisión solo sobre lo corregido, con el mismo nivel de modelo: el encargo lista los puntos corregidos y las secciones cambiadas. **Máximo dos rondas**; si en la segunda siguen apareciendo críticos o altos, detente y escala al humano.
 
 ## 5. Registrar
 

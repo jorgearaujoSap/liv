@@ -94,7 +94,7 @@ Las versiones exactas se fijan en la Fase 0 con la última versión estable de c
 | Excel | Apache POI (SXSSF) + lector XLSX en *streaming* | — | D11 |
 | Configuración de jurisdicción | Jackson YAML (carga segura) + validador JSON Schema | — | D2; esquema versionado (`esquema_version`) |
 | Mapeo | MapStruct | — | Mapeos explícitos y verificados en compilación |
-| Contrato de API | OpenAPI 3.1 *contract‑first* + openapi‑generator | — | Interfaces Spring y cliente Angular generados del mismo contrato |
+| Contrato de API | OpenAPI 3.1 *contract‑first* + openapi‑generator (backend) y ng‑openapi‑gen (frontend, ADR 0023) | — | Interfaces Spring y cliente Angular generados del mismo contrato |
 | Errores de API | Problem Details (RFC 9457) | — | Código de error = código de regla (p. ej. `LQ-P04`) |
 | Frontend | Angular (*standalone*, *signals*, TypeScript estricto) | ≥ 21 | Requisito del proyecto |
 | Estilos de interfaz | Tailwind CSS, un archivo por componente | — | Cada componente declara sus clases en su `.component.css`. `frontend/src/styles.css` solo guarda lo reutilizado en toda la interfaz. Prohibido el atributo `style` y las utilidades de Tailwind escritas en la plantilla |
@@ -140,11 +140,14 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 | 0015 | *Trunk‑based development*, Conventional Commits, versionado semántico | Aceptado (2026-11-01) | 04 §8 |
 | 0016 | Tipo `Dinero` sobre `BigDecimal`; redondeo solo al final y según la configuración | Aceptado (2026-11-01) | 01 §7, 04 §3 |
 | 0017 | Código en inglés (alineado con el ERD); interfaz y documentación en español; glosario obligatorio | Aceptado (2026-11-01) | 01 §15 |
-| 0018 | Librería de componentes propia `liv-components` en el monorepo; las pantallas solo componen sus componentes; *tokens* generados desde Figma | Aceptado (2026-11-01) | 01 §11.1 |
+| 0018 | Librería de componentes propia `liv-components` en el monorepo; las pantallas solo componen sus componentes; *tokens* generados desde Figma | Aceptado (2026-11-01); modificado en parte por el ADR 0024 (tema de Keycloak) | 01 §11.1 |
 | 0019 | Diseño en Figma aprobado antes de implementar toda pantalla nueva, con la excepción de las pantallas que copian la estructura de otra existente | Aceptado (2026-11-01) | 01 §11.2, 05 §3 |
 | 0020 | Alojamiento en AWS: ECS sobre Fargate, RDS for PostgreSQL, S3, ECR, Secrets Manager y KMS; sin servicios que impidan llevar la aplicación a otro proveedor | Aceptado (2026-11-01) | 03 §5 |
 | 0021 | Backend con la base que el equipo ya usa, mejorada: Maven con *wrapper* y un artefacto (`liv-api`) en la raíz de `backend/`; módulos como paquetes con capas `api`/`application`/`domain`/`infrastructure`; API pública del módulo en su paquete raíz; migraciones en `src/main/resources/db/migration`; pruebas guardianas de catálogo, capas y tamaño sin excepciones; Google Java Format. Reemplaza el uso de Gradle y de subproyectos por módulo | Aceptado (2026-11-01) | 01 §4, §14 |
 | 0022 | La librería `liv-components` es un proyecto autónomo en la raíz del monorepo (`ui/`), separable como `backend/` y `frontend/`; se publica en npm como paquete público (el *scope* `@liv` es de otra organización) con versionado semántico y etiquetas `ui-vX.Y.Z`, y el frontend la instala con versión exacta. Reemplaza en el ADR 0018 la ubicación dentro del frontend y el consumo por alias de código fuente | Aceptado (2026-11-01) | 01 §11.1, §14 |
+| 0023 | Dependencias de la feature 001 (inicio de sesión): *starters* de seguridad, JPA, Flyway, *outbox* JDBC de Spring Modulith, ShedLock, Spring Cloud Gateway, Spring Session JDBC, Bucket4j, `keycloak-config-cli`, `ng-openapi-gen` (solo frontend), Storybook, Playwright y Caddy para e2e; iconos Lucide copiados sin dependencia | Aceptado (2026-11-01) | `docs/adr/ADR-0023-…`, feature 001 |
+| 0024 | Identidad como proyecto `backend/identity/` (*realm* como código para todos los entornos, capa solo de desarrollo, tema e imágenes publicadas) y excepción del tema de Keycloak al ADR 0018 | Aceptado (2026-11-01) | `docs/adr/ADR-0024-…`, 01 §11.1, §14 |
+| 0025 | Dependencias entre módulos `audit → core` y `audit → platform`; endpoints entre servicios `/internal/v1`; filas de auditoría de plataforma y roles de BD nuevos | Aceptado (2026-11-01) | `docs/adr/ADR-0025-…`, 01 §3.2, §10, 02 §5 |
 
 ---
 
@@ -190,7 +193,7 @@ Ninguna fase empieza sin su documento funcional aprobado y sin sus pendientes cr
 | F0‑03 | `AGENTS.md` / `CLAUDE.md` jerárquicos, *skills* del proyecto, plantillas SDD, ganchos del agente y de Git | 05 |
 | F0‑04 | Esqueleto de backend con los módulos vacíos, verificación de fronteras y reglas de arquitectura activas | 01, 04 |
 | F0‑05 | Esqueleto de frontend con autenticación, *layout*, menú dirigido por permisos y cliente API generado, construido solo con componentes de `liv-components` | 01 §11 |
-| F0‑05a | Páginas de guía, fundamentos y componentes en el archivo de Figma LIV‑Diseño (las páginas ya existen, sin contenido), con los estilos locales (ya creados: 26 de color, 11 de texto, 5 de efecto) y los primeros componentes; librería `liv-components` con los *tokens* generados, los primitivos y la plantilla de consulta; Storybook y regresión visual en CI | 01 §11.1 |
+| F0‑05a | Páginas de guía, fundamentos y componentes en el archivo de Figma LIV‑Diseño (las páginas ya existen, sin contenido), con los estilos locales (ya creados: 28 de color, 13 de texto, 5 de efecto) y los primeros componentes; librería `liv-components` con los *tokens* generados, los primitivos y la plantilla de consulta; Storybook y regresión visual en CI | 01 §11.1 |
 | F0‑05b | Diseños en Figma aprobados del *layout* general, inicio de sesión y menú | 01 §11.2 |
 | F0‑06 | Docker Compose local: PostgreSQL, Keycloak con usuarios de prueba, MinIO, ClamAV y observabilidad opcional | 03 §4 |
 | F0‑07 | Flujos de GitHub Actions con todas las compuertas de calidad, aunque haya poco código | 04 §9 |
