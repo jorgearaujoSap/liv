@@ -3,7 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { declaredStyle } from '../../testing/css';
 import { NavItemComponent } from '../nav-item/nav-item.component';
-import { NavSectionComponent, SideNavComponent } from './side-nav.component';
+import { NavSectionComponent } from './nav-section.component';
+import { SideNavComponent } from './side-nav.component';
 
 @Component({
   imports: [SideNavComponent, NavSectionComponent, NavItemComponent],
@@ -63,7 +64,7 @@ describe('SideNav', () => {
   it('usa los tokens de Figma: fondo bg-surface, borde border-default y ancho de 272 px', () => {
     const { sideNav } = render();
     expect(getComputedStyle(sideNav).backgroundColor).toContain('var(--color-bg-surface');
-    expect(declaredStyle(sideNav, 'border-right-color')).toContain('var(--color-border-default');
+    expect(declaredStyle(sideNav, 'border-color')).toContain('var(--color-border-default');
     expect(declaredStyle(sideNav, 'width')).toContain('272px');
     const footer = sideNav.querySelector('.side-nav__footer') as HTMLElement;
     expect(getComputedStyle(footer).color).toContain('var(--color-text-muted');

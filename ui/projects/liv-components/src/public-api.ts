@@ -24,10 +24,13 @@ export {
 export { IconComponent } from './lib/icon/icon.component';
 export { ICON_NAMES, type IconName, type IconSize } from './lib/icon/icons';
 export { LogoComponent, type LogoTone } from './lib/logo/logo.component';
+export { NavItemComponent, type NavItemType } from './lib/nav-item/nav-item.component';
 export {
   ResultStateComponent,
   type ResultStateTone,
 } from './lib/result-state/result-state.component';
+export { NavSectionComponent } from './lib/side-nav/nav-section.component';
+export { SideNavComponent } from './lib/side-nav/side-nav.component';
 export { SkeletonComponent, type SkeletonShape } from './lib/skeleton/skeleton.component';
 export {
   SpinnerComponent,
