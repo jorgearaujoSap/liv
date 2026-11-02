@@ -5,8 +5,21 @@
  * implementa aquí con su historia y sus pruebas (docs/arquitectura/01 §11.1).
  * Los tokens de diseño se publican como `liv-components/styles/theme.css`.
  */
+export { AlertComponent, type AlertStatus } from './lib/alert/alert.component';
 export { AvatarComponent, type AvatarSize } from './lib/avatar/avatar.component';
 export { BadgeComponent, type BadgeTone } from './lib/badge/badge.component';
+export {
+  ButtonComponent,
+  type ButtonSize,
+  type ButtonType,
+  type ButtonVariant,
+} from './lib/button/button.component';
+export { CodeInputComponent } from './lib/code-input/code-input.component';
+export {
+  IconButtonComponent,
+  type IconButtonSize,
+  type IconButtonVariant,
+} from './lib/icon-button/icon-button.component';
 export { IconComponent } from './lib/icon/icon.component';
 export { ICON_NAMES, type IconName, type IconSize } from './lib/icon/icons';
 export { LogoComponent, type LogoTone } from './lib/logo/logo.component';
@@ -16,3 +29,4 @@ export {
   type SpinnerSize,
   type SpinnerTone,
 } from './lib/spinner/spinner.component';
+export { TextFieldComponent, type TextFieldType } from './lib/text-field/text-field.component';

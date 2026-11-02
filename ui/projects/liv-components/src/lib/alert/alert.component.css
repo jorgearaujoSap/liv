@@ -1,0 +1,49 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply flex items-start gap-3 rounded-lg px-4 py-3;
+}
+
+.alert__body {
+  @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+
+.alert__title {
+  @apply m-0 text-body-md-strong text-text-primary;
+}
+
+.alert__message {
+  @apply text-body-md text-text-secondary;
+}
+
+:host([data-status='error']) {
+  @apply bg-status-danger-subtle;
+}
+
+:host([data-status='error']) .alert__icon {
+  @apply text-status-danger;
+}
+
+:host([data-status='warning']) {
+  @apply bg-status-warning-subtle;
+}
+
+:host([data-status='warning']) .alert__icon {
+  @apply text-status-warning;
+}
+
+:host([data-status='info']) {
+  @apply bg-status-info-subtle;
+}
+
+:host([data-status='info']) .alert__icon {
+  @apply text-status-info;
+}
+
+:host([data-status='success']) {
+  @apply bg-status-success-subtle;
+}
+
+:host([data-status='success']) .alert__icon {
+  @apply text-status-success;
+}

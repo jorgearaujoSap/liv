@@ -1,0 +1,50 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply inline-flex shrink-0;
+}
+
+.icon-button {
+  @apply relative m-0 box-border inline-flex cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-text-secondary outline-none;
+}
+
+.icon-button:hover:enabled {
+  @apply bg-bg-subtle;
+}
+
+/* En alto contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno. */
+.icon-button:focus-visible {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+.icon-button:disabled {
+  @apply cursor-not-allowed text-text-disabled;
+}
+
+/* Área táctil mínima de 44 px en pantallas táctiles, sin cambiar el tamaño visible. */
+@media (pointer: coarse) {
+  .icon-button::before {
+    @apply absolute top-1/2 left-1/2 size-[44px] -translate-x-1/2 -translate-y-1/2 content-[''];
+  }
+}
+
+:host([data-size='sm']) .icon-button {
+  @apply size-8;
+}
+
+:host([data-size='md']) .icon-button {
+  @apply size-10;
+}
+
+:host([data-variant='secondary']) .icon-button {
+  @apply border border-solid border-border-strong bg-bg-surface;
+}
+
+/* Repite el Hover de la base porque la regla de Secondary, de igual especificidad, lo pisaría. */
+:host([data-variant='secondary']) .icon-button:hover:enabled {
+  @apply bg-bg-subtle;
+}
+
+:host([data-variant='secondary']) .icon-button:disabled {
+  @apply border-border-default;
+}

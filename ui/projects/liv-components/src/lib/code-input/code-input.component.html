@@ -1,0 +1,31 @@
+<label class="code-input__label" [for]="inputId">{{ label() }}</label>
+<div class="code-input__control">
+  <input
+    class="code-input__input"
+    type="text"
+    inputmode="numeric"
+    autocomplete="one-time-code"
+    spellcheck="false"
+    [id]="inputId"
+    [attr.maxlength]="maxLength"
+    [value]="code()"
+    [attr.name]="name() ?? null"
+    [attr.placeholder]="placeholder() ?? null"
+    [attr.aria-invalid]="errorText() ? 'true' : null"
+    [attr.aria-describedby]="message() ? messageId : null"
+    (input)="onInput($event)"
+    (change)="onInput($event)"
+    (compositionend)="onInput($event)"
+    (paste)="onPaste($event)"
+    (beforeinput)="onBeforeInput($event)"
+  />
+</div>
+@if (message(); as text) {
+  <p class="code-input__help" [id]="messageId">
+    @if (errorText()) {
+      <!-- Figma dibuja este icono a 14 px, pero Icon solo admite 16, 20 o 24 (decisión pendiente). -->
+      <liv-icon name="circle-alert" [size]="16" />
+    }
+    <span>{{ text }}</span>
+  </p>
+}

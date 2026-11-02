@@ -1,0 +1,7 @@
+<liv-icon class="alert__icon" [name]="icon()" [size]="20" />
+<div class="alert__body">
+  @if (headingText(); as text) {
+    <p class="alert__title">{{ text }}</p>
+  }
+  <div class="alert__message"><ng-content /></div>
+</div>

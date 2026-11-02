@@ -1,0 +1,41 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply flex flex-col gap-2;
+}
+
+.code-input__label {
+  @apply text-label-md text-text-primary;
+}
+
+.code-input__control {
+  @apply box-border flex h-[56px] items-center rounded-lg border border-solid border-border-strong bg-bg-surface px-3;
+}
+
+/*
+ * El borde de Focus y Error mide 1,5 px en Figma: 1 px de borde más 0,5 px de anillo interior. En alto
+ * contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno.
+ */
+.code-input__control:focus-within {
+  @apply border-border-focus shadow-focus-ring outline-hidden inset-ring-[0.5px] inset-ring-border-focus;
+}
+
+.code-input__input {
+  @apply m-0 h-full w-full min-w-0 border-0 bg-transparent p-0 text-center font-mono text-code-lg text-text-primary outline-none;
+}
+
+.code-input__input::placeholder {
+  @apply text-text-disabled opacity-100;
+}
+
+.code-input__help {
+  @apply m-0 flex items-center gap-1 text-body-sm text-text-secondary;
+}
+
+:host([data-state='error']) .code-input__control {
+  @apply border-status-danger inset-ring-[0.5px] inset-ring-status-danger;
+}
+
+:host([data-state='error']) .code-input__help {
+  @apply text-status-danger;
+}

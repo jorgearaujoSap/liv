@@ -1,0 +1,96 @@
+import {
+  booleanAttribute,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  model,
+} from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
+import { IconName } from '../icon/icons';
+
+/** Tipos de texto que admite el campo. */
+export type TextFieldType = 'text' | 'password' | 'email' | 'search' | 'tel' | 'url';
+
+/** Estado visible del campo, como la propiedad `State` de Figma (Focus lo da el foco del input). */
+type TextFieldState = 'default' | 'error' | 'disabled';
+
+/** Valores de `autocomplete` de credenciales: siguen sin corrector aunque se muestre la contraseña. */
+const CREDENTIAL_AUTOCOMPLETE = new Set([
+  'username',
+  'current-password',
+  'new-password',
+  'one-time-code',
+]);
+
+let nextId = 0;
+
+/**
+ * Campo de texto (Figma: `TextField`). La etiqueta siempre está visible; el `placeholder` es solo un
+ * ejemplo y nunca la reemplaza (`Content=Placeholder` en Figma). El valor se enlaza con `[(value)]`.
+ *
+ * Con `error` el campo pasa al estado Error: expone `aria-invalid="true"` y el mensaje, que dice cómo
+ * corregir, reemplaza a la ayuda y queda enlazado con `aria-describedby`. Deshabilitado, el error no se
+ * muestra porque no se puede corregir. La acción final (por ejemplo "Mostrar contraseña") se proyecta
+ * como un `liv-icon-button` dentro del campo; si el campo se deshabilita, la pantalla la deshabilita
+ * también.
+ *
+ * Contraseñas, correos, credenciales por su `autocomplete` (`username`, `current-password`,
+ * `new-password`, `one-time-code`) y campos con `sensitive` van sin corrector ortográfico, que en
+ * algunos navegadores envía el texto a un servidor, y sin mayúscula ni corrección automáticas. Así una
+ * contraseña sigue protegida cuando "Mostrar contraseña" cambia su tipo a `text`.
+ */
+@Component({
+  selector: 'liv-text-field',
+  imports: [IconComponent],
+  templateUrl: './text-field.component.html',
+  styleUrl: './text-field.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[attr.data-state]': 'state()',
+  },
+})
+export class TextFieldComponent {
+  readonly label = input.required<string>();
+  readonly value = model('');
+  readonly type = input<TextFieldType>('text');
+  readonly name = input<string>();
+  readonly autocomplete = input<string>();
+  /** Texto de ejemplo; nunca reemplaza a la etiqueta. */
+  readonly placeholder = input<string>();
+  /** Ayuda bajo el campo (`Show help` y `Help` de Figma). */
+  readonly help = input<string>();
+  /** Mensaje de error que dice cómo corregir; si no está vacío, el campo está en Error. */
+  readonly error = input<string>();
+  /** Icono al inicio (`Show leading icon` y `Leading icon` de Figma); es decorativo. */
+  readonly leadingIcon = input<IconName>();
+  readonly disabled = input(false, { transform: booleanAttribute });
+  readonly required = input(false, { transform: booleanAttribute });
+  /** Credencial o identificador: sin corrector ni mayúscula automática aunque el tipo sea `text`. */
+  readonly sensitive = input(false, { transform: booleanAttribute });
+
+  protected readonly inputId = `liv-text-field-${nextId++}`;
+  protected readonly messageId = `${this.inputId}-message`;
+
+  /** Un error vacío cuenta como ausente, y un campo deshabilitado no muestra error. */
+  protected readonly errorText = computed(() =>
+    this.disabled() ? null : this.error()?.trim() || null,
+  );
+  protected readonly message = computed(() => this.errorText() ?? (this.help()?.trim() || null));
+  protected readonly plainText = computed(
+    () =>
+      this.sensitive() ||
+      this.type() === 'password' ||
+      this.type() === 'email' ||
+      CREDENTIAL_AUTOCOMPLETE.has(this.autocomplete() ?? ''),
+  );
+  protected readonly state = computed<TextFieldState>(() => {
+    if (this.disabled()) return 'disabled';
+    return this.errorText() ? 'error' : 'default';
+  });
+
+  /** `input` al escribir y `change` para el autocompletado que no dispara `input`. */
+  protected onInput(event: Event): void {
+    this.value.set((event.target as HTMLInputElement).value);
+  }
+}
