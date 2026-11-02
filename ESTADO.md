@@ -123,6 +123,8 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-02
 
+- Decisión del responsable: en un cambio crítico, solo la revisión adversarial y la lente de riesgo usan el nivel alto. Resiliencia y confiabilidad usan el estándar, y legibilidad el económico. `AGENTS.md` §10.1, regla 2, se alinea con su tabla y con `liv-revision-4r`, que ya lo decían. La contradicción la encontró la revisión del registro de T11.
+
 - Feature 001, T04a en revisión (PR #38): contraste de *tokens* de `liv-components`, primero en Figma (LIV‑Diseño) y después en `theme.css`. Sin cambio de versión: la 0.2.0 y su `CHANGELOG.md` son T05, que debe registrar este cambio.
   - **Valores aprobados por el responsable:**
     - `border/strong`: `#cbd5e1` → `#64748b` (1,48 → 4,76:1 sobre `bg/surface`);
