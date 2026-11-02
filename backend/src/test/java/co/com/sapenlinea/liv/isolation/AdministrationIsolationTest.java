@@ -171,6 +171,27 @@ class AdministrationIsolationTest {
   }
 
   @Test
+  @DisplayName("001-17 · Una sesión nace abierta: liv_app no puede insertar una sesión ya cerrada")
+  void sessionCannotBeInsertedAlreadyClosed() {
+    SQLException denied =
+        failureOf(() ->
+            update(
+                APP,
+                ADMIN_A,
+                """
+                INSERT INTO core.user_session (sid, user_id, administration_id, identity_issuer,
+                                               identity_subject, started_at, ended_at, end_reason)
+                VALUES (?, ?, ?, ?, ?, now(), now(), 'LOGOUT')
+                """,
+                newSid(),
+                USER_A,
+                ADMIN_A,
+                ISSUER,
+                SUBJECT_A));
+    assertThat(denied.getMessage()).contains("row-level security");
+  }
+
+  @Test
   @DisplayName(
       "001-17 · Una sesión no puede apuntar a un usuario de otra administración ni a otra identidad (FK compuesta)")
   void sessionCannotMixAdministrationsOrIdentities() {

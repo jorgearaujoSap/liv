@@ -63,6 +63,29 @@ class FlywayProfilesTest {
 
     @Test
     @DisplayName(
+        "T10 · En una base vacía la primera migración fija el endurecimiento: sin TEMP, sin CREATE en public y funciones sin PUBLIC")
+    void firstMigrationHardensAnEmptyDatabase() throws SQLException {
+      try (Connection connection = flyway.getConfiguration().getDataSource().getConnection()) {
+        assertThat(
+                LivDatabase.rows(
+                        connection,
+                        """
+                        SELECT has_database_privilege('liv_app', current_database(), 'TEMP'),
+                               has_database_privilege('public', current_database(), 'TEMP'),
+                               has_schema_privilege('public', 'public', 'USAGE'),
+                               EXISTS (SELECT 1 FROM pg_default_acl d
+                                        WHERE d.defaclrole = 'liv_owner'::regrole
+                                          AND d.defaclobjtype = 'f'
+                                          AND NOT EXISTS (SELECT 1 FROM aclexplode(d.defaclacl) a
+                                                           WHERE a.grantee = 0))
+                        """)
+                    .get(0))
+            .containsExactly(false, false, false, true);
+      }
+    }
+
+    @Test
+    @DisplayName(
         "T10 · Con el perfil test, Flyway migra una base vacía con liv_owner y la aplicación se conecta como liv_app")
     void flywayMigratesAnEmptyDatabaseAsTheOwner() throws SQLException {
       assertThat(appliedVersions(flyway)).containsExactly("202611010900", "202611010905");

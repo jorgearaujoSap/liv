@@ -54,7 +54,7 @@ final class LivDatabase {
   private static final PostgreSQLContainer POSTGRES = startPostgres();
 
   static {
-    migrate();
+    migrate(jdbcUrl());
     seedAdministrations();
   }
 
@@ -76,12 +76,24 @@ final class LivDatabase {
 
   /** Una base vacía propia (dueño liv_owner), para probar que las migraciones parten de cero. */
   static String createEmptyDatabase(String name) throws SQLException {
+    return createEmptyDatabase(name, OWNER);
+  }
+
+  static String createEmptyDatabase(String name, String owner) throws SQLException {
+    asSuperuser("CREATE DATABASE " + name + " OWNER " + owner);
+    return jdbcUrl(name);
+  }
+
+  /**
+   * Ejecuta DDL con el superusuario del contenedor (roles, bases): el entorno que crea la
+   * infraestructura.
+   */
+  static void asSuperuser(String sql) throws SQLException {
     try (Connection superuser =
             DriverManager.getConnection(jdbcUrl("postgres"), "postgres", "postgres-test-pw");
         var statement = superuser.createStatement()) {
-      statement.execute("CREATE DATABASE " + name + " OWNER liv_owner");
+      statement.execute(sql);
     }
-    return jdbcUrl(name);
   }
 
   static Connection connect(String role) throws SQLException {
@@ -222,9 +234,10 @@ final class LivDatabase {
     }
   }
 
-  private static void migrate() {
+  /** Aplica las migraciones como liv_owner, igual que el despliegue. */
+  static void migrate(String url) {
     Flyway.configure()
-        .dataSource(jdbcUrl(), OWNER, OWNER_PASSWORD)
+        .dataSource(url, OWNER, OWNER_PASSWORD)
         .locations("classpath:db/migration")
         .load()
         .migrate();
