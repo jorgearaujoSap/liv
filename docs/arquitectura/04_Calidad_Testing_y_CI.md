@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0014, 0015, 0016) · `01_Arquitectura_de_Software.md`
-> **Versión:** 0.1 — **Propuesto**
+> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
 
 ---
 
@@ -22,7 +22,7 @@ No se repiten principios genéricos; estas son las reglas concretas que se verif
 | CC‑08 | Inyección solo por constructor | ArchUnit |
 | CC‑09 | Los comentarios explican el **porqué** y citan la regla o norma (`// LQ-C04, Doc. 02 §B.8`); no repiten lo que dice el código | Revisión |
 | CC‑10 | Nombres del glosario (doc. 01 §15); un término nuevo se agrega al glosario en el mismo cambio | Revisión |
-| CC‑11 | Funciones cortas y de un solo nivel de abstracción; complejidad cognitiva acotada | Sonar (umbral en compuerta) |
+| CC‑11 | Funciones cortas y de un solo nivel de abstracción; clases de máximo 400 líneas, controladores de 200 y máximo 8 dependencias por constructor, sin listas de excepciones | `CodeSizeGuardTest` + Sonar (complejidad cognitiva) |
 | CC‑12 | Código generado (OpenAPI, jOOQ) nunca se edita a mano | Ruta excluida + CODEOWNERS |
 
 ---
@@ -31,11 +31,11 @@ No se repiten principios genéricos; estas son las reglas concretas que se verif
 
 | Ámbito | Herramientas | Momento |
 |---|---|---|
-| Java | Spotless (formato), Error Prone + NullAway, Sonar | Gancho de *pre‑commit* (formato) y CI |
+| Java | Spotless con Google Java Format (2 espacios), Error Prone + NullAway, Sonar | Gancho de *pre‑commit* (formato) y CI |
 | TypeScript / Angular | ESLint (angular‑eslint, reglas de fronteras), Prettier, TypeScript en modo estricto | *Pre‑commit* y CI |
-| Hojas de estilo | Stylelint: valores de color, tipografía, espaciado y radio solo por *token*; sin `::ng-deep`; sin sobrescribir clases de `@liv/ui` | *Pre‑commit* y CI |
+| Hojas de estilo | Stylelint: valores de color, tipografía, espaciado y radio solo por *token*; sin `::ng-deep`; sin sobrescribir clases de `liv-components` | *Pre‑commit* y CI |
 | SQL de migraciones | sqlfluff (dialecto PostgreSQL) + convención de nombres de Flyway | CI |
-| Configuraciones de jurisdicción | Validación de cada YAML contra el JSON Schema de su `esquema_version` y ejecución del validador CJ | CI del backend para sus configuraciones de prueba y el esquema (`backend/api/jsonschema/`); CI de la raíz para los ejemplos de `docs/funcional/anexos/`, contra el esquema publicado |
+| Configuraciones de jurisdicción | Validación de cada YAML contra el JSON Schema de su `esquema_version` y ejecución del validador CJ | CI del backend para sus configuraciones de prueba y el esquema (`backend/contracts/jsonschema/`); CI de la raíz para los ejemplos de `docs/funcional/anexos/`, contra el esquema publicado |
 | OpenAPI | Spectral (estilo y convenciones de doc. 01 §10) + comparador de cambios incompatibles | CI |
 | YAML y Markdown | yamllint, markdownlint, verificación de enlaces | CI |
 | Commits | commitlint (Conventional Commits) | Gancho `commit-msg` y CI |
@@ -53,12 +53,12 @@ Son pruebas que fallan el build. Constituyen la principal defensa contra la eros
 
 | Regla | Detalle |
 |---|---|
-| Fronteras de módulo | Solo se usa el paquete `api` de otro módulo; sin ciclos |
-| Capas hexagonales | `domain` no depende de Spring, JPA, jOOQ ni de `adapter`; `application` no depende de `adapter` |
+| Fronteras de módulo | Solo se usa el paquete raíz de otro módulo (fachadas y eventos); sin ciclos (`ModularityTest`) |
+| Capas | Los módulos de negocio solo usan `api`, `application`, `domain` e `infrastructure` (`ModuleCatalogTest`). En los módulos hexagonales, `domain` no depende de Spring, JPA ni jOOQ y `application` no depende de `infrastructure`; en todos, `api` no depende de `infrastructure` |
 | Dinero y reloj | CC‑02 y CC‑03 |
-| Persistencia | Repositorios y jOOQ solo en `adapter.out.persistence` |
+| Persistencia | Repositorios y jOOQ solo en `infrastructure/persistence` |
 | Controladores | Solo dependen de `application` |
-| Eventos | Los eventos publicados son *records* inmutables en el paquete `api` |
+| Eventos | Los eventos publicados son *records* inmutables en el paquete raíz del módulo |
 | Nombres | Casos de uso, puertos y adaptadores siguen la convención del módulo |
 | Inyección | Sin inyección por campo |
 | Singleton manual | Sin campos estáticos mutables |
@@ -68,8 +68,8 @@ Son pruebas que fallan el build. Constituyen la principal defensa contra la eros
 | Regla | Detalle |
 |---|---|
 | Fronteras | Una *feature* no importa otra *feature* |
-| Librería de componentes | La aplicación importa `@liv/ui` solo por su API pública. La librería no importa nada de la aplicación, del cliente de la API ni de `HttpClient` |
-| Componentes visuales | Los componentes de `features/` solo componen componentes de `@liv/ui`; un elemento visual reutilizable creado fuera de la librería es una violación (regla de ESLint sobre plantillas + revisión) |
+| Librería de componentes | El frontend importa `liv-components` solo por su API pública (y su tema `liv-components/styles/theme.css`) y nunca archivos de otro proyecto del monorepo. La librería no importa nada de una aplicación, de un cliente de API ni de `HttpClient` |
+| Componentes visuales | Los componentes de `features/` solo componen componentes de `liv-components`; un elemento visual reutilizable creado fuera de la librería es una violación (regla de ESLint sobre plantillas + revisión) |
 | Acceso a datos | `HttpClient` solo en servicios de datos; los componentes no lo usan |
 | Cliente generado | No se edita; solo se importa |
 | Seguridad | Prohibido saltar la sanitización de Angular sin excepción aprobada |
@@ -116,7 +116,7 @@ Son pruebas que fallan el build. Constituyen la principal defensa contra la eros
 | Seguridad funcional | JUnit parametrizado | Matriz de autorización, aislamiento entre administraciones, segregación de funciones (doc. 02 §4–§5) | Cada PR | 100 % de la matriz |
 | Contrato | Spectral, comparador de OpenAPI, validación de respuestas contra el contrato en pruebas de integración | API | Cada PR | Sin cambios incompatibles no aprobados |
 | Frontend | Vitest + Angular Testing Library | Servicios, componentes con lógica, formularios | Cada PR | Cobertura ≥ 80 % en código nuevo |
-| Librería `@liv/ui` | Vitest + Angular Testing Library; Storybook; regresión visual con Playwright sobre cada historia; axe‑core sobre cada historia | Cada componente, variante y estado | Cada PR que toque la librería | Cobertura ≥ 90 %; toda variante con historia, captura de referencia y verificación de accesibilidad |
+| Librería `liv-components` | Vitest + Angular Testing Library; Storybook; regresión visual con Playwright sobre cada historia; axe‑core sobre cada historia | Cada componente, variante y estado | Cada PR que toque la librería | Cobertura ≥ 90 %; toda variante con historia, captura de referencia y verificación de accesibilidad |
 | Fidelidad al diseño | Revisión contra el *frame* de Figma aprobado + capturas de la pantalla en los e2e | Pantallas nuevas o modificadas | Cada PR con pantallas | Sin diferencias visuales frente al diseño aprobado |
 | Extremo a extremo | Playwright + axe‑core | Flujos críticos por módulo contra el Compose completo | Humo en cada PR; completa en `main` y nocturna | Cada criterio de aceptación con interfaz tiene un e2e |
 | Rendimiento | k6 | Objetivos de doc. 03 §1 | Nocturno y antes de cada versión | Dentro de objetivo |
@@ -171,7 +171,7 @@ Un PR no se integra si falla cualquiera:
 | Q11 | Trazabilidad SDD | El PR referencia su carpeta `spec/features/NNN-nombre-feature/` con `spec.md` y `plan.md` aprobados (salvo cambios triviales, doc. 05 §3.3) |
 | Q12 | Tamaño del PR | Advertencia sobre 400 líneas cambiadas (sin contar código generado); requiere justificación |
 | Q13 | Commits | Conventional Commits |
-| Q14 | Librería `@liv/ui` | Toda variante tiene historia; regresión visual sin diferencias no aprobadas (una diferencia esperada se aprueba actualizando la captura de referencia, con visto bueno del líder de frontend y de un responsable funcional); accesibilidad sin errores |
+| Q14 | Librería `liv-components` | Toda variante tiene historia; regresión visual sin diferencias no aprobadas (una diferencia esperada se aprueba actualizando la captura de referencia, con visto bueno del líder de frontend y de un responsable funcional); accesibilidad sin errores |
 | Q15 | Diseño previo | Todo PR que agregue una ruta o pantalla nueva tiene en el `plan.md` de su feature un enlace a un *frame* de Figma aprobado o la declaración de reutilización de estructura (01 §11.2) |
 
 Los umbrales solo se modifican mediante ADR. Bajarlos para "hacer pasar" un PR está prohibido.
@@ -219,20 +219,21 @@ flowchart LR
 
 | Workflow | Disparador | Trabajos | Notas |
 |---|---|---|---|
-| `backend-pr.yml` · `frontend-pr.yml` · `sistema-pr.yml` | PR hacia `main`, con filtro de ruta (`backend/**`, `frontend/**`, resto) | Cada uno solo con los trabajos de su proyecto: backend (build, pruebas, arquitectura, contrato OpenAPI, esquema de configuración, seguridad); frontend (build, pruebas, `ui-library`, seguridad); sistema (`docs`, ejemplos de configuración, `sdd-guard`, e2e de humo) | Los workflows de un proyecto solo ejecutan *scripts* de su carpeta (doc. 01 §14.1, IN‑08). Un cambio en `frontend/projects/ui/` ejecuta además el e2e **completo**, porque afecta a todas las pantallas |
+| `backend-pr.yml` · `frontend-pr.yml` · `ui-pr.yml` · `sistema-pr.yml` | PR hacia `main`, con filtro de ruta (`backend/**`, `frontend/**`, `ui/**`, resto) | Cada uno solo con los trabajos de su proyecto: backend (build, pruebas, arquitectura, contrato OpenAPI, esquema de configuración, seguridad); frontend (build, pruebas, seguridad); ui (build, *lint*, pruebas, historias, regresión visual y accesibilidad de la librería, empaquetado); sistema (`docs`, ejemplos de configuración, `sdd-guard`, e2e de humo) | Los workflows de un proyecto solo ejecutan *scripts* de su carpeta (doc. 01 §14.1, IN‑08). Una nueva versión de `liv-components` adoptada por el frontend ejecuta además el e2e **completo**, porque afecta a todas las pantallas |
 | `backend-main.yml` · `frontend-main.yml` | *Push* a `main` con cambios en su proyecto | Construcción de su imagen, SBOM, firma, publicación (el backend publica además el OpenAPI versionado), despliegue de ese proyecto a *staging*; luego e2e completo y ZAP de línea base | Un fallo en *staging* bloquea la promoción |
 | `nightly.yml` | Programado | Mutación completa, rendimiento, ZAP completo, Trivy completo, verificación de enlaces de documentación | Crea *issues* automáticamente |
 | `backend-release.yml` · `frontend-release.yml` | Etiqueta `backend-vX.Y.Z` o `frontend-vX.Y.Z` | Promoción a producción del *digest* probado de ese proyecto; migraciones (backend); verificación posterior | Entorno protegido con aprobación manual; cada proyecto se publica por separado |
+| `ui-release.yml` | Etiqueta `ui-vX.Y.Z` | Compila y publica `liv-components` en npm con un *token* guardado como secreto; la versión de la etiqueta debe coincidir con la del `package.json` de la librería | Entorno protegido con aprobación manual; mientras no exista, publica un humano con `npm run release` |
 | `sdd-guard` (trabajo dentro de `pr.yml`) | Cada PR | Verifica la referencia a la carpeta de la feature, que los archivos tocados estén dentro del alcance declarado en su `tasks.md`, que no se toquen rutas protegidas sin aprobación (doc. 05 §5) y que toda pantalla nueva tenga su diseño o su declaración de reutilización (Q15) | Clave contra el *vibe coding* |
 
-**Portabilidad (P4):** el repositorio está en GitHub y podría migrar a Bitbucket. Por eso la lógica de cada paso vive en tareas de Gradle, *scripts* de npm y herramientas de `tools/`, y los workflows solo las orquestan. Migrar a Bitbucket Pipelines debe ser reescribir la orquestación, no la lógica. Lo que solo existe en GitHub (entornos protegidos, *dependency review*, CodeQL, *secret scanning*) tiene que tener un equivalente identificado antes de migrar.
+**Portabilidad (P4):** el repositorio está en GitHub y podría migrar a Bitbucket. por eso la lógica de cada paso vive en comandos de Maven, *scripts* de npm y herramientas de `tools/`, y los workflows solo las orquestan. Migrar a Bitbucket Pipelines debe ser reescribir la orquestación, no la lógica. Lo que solo existe en GitHub (entornos protegidos, *dependency review*, CodeQL, *secret scanning*) tiene que tener un equivalente identificado antes de migrar.
 
 **Buenas prácticas de los workflows:**
 
 - acciones de terceros fijadas por SHA;
 - `permissions` mínimos por workflow;
 - autenticación por OIDC con AWS (rol de IAM por entorno) y con ECR, sin claves de larga duración;
-- caché de Gradle y npm;
+- caché de Maven y npm;
 - `concurrency` para cancelar ejecuciones obsoletas del mismo PR;
 - workflows reutilizables para no duplicar pasos entre backend y frontend;
 - los workflows son ruta crítica: cambios con dos aprobaciones.

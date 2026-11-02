@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0002, 0003, 0005, 0006, 0008, 0009, 0012, 0013, 0016, 0017)
-> **Versión:** 0.1 — **Propuesto**
+> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Alcance:** vistas de contexto y contenedores, módulos, arquitectura interna, motor de reglas, patrones, datos, API, frontend, procesos masivos, integraciones y estructura del repositorio. Sin código.
 
 ---
@@ -74,7 +74,7 @@ Un módulo por contexto de negocio, alineado con los esquemas del ERD y con el m
 
 | Módulo | Esquema | Menú | Responsabilidad | Plantilla (§4) |
 |---|---|---|---|---|
-| `shared-kernel` | — | — | Tipos de valor comunes: `Dinero`, `Tasa`, `Vigencia`, `CodigoDane`, `AdministracionId`, `Periodo`, reloj inyectable, errores con código de regla | Librería pura |
+| `shared` | — | — | Núcleo compartido, tipos de valor comunes: `Dinero`, `Tasa`, `Vigencia`, `CodigoDane`, `AdministracionId`, `Periodo`, reloj inyectable, errores con código de regla | Librería pura |
 | `platform` | `platform` | — | Transversal técnico: seguridad, contexto de inquilino, auditoría, motor genérico de ingesta (§6), exportación a Excel, almacenamiento, trabajos asíncronos | Técnico |
 | `core` | `core` | 1.1, 1.2, 2.x | Entidades territoriales, administraciones, contribuyentes, vehículos, matrículas, vínculos de propiedad, estado tributario | CRUD simplificado + reglas puntuales |
 | `documents` | `documents` | 1.3 | Normas, soportes y expediente documental | CRUD simplificado |
@@ -93,7 +93,7 @@ Un módulo por contexto de negocio, alineado con los esquemas del ERD y con el m
 
 ```mermaid
 flowchart BT
-    SK[shared-kernel]
+    SK[shared]
     PL[platform] --> SK
     CORE[core] --> PL
     DOC[documents] --> PL
@@ -113,11 +113,11 @@ flowchart BT
 
 | Regla | Verificación automática |
 |---|---|
-| Las dependencias forman un grafo acíclico; las flechas de la figura son las únicas permitidas | Spring Modulith (verificación de módulos) en las pruebas; dependencias declaradas en el build de cada módulo |
-| Un módulo usa a otro solo a través de su paquete público `api` (fachadas, DTO y eventos publicados) | Spring Modulith + ArchUnit |
+| Las dependencias forman un grafo acíclico; las flechas de la figura son las únicas permitidas | Spring Modulith (`ModularityTest`) |
+| Un módulo usa a otro solo a través de su **paquete raíz** (fachadas y eventos publicados); sus subpaquetes son internos | Spring Modulith (`ModularityTest`) |
 | Cuando el efecto puede ser asíncrono o va "hacia atrás", la comunicación es por **evento de dominio**, no por llamada directa. Ej.: `tax` publica `LiquidacionEmitida` y `ledger` crea la obligación | Revisión de diseño (gate H2 del doc. 05) |
 | `reporting` no lee tablas internas: solo vistas `v_*` que cada módulo publica como contrato de lectura | Permisos de BD del rol de reportes + ArchUnit |
-| Una nueva dependencia entre módulos exige un ADR | CODEOWNERS sobre los archivos de build |
+| Un módulo nuevo, o una dependencia nueva entre módulos, exige un ADR | `ModuleCatalogTest` (catálogo de módulos) + revisión |
 
 Los eventos usan el registro persistente de Spring Modulith (*outbox* en PostgreSQL): el evento se guarda en la misma transacción que el cambio y se entrega al menos una vez. Todo consumidor es **idempotente**.
 
@@ -125,46 +125,42 @@ Los eventos usan el registro persistente de Spring Modulith (*outbox* en Postgre
 
 ## 4. Arquitectura interna de cada módulo
 
+Todos los módulos de negocio usan las **cuatro capas que el equipo ya conoce**: `api`, `application`, `domain` e `infrastructure` (ADR 0021). `ModuleCatalogTest` impide crear otras. Lo que un módulo ofrece a los demás (fachadas y eventos publicados) va en su **paquete raíz**; las capas son internas y Spring Modulith lo verifica.
+
 ### 4.1 Plantilla "hexagonal completo"
 
-Para módulos con reglas de negocio: `jurisdiction`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`.
+Para módulos con reglas de negocio: `jurisdiction`, `valuation`, `tax`, `ledger` (y `portfolio`, `collection` y `enforcement` cuando existan).
 
 ```
 tax/
-├── api/                      ← lo único visible para otros módulos
-│   ├── (fachadas de consulta y comando)
-│   ├── (DTO públicos)
-│   └── (eventos publicados: LiquidacionEmitida…)
+├── TaxAssessments.java       ← paquete raíz: fachadas y eventos publicados (LiquidacionEmitida…)
+├── api/                      ← adaptador de entrada HTTP
+│   ├── controller/           (implementa las interfaces generadas desde el OpenAPI)
+│   └── dto/
+├── application/              ← casos de uso: orquestan, abren transacción, autorizan
+│   └── service/
 ├── domain/                   ← Java puro: sin Spring, sin JPA, sin jOOQ
 │   ├── model/                (agregados, entidades, objetos de valor)
 │   ├── rules/                (pasos del motor, políticas, especificaciones)
-│   ├── event/                (eventos de dominio)
-│   └── port/                 (interfaces de salida: repositorios, reloj, catálogos)
-├── application/              ← casos de uso: orquestan, abren transacción, autorizan
-│   ├── command/
-│   └── query/
-└── adapter/
-    ├── in/
-    │   ├── rest/             (implementa interfaces generadas desde OpenAPI)
-    │   ├── batch/            (jobs de Spring Batch)
-    │   └── event/            (oyentes de eventos de otros módulos)
-    └── out/
-        ├── persistence/      (entidades JPA, repositorios, consultas jOOQ)
-        ├── storage/
-        └── file/             (lectores y escritores de archivos)
+│   ├── enums/ · exception/
+│   └── port/                 (interfaces de salida: repositorios, catálogos)
+└── infrastructure/           ← adaptadores de salida y técnicos
+    ├── persistence/          (entidades JPA, repositorios, consultas jOOQ: implementan los puertos)
+    ├── batch/ · scheduler/   (jobs de Spring Batch y tareas programadas)
+    ├── client/ · file/       (integraciones y lectores o escritores de archivos)
+    └── config/               (@ConfigurationProperties)
 ```
 
 | Capa | Puede depender de | No puede |
 |---|---|---|
-| `domain` | `shared-kernel` | Spring, JPA, jOOQ, HTTP, reloj del sistema, otros módulos |
-| `application` | `domain`, `api` de otros módulos, puertos | Adaptadores, controladores, SQL |
-| `adapter.in` | `application` | `domain.port` implementados directamente, otros adaptadores |
-| `adapter.out` | `domain.port`, `domain.model` | `application`, `adapter.in` |
-| `api` | `shared-kernel` | Exponer entidades de dominio o JPA |
+| `domain` | `shared` | Spring, JPA, jOOQ, HTTP, reloj del sistema, otros módulos |
+| `application` | `domain` (incluidos sus puertos), paquete raíz de otros módulos | `infrastructure`, `api` |
+| `api` | `application` | `infrastructure` |
+| `infrastructure` | `domain` (implementa sus puertos), `application` (jobs que llaman casos de uso) | `api` |
 
 ### 4.2 Plantilla "CRUD simplificado"
 
-Para registros con poca lógica (`core`, `documents`): `api` + `application` + `adapter`, sin separar el modelo de dominio del de persistencia. Si un registro adquiere reglas de negocio propias, se migra a la plantilla completa mediante un cambio SDD. La plantilla de cada módulo se declara en su `AGENTS.md` para que los agentes no la elijan por su cuenta.
+Para registros con poca lógica (`core`, `documents`, `audit`, `reporting`): las mismas cuatro capas, pero se permite el estilo habitual del equipo: entidades JPA en `domain/entity` y servicios de `application` que usan los repositorios de `infrastructure/persistence` directamente. Si un registro adquiere reglas de negocio propias, se migra a la plantilla completa mediante un cambio SDD. La plantilla de cada módulo está en el `AGENTS.md` del backend para que los agentes no la elijan por su cuenta.
 
 ---
 
@@ -210,7 +206,7 @@ El mismo diseño (cadena de pasos puros con traza) se aplica a:
 
 ### 5.3 Configuración de jurisdicción como contrato
 
-- El esquema de la configuración es del backend: vive en `backend/api/jsonschema/config-jurisdiccion/<esquema_version>.json` y se publica con cada versión del backend.
+- El esquema de la configuración es del backend: vive en `backend/contracts/jsonschema/config-jurisdiccion/<esquema_version>.json` y se publica con cada versión del backend.
 - El CI del backend valida sus configuraciones de prueba contra el esquema; el CI de la raíz valida los ejemplos de `docs/funcional/anexos/` contra el esquema **publicado** (doc. 04 §2, regla IN‑11).
 - Un cambio de esquema incrementa `esquema_version` y obliga a migrar la plantilla y las configuraciones existentes en el mismo cambio.
 - Al publicarse, la configuración se materializa en las tablas (`tax.tax_rate`, `tax.tax_calendar`…) **y** se conserva el contenido completo en JSONB. El motor usa el *snapshot* publicado, nunca el archivo.
@@ -303,7 +299,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 
 | Tema | Convención |
 |---|---|
-| Esquemas | Uno por módulo. Un módulo solo escribe en su esquema. La lectura cruzada se hace mediante la `api` del módulo o mediante vistas `v_*` publicadas |
+| Esquemas | Uno por módulo. Un módulo solo escribe en su esquema. La lectura cruzada se hace mediante las fachadas del paquete raíz del módulo o mediante vistas `v_*` publicadas |
 | Nombres | `snake_case` en inglés, como el ERD |
 | Claves primarias | UUID versión 7 (ordenado en el tiempo, mejor para índices) |
 | Dinero | `NUMERIC(18,2)` almacenado; intermedios con escala ≥ 6 solo en memoria y en la traza |
@@ -324,7 +320,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 | Tema | Definición |
 |---|---|
 | Estilo | REST sobre JSON, *contract‑first*: primero se escribe y aprueba el OpenAPI, luego se genera el código |
-| Ubicación | `backend/api/openapi/<modulo>.yaml`, uno por módulo. El backend es el dueño y lo publica como artefacto versionado; el frontend usa una copia fijada en `frontend/api-spec/` (§14.1, IN‑04) |
+| Ubicación | `backend/contracts/openapi/<modulo>.yaml`, uno por módulo. El backend es el dueño y lo publica como artefacto versionado; el frontend usa una copia fijada en `frontend/api-spec/` (§14.1, IN‑04) |
 | Versionado | Prefijo `/api/v1`. Un cambio incompatible (detectado en CI con un comparador de OpenAPI) exige nueva versión o aprobación explícita |
 | Generación | Interfaces de servidor Spring generadas en el backend desde su OpenAPI; cliente Angular generado en el frontend desde su copia fijada. **El código generado no se edita a mano** |
 | Errores | Problem Details (RFC 9457). El campo de código lleva el código de la regla (`LQ-P04`, `R014`, `CJ12`, `OB-02`) para que la interfaz y las pruebas lo identifiquen |
@@ -340,28 +336,29 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 
 | Tema | Definición |
 |---|---|
-| Estructura | Workspace de Angular con dos proyectos: la **librería de componentes `@liv/ui`** (§11.1) y la aplicación. La aplicación tiene `core/` (autenticación, interceptores, manejo de errores) · `features/<area>/` (administración, homologación, liquidación, cuenta corriente, consultas), con carga diferida por ruta · `api/` (cliente generado desde `api-spec/`, no editable). El frontend es un proyecto autónomo que no depende de ningún archivo del backend (§14.1) |
-| Fronteras | Una *feature* no importa a otra; solo `core`, `api` y `@liv/ui`. La librería no importa nada de la aplicación. Verificado con ESLint |
+| Estructura | Workspace de Angular con la aplicación, que instala la **librería de componentes `liv-components`** (§11.1) desde npm. La aplicación tiene `core/` (autenticación, interceptores, manejo de errores) · `features/<area>/` (administración, homologación, liquidación, cuenta corriente, consultas), con carga diferida por ruta · `api/` (cliente generado desde `api-spec/`, no editable). El frontend es un proyecto autónomo que no depende de ningún archivo del backend (§14.1) |
+| Fronteras | Una *feature* no importa a otra; solo `core`, `api` y `liv-components` (solo su API pública). Ningún archivo importa otro proyecto del monorepo. Verificado con ESLint |
 | Componentes | Inteligentes (orquestan datos) y de presentación (solo `input`/`output`). Estado con *signals* y servicios por *feature*; NgRx SignalStore solo si un ADR lo justifica |
 | Datos | Ningún componente usa `HttpClient` directamente: solo servicios de datos sobre el cliente generado |
 | Lógica de negocio | **El frontend no calcula impuestos, descuentos ni saldos.** Muestra lo que calcula el backend (incluido el simulador 3.3). Las validaciones del formulario son de forma; las de negocio vienen del backend con su código |
 | Formularios | Formularios reactivos tipados |
 | Seguridad | Las guardas de ruta por rol son solo de experiencia de usuario; la autorización real está en el backend |
-| Componentes de interfaz | Componentes Angular propios, todos en la librería `@liv/ui` (§11.1). No hay librería de componentes de terceros. Las pantallas de la aplicación solo **componen** componentes de la librería; no crean componentes visuales propios |
-| Estilos | Tailwind CSS, sin atributo `style` ni utilidades escritas en la plantilla. Cada componente declara sus clases en su propio `.component.css`. Los *tokens* de diseño nacen en la librería y `frontend/src/styles.css` los importa; ese archivo concentra solo lo reutilizado en toda la interfaz (*tokens*, *layout* y clases compartidas). Colores, tipografías, espaciados y radios se usan **solo** por *token*, nunca con valores escritos a mano |
+| Componentes de interfaz | Componentes Angular propios, todos en la librería `liv-components` (§11.1). No hay librería de componentes de terceros. Las pantallas de la aplicación solo **componen** componentes de la librería; no crean componentes visuales propios |
+| Estilos | Tailwind CSS, sin atributo `style` ni utilidades escritas en la plantilla. Cada componente declara sus clases en su propio `.component.css`. Los *tokens* de diseño nacen en la librería y `frontend/src/styles.css` los importa del paquete (`liv-components/styles/theme.css`); ese archivo concentra solo lo reutilizado en toda la interfaz (*tokens*, *layout* y clases compartidas). Colores, tipografías, espaciados y radios se usan **solo** por *token*, nunca con valores escritos a mano |
 | Diseño previo | Toda pantalla nueva tiene un diseño en Figma aprobado antes de implementarse, salvo la excepción de §11.2 |
 | Accesibilidad | WCAG 2.1 AA (Resolución MinTIC 1519 de 2020, a validar), verificada con axe‑core en Playwright y en el catálogo de la librería |
 | Localización | `es-CO`: separador de miles con punto, decimales con coma, moneda COP, fechas `dd/mm/aaaa`. Los formateadores (*pipes* de moneda y fechas) viven en la librería |
 | Pruebas | Identificadores `data-testid` estables para Playwright (convención en doc. 04) |
 
-### 11.1 Librería de componentes `@liv/ui`
+### 11.1 Librería de componentes `liv-components`
 
 **Objetivo:** una sola línea de componentes reutilizables para todo el sistema. Un ajuste en un componente se refleja en todas las pantallas que lo usan, sin tocar las pantallas.
 
 | Tema | Definición |
 |---|---|
-| Ubicación | Proyecto de librería de Angular dentro del monorepo (`frontend/projects/ui/`), **externo a la aplicación**: tiene su propio código, pruebas, catálogo y propietarios. El nombre del paquete `@liv/ui` es provisional |
-| Consumo | La aplicación la consume como paquete `@liv/ui` desde el mismo workspace (alias de ruta), siempre en su versión actual. No hay copias ni versiones paralelas, así que un cambio en la librería llega a todas las pantallas en el siguiente build. Si en el futuro otra aplicación la necesita (p. ej. el portal del contribuyente, P9), se publica en un registro npm privado sin cambiar su código |
+| Ubicación | **Proyecto autónomo en la raíz del monorepo (`ui/`)**, al mismo nivel que `backend/` y `frontend/` y separable en su propio repositorio (ADR 0022). Es un workspace de Angular que solo contiene la librería (`ui/projects/liv-components/`), con su propio código, pruebas, catálogo, versión y propietarios |
+| Distribución | Paquete **público** en npm con el nombre **`liv-components`** (el *scope* `@liv` pertenece a otra organización). Versionado semántico, etiquetas `ui-vX.Y.Z` y `CHANGELOG.md`. La versión nueva se prepara en un PR y, una vez integrada en `main`, la publica un humano con permiso en npm (`npm owner add`) mediante `npm run release`, que antes verifica rama, sesión, permiso, número de versión y `CHANGELOG.md`. Proceso completo en `ui/README.md`; con F0‑07 lo hará el *pipeline* de `ui/` |
+| Consumo | El frontend la instala desde npm con **versión exacta** en su `package.json`, como cualquier dependencia. Cada desarrollador la recibe con `npm install`; para adoptar una versión nueva se cambia el número, se ejecuta `npm install` y se suben `package.json` y `package-lock.json`. Un cambio en un componente llega a todas las pantallas al adoptar la nueva versión. El frontend **nunca** lee `../ui`. El portal del contribuyente (P9) o cualquier otra aplicación la usaría igual |
 | API pública | Solo lo exportado en el punto de entrada público de la librería. Prohibidas las importaciones a archivos internos |
 | Contenido | **Tokens** (colores, tipografía y sombras generados desde los estilos locales de Figma; espaciado y radios, desde variables de Figma cuando se definan) · **Primitivos** (botón, campo de texto, selector, casilla, ícono, insignia de estado) · **Compuestos** (campo de formulario con mensaje de error y código de regla, tabla de datos con filtros, orden, paginación y exportación, panel de filtros de consulta, diálogo de confirmación, asistente por pasos, carga de archivo con progreso, visor de errores y advertencias de validación, línea de tiempo de estados, tarjeta de totales, monto en COP) · **Plantillas de pantalla** (consulta con filtros + tabla + exportar; bandeja de aprobación; asistente de carga de archivo; detalle con traza de cálculo; formulario de parámetros) · **Formateadores** (moneda COP, fechas, porcentajes) |
 | Sin lógica de negocio | La librería es solo de presentación: no usa `HttpClient`, no conoce el cliente de la API, no calcula impuestos ni decide permisos. Recibe datos y textos por `input` y emite eventos por `output` |
@@ -371,15 +368,16 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 | Catálogo | Storybook con una historia por componente y por variante y estado. Es la referencia viva para desarrolladores, quien diseñe y los agentes de IA |
 | Correspondencia con Figma | Cada componente de la librería tiene su componente equivalente, con las mismas variantes, en la página `02 Componentes` del archivo LIV‑Diseño (§11.2). Las plantillas de pantalla no tienen página propia en Figma: su diseño de referencia es la primera pantalla aprobada que usa esa estructura, en la página `03 Pantallas`. El plan de Figma es Professional con Dev Mode, sin Code Connect (P10): el enlace es por **nombre idéntico** (componente, variantes y propiedades) y cada historia de Storybook enlaza a su componente en Figma. Los desarrolladores y agentes inspeccionan medidas y estilos en Dev Mode o con el servidor MCP |
 | Cambios | Un componente nuevo nace primero en Figma, luego en la librería con su historia y sus pruebas, y solo después se usa en una pantalla. Modificar un componente existente es un **cambio crítico** (doc. 05 §3.3): afecta todas las pantallas y exige regresión visual completa y la aprobación del líder de frontend y de un responsable funcional |
-| Propietarios | Líder de frontend + responsable funcional (CODEOWNERS sobre `frontend/projects/ui/`). No hay diseñador dedicado (P10) |
+| Propietarios | Líder de frontend + responsable funcional (CODEOWNERS sobre `ui/`). No hay diseñador dedicado (P10) |
 
 ```mermaid
 flowchart LR
-    FV["Figma<br/>estilos + componentes<br/>(sistema de diseño)"] -->|exportación de tokens| TK["@liv/ui · tokens"]
+    FV["Figma<br/>estilos + componentes<br/>(sistema de diseño)"] -->|exportación de tokens| TK["liv-components · tokens"]
     FV -. mismo nombre + enlace en Storybook .- CMP
-    TK --> CMP["@liv/ui · componentes<br/>primitivos, compuestos, plantillas"]
+    TK --> CMP["liv-components · componentes<br/>primitivos, compuestos, plantillas"]
     CMP --> SB["Storybook<br/>catálogo + regresión visual"]
-    CMP --> APP["Aplicación<br/>features/* componen la librería"]
+    CMP -->|npm publish · versión| NPM[("npm<br/>liv-components")]
+    NPM -->|npm install · versión exacta| APP["Frontend<br/>features/* componen la librería"]
     FP["Figma · página 03 Pantallas<br/>una sección por módulo"] -->|diseño aprobado| APP
 ```
 
@@ -390,11 +388,11 @@ flowchart LR
 | Tema | Definición |
 |---|---|
 | Archivo de Figma | Un único archivo oficial: **LIV‑Diseño** — <https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o> (clave `s2r2Kdu31sQW5CmVeQNyZb`). Ningún diseño de pantalla se aprueba fuera de este archivo |
-| Organización por páginas | `00 Guía` (convenciones, estados de aprobación) · `01 Fundamentos` (marco `Fundamentos`: hoja de muestras de color, tipografía y efectos, enlazadas a los estilos locales, de modo que se actualizan solas cuando cambia un estilo; los textos de valor hexadecimal y descripción se corrigen a mano → *tokens* de `@liv/ui`) · `02 Componentes` (alineado 1 a 1 con `@liv/ui`, mismas variantes y nombres) · `03 Pantallas` (**todos** los diseños de pantalla del sistema, en una sola página, agrupados en una sección de Figma por módulo: M1 Administración, M2.6 Homologación, M3 Liquidación, M4 Cuenta corriente, y las que se agreguen) · `99 Archivo` (diseños reemplazados). No se crean páginas adicionales para pantallas. Cada pantalla se nombra con su número y nombre de menú (p. ej. "1.5.3 Cargar archivo de avalúos"). Si el archivo crece demasiado, separar el sistema de diseño en un archivo de librería propio requiere ADR |
+| Organización por páginas | `00 Guía` (convenciones, estados de aprobación) · `01 Fundamentos` (marco `Fundamentos`: hoja de muestras de color, tipografía y efectos, enlazadas a los estilos locales, de modo que se actualizan solas cuando cambia un estilo; los textos de valor hexadecimal y descripción se corrigen a mano → *tokens* de `liv-components`) · `02 Componentes` (alineado 1 a 1 con `liv-components`, mismas variantes y nombres) · `03 Pantallas` (**todos** los diseños de pantalla del sistema, en una sola página, agrupados en una sección de Figma por módulo: M1 Administración, M2.6 Homologación, M3 Liquidación, M4 Cuenta corriente, y las que se agreguen) · `99 Archivo` (diseños reemplazados). No se crean páginas adicionales para pantallas. Cada pantalla se nombra con su número y nombre de menú (p. ej. "1.5.3 Cargar archivo de avalúos"). Si el archivo crece demasiado, separar el sistema de diseño en un archivo de librería propio requiere ADR |
 | Estilos locales | Visibles en el panel derecho de Figma y obligatorios en todo diseño: ningún color, texto o sombra se aplica sin estilo. Nombres en inglés, iguales a los *tokens* del código; descripción de uso en español en cada estilo. **Color (26):** `text/*` (primary, secondary, muted, disabled, inverse, link) · `bg/*` (canvas, surface, subtle, inverse, overlay) · `border/*` (default, strong, focus) · `action/primary*` (base, hover, pressed, subtle) · `status/*` (success, warning, danger, info, cada uno con su variante `-subtle` de fondo). **Texto (11, Inter y JetBrains Mono):** `heading/h1`–`h3`, `body/lg`, `body/md`, `body/md-strong`, `body/sm`, `label/md`, `label/sm`, `button/md`, `code/sm`. **Efecto (5):** `elevation/sm`–`xl`, `focus/ring`. Paleta inicial propuesta sobre las escalas de Tailwind (slate, blue, green, amber, red, sky), con contraste AA para texto; ajustable por el equipo con aprobación del responsable funcional, y el cambio se propaga a todo lo que usa el estilo |
 | Contenido mínimo de un diseño | Todos los estados de la pantalla (vacío, cargando, con datos, error de validación, sin permiso, éxito), los textos reales en español, y los componentes **de la librería** (instancias del sistema de diseño, no dibujos sueltos) |
 | Autoría y aprobación | No hay diseñador dedicado (P10): diseñan el equipo o los agentes con el servidor MCP de Figma, y **aprueba el responsable funcional del módulo**. El *frame* se marca como listo para desarrollo en Figma y su enlace (con el identificador del nodo) se registra en la sección "Diseño de interfaz" del `plan.md` de la feature (doc. 05 §3) |
-| Componente faltante | Si el diseño necesita un componente que no existe en la librería, primero se diseña en el sistema de diseño y se implementa en `@liv/ui` como un cambio aparte; luego se implementa la pantalla |
+| Componente faltante | Si el diseño necesita un componente que no existe en la librería, primero se diseña en el sistema de diseño y se implementa en `liv-components` como un cambio aparte; luego se implementa la pantalla |
 | Implementación | La pantalla se construye a partir del diseño aprobado (los agentes leen el *frame* con el servidor MCP de Figma) usando solo componentes de la librería. Una diferencia visual con el diseño es un defecto |
 | Cambios posteriores | Si una pantalla cambia de estructura, primero se actualiza su diseño en Figma y se vuelve a aprobar |
 
@@ -440,7 +438,7 @@ Toda llamada o intercambio con un sistema externo se registra en `audit.external
 
 ## 14. Estructura del repositorio (monorepo separable)
 
-El repositorio es un **monorepo temporal**: backend y frontend conviven en él, pero cada uno es un **proyecto autónomo** que más adelante se separa en su propio repositorio sin cambios de código (ADR 0013). Lo que no es de ninguno de los dos (documentación, SDD, pruebas de sistema e infraestructura compartida) se queda en este repositorio, que pasa a ser el repositorio de **plataforma y documentación**.
+El repositorio es un **monorepo temporal**: backend, frontend y la librería de componentes conviven en él, pero cada uno es un **proyecto autónomo** que más adelante se separa en su propio repositorio sin cambios de código (ADR 0013, ADR 0022). Lo que no es de ninguno de ellos (documentación, SDD, pruebas de sistema e infraestructura compartida) se queda en este repositorio, que pasa a ser el repositorio de **plataforma y documentación**.
 
 ```
 /                               ← se queda como repositorio de plataforma y documentación
@@ -458,58 +456,67 @@ El repositorio es un **monorepo temporal**: backend y frontend conviven en él, 
 ├── perf/                       ← escenarios k6
 ├── infra/                      ← compose del sistema completo, realm de Keycloak para e2e, IaC compartida de AWS
 ├── tools/                      ← verificaciones de documentación y SDD (trazabilidad de reglas)
-├── .github/                    ← workflows backend-*, frontend-*, sistema-*; CODEOWNERS por carpeta
+├── .github/                    ← workflows backend-*, frontend-*, ui-*, sistema-*; CODEOWNERS por carpeta
 │
 ├── backend/                    ← PROYECTO AUTÓNOMO → futuro repositorio liv-backend
 │   ├── README.md · AGENTS.md   ← cómo trabajar en el backend sin depender de la raíz
-│   ├── api/
+│   ├── pom.xml · mvnw · .mvn/  ← un artefacto Maven (liv-api): roles api y worker con perfiles
+│   ├── contracts/
 │   │   ├── openapi/            ← contratos OpenAPI, uno por módulo (el backend es su dueño)
 │   │   └── jsonschema/         ← esquema de la configuración de jurisdicción
-│   ├── build-logic/            ← convention plugins de Gradle
-│   ├── shared-kernel/ · platform/ · modules/<modulo>/ · bff/
-│   ├── app/                    ← ensamblado: perfiles api y worker, migraciones Flyway
+│   ├── src/main/java/co/com/sapenlinea/liv/
+│   │   └── shared/ · platform/ · core/ · documents/ · jurisdiction/ · valuation/ · tax/ · ledger/ · audit/ · reporting/
+│   ├── src/main/resources/db/migration/ ← migraciones Flyway
+│   ├── src/test/…/architecture/ ← guardias de arquitectura
+│   ├── bff/                    ← BFF (Spring Cloud Gateway) como proyecto Maven propio, cuando se cree
 │   ├── dev/                    ← compose con sus dependencias (PostgreSQL, Keycloak, MinIO, ClamAV) y datos de prueba
 │   ├── deploy/                 ← definición de sus servicios en AWS (ECS)
 │   ├── Dockerfile              ← contexto de construcción: la carpeta backend/
-│   └── gradlew, settings.gradle.kts, .editorconfig, .gitignore, lefthook.yml, CHANGELOG.md
+│   └── .editorconfig, .gitignore, .gitattributes, CHANGELOG.md
 │
-└── frontend/                   ← PROYECTO AUTÓNOMO → futuro repositorio liv-frontend
-    ├── README.md · AGENTS.md   ← cómo trabajar en el frontend sin depender de la raíz
-    ├── api-spec/               ← copia fijada del OpenAPI publicado por el backend, con su versión
-    ├── projects/ui/            ← librería de componentes @liv/ui (externa a la aplicación)
-    │   ├── tokens/             ← generados desde los estilos de Figma (no editar a mano)
-    │   ├── components/         ← primitivos y compuestos, cada uno con su historia y sus pruebas
-    │   ├── templates/          ← plantillas de pantalla reutilizables
-    │   └── public-api.ts       ← única superficie pública
-    ├── .storybook/             ← catálogo de la librería
-    ├── src/                    ← la aplicación: core/, features/, api/ (cliente generado desde api-spec/)
-    ├── src/styles.css          ← importa los tokens de la librería + estilos reutilizados en toda la interfaz
-    ├── deploy/                 ← definición de su servicio en AWS
-    ├── Dockerfile              ← contexto de construcción: la carpeta frontend/
-    └── package.json, angular.json, .nvmrc, .editorconfig, .gitignore, lefthook.yml, CHANGELOG.md
+├── frontend/                   ← PROYECTO AUTÓNOMO → futuro repositorio liv-frontend
+│   ├── README.md · AGENTS.md   ← cómo trabajar en el frontend sin depender de la raíz
+│   ├── api-spec/               ← copia fijada del OpenAPI publicado por el backend, con su versión
+│   ├── src/                    ← la aplicación: core/, features/, api/ (cliente generado desde api-spec/)
+│   ├── src/styles.css          ← importa Tailwind y los tokens del paquete liv-components
+│   ├── deploy/                 ← definición de su servicio en AWS
+│   ├── Dockerfile              ← contexto de construcción: la carpeta frontend/
+│   └── package.json (liv-components con versión exacta), angular.json, .nvmrc, .editorconfig, .gitignore, CHANGELOG.md
+│
+└── ui/                         ← PROYECTO AUTÓNOMO → futuro repositorio liv-components; se publica en npm
+    ├── README.md · AGENTS.md   ← cómo trabajar y publicar la librería sin depender de la raíz
+    ├── projects/liv-components/ ← la librería (lo que se publica en npm)
+    │   ├── package.json        ← nombre, versión y exportaciones del paquete
+    │   └── src/
+    │       ├── public-api.ts   ← única superficie pública
+    │       ├── styles/theme.css← tokens generados desde los estilos de Figma (no editar a mano)
+    │       └── lib/            ← componentes primitivos y compuestos y plantillas, cada uno con su historia y sus pruebas
+    ├── .storybook/             ← catálogo de la librería (con el primer componente)
+    └── package.json, angular.json, .nvmrc, .editorconfig, .gitignore, CHANGELOG.md
 ```
 
-Cada módulo de backend es un subproyecto de Gradle: una dependencia entre módulos solo existe si está declarada en su build, así que se detecta en compilación y queda protegida por CODEOWNERS.
+El backend sigue la base que el equipo ya usa (Maven, un artefacto, módulos como paquetes, capas `api`/`application`/`domain`/`infrastructure`, pruebas guardianas), con las mejoras del ADR 0021: Maven en la raíz del proyecto, migraciones en la ubicación estándar de Flyway, dominio puro en los módulos con reglas de negocio, catálogo de módulos y límites de tamaño sin excepciones, y fronteras verificadas con Spring Modulith.
 
-### 14.1 Reglas de independencia entre backend y frontend
+### 14.1 Reglas de independencia entre proyectos
 
 El objetivo es que separar cada proyecto en su repositorio sea **mover la carpeta**, no rehacer nada.
 
 | # | Regla | Por qué |
 |---|---|---|
-| IN‑01 | Ningún archivo de `backend/` referencia algo fuera de `backend/` (rutas, *imports*, *scripts*, `includeBuild`, `../`), y ningún archivo de `frontend/` referencia algo fuera de `frontend/` | Al separarlos, esas rutas dejarían de existir |
-| IN‑02 | No hay herramienta de build en la raíz que abarque a los dos: ni `package.json` raíz, ni *workspaces* de npm/pnpm, ni `settings.gradle` raíz, ni Nx o Turborepo | Cada proyecto se construye solo, con sus comandos y desde su carpeta |
+| IN‑01 | Ningún archivo de `backend/`, `frontend/` o `ui/` referencia algo fuera de su carpeta (rutas, *imports*, *scripts*, `../`) | Al separarlos, esas rutas dejarían de existir |
+| IN‑02 | No hay herramienta de build en la raíz que abarque a varios proyectos: ni `package.json` raíz, ni *workspaces* de npm/pnpm, ni `pom.xml` agregador en la raíz, ni Nx o Turborepo | Cada proyecto se construye solo, con sus comandos y desde su carpeta |
 | IN‑03 | Cada proyecto tiene sus propios `README.md`, `AGENTS.md`, versiones de herramientas, `.editorconfig`, `.gitignore`, configuración de *lint* y formato, ganchos de Git, `Dockerfile` (con contexto en su carpeta), entorno de desarrollo, `CHANGELOG.md` y versión | Nada se hereda de la raíz |
-| IN‑04 | **El único contrato entre los dos es el OpenAPI.** El backend es su dueño (`backend/api/openapi/`) y su CI lo publica como artefacto versionado. El frontend guarda una copia fijada en `frontend/api-spec/` (con la versión) y la actualiza con un *script* propio que descarga el artefacto publicado. **Nunca lee `../backend`** | El frontend se actualiza a una versión del contrato de forma explícita, igual que lo haría con repositorios separados |
+| IN‑04 | **El único contrato entre los dos es el OpenAPI.** El backend es su dueño (`backend/contracts/openapi/`) y su CI lo publica como artefacto versionado. El frontend guarda una copia fijada en `frontend/api-spec/` (con la versión) y la actualiza con un *script* propio que descarga el artefacto publicado. **Nunca lee `../backend`** | El frontend se actualiza a una versión del contrato de forma explícita, igual que lo haría con repositorios separados |
+| IN‑04b | **La librería se comparte solo como paquete npm** (`liv-components`). El frontend la declara con versión exacta y la recibe con `npm install`; adoptar una versión nueva es cambiar el número y subir `package.json` y `package-lock.json`. **Nunca lee `../ui`** | La librería se publica y se versiona como cualquier dependencia, también cuando esté en otro repositorio |
 | IN‑05 | El frontend puede trabajar sin el backend: un servidor simulado generado desde su copia de `api-spec/` sirve para desarrollo y pruebas de componentes | Independencia de equipos y de pipelines |
-| IN‑06 | Versiones independientes: etiquetas `backend-vX.Y.Z` y `frontend-vX.Y.Z`, `CHANGELOG.md` por proyecto y despliegues separados. La compatibilidad la dan la versión de la API (`/api/v1`) y la versión del contrato fijada en el frontend | Cada proyecto se publica a su ritmo |
-| IN‑07 | Un PR toca **un solo proyecto**. Una feature que cambia los dos se entrega en PR separados: primero el backend con el contrato, luego el frontend que adopta la nueva versión; ambos citan la misma feature `NNN` | Después de separar no existen commits que cambien los dos repositorios a la vez |
-| IN‑08 | Workflows de CI separados por proyecto (`backend-*.yml`, `frontend-*.yml`), con filtro de rutas y `working-directory` en su carpeta; solo llaman *scripts* del propio proyecto y no comparten workflows reutilizables entre ellos | Al separar, el workflow se mueve con un cambio mínimo de rutas |
+| IN‑06 | Versiones independientes: etiquetas `backend-vX.Y.Z`, `frontend-vX.Y.Z` y `ui-vX.Y.Z`, `CHANGELOG.md` por proyecto y despliegues separados. La compatibilidad la dan la versión de la API (`/api/v1`) y la versión del contrato fijada en el frontend | Cada proyecto se publica a su ritmo |
+| IN‑07 | Un PR toca **un solo proyecto**. Una feature que cambia varios se entrega en PR separados, en orden: primero el backend con el contrato y la librería con su nueva versión publicada, luego el frontend que los adopta; todos citan la misma feature `NNN` | Después de separar no existen commits que cambien los dos repositorios a la vez |
+| IN‑08 | Workflows de CI separados por proyecto (`backend-*.yml`, `frontend-*.yml`, `ui-*.yml`), con filtro de rutas y `working-directory` en su carpeta; solo llaman *scripts* del propio proyecto y no comparten workflows reutilizables entre ellos | Al separar, el workflow se mueve con un cambio mínimo de rutas |
 | IN‑09 | Las pruebas de sistema (`e2e/`, `perf/`) y la infraestructura compartida (`infra/`) usan los proyectos **solo como imágenes publicadas y por HTTP**: el compose del sistema completo usa imágenes por etiqueta, nunca `build: ../backend` | Siguen funcionando cuando los proyectos ya están en otros repositorios |
 | IN‑10 | La documentación funcional, la arquitectura y `spec/` viven en la raíz. Cada `AGENTS.md` de proyecto resume las reglas que le aplican y enlaza a este repositorio, para que al separarlo siga siendo autosuficiente | Los agentes trabajan bien en cualquiera de los repositorios |
-| IN‑11 | Lo que solo existe en uno de los dos no se comparte: los *tokens* de diseño y `@liv/ui` son del frontend; el esquema de la configuración de jurisdicción es del backend. Los ejemplos de configuración de `docs/funcional/anexos/` se validan contra el esquema **publicado** por el backend | Ninguna carpeta compartida que obligue a mantener los dos repositorios sincronizados |
+| IN‑11 | Lo que es de un proyecto no se comparte por carpeta: los *tokens* de diseño y los componentes son de `ui/` (y llegan al frontend como paquete); el esquema de la configuración de jurisdicción es del backend. Los ejemplos de configuración de `docs/funcional/anexos/` se validan contra el esquema **publicado** por el backend | Ninguna carpeta compartida que obligue a mantener los dos repositorios sincronizados |
 
-**Separación (cuando se decida):** extraer `backend/` y `frontend/` con su historial (`git filter-repo --subdirectory-filter`), mover sus workflows y CODEOWNERS, configurar la publicación del OpenAPI desde el nuevo repositorio del backend y apuntar el *script* del frontend a esa publicación. Este repositorio conserva `docs/`, `spec/`, `e2e/`, `perf/`, `infra/` y `tools/`.
+**Separación (cuando se decida):** extraer `backend/`, `frontend/` y `ui/` con su historial (`git filter-repo --subdirectory-filter`), mover sus workflows y CODEOWNERS, configurar la publicación del OpenAPI desde el nuevo repositorio del backend y apuntar el *script* del frontend a esa publicación. Este repositorio conserva `docs/`, `spec/`, `e2e/`, `perf/`, `infra/` y `tools/`.
 
 ---
 

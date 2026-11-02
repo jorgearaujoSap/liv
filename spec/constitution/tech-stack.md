@@ -2,12 +2,12 @@
 
 _Cómo está construido el proyecto y las reglas que todo el código debe respetar. Es la referencia técnica que ningún plan de feature debería contradecir._
 
-> Resumen de la serie `docs/arquitectura/00`–`05` (estado **Propuesto**) y de `AGENTS.md`. El detalle y la justificación de cada punto están allí; si hay diferencia, se corrige este archivo.
+> Resumen de la serie `docs/arquitectura/00`–`05` (versión 1.0, **aprobada**) y de `AGENTS.md`. El detalle y la justificación de cada punto están allí; si hay diferencia, se corrige este archivo.
 
 ## Tecnologías
 
-- **Lenguaje:** Java 25 LTS (backend) · TypeScript estricto (frontend).
-- **Framework / runtime:** Spring Boot 4.x con Spring Modulith, Spring Security y Spring Batch · Angular ≥ 21 (*standalone*, *signals*) con Tailwind CSS y la librería propia `@liv/ui`.
+- **Lenguaje:** Java 21 LTS (backend) · TypeScript estricto (frontend).
+- **Framework / runtime:** Spring Boot 4.x (Maven, un artefacto) con Spring Modulith, Spring Security y Spring Batch · Angular ≥ 21 (*standalone*, *signals*) con Tailwind CSS y la librería propia `liv-components` (paquete npm público, proyecto `ui/`).
 - **Base de datos:** PostgreSQL 18 con Flyway; JPA para escritura de agregados y jOOQ para consultas, reportes y procesos masivos; RLS por administración.
 - **Tests:** JUnit 5, AssertJ, jqwik, Testcontainers, PIT (mutación) · Vitest + Angular Testing Library · Playwright + axe‑core · k6.
 - **Despliegue:** AWS (ECS sobre Fargate, RDS for PostgreSQL, S3, Secrets Manager, KMS); Docker Compose en desarrollo local. Identidad con Keycloak propio. CI/CD en GitHub Actions, portable a Bitbucket.
@@ -21,16 +21,20 @@ _Estado actual: no hay código. La estructura objetivo está en `docs/arquitectu
 - `docs/arquitectura/` — decisiones, arquitectura, seguridad, operación, calidad y gobierno de agentes.
 - `spec/` — esta carpeta: constitución y features SDD.
 - `AGENTS.md` — reglas de trabajo para cualquier agente; `ESTADO.md` — estado del proyecto y bitácora.
-- Futuro: `backend/` y `frontend/` como **proyectos autónomos y separables** (futuros repositorios propios; único contrato: el OpenAPI de `backend/api/`), más `e2e/`, `perf/`, `infra/` y `tools/` en la raíz. Estructura y reglas IN‑01 a IN‑11 en `docs/arquitectura/01` §14.
+- `backend/`, `frontend/` y `ui/`: **proyectos autónomos y separables** (futuros repositorios propios). Backend y frontend se comunican solo por el OpenAPI de `backend/contracts/`; el frontend recibe la librería como paquete npm con versión exacta. Más adelante, en la raíz: `e2e/`, `perf/`, `infra/` y `tools/` en la raíz. Estructura y reglas IN‑01 a IN‑11 en `docs/arquitectura/01` §14.
 
 ## Comandos
 
-_Se definen en la Fase 0 (entregables F0‑04 a F0‑07) y se documentan aquí cuando existan._
+_Cada proyecto se construye desde su propia carpeta; el detalle está en su `README.md`._
 
-- `<comando dev>` — pendiente (F0‑06, Docker Compose).
-- `<comando test>` — pendiente (F0‑04, F0‑05).
-- `<comando lint>` — pendiente (F0‑07).
-- `<comando build>` — pendiente (F0‑04, F0‑05).
+| Para | Backend (`cd backend`) | Frontend (`cd frontend`) | Librería (`cd ui`) |
+|---|---|---|---|
+| Construir y probar todo | `./mvnw verify` | `npm run lint`, `npm test`, `npm run build` | `npm run lint`, `npm run pack` |
+| Solo pruebas | `./mvnw test` | `npm test` | — (con el primer componente) |
+| Formato | `./mvnw spotless:apply` / `spotless:check` | `npm run format` / `npm run format:check` | `npm run format` / `npm run format:check` |
+| Arrancar en local / publicar | `./mvnw spring-boot:run` | `npm start` | `npm run release` (solo un humano) |
+
+El entorno local completo con Docker Compose llega con F0‑06.
 
 ## Modelo de datos / dominio
 
@@ -44,7 +48,7 @@ _Se definen en la Fase 0 (entregables F0‑04 a F0‑07) y se documentan aquí c
 ## Convenciones
 
 - Código, tablas y *tokens* en inglés (como el ERD); documentación, interfaz y nombres visibles de las pruebas en español; glosario en `docs/arquitectura/01` §15.
-- Arquitectura hexagonal en los módulos con reglas de negocio; los módulos se comunican por su paquete `api` o por eventos.
+- Arquitectura hexagonal en los módulos con reglas de negocio; los módulos se comunican por su paquete raíz (fachadas y eventos); las capas `api`, `application`, `domain` e `infrastructure` son internas.
 - Dinero con `BigDecimal` (tipo `Dinero`); prohibidos `float` y `double` en dominio; el reloj se inyecta.
 - Errores de negocio con su código de regla; respuestas de la API en formato Problem Details (RFC 9457).
 - API *contract‑first* con OpenAPI; código generado no se edita.
@@ -54,7 +58,7 @@ _Se definen en la Fase 0 (entregables F0‑04 a F0‑07) y se documentan aquí c
 
 ## Estilo visual
 
-- **Componentes:** solo los de `@liv/ui`; las pantallas no crean componentes visuales propios ni redefinen sus estilos.
+- **Componentes:** solo los de `liv-components`; las pantallas no crean componentes visuales propios ni redefinen sus estilos.
 - **Tokens:** los estilos locales del archivo de Figma LIV‑Diseño (26 de color, 11 de texto, 5 de efecto), con nombres iguales a los del código (`text/primary`, `body/md`, `elevation/md`…). Ningún color, texto o sombra sin *token*.
 - **Tipografías:** Inter para la interfaz; JetBrains Mono para códigos de regla, referencias y hashes.
 - **Estilos:** Tailwind CSS en el `.component.css` de cada componente; sin atributo `style`, sin utilidades en la plantilla, sin `::ng-deep`.
@@ -69,5 +73,5 @@ La lista completa es `AGENTS.md` §4.5. Los más importantes:
 - No agregar dependencias sin ADR ni aprobación humana.
 - No editar una migración aplicada, ni cambiar seguridad, RLS, CI o umbrales de calidad sin aprobación.
 - No usar datos reales de contribuyentes ni credenciales de entornos reales.
-- No crear pantallas sin diseño aprobado ni componentes visuales fuera de `@liv/ui`.
+- No crear pantallas sin diseño aprobado ni componentes visuales fuera de `liv-components`.
 - No integrar a `main`, publicar ni desplegar: solo un humano.
