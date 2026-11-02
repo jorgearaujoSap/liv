@@ -1,7 +1,13 @@
 import { Component } from '@angular/core';
+import theme from '../../styles/theme.css' with { loader: 'text' };
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredPlaceholderStyle, declaredStyle } from '../../testing/css';
+import {
+  cssVariable,
+  declaredPlaceholderStyle,
+  declaredShadow,
+  declaredStyle,
+} from '../../testing/css';
 import { IconButtonComponent } from '../icon-button/icon-button.component';
 import { IconName } from '../icon/icons';
 import { TextFieldComponent, TextFieldType } from './text-field.component';
@@ -69,9 +75,16 @@ describe('TextField', () => {
     expect(input.getAttribute('autocomplete')).toBe('username');
   });
 
-  it('el placeholder usa text/muted, que cumple 4,5:1 (T04a)', () => {
+  it('el placeholder usa text/muted, opaco, que cumple 4,5:1 (WCAG 1.4.3)', () => {
     const { input } = render({ placeholder: 'lmartinez' });
     expect(declaredPlaceholderStyle(input, 'color')).toContain('var(--color-text-muted,');
+    // Algunos navegadores atenúan el placeholder por defecto y bajarían el contraste.
+    expect(['1', '100%']).toContain(declaredPlaceholderStyle(input, 'opacity'));
+  });
+
+  it('deshabilitado, el placeholder usa text/disabled, como en Figma', () => {
+    const { input } = render({ placeholder: 'lmartinez', disabled: true });
+    expect(declaredPlaceholderStyle(input, 'color')).toContain('var(--color-text-disabled,');
   });
 
   it('enlaza el valor en los dos sentidos', () => {
@@ -109,7 +122,7 @@ describe('TextField', () => {
       expect(message.textContent?.trim()).toBe('Escribe tu usuario.');
     });
 
-    it('marca el estado y muestra el icono de error junto al mensaje', () => {
+    it('marca el estado y muestra el icono de error, de 16 px, junto al mensaje', () => {
       const { host } = render({ error: 'Escribe tu usuario.' });
       expect(host.dataset['state']).toBe('error');
       const icon = host.querySelector('.text-field__help liv-icon svg');
@@ -200,6 +213,13 @@ describe('TextField', () => {
     input.focus();
     const control = host.querySelector('.text-field__control') as HTMLElement;
     expect(declaredStyle(control, 'border-color')).toContain('var(--color-status-danger,');
+  });
+
+  it('el foco usa el anillo focus/ring de theme.css', () => {
+    const { host, input } = render();
+    input.focus();
+    const control = host.querySelector('.text-field__control') as HTMLElement;
+    expect(declaredShadow(control)).toBe(cssVariable(theme, '--shadow-focus-ring'));
   });
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {

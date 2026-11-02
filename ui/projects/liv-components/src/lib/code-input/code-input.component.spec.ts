@@ -1,7 +1,13 @@
 import { Component } from '@angular/core';
+import theme from '../../styles/theme.css' with { loader: 'text' };
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredPlaceholderStyle, declaredStyle } from '../../testing/css';
+import {
+  cssVariable,
+  declaredPlaceholderStyle,
+  declaredShadow,
+  declaredStyle,
+} from '../../testing/css';
 import { CodeInputComponent } from './code-input.component';
 
 @Component({
@@ -185,7 +191,7 @@ describe('CodeInput', () => {
     expect(help?.querySelector('liv-icon')).toBeNull();
   });
 
-  it('en error expone aria-invalid y aria-describedby con el mensaje', () => {
+  it('en error expone aria-invalid, aria-describedby y el icono de error de 16 px', () => {
     const { host, input } = render({ error: 'El código no es válido. Escribe el código actual.' });
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(host.dataset['state']).toBe('error');
@@ -196,9 +202,11 @@ describe('CodeInput', () => {
     expect(icon?.getAttribute('width')).toBe('16');
   });
 
-  it('el placeholder usa text/muted, que cumple 4,5:1 (T04a)', () => {
+  it('el placeholder usa text/muted, opaco, que cumple 4,5:1 (WCAG 1.4.3)', () => {
     const { input } = render();
     expect(declaredPlaceholderStyle(input, 'color')).toContain('var(--color-text-muted,');
+    // Algunos navegadores atenúan el placeholder por defecto y bajarían el contraste.
+    expect(['1', '100%']).toContain(declaredPlaceholderStyle(input, 'opacity'));
   });
 
   it('el borde es border/strong y, en error, status/danger', () => {
@@ -209,6 +217,13 @@ describe('CodeInput', () => {
       'var(--color-status-danger,',
     );
     expect(declaredStyle(control({}), 'box-sizing')).toBe('border-box');
+  });
+
+  it('el foco usa el anillo focus/ring de theme.css', () => {
+    const { host, input } = render();
+    input.focus();
+    const control = host.querySelector('.code-input__control') as HTMLElement;
+    expect(declaredShadow(control)).toBe(cssVariable(theme, '--shadow-focus-ring'));
   });
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
