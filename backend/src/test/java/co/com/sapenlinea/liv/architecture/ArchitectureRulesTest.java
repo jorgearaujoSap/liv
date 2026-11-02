@@ -1,0 +1,120 @@
+package co.com.sapenlinea.liv.architecture;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
+
+import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchRule;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+
+/**
+ * Architecture fitness functions (docs/arquitectura/04 §3.1). The modules with business rules (tax,
+ * ledger, valuation, jurisdiction) follow full hexagonal architecture; the registry modules may use
+ * JPA entities in their domain. Rules over packages that are still empty allow an empty "should" so
+ * the build stays green until the first classes arrive.
+ */
+@AnalyzeClasses(
+    packages = "co.com.sapenlinea.liv",
+    importOptions = ImportOption.DoNotIncludeTests.class)
+class ArchitectureRulesTest {
+
+  private static final String[] HEXAGONAL_DOMAINS = {
+    "..liv.tax.domain..", "..liv.ledger.domain..",
+    "..liv.valuation.domain..", "..liv.jurisdiction.domain..",
+    "..liv.shared.."
+  };
+
+  private static final String[] HEXAGONAL_APPLICATIONS = {
+    "..liv.tax.application..", "..liv.ledger.application..",
+    "..liv.valuation.application..", "..liv.jurisdiction.application.."
+  };
+
+  private static final String[] MONEY_PACKAGES = {
+    "..liv.tax.domain..", "..liv.tax.application..",
+    "..liv.ledger.domain..", "..liv.ledger.application..",
+    "..liv.valuation.domain..", "..liv.valuation.application..",
+    "..liv.jurisdiction.domain..", "..liv.jurisdiction.application.."
+  };
+
+  @ArchTest
+  static final ArchRule restApiOnlyTalksToApplication =
+      noClasses()
+          .that()
+          .resideInAPackage("..liv.*.api..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..liv.*.infrastructure..")
+          .because("controllers translate HTTP and call use cases only (CC-07)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule hexagonalDomainsArePlainJava =
+      noClasses()
+          .that()
+          .resideInAnyPackage(HEXAGONAL_DOMAINS)
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "org.jooq..")
+          .because(
+              "the rule engine and the ledger are pure functions (docs/arquitectura/01 §4.1, §5)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule hexagonalApplicationsUsePorts =
+      noClasses()
+          .that()
+          .resideInAnyPackage(HEXAGONAL_APPLICATIONS)
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..liv.*.infrastructure..")
+          .because(
+              "use cases depend on domain ports, never on adapters (docs/arquitectura/01 §4.1)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule moneyIsNeverFloatingPoint =
+      noFields()
+          .that()
+          .areDeclaredInClassesThat()
+          .resideInAnyPackage(MONEY_PACKAGES)
+          .should()
+          .haveRawType(double.class)
+          .orShould()
+          .haveRawType(float.class)
+          .orShould()
+          .haveRawType(Double.class)
+          .orShould()
+          .haveRawType(Float.class)
+          .because("money is exact: BigDecimal through the Money type (CC-02, ADR 0016)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule systemClockIsInjected =
+      noClasses()
+          .that()
+          .resideInAnyPackage("..liv.*.domain..", "..liv.*.application..")
+          .should()
+          .callMethod(LocalDate.class, "now")
+          .orShould()
+          .callMethod(LocalDateTime.class, "now")
+          .orShould()
+          .callMethod(ZonedDateTime.class, "now")
+          .orShould()
+          .callMethod(Instant.class, "now")
+          .because("time comes from an injected Clock (CC-03)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule constructorInjectionOnly =
+      noFields()
+          .should()
+          .beAnnotatedWith(Autowired.class)
+          .because("dependencies are injected through constructors (CC-08)")
+          .allowEmptyShould(true);
+}
