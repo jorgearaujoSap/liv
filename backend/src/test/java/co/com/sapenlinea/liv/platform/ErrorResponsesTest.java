@@ -49,6 +49,16 @@ class ErrorResponsesTest extends PlatformWebTest {
   }
 
   @Test
+  @DisplayName("Doc. 02 §5.1 · Una violación de integridad es un 500, no una dependencia caída")
+  void integrityViolationIsNotUnavailable(CapturedOutput output) {
+    String correlationId = UUID.randomUUID().toString();
+    HttpResponse<String> response = get("/api/v1/probe/integrity", user(correlationId));
+
+    assertProblem(response, 500, ErrorCodes.INTERNAL_ERROR);
+    assertThat(output).contains("violación de la FK").doesNotContain("Dependency unavailable");
+  }
+
+  @Test
   @DisplayName("Doc. 02 §8 · Una ruta inexistente es un 404 con Problem Details")
   void unknownRoute() {
     HttpResponse<String> response = get("/api/v1/no-existe", user(UUID.randomUUID().toString()));
@@ -70,6 +80,7 @@ class ErrorResponsesTest extends PlatformWebTest {
     String line =
         output.getAll().lines().filter(l -> l.contains(correlationId)).findFirst().orElse("");
     assertThat(line).contains(ErrorCodes.ADMINISTRATION_MISMATCH);
+    assertThat(line).containsPattern("user [0-9a-f]{8}-[0-9a-f]{4}-");
     assertThat(output).doesNotContain(token.substring(token.lastIndexOf('.') + 1));
   }
 

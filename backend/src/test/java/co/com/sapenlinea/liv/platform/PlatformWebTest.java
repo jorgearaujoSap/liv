@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -113,6 +114,11 @@ abstract class PlatformWebTest {
     @GetMapping("/api/v1/probe/failure")
     Map<String, String> failure() {
       throw new IllegalStateException("detalle interno de la falla");
+    }
+
+    @GetMapping("/api/v1/probe/integrity")
+    Map<String, String> integrity() {
+      throw new DataIntegrityViolationException("violación de la FK de otra administración");
     }
 
     @GetMapping("/api/v1/probe/unavailable")

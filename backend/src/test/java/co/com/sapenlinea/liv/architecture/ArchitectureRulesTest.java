@@ -1,5 +1,8 @@
 package co.com.sapenlinea.liv.architecture;
 
+import static com.tngtech.archunit.core.domain.AccessTarget.Predicates.declaredIn;
+import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.target;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.nameMatching;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
@@ -12,7 +15,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -134,7 +136,9 @@ class ArchitectureRulesTest {
           .that()
           .resideOutsideOfPackages("..liv.platform..", "..liv.*.infrastructure..")
           .should()
-          .callMethod(AdministrationContext.class, "open", UUID.class)
+          .accessTargetWhere(
+              target(
+                  declaredIn(AdministrationContext.class).and(nameMatching("open|discardLeaked"))))
           .because(
               "the administration comes from the LIV registry (security filter) or from the event"
                   + " of a listener or job, never from a request (001-17, doc. 02 §5.1)");

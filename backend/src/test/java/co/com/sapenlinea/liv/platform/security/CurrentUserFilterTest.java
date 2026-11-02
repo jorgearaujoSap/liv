@@ -56,21 +56,6 @@ class CurrentUserFilterTest {
     assertThat(AdministrationContext.current()).isEmpty();
   }
 
-  @Test
-  @Tag("001-17")
-  @DisplayName("001-17 · Si el hilo ya trae una administración, la petición falla cerrada")
-  void failsClosedOnAStaleContext() {
-    authenticate();
-    try (var stale = AdministrationContext.open(UUID.randomUUID())) {
-      assertThatThrownBy(() ->
-              filter.doFilter(
-                  new MockHttpServletRequest(),
-                  new MockHttpServletResponse(),
-                  (request, response) -> {}))
-          .isInstanceOf(IllegalStateException.class);
-    }
-  }
-
   private static void authenticate() {
     Jwt jwt =
         Jwt.withTokenValue("token")

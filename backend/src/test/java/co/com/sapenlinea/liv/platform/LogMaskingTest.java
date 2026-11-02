@@ -51,14 +51,19 @@ class LogMaskingTest extends PlatformWebTest {
   void masksOpaqueAndQuotedCredentials(CapturedOutput output) {
     LOG.warn(
         "prueba de opacos {\"X-User-Token\": \"opaco-json-1\"} x-user-token:\"opaco-cabecera-2\""
-            + " Authorization: Bearer opaco-bearer-3 client_secret=opaco-secreto-4");
+            + " Authorization: Bearer opaco-bearer-3 client_secret=opaco-secreto-4"
+            + " Authorization: Basic opaco-basic-5 Authorization: DPoP opaco-dpop-6"
+            + " {\\\"access_token\\\":\\\"opaco-escapado-7\\\"}");
 
     assertThat(output)
         .contains("prueba de opacos")
         .doesNotContain("opaco-json-1")
         .doesNotContain("opaco-cabecera-2")
         .doesNotContain("opaco-bearer-3")
-        .doesNotContain("opaco-secreto-4");
+        .doesNotContain("opaco-secreto-4")
+        .doesNotContain("opaco-basic-5")
+        .doesNotContain("opaco-dpop-6")
+        .doesNotContain("opaco-escapado-7");
   }
 
   @Test
