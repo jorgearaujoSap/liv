@@ -2,8 +2,10 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4)
+**Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
+
+**Ajustes posteriores:** T07, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
 
 ## Enfoque
 
@@ -63,17 +65,19 @@ Entre corchetes, el proyecto y su PR (IN‑07).
      - **bloqueo por intentos** (D-001-1), que también cuenta los fallos de TOTP;
      - **política de contraseñas** (D-001-7);
      - **tiempos** de la tabla "Sesión y tiempos", como variables de sustitución con los valores de producción por defecto; el e2e solo los acorta en su capa;
+     - **HTTPS siempre** (`sslRequired: all`) y **bloqueo** como valores fijos, que ningún entorno puede cambiar con una variable; solo la capa de desarrollo relaja HTTPS a `external` para usar `http://localhost`;
+     - **flujo de contraseña directa** que siempre niega el acceso, y `admin-cli` del *realm* desactivado: nadie obtiene un *token* solo con usuario y contraseña;
      - **TOTP obligatorio** por rol, con un flujo condicional;
-     - **eventos de usuario y de administración** activados, con la representación de los recursos (hace falta para saber qué rol o atributo cambió) y caducidad de 30 días. Solo se copian a LIV los campos de una lista blanca (ver paso 9);
+     - **eventos de usuario y de administración** activados, con la representación de los recursos (hace falta para saber qué rol o atributo cambió) y caducidad de 30 días. Se guardan en la base de Keycloak, sin el *listener* `jboss-logging`, que escribiría el usuario intentado y la IP sin enmascarar. Solo se copian a LIV los campos de una lista blanca (ver paso 9);
      - **consola de cuenta** desactivada e **idioma** `es`.
-   - **`config/dev/`:** usuarios ficticios (uno por rol en Ipiales y uno en la administración B) y secretos TOTP de prueba. Nunca se aplica fuera de desarrollo, y CI lo bloquea.
+   - **Capa de desarrollo** en `backend/dev/keycloak/`, fuera de `identity/config/` para que ninguna imagen la copie: usuarios ficticios (uno por rol en Ipiales, uno en la administración B y uno desactivado), **sin TOTP**. Los usuarios con rol de MFA lo configuran en su primer ingreso, porque keycloak-config-cli duplica las credenciales TOTP al reaplicar; los usuarios con TOTP conocido para el e2e van en `infra/keycloak/` (T23). `RealmConfigTest`, que corre en CI, falla si `identity/config/` contiene algo más que la base.
    - **`theme/liv/`:** FreeMarker con el CSS de los *tokens* del paquete `liv-components` (excepción aprobada, ADR 0024). Prueba visual contra los *frames*. En `messages_es`, la cuenta desactivada usa el mensaje genérico.
    - **Imagen de Keycloak con el tema:** se publica en CI, junto con la imagen `liv-identity-config` (`keycloak-config-cli` + `config/base`), que también usa `infra/`.
-   - **Primera tarea: un *spike*** con la versión fijada, para confirmar:
-     1. cómo distingue el tema la cuenta bloqueada;
-     2. cómo recibe el motivo (`logout`, `expired`, `denied`);
-     3. que la revocación del *refresh token* (RFC 7009) cierra la sesión del usuario en Keycloak;
-     4. qué eventos emite.
+   - **Primera tarea: un *spike*** (T06, hecho; `backend/identity/spike/RESULTADOS.md`). Resultados con Keycloak 26.8.1:
+     1. el tema **no** distingue la cuenta bloqueada: se usa un **mensaje único** para todo fallo, que avisa del bloqueo (enmienda 2 de la spec);
+     2. el tema **no** recibe parámetros propios: no hay mensaje de motivo; tras salir, expirar o ser rechazado, se muestra la página de inicio de sesión (o la de error genérico);
+     3. la revocación del *refresh token* (RFC 7009) **sí** cierra la sesión del usuario;
+     4. no hay evento de expiración; los fallos traen su causa y los eventos de administración, la representación del recurso.
 4. **[backend · dev] `backend/dev/`.**
    - PostgreSQL 18, con una base para LIV y otra para Keycloak.
    - Script de inicio que crea los roles de BD (`liv_owner`, `liv_app`, `liv_bff_owner`, `liv_bff`); en AWS los crea la infraestructura como código.
@@ -169,12 +173,12 @@ Entre corchetes, el proyecto y su PR (IN‑07).
       - `returnTo` se valida y se guarda en la sesión;
       - `prompt=login`;
       - al volver, cambia el id de sesión y llama a `StartSession` con los dos *tokens*;
-      - si `StartSession` falla, revoca el *refresh token* (RFC 7009), invalida la sesión y redirige a `/bff/login?reason=denied`, donde el tema muestra el mensaje genérico (`001-05`).
+      - si `StartSession` falla, revoca el *refresh token* (RFC 7009), invalida la sesión y redirige a `/bff/login`, donde el usuario ve la página de inicio de sesión. El rechazo queda auditado (`SessionDenied`); la página no muestra un motivo, porque el tema no recibe parámetros propios (*spike* T06).
     - **`/bff/logout` (CSRF):**
       1. llama a `EndSession(LOGOUT)`;
       2. **revoca el *refresh token* desde el servidor** (RFC 7009), lo que cierra la sesión de Keycloak;
       3. invalida la sesión;
-      4. responde la ruta de LIV `/bff/login?reason=logout`.
+      4. responde la ruta de LIV `/bff/login`, sin parámetro de motivo.
 
       El navegador nunca recibe un `id_token_hint` ni un JWT.
     - **`/bff/session`:** está fuera de la cadena que carga la sesión. Lee el repositorio por el id de la cookie y devuelve los segundos que faltan para la expiración por inactividad y para la absoluta. **No extiende la sesión**, y hay una prueba de integración que lo verifica.
@@ -236,6 +240,7 @@ Entre corchetes, el proyecto y su PR (IN‑07).
 | Inactividad del proveedor | 25 min (≥ inactividad del BFF + vida del *token* + 5 min de margen) | Keycloak (*SSO Session Idle*). Con `prompt=login` nunca reabre una sesión vencida |
 | Máximo absoluto | 8 h en el BFF (filtro). 8 h 10 min en Keycloak (*SSO Session Max*): empieza unos segundos antes, así que el margen evita que la renovación falle al final | BFF y Keycloak, sin "Recordarme" ni `offline_access` |
 | *Token* de acceso | 5 min. El BFF lo renueva si le queda menos de 1 min, y siempre en `keepalive` | Keycloak, BFF |
+| Rotación del *refresh token* | Desactivada (`revokeRefreshToken: false`). Dos renovaciones simultáneas (varias peticiones o réplicas del BFF) harían fallar la segunda y cerrarían la sesión sin motivo; el *refresh token* nunca sale del BFF | Keycloak |
 | Revocación | Todo final de sesión pasa por el `SessionTerminator`, que revoca el *refresh token*. Los cambios hechos en Keycloak (desactivar al usuario, cambiar su rol o su administración) aplican **al renovar el *token*** (≤ 5 min): el usuario desactivado hace fallar la renovación, y el rol o la administración nuevos llegan en el *token* renovado, donde `CurrentUserFilter` los compara con el registro de LIV y responde 401. Los cambios en el registro de LIV aplican en la siguiente petición | BFF, API |
 | Aviso | 2 min antes de la expiración por inactividad; aviso aparte cerca del máximo | Frontend |
 
@@ -340,7 +345,7 @@ El e2e prueba la combinación.
   - **Repudio:** auditoría inmutable, con los ingresos rechazados, las expiraciones y los eventos del proveedor.
   - **Topología:** Keycloak y LIV comparten dominio registrable. La consola de Keycloak y `master` no se exponen y exigen segundo factor con cuentas nominales.
   - **Inyección en *logs*:** correlación solo como UUID; datos personales enmascarados.
-  - **Secretos:** los de prueba solo en `config/dev/` e `infra/keycloak/`, y CI lo verifica.
+  - **Secretos:** los de prueba solo en `backend/dev/keycloak/` e `infra/keycloak/`; `RealmConfigTest` verifica en CI que no estén en `identity/config/`. El cierre por canal trasero usa la URL interna del BFF (`LIV_BFF_BACKCHANNEL_URL`), no la pública.
 
 ## Diseño de interfaz
 
@@ -348,7 +353,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
 
 | Pantalla | Diseño en Figma | Componentes |
 |---|---|---|
-| Las 10 pantallas de acceso | [001 · Acceso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=24-1163) | Tema de Keycloak (excepción del ADR 0024). Los motivos `logout`, `expired` y `denied` usan "Sesión cerrada o expirada" y "Credenciales incorrectas" (mensaje genérico) |
+| Las 8 pantallas de acceso | [001 · Acceso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=24-1163) | Tema de Keycloak (excepción del ADR 0024). Tras el *spike* quedan 8: "Cuenta bloqueada" se fusionó con "Credenciales incorrectas" (mensaje único) y "Sesión cerrada o expirada" se archivó en `99 Archivo` |
 | Inicio | [Inicio](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-793) | SideNav, NavItem, Logo, AppHeader, Avatar, Button, PageHeader, ModuleCard, Badge, Icon |
 | Aviso de sesión por expirar | [Aviso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1157) | Dialog, Button, Icon |
 | Sin permiso (403) | [Sin permiso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1454) | ResultState, Button, Icon y la estructura general |
@@ -391,17 +396,33 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - El registro de LIV manda sobre el *claim*. Un cambio de administración en Keycloak deja al usuario sin acceso (401) hasta que se resuelva con el menú 1.2.
   - Si se cambia de proveedor, el par (emisor, `sub`) se vuelve a vincular de forma explícita, sin dar de alta usuarios nuevos.
 - **Cierre de sesión sin *tokens* en el navegador.** Revocación del *refresh token* (RFC 7009) desde el BFF.
-  - Si el *spike* muestra que en Keycloak no cierra la sesión del usuario, la alternativa es cerrarla con la API de administración de Keycloak, desde un adaptador aislado del BFF (puerto `ProviderSessionTerminator`). Esa variante necesita aprobación, porque toca 001-20.
+  - El *spike* T06 confirmó que la revocación cierra la sesión del usuario en Keycloak, así que no hace falta la variante con la API de administración.
   - Se descartó navegar a `end_session` con `id_token_hint`.
 - **Menú: el backend decide qué, el frontend cómo se ve.**
 - **Plan B del BFF.** Si no hay una versión de Spring Cloud Gateway compatible, se usa Spring MVC con `RestClient`, registrado en un ADR que modifique el ADR 0010 y doc. 00 §5.
+- **Ajustes de T07 (aprobados por el responsable el 2026-11-02).** Salieron de la revisión adversarial de T07 (PR #26):
+  - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
+  - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
+  - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T10 (PR #25 y #28; revisados por la adversarial y las cuatro lentes, pendientes de aprobación humana donde se indica).**
+  - **Integrados tras la revisión del PR (H3):**
+    - la primera migración comprueba el contrato de la base y de los roles (dueño de la base, PostgreSQL 16 o superior, roles sin `BYPASSRLS` ni inicio de sesión, `liv_app` sin membresías) y revoca `TEMP` y los permisos por defecto;
+    - `core.user_session`: una sesión nace abierta y se cierra una sola vez (políticas por comando), y su FK compuesta incluye emisor y `sub`;
+    - `platform.event_publication`: `liv_app` inserta y actualiza solo las columnas de finalización y reenvío, sin `DELETE`;
+    - en la auditoría, la fila de plataforma del importador exige `source = 'IDENTITY_PROVIDER'`; `new_values` y `previous_values` tienen un máximo de 4096 caracteres; la función de rechazos recibe `occurred_at` y valida lista blanca de claves, longitudes y fecha;
+    - la aplicación se conecta siempre como `liv_app`, sin valor por defecto de la URL ni de la contraseña, y el perfil `dev` vive en `backend/config/` (fuera del jar).
+  - **Pendientes de decisión humana (listadas en los PR):**
+    - la membresía de `liv_owner` en `liv_identity_lookup` y `liv_audit_platform` (`WITH INHERIT FALSE, SET TRUE`) que agrega `initdb` y que la infraestructura de AWS debe repetir: falta registrarla en doc. 02 §5.2 y en el ADR 0025;
+    - los valores de `entity_type` (`DEPARTAMENTO`, `DISTRITO_CAPITAL`, `DISTRITO`, `MUNICIPIO`, los de los YAML de jurisdicción) y de `admin_user.status` (`ACTIVE`, `INACTIVE`), que el ERD no fija;
+    - la excepción de RLS del *outbox* (sin `administration_id`; los eventos deben llevar solo identificadores) en doc. 02 §5.1, y quién lo purga;
+    - el riesgo residual de `app.platform_job`: cualquier sesión de `liv_app` puede fijarlo; alternativa más fuerte (rol propio del importador o funciones `SECURITY DEFINER`) para el ADR 0025;
+    - la matriz de permisos ya está en la base antes que en Doc. 01 §4 (doc. 02 §4.4 pide el mismo cambio);
+    - la retención y el particionado de `audit.audit_event`, que no se pueden corregir ni borrar (requiere un ADR).
 - **Valores propuestos (D-001-7, H2):** contraseñas de 12 caracteres o más, sin reutilizar las últimas 5, sin vencimiento forzado y distintas del usuario.
 
 ## Riesgos
 
-- **Resultados del *spike* de identidad.** El aviso de bloqueo, el motivo en el tema y la revocación del *refresh token* son comportamientos de Keycloak. Si alguno no funciona como se espera, se lleva al responsable antes de escribir extensiones:
-  - un *authenticator* propio, para el aviso de bloqueo;
-  - un adaptador de cierre de sesión, para la revocación.
+- **Resultados del *spike* de identidad.** Resuelto con T06: el responsable eligió el mensaje único y no mostrar el motivo, así que no se escribe ninguna extensión de Keycloak. La revocación funciona como prevé el plan.
 - **Compatibilidad de Spring Cloud Gateway** con Spring Boot 4.1 (ver plan B).
 - **Tamaño.** Unos 17 PR. `tasks.md` los ordena; librería, identidad y base de datos van en paralelo. F0‑07 va antes.
 - **RLS.** Pruebas de aislamiento con el rol `liv_app` real:

@@ -1,6 +1,6 @@
 # 001 · Inicio de sesión
 
-**Estado:** aprobada (H1) — 2026-11-01, responsable funcional · enmienda 1 (001-04, 001-08, 001-11, 001-18) decidida por el responsable funcional el 2026-11-01 tras la revisión adversarial del plan
+**Estado:** aprobada (H1) — 2026-11-01, responsable funcional · enmienda 1 (001-04, 001-08, 001-11, 001-18) decidida por el responsable funcional el 2026-11-01 tras la revisión adversarial del plan · enmienda 2 (001-04, 001-19) decidida el mismo día tras el *spike* de Keycloak (T06)
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
 **Módulo:** `platform` (seguridad, contexto de inquilino, auditoría) y `core` (usuarios), BFF, frontend y librería · **Menú:** transversal (acceso al sistema y menú principal) · **Tipo de cambio:** crítico (autenticación y autorización, `AGENTS.md` §4.3)
@@ -25,7 +25,7 @@ _Cada criterio se comprueba con sí/no. No hay reglas funcionales con código pa
 - [ ] **001-01** — Dado un usuario sin sesión, cuando abre cualquier ruta de la aplicación, entonces es llevado a la página de inicio de sesión de LIV y, tras autenticarse, vuelve a la ruta que pidió. _Prueba:_ pendiente
 - [ ] **001-02** — Dado un usuario activo con credenciales correctas y sin segundo factor obligatorio, cuando inicia sesión, entonces entra a la página de inicio y ve en la cabecera su nombre, su administración y su rol. _Prueba:_ pendiente
 - [ ] **001-03** — Dado un usuario, cuando ingresa una contraseña incorrecta o un usuario inexistente, entonces ve el mismo mensaje genérico en español, sin revelar si el usuario existe. _Prueba:_ pendiente
-- [ ] **001-04** — Dado un usuario, cuando falla el inicio de sesión 5 veces seguidas, entonces su cuenta se bloquea durante 15 minutos y la página se lo indica, sin revelar desde cuándo ni hasta cuándo. _Enmienda 1: se acepta que este aviso revela que el usuario existe (excepción a 001-03 decidida por el responsable funcional); los demás fallos siguen con el mensaje genérico._ _Prueba:_ pendiente
+- [ ] **001-04** — Dado un usuario, cuando falla el inicio de sesión 5 veces seguidas, entonces su cuenta se bloquea durante 15 minutos. Todo fallo de inicio de sesión muestra el mismo mensaje: "Usuario o contraseña incorrectos. Tras varios intentos fallidos el acceso se bloquea por 15 minutos.", sin revelar si el usuario existe ni si está bloqueado. _Enmienda 2 (reemplaza la enmienda 1): Keycloak no distingue la cuenta bloqueada sin una extensión en Java; el responsable eligió el mensaje único y 001-03 vuelve a aplicar sin excepción._ _Prueba:_ pendiente
 - [ ] **001-05** — Dado un usuario desactivado, cuando intenta iniciar sesión con credenciales correctas, entonces no entra y ve el mensaje genérico. _Prueba:_ pendiente
 
 **Segundo factor (MFA)**
@@ -53,7 +53,7 @@ _Cada criterio se comprueba con sí/no. No hay reglas funcionales con código pa
 **Auditoría, idioma y accesibilidad**
 
 - [ ] **001-18** — Dados inicios de sesión exitosos y fallidos, bloqueos, expiraciones, cierres de sesión y cambios de roles hechos en el proveedor de identidad, entonces quedan en la auditoría inmutable de LIV con usuario (o el nombre intentado, enmascarado), fecha y resultado, sin contraseñas ni códigos; los eventos originados en LIV llevan además su `correlation_id`. _Enmienda 1: los eventos del proveedor se copian a la auditoría de LIV._ _Prueba:_ pendiente
-- [ ] **001-19** — Las páginas de inicio de sesión, segundo factor, error y cuenta bloqueada están en español, usan los estilos de LIV (tokens de `liv-components`) y cumplen WCAG 2.1 AA (verificado con axe‑core). _Prueba:_ pendiente
+- [ ] **001-19** — Las páginas de inicio de sesión, segundo factor y error están en español, usan los estilos de LIV (tokens de `liv-components`) y cumplen WCAG 2.1 AA (verificado con axe‑core). _Prueba:_ pendiente
 
 **Independencia del proveedor de identidad**
 

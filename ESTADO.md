@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-01
+> **Última actualización:** 2026-11-02
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -54,9 +54,9 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05 | Esqueleto de frontend | 🔄 | Workspace Angular 21.2 (Node 22), Tailwind 4, *tokens* desde el paquete `liv-components@0.1.0` instalado desde npm (versión exacta), ESLint con reglas de frontera (comprobadas), Prettier, Vitest; raíz sin pantallas. Faltan autenticación, *layout* y menú (necesitan F0‑05b y el BFF) y el cliente generado desde `api-spec/` |
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Faltan componentes (primero en Figma), *script* que regenere los tokens desde Figma, Storybook y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
-| F0‑06 | Docker Compose local | ⏳ | — |
-| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01 hasta T03), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks), Dependabot y CODEOWNERS. Faltan publicación de imágenes y contratos, cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
-| F0‑08 | Roles de BD, RLS y primera migración | ⏳ | — |
+| F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Faltan MinIO, ClamAV y observabilidad |
+| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01 hasta T03), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Faltan publicación de imágenes y contratos, cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
+| F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway `V202611010900`–`0920` (T10 de la feature 001, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
 | F0‑09 | Auditoría, correlación y observabilidad | ⏳ | — |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
 | F0‑11 | Pruebas *golden* en rojo | ⏳ | — |
@@ -117,13 +117,53 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
+### 2026-11-02
+
+- Feature 001, T10 integrada (PR #25 y #28): migraciones Flyway del backend con roles, funciones y RLS.
+  - **Qué hay:** esquemas `platform`, `core` y `audit`; el *outbox* de Spring Modulith; `core.territorial_entity`, `tax_administration`, `admin_user` y `user_session`; `platform.app_role`, `app_permission` y `role_permission` con la matriz de H2; `audit.audit_event` de solo inserción, `import_cursor` y ShedLock; las funciones `core.find_user_by_identity` y `audit.record_platform_session_denied`. La aplicación se conecta siempre como `liv_app`; Flyway (`liv_owner`) corre solo en los perfiles `dev` y `test`.
+  - **Pruebas:** 87 con PostgreSQL 18.6 en Testcontainers y los roles reales de `dev/initdb`: aislamiento (001-17), la función de identidad (incluido un operador falso en el `search_path`), permisos exactos de `liv_app`, inmutabilidad de la auditoría, los dos caminos de filas de plataforma, el contrato de la primera migración y los perfiles de Flyway sobre bases vacías.
+  - **Revisión:** adversarial con dos `liv-revisor-critico` y las cuatro lentes en cada PR; 0 críticos y 0 altos tras corregir. Lo principal que salió: el *outbox* con `DELETE` y sin RLS, una sesión que se podía reabrir, la política del importador sin limitar el origen, la función de rechazos sin lista blanca ni fecha, y un contrato de roles que no se comprobaba. Hubo segunda ronda en #25; #28 no la tuvo.
+  - **Tamaño:** no cupo en ~400 líneas; se dividió en dos PR (1500 y 980, con unas 1200 y 700 de pruebas).
+  - **Desviaciones declaradas en `tasks.md`:** archivos fuera de la lista (`application.yml`, `config/application-dev.yml`, `dev/initdb`, `dev/README.md`, `dev/seed`, `README.md`, `CHANGELOG.md`) y los puntos que pasan a T12, T13 y T15.
+  - **Decisiones humanas pendientes** (detalle en `plan.md` › Decisiones, ajustes de T10):
+    - registrar en doc. 02 §5.2 y en el ADR 0025 la membresía de `liv_owner` en los dueños de las funciones, que la infraestructura de AWS debe repetir; los volúmenes locales anteriores deben recrearse;
+    - confirmar y llevar al ERD los valores de `entity_type` y de `admin_user.status`;
+    - aceptar la excepción de RLS del *outbox* en doc. 02 §5.1 y definir quién lo purga;
+    - decidir si el riesgo residual de `app.platform_job` se acepta o se pasa a un rol propio del importador;
+    - llevar la matriz de permisos a Doc. 01 §4 (doc. 02 §4.4);
+    - retención y particionado de la bitácora (requiere un ADR).
+- Feature 001, T07 integrada (PR #26): *realm* `liv` de Keycloak como código en `backend/identity/config/base/liv-realm.yaml`, aplicado con keycloak-config-cli.
+  - Roles con MFA por rol compuesto, flujo con TOTP condicional, bloqueo de 15 min tras 5 intentos, política de contraseñas, tiempos de 001-10, eventos, `administration_id` solo para administradores y clientes `liv-bff`, `liv-bff-service` y `liv-audit-importer`.
+  - `RealmConfigTest` con 17 pruebas; verificado contra Keycloak 26.8.1 desde cero y al reaplicar.
+  - La revisión adversarial y las cuatro lentes encontraron 7 altos y 0 críticos, todos corregidos; en la segunda ronda, 0 altos. Los principales: `admin-cli` daba *token* solo con contraseña, la prueba del flujo MFA pasaba con el flujo roto, la capa dev podía publicarse y `jboss-logging` escribía datos personales.
+  - **Dos decisiones del responsable:** sin rotación del *refresh token* y HTTPS siempre (`sslRequired: all`). Están en `plan.md` › Decisiones, junto con el resto de los ajustes de T07.
+  - **Desviaciones declaradas en `tasks.md`:**
+    - la capa de desarrollo vive en `backend/dev/keycloak/` y no trae TOTP; los usuarios con TOTP conocido pasan a T23;
+    - la prueba está en `src/test/java`;
+    - se tocaron archivos de `backend/dev/` (T09).
+  - **Hallazgo:** keycloak-config-cli no puede reaplicar credenciales TOTP sin duplicarlas.
+
 ### 2026-11-01
 
+- Feature 001, T06 hecha (PR #23): *spike* de Keycloak 26.8.1 en el entorno local.
+  - Se confirman la revocación del *refresh token* (cierra la sesión del usuario) y los eventos.
+  - El tema no distingue la cuenta bloqueada ni recibe parámetros propios.
+  - El responsable decidió: **mensaje único** para todo fallo, con aviso del bloqueo (enmienda 2 de la spec: 001-04 y 001-19; 001-03 sin excepción), y **sin mensaje de motivo** al salir o expirar.
+  - En Figma, "Credenciales incorrectas" lleva el nuevo texto y "Cuenta bloqueada" y "Sesión cerrada o expirada" pasan a `99 Archivo` (quedan 8 pantallas de acceso).
+  - Plan y tareas ajustados; no hace falta ninguna extensión de Keycloak.
+- Feature 001, T09 integrada (PR #20): entorno local del backend en `backend/dev/`.
+  - PostgreSQL 18.6 y Keycloak 26.8.1 fijados por *digest*, puerto 5433 para no chocar con un PostgreSQL local.
+  - Roles sin privilegios de administración, nada abierto a `PUBLIC` y funciones nuevas sin `EXECUTE` para `PUBLIC`.
+  - Semilla ficticia para T10 y `check.sh` con 28 verificaciones.
+  - **Desviación declarada:** la verificación del *realm* importado queda pendiente hasta T07.
+  - **Hallazgo:** la imagen de PostgreSQL confía (`trust`) en `127.0.0.1`, así que las pruebas de contraseña deben conectar por el nombre del servicio.
+  - Casillas de T01, T02 y T09 marcadas en `tasks.md`.
+- Decisión del responsable: no se usa un servicio automático de actualización de dependencias. Se retiró Dependabot (`.github/dependabot.yml`) y se cerraron sus 11 PR. Las actualizaciones son manuales, con los comandos de cada proyecto, al iniciar cada fase y ante una vulnerabilidad; una versión mayor sigue exigiendo ADR. Actualizado doc. 02 §11 (antes preveía Renovate). La mención a Dependabot en las consecuencias del ADR 0023 queda reemplazada por esta decisión.
 - Creada la regla de protección de `main` (*ruleset* "main"), sin excepciones para nadie: bloquea borrado y *force push*; exige PR, historial lineal, conversaciones resueltas y los *checks* `sistema · título Conventional Commits` y `sistema · secretos`; 0 aprobaciones (equipo de una persona). El repositorio integra solo con *squash* (título del PR como *commit*) y borra la rama al integrar.
 - Decisión del responsable: mientras el equipo sea de una sola persona, la rama `main` no exige aprobaciones y quien abre el PR lo revisa (H3) e integra. Las dos aprobaciones de los cambios críticos se suplen con las revisiones automáticas de nivel alto. Registrada como excepción temporal en `AGENTS.md` §4.3, que se elimina al sumar una segunda persona.
 - Integrado el PR #7 (documentación de la feature 001, ADR 0023–0025 y política de modelos).
 - Preparado T02 (F0‑07, CI de PR mínimo), en la rama `chore/f0-07-ci-pr`:
-  - cuatro *workflows* con acciones fijadas por SHA, Dependabot y CODEOWNERS;
+  - cuatro *workflows* con acciones fijadas por SHA y CODEOWNERS (Dependabot se retiró después, ver la entrada más reciente);
   - los comandos de cada proyecto pasan en local;
   - en Windows, `format:check` falla en local por los finales de línea CRLF de la copia de trabajo (en Git están en LF y pasan).
 - Abierto el PR #7 (raíz, tarea T01 de la feature 001): spec, diseño, plan (H2) y tareas del inicio de sesión, ADR 0023–0025 con sus cambios en la arquitectura, y política de modelos con los subagentes del proyecto. Antes del *commit* se aplicó la lente de legibilidad (`liv-revisor-rapido`): 7 hallazgos corregidos y 3 descartados. Siguiente: T02 (F0‑07, CI), que necesita aprobación humana.

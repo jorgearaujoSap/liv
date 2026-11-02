@@ -16,7 +16,7 @@ Backend del sistema de liquidación y recaudo del impuesto vehicular (LIV): Java
 | `./mvnw verify` | Compila, ejecuta todas las pruebas y verifica el formato |
 | `./mvnw test` | Solo las pruebas |
 | `./mvnw spotless:apply` | Formatea el código (Google Java Format, 2 espacios) |
-| `./mvnw spring-boot:run` | Arranca la API en `http://localhost:8080` (salud en `/actuator/health`) |
+| `./mvnw spring-boot:run` | Arranca la API en `http://localhost:8080` (salud en `/actuator/health`). Necesita el entorno local y las variables de `dev/.env`: ver `dev/README.md` |
 
 En Windows, `mvnw.cmd` en lugar de `./mvnw`.
 
@@ -36,7 +36,7 @@ backend/
     │   └── audit/ · reporting/
     ├── main/resources/
     │   ├── application.yml
-    │   └── db/migration/           ← migraciones Flyway (llegan con F0‑08)
+    │   └── db/migration/           ← migraciones Flyway (feature 001: esquemas platform, core y audit)
     └── test/java/co/com/sapenlinea/liv/
         ├── LivApplicationTests.java
         └── architecture/           ← guardias: catálogo de módulos, reglas de arquitectura, tamaño, fronteras

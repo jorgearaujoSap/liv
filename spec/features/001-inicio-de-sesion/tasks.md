@@ -28,9 +28,9 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## Raíz
 
-- [ ] **T01** · Documentación de la feature y ADR 0023–0025 — Archivos: `spec/features/001-inicio-de-sesion/**`, `docs/adr/ADR-0023…0025`, `docs/arquitectura/00`, `01`, `02`, `AGENTS.md` (§4.3, §6.2, §10), `CLAUDE.md`, `spec/constitution/**`, `.claude/**`, `ESTADO.md` — Prueba primero: no aplica (documentación). Se revisan los enlaces y la consistencia de los códigos de criterio.
-- [ ] **T02** · Requisito previo F0‑07: CI de PR mínimo por proyecto. Cambia CI, así que requiere aprobación humana explícita (`AGENTS.md` §4.5).
-  - Archivos: `.github/workflows/{backend-pr,frontend-pr,ui-pr,sistema-pr}.yml`, `.github/dependabot.yml`, `.github/CODEOWNERS`.
+- [x] **T01** · Documentación de la feature y ADR 0023–0025 — Archivos: `spec/features/001-inicio-de-sesion/**`, `docs/adr/ADR-0023…0025`, `docs/arquitectura/00`, `01`, `02`, `AGENTS.md` (§4.3, §6.2, §10), `CLAUDE.md`, `spec/constitution/**`, `.claude/**`, `ESTADO.md` — Prueba primero: no aplica (documentación). Se revisan los enlaces y la consistencia de los códigos de criterio. — Hecha: PR #7.
+- [x] **T02** · Requisito previo F0‑07: CI de PR mínimo por proyecto. Cambia CI, así que requiere aprobación humana explícita (`AGENTS.md` §4.5). — Hecha: PR #8 (Dependabot se retiró en el PR #21).
+  - Archivos: `.github/workflows/{backend-pr,frontend-pr,ui-pr,sistema-pr}.yml`, `.github/CODEOWNERS` (Dependabot se retiró después por decisión del responsable).
   - Contenido:
     - por proyecto, con filtro de ruta y `working-directory`: compilación, formato, *lint*, pruebas y arquitectura (Q01–Q03 en backend y frontend; en `ui`, solo Q01 hasta que T03 agregue pruebas e historias);
     - en todo PR: título en Conventional Commits (Q13) y búsqueda de secretos con gitleaks;
@@ -59,7 +59,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## `backend/identity/`
 
-- [ ] **T06** · *Spike* de Keycloak con la versión fijada.
+- [x] **T06** · *Spike* de Keycloak con la versión fijada. — Hecha: PR #23. Decisiones del responsable: mensaje único (enmienda 2 de la spec) y sin mensaje de motivo.
   - Archivos: `backend/identity/spike/RESULTADOS.md`.
   - Responder:
     1. cómo distingue el tema la cuenta bloqueada (001-04);
@@ -67,8 +67,13 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     3. si revocar el *refresh token* (RFC 7009) cierra la sesión del usuario;
     4. qué eventos emite.
   - Prueba primero: no aplica. **Si alguna respuesta obliga a escribir una extensión de Keycloak o cambia una decisión del plan, se detiene y se lleva al responsable.**
-- [ ] **T07** · *Realm* como código.
-  - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/identity/config/dev/**`, `backend/identity/README.md`, pruebas de configuración en `backend/identity/test/**`.
+- [x] **T07** · *Realm* como código. — Hecha: PR #26.
+  - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/identity/README.md`, `backend/src/test/java/**/identityconfig/RealmConfigTest.java`.
+  - **Desviaciones declaradas:**
+    - la prueba está en `backend/src/test/java`, porque Maven no corre pruebas desde `backend/identity/test/`;
+    - la capa de desarrollo quedó en `backend/dev/keycloak/` (no en `identity/config/dev/`) y sin TOTP; los usuarios con TOTP conocido pasan a T23;
+    - se tocaron archivos de T09: `backend/dev/compose.yaml` (servicio `keycloak-config`), `check.sh` (verificación del *realm* aplicado), `.env.example` y `README.md`;
+    - que un TOTP equivocado cuente para el bloqueo es comportamiento de Keycloak: lo verificará el e2e de T23.
   - Prueba primero: `RealmConfigTest`, en rojo, que verifica:
     - roles; clientes `liv-bff` y `liv-bff-service` (solo *client credentials*, audiencia `liv-internal`); sin `offline_access`;
     - `administration_id` editable solo por un administrador;
@@ -81,18 +86,27 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - ningún secreto de `config/dev` en `config/base`.
 - [ ] **T08** · Tema `liv` y la imagen de Keycloak.
   - Archivos: `backend/identity/theme/liv/**`, `backend/identity/theme/package.json` (Tailwind y `liv-components`), `backend/identity/Dockerfile`.
-  - Prueba primero: con Playwright contra Keycloak en contenedor, una prueba visual de las 10 páginas contra los *frames* aprobados, más axe (001-19). También comprueba que el mensaje de credenciales incorrectas y el de cuenta desactivada sean el mismo texto genérico (001-03, 001-05).
+  - Prueba primero: con Playwright contra Keycloak en contenedor, una prueba visual de las 8 páginas contra los *frames* aprobados, más axe (001-19). También comprueba que el mensaje de credenciales incorrectas y el de cuenta desactivada sean el mismo texto genérico (001-03, 001-05).
 
 ## `backend/dev/`
 
-- [ ] **T09** · Entorno local.
+- [x] **T09** · Entorno local. — Hecha: PR #20. La verificación del *realm* queda pendiente hasta T07.
   - Archivos: `backend/dev/compose.yaml`, `backend/dev/.env.example`, `backend/dev/initdb/**` (roles de BD y dos bases), `backend/dev/seed/**` (Ipiales y la administración B), `backend/dev/README.md`.
   - Prueba primero: `backend/dev/check.sh`, que falla si no responden PostgreSQL (con sus roles), Keycloak o el *realm* importado.
 
 ## `backend/` — `liv-api`
 
-- [ ] **T10** · Migraciones, roles, funciones y RLS.
+- [x] **T10** · Migraciones, roles, funciones y RLS. — Hecha: PR #25 (esquemas, *outbox*, `core.*`, `find_user_by_identity`, perfiles de Flyway) y PR #28 (roles y permisos, auditoría, ShedLock). Se dividió en dos porque no cabía en ~400 líneas (1500 y 980, de ellas unas 1200 y 700 de pruebas).
   - Archivos: `backend/src/main/resources/db/migration/V202611010900…0920__*.sql`, `backend/pom.xml` (Flyway, PostgreSQL, Testcontainers), `backend/src/test/**/isolation/**`.
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista: `backend/src/main/resources/application.yml` (era de T12: usuario `liv_app` fijo, URL y contraseña sin valor por defecto), `backend/config/application-dev.yml` (perfil `dev` fuera del jar, con la semilla), `backend/src/test/resources/application-test.yml`, `backend/src/test/java/**/LivApplicationTests.java`, `backend/dev/initdb/01-roles-y-bases.sh` (membresía de `liv_owner` en los dueños de las funciones), `backend/dev/README.md`, `backend/dev/seed/`, `backend/README.md` y `backend/CHANGELOG.md`;
+    - `AuditPlatformRowsTest` quedó como `PlatformAuditRowsTest` (el importador y la marca de plataforma) y `RecordPlatformSessionDeniedTest` (la función); se agregaron `LivAppGrantsTest`, `FirstMigrationContractTest`, `FlywayProfilesTest`, `DevSeedTest`, `AuditEventIntegrityTest` y `PlatformTablesTest`;
+    - dependencias (ADR 0023): `spring-boot-starter-flyway`, `flyway-database-postgresql`, `postgresql` y `testcontainers-postgresql`; `testcontainers-junit-jupiter` y `spring-boot-testcontainers` no hicieron falta;
+    - ajustes de diseño y decisiones pendientes: ver `plan.md` › Decisiones (ajustes de T10).
+  - **Pasa a otras tareas:**
+    - T12: `spring.modulith.events.jdbc.schema=platform` al agregar el *starter* JDBC; comprobar al arrancar que el rol conectado es `liv_app` (una variable `SPRING_DATASOURCE_USERNAME` sobrescribiría el `yml`);
+    - T13: alta con `INSERT … ON CONFLICT ON CONSTRAINT admin_user_identity_key DO NOTHING` y relectura con la función; `EndSession` con `UPDATE … WHERE ended_at IS NULL`, `SessionEnded` según las filas cambiadas y `ended_at` con la hora de la base; los errores `23505` con datos de otra administración se traducen a un error genérico;
+    - T15: filas de plataforma con `INSERT … ON CONFLICT DO NOTHING` sin objetivo ni `RETURNING`; `id` y `occurred_at` de la aplicación; la marca `app.platform_job` con alcance de transacción y una prueba con un *pool* de una conexión; el `import_cursor` con `WHERE last_event_at <= :nuevo`; la función de rechazos recibe el `occurred_at` original.
   - Prueba primero (Testcontainers con `liv_app`):
     - `AdministrationIsolationTest`: 001-17, sin contexto y con otra administración;
     - `FindUserByIdentityTest`: llamada desde otro rol, conflicto con otra administración y `search_path`;
@@ -144,7 +158,8 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `StartSession` con los dos *tokens*;
     - Spring Session JDBC con *tokens* cifrados;
     - `/bff/logout` con revocación y la ruta de LIV;
-    - rechazo con revocación y `reason=denied`.
+    - cierre por canal trasero en `/bff/backchannel-logout`: fijar el puerto del BFF en `LIV_BFF_BACKCHANNEL_URL` de `backend/dev/.env.example` (hoy apunta a `host.docker.internal:4200`, el proxy del frontend);
+    - rechazo con revocación y vuelta a `/bff/login`, sin parámetro de motivo.
   - Archivos: `backend/bff/src/main/**` (paquetes de login y logout), `backend/bff/src/test/**`.
   - Prueba primero:
     - 001-01 (`returnTo` y redirección abierta);
@@ -192,7 +207,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 ## Sistema
 
 - [ ] **T23** · `infra/` y `e2e/`.
-  - Archivos: `infra/compose.yaml` (solo imágenes publicadas), `infra/keycloak/e2e-users.yaml`, `infra/e2e/seed.sql`, `infra/caddy/**`, `e2e/**`.
+  - Archivos: `infra/compose.yaml` (solo imágenes publicadas), `infra/keycloak/e2e-users.yaml` (usuarios con TOTP conocido; la capa de desarrollo no los trae, ver T07), `infra/e2e/seed.sql`, `infra/caddy/**`, `e2e/**`.
   - Prueba primero: las especificaciones de Playwright de 001-01 a 001-22, escritas en rojo, incluidas:
     - el aviso y "Seguir conectado";
     - volver a entrar tras la expiración;
