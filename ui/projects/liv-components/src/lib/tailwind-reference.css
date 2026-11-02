@@ -1,0 +1,7 @@
+/*
+ * Referencia de Tailwind para los `.component.css` de la librería: da acceso a las utilidades y a los
+ * tokens de `styles/theme.css` dentro de `@apply`, sin emitir CSS propio. Cada componente lo declara con
+ * `@reference '../tailwind-reference.css';`.
+ */
+@import 'tailwindcss';
+@import '../styles/theme.css';

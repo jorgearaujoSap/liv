@@ -1,0 +1,15 @@
+<svg
+  class="spinner__svg"
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 20 20"
+  fill="none"
+  stroke-width="2.5"
+  aria-hidden="true"
+  focusable="false"
+  [attr.width]="size()"
+  [attr.height]="size()"
+>
+  <circle class="spinner__track" cx="10" cy="10" r="8.75" />
+  <path class="spinner__arc" d="M10 1.25A8.75 8.75 0 0 1 16.187 16.187" />
+</svg>
+<span class="spinner__label">{{ label() }}</span>

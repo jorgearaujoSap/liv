@@ -42,6 +42,26 @@
             "runner": "vitest",
             "buildTarget": "::development"
           }
+        },
+        "storybook": {
+          "builder": "@storybook/angular:start-storybook",
+          "options": {
+            "configDir": ".storybook",
+            "tsConfig": ".storybook/tsconfig.json",
+            "styles": [".storybook/preview.css"],
+            "compodoc": false,
+            "port": 6006
+          }
+        },
+        "build-storybook": {
+          "builder": "@storybook/angular:build-storybook",
+          "options": {
+            "configDir": ".storybook",
+            "tsConfig": ".storybook/tsconfig.json",
+            "styles": [".storybook/preview.css"],
+            "compodoc": false,
+            "outputDir": "dist/storybook"
+          }
         }
       }
     }

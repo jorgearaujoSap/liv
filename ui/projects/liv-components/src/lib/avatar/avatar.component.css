@@ -1,0 +1,17 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-action-primary-subtle text-action-primary;
+}
+
+:host([data-size='sm']) {
+  @apply size-6 text-label-sm;
+}
+
+:host([data-size='md']) {
+  @apply size-8 text-label-sm;
+}
+
+:host([data-size='lg']) {
+  @apply size-10 text-label-md;
+}

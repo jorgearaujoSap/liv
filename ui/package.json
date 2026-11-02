@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "build": "ng build liv-components",
+    "postbuild": "node scripts/copy-notices.mjs",
     "watch": "ng build liv-components --watch --configuration development",
     "pack": "npm run build && npm pack ./dist/liv-components --pack-destination ./dist",
     "version:patch": "cd projects/liv-components && npm version patch --no-git-tag-version",
@@ -14,7 +15,10 @@
     "release": "npm run build && npm publish ./dist/liv-components",
     "format": "prettier --write \"projects/**/*.{ts,html,css}\"",
     "format:check": "prettier --check \"projects/**/*.{ts,html,css}\"",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "test": "ng test --watch=false",
+    "storybook": "ng run liv-components:storybook",
+    "build-storybook": "ng run liv-components:build-storybook"
   },
   "private": true,
   "packageManager": "npm@11.12.0",
@@ -40,6 +44,7 @@
     "@angular/platform-browser-dynamic": "^21.2.25",
     "@eslint/js": "^10.0.1",
     "@storybook/addon-a11y": "^10.6.5",
+    "@storybook/addon-docs": "^10.6.5",
     "@storybook/angular": "^10.6.5",
     "@tailwindcss/postcss": "^4.3.3",
     "angular-eslint": "21.4.0",

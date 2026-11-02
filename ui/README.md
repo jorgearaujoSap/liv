@@ -18,6 +18,9 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 | `npm run version:patch` / `version:minor` / `version:major` | Sube la versión de la librería (`projects/liv-components/package.json`) |
 | `npm run release:check` | Verifica que la versión se puede publicar, sin publicar nada |
 | `npm run release` | Verifica, revisa el *lint*, compila y publica en npm |
+| `npm test` | Pruebas de los componentes (Vitest con jsdom), incluida la accesibilidad con axe |
+| `npm run storybook` | Catálogo de componentes en <http://localhost:6006> (Storybook) |
+| `npm run build-storybook` | Compila el catálogo en `dist/storybook` |
 | `npm run lint` | ESLint |
 | `npm run format` / `npm run format:check` | Prettier |
 
@@ -110,12 +113,15 @@ ui/
 │   ├── package.json              ← nombre, versión y exportaciones del paquete
 │   └── src/
 │       ├── public-api.ts         ← única superficie pública
+│       ├── lib/<componente>/     ← componente, plantilla, estilos, pruebas e historia de Storybook
 │       └── styles/theme.css      ← tokens de diseño (se publica como liv-components/styles/theme.css)
-├── scripts/check-release.mjs     ← verificaciones previas a la publicación
+├── .storybook/                   ← configuración del catálogo
+├── scripts/                      ← verificaciones previas a la publicación y avisos de terceros
+├── THIRD_PARTY_NOTICES.md        ← licencias del material copiado (iconos de Lucide); se publica con el paquete
 ├── angular.json · tsconfig.json  ← workspace de Angular (solo la librería)
 └── eslint.config.js · .prettierrc
 ```
 
 ## Estado
 
-Versión 0.1.0 publicada en npm: contiene solo los *tokens* de diseño. Los componentes llegan con sus diseños en Figma; con el primero se agregan las pruebas, Storybook y la regresión visual. Ver `CHANGELOG.md`.
+Versión 0.1.0 publicada en npm: contiene solo los *tokens* de diseño. En desarrollo para 0.2.0 (feature 001): *tokens* nuevos y los componentes `Icon`, `Logo`, `Spinner`, `Skeleton`, `Badge` y `Avatar`, con pruebas, accesibilidad con axe y su historia de Storybook por variante. Las capturas de referencia (regresión visual, Q14) llegan con T05. Ver `CHANGELOG.md`.
