@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4)
+**Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -69,11 +69,11 @@ Entre corchetes, el proyecto y su PR (IN‑07).
    - **`config/dev/`:** usuarios ficticios (uno por rol en Ipiales y uno en la administración B) y secretos TOTP de prueba. Nunca se aplica fuera de desarrollo, y CI lo bloquea.
    - **`theme/liv/`:** FreeMarker con el CSS de los *tokens* del paquete `liv-components` (excepción aprobada, ADR 0024). Prueba visual contra los *frames*. En `messages_es`, la cuenta desactivada usa el mensaje genérico.
    - **Imagen de Keycloak con el tema:** se publica en CI, junto con la imagen `liv-identity-config` (`keycloak-config-cli` + `config/base`), que también usa `infra/`.
-   - **Primera tarea: un *spike*** con la versión fijada, para confirmar:
-     1. cómo distingue el tema la cuenta bloqueada;
-     2. cómo recibe el motivo (`logout`, `expired`, `denied`);
-     3. que la revocación del *refresh token* (RFC 7009) cierra la sesión del usuario en Keycloak;
-     4. qué eventos emite.
+   - **Primera tarea: un *spike*** (T06, hecho; `backend/identity/spike/RESULTADOS.md`). Resultados con Keycloak 26.8.1:
+     1. el tema **no** distingue la cuenta bloqueada: se usa un **mensaje único** para todo fallo, que avisa del bloqueo (enmienda 2 de la spec);
+     2. el tema **no** recibe parámetros propios: no hay mensaje de motivo; tras salir, expirar o ser rechazado, se muestra la página de inicio de sesión (o la de error genérico);
+     3. la revocación del *refresh token* (RFC 7009) **sí** cierra la sesión del usuario;
+     4. no hay evento de expiración; los fallos traen su causa y los eventos de administración, la representación del recurso.
 4. **[backend · dev] `backend/dev/`.**
    - PostgreSQL 18, con una base para LIV y otra para Keycloak.
    - Script de inicio que crea los roles de BD (`liv_owner`, `liv_app`, `liv_bff_owner`, `liv_bff`); en AWS los crea la infraestructura como código.
@@ -169,12 +169,12 @@ Entre corchetes, el proyecto y su PR (IN‑07).
       - `returnTo` se valida y se guarda en la sesión;
       - `prompt=login`;
       - al volver, cambia el id de sesión y llama a `StartSession` con los dos *tokens*;
-      - si `StartSession` falla, revoca el *refresh token* (RFC 7009), invalida la sesión y redirige a `/bff/login?reason=denied`, donde el tema muestra el mensaje genérico (`001-05`).
+      - si `StartSession` falla, revoca el *refresh token* (RFC 7009), invalida la sesión y redirige a `/bff/login`, donde el usuario ve la página de inicio de sesión. El rechazo queda auditado (`SessionDenied`); la página no muestra un motivo, porque el tema no recibe parámetros propios (*spike* T06).
     - **`/bff/logout` (CSRF):**
       1. llama a `EndSession(LOGOUT)`;
       2. **revoca el *refresh token* desde el servidor** (RFC 7009), lo que cierra la sesión de Keycloak;
       3. invalida la sesión;
-      4. responde la ruta de LIV `/bff/login?reason=logout`.
+      4. responde la ruta de LIV `/bff/login`, sin parámetro de motivo.
 
       El navegador nunca recibe un `id_token_hint` ni un JWT.
     - **`/bff/session`:** está fuera de la cadena que carga la sesión. Lee el repositorio por el id de la cookie y devuelve los segundos que faltan para la expiración por inactividad y para la absoluta. **No extiende la sesión**, y hay una prueba de integración que lo verifica.
@@ -348,7 +348,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
 
 | Pantalla | Diseño en Figma | Componentes |
 |---|---|---|
-| Las 10 pantallas de acceso | [001 · Acceso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=24-1163) | Tema de Keycloak (excepción del ADR 0024). Los motivos `logout`, `expired` y `denied` usan "Sesión cerrada o expirada" y "Credenciales incorrectas" (mensaje genérico) |
+| Las 8 pantallas de acceso | [001 · Acceso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=24-1163) | Tema de Keycloak (excepción del ADR 0024). Tras el *spike* quedan 8: "Cuenta bloqueada" se fusionó con "Credenciales incorrectas" (mensaje único) y "Sesión cerrada o expirada" se archivó en `99 Archivo` |
 | Inicio | [Inicio](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-793) | SideNav, NavItem, Logo, AppHeader, Avatar, Button, PageHeader, ModuleCard, Badge, Icon |
 | Aviso de sesión por expirar | [Aviso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1157) | Dialog, Button, Icon |
 | Sin permiso (403) | [Sin permiso](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1454) | ResultState, Button, Icon y la estructura general |
@@ -391,7 +391,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - El registro de LIV manda sobre el *claim*. Un cambio de administración en Keycloak deja al usuario sin acceso (401) hasta que se resuelva con el menú 1.2.
   - Si se cambia de proveedor, el par (emisor, `sub`) se vuelve a vincular de forma explícita, sin dar de alta usuarios nuevos.
 - **Cierre de sesión sin *tokens* en el navegador.** Revocación del *refresh token* (RFC 7009) desde el BFF.
-  - Si el *spike* muestra que en Keycloak no cierra la sesión del usuario, la alternativa es cerrarla con la API de administración de Keycloak, desde un adaptador aislado del BFF (puerto `ProviderSessionTerminator`). Esa variante necesita aprobación, porque toca 001-20.
+  - El *spike* T06 confirmó que la revocación cierra la sesión del usuario en Keycloak, así que no hace falta la variante con la API de administración.
   - Se descartó navegar a `end_session` con `id_token_hint`.
 - **Menú: el backend decide qué, el frontend cómo se ve.**
 - **Plan B del BFF.** Si no hay una versión de Spring Cloud Gateway compatible, se usa Spring MVC con `RestClient`, registrado en un ADR que modifique el ADR 0010 y doc. 00 §5.
@@ -399,9 +399,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
 
 ## Riesgos
 
-- **Resultados del *spike* de identidad.** El aviso de bloqueo, el motivo en el tema y la revocación del *refresh token* son comportamientos de Keycloak. Si alguno no funciona como se espera, se lleva al responsable antes de escribir extensiones:
-  - un *authenticator* propio, para el aviso de bloqueo;
-  - un adaptador de cierre de sesión, para la revocación.
+- **Resultados del *spike* de identidad.** Resuelto con T06: el responsable eligió el mensaje único y no mostrar el motivo, así que no se escribe ninguna extensión de Keycloak. La revocación funciona como prevé el plan.
 - **Compatibilidad de Spring Cloud Gateway** con Spring Boot 4.1 (ver plan B).
 - **Tamaño.** Unos 17 PR. `tasks.md` los ordena; librería, identidad y base de datos van en paralelo. F0‑07 va antes.
 - **RLS.** Pruebas de aislamiento con el rol `liv_app` real:

@@ -59,7 +59,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## `backend/identity/`
 
-- [ ] **T06** · *Spike* de Keycloak con la versión fijada.
+- [x] **T06** · *Spike* de Keycloak con la versión fijada. — Hecha: PR #23. Decisiones del responsable: mensaje único (enmienda 2 de la spec) y sin mensaje de motivo.
   - Archivos: `backend/identity/spike/RESULTADOS.md`.
   - Responder:
     1. cómo distingue el tema la cuenta bloqueada (001-04);
@@ -81,7 +81,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - ningún secreto de `config/dev` en `config/base`.
 - [ ] **T08** · Tema `liv` y la imagen de Keycloak.
   - Archivos: `backend/identity/theme/liv/**`, `backend/identity/theme/package.json` (Tailwind y `liv-components`), `backend/identity/Dockerfile`.
-  - Prueba primero: con Playwright contra Keycloak en contenedor, una prueba visual de las 10 páginas contra los *frames* aprobados, más axe (001-19). También comprueba que el mensaje de credenciales incorrectas y el de cuenta desactivada sean el mismo texto genérico (001-03, 001-05).
+  - Prueba primero: con Playwright contra Keycloak en contenedor, una prueba visual de las 8 páginas contra los *frames* aprobados, más axe (001-19). También comprueba que el mensaje de credenciales incorrectas y el de cuenta desactivada sean el mismo texto genérico (001-03, 001-05).
 
 ## `backend/dev/`
 
@@ -144,7 +144,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `StartSession` con los dos *tokens*;
     - Spring Session JDBC con *tokens* cifrados;
     - `/bff/logout` con revocación y la ruta de LIV;
-    - rechazo con revocación y `reason=denied`.
+    - rechazo con revocación y vuelta a `/bff/login`, sin parámetro de motivo.
   - Archivos: `backend/bff/src/main/**` (paquetes de login y logout), `backend/bff/src/test/**`.
   - Prueba primero:
     - 001-01 (`returnTo` y redirección abierta);

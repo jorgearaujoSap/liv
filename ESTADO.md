@@ -119,6 +119,12 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-01
 
+- Feature 001, T06 hecha (PR #23): *spike* de Keycloak 26.8.1 en el entorno local.
+  - Se confirman la revocación del *refresh token* (cierra la sesión del usuario) y los eventos.
+  - El tema no distingue la cuenta bloqueada ni recibe parámetros propios.
+  - El responsable decidió: **mensaje único** para todo fallo, con aviso del bloqueo (enmienda 2 de la spec: 001-04 y 001-19; 001-03 sin excepción), y **sin mensaje de motivo** al salir o expirar.
+  - En Figma, "Credenciales incorrectas" lleva el nuevo texto y "Cuenta bloqueada" y "Sesión cerrada o expirada" pasan a `99 Archivo` (quedan 8 pantallas de acceso).
+  - Plan y tareas ajustados; no hace falta ninguna extensión de Keycloak.
 - Feature 001, T09 integrada (PR #20): entorno local del backend en `backend/dev/`.
   - PostgreSQL 18.6 y Keycloak 26.8.1 fijados por *digest*, puerto 5433 para no chocar con un PostgreSQL local.
   - Roles sin privilegios de administración, nada abierto a `PUBLIC` y funciones nuevas sin `EXECUTE` para `PUBLIC`.
