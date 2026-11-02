@@ -103,8 +103,21 @@ class ApiAuthenticationTest extends PlatformWebTest {
   @Tag("001-14")
   @DisplayName("001-14 · Un token de servicio no sirve en /api")
   void serviceTokenOnApi() {
-    assertRejected(
-        get(PROBE, bearer(OidcTestProvider.serviceToken())), ErrorCodes.NOT_AUTHENTICATED);
+    // Registered subject and administration: only the audience can reject it.
+    String token =
+        OidcTestProvider.serviceToken(claims ->
+            claims.subject(ACTIVE).claim("administration_id", LivDatabase.ADMIN_A.toString()));
+    assertRejected(get(PROBE, bearer(token)), ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
+  @DisplayName("001-14 · Un token sin vencimiento (sin exp) responde 401")
+  void tokenWithoutExpiry() {
+    String token =
+        OidcTestProvider.userToken(
+            ACTIVE, LivDatabase.ADMIN_A, claims -> claims.expirationTime(null));
+    assertRejected(get(PROBE, bearer(token)), ErrorCodes.NOT_AUTHENTICATED);
   }
 
   @Test

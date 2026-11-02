@@ -3,6 +3,7 @@ package co.com.sapenlinea.liv.architecture;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
+import co.com.sapenlinea.liv.platform.AdministrationContext;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -11,6 +12,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -125,6 +127,17 @@ class ArchitectureRulesTest {
           .dependOnClassesThat()
           .resideInAPackage("org.keycloak..")
           .because("authentication uses only standard OIDC and OAuth 2.0 (D-001-6, 001-20)");
+
+  @ArchTest
+  static final ArchRule administrationContextComesFromTheRegistry =
+      noClasses()
+          .that()
+          .resideOutsideOfPackages("..liv.platform..", "..liv.*.infrastructure..")
+          .should()
+          .callMethod(AdministrationContext.class, "open", UUID.class)
+          .because(
+              "the administration comes from the LIV registry (security filter) or from the event"
+                  + " of a listener or job, never from a request (001-17, doc. 02 §5.1)");
 
   @ArchTest
   static final ArchRule generatedModelsStayInTheApiLayer =

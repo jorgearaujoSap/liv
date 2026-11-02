@@ -28,8 +28,8 @@ import org.testcontainers.utility.DockerImageName;
  */
 public final class LivDatabase {
 
-  public static final String OWNER = "liv_owner";
-  public static final String APP = "liv_app";
+  static final String OWNER = "liv_owner";
+  static final String APP = "liv_app";
   static final String BFF = "liv_bff";
   static final String OWNER_PASSWORD = "owner-test-pw";
 
@@ -104,7 +104,7 @@ public final class LivDatabase {
     return DriverManager.getConnection(jdbcUrl(), role, password(role));
   }
 
-  public static String password(String role) {
+  static String password(String role) {
     return OWNER.equals(role) ? OWNER_PASSWORD : role + "-test-pw";
   }
 
@@ -150,6 +150,37 @@ public final class LivDatabase {
         subject);
   }
 
+  /** Password of {@code liv_app}, the only role the application connects with. */
+  public static String appPassword() {
+    return password(APP);
+  }
+
+  /**
+   * Registers a user of another issuer, as the owner and idempotently, for the tests of other
+   * packages (T12). The other roles stay private to this package.
+   */
+  public static void registerUser(
+      UUID administration, String issuer, String subject, String status) {
+    try {
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
+                                       identity_issuer, identity_subject)
+          VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
+          ON CONFLICT DO NOTHING
+          """,
+          UUID.randomUUID(),
+          administration,
+          status,
+          issuer,
+          subject);
+    } catch (SQLException e) {
+      throw new IllegalStateException("No se pudo registrar el usuario " + subject, e);
+    }
+  }
+
   static void setContext(Connection connection, UUID administration) throws SQLException {
     update(
         connection,
@@ -157,7 +188,7 @@ public final class LivDatabase {
         administration.toString());
   }
 
-  public static int update(String role, UUID administration, String sql, Object... args)
+  static int update(String role, UUID administration, String sql, Object... args)
       throws SQLException {
     return inTx(role, administration, c -> update(c, sql, args));
   }

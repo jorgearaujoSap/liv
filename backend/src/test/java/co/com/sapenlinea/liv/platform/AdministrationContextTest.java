@@ -2,8 +2,9 @@ package co.com.sapenlinea.liv.platform;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,14 @@ class AdministrationContextTest {
   @Test
   @Tag("001-17")
   @DisplayName("001-17 · El contexto no pasa a otro hilo")
-  void doesNotLeakToOtherThreads() {
+  void doesNotLeakToOtherThreads() throws InterruptedException {
+    // A thread started inside the scope: it would inherit an InheritableThreadLocal.
+    AtomicReference<Optional<UUID>> seen = new AtomicReference<>();
     try (var scope = AdministrationContext.open(A)) {
-      assertThat(CompletableFuture.supplyAsync(AdministrationContext::current).join()).isEmpty();
+      Thread child = new Thread(() -> seen.set(AdministrationContext.current()));
+      child.start();
+      child.join();
     }
+    assertThat(seen.get()).isEmpty();
   }
 }

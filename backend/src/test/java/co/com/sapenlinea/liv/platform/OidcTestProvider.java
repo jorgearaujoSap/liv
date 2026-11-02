@@ -80,6 +80,14 @@ final class OidcTestProvider {
     return new PlainJWT(user(subject, administrationId).build()).serialize();
   }
 
+  static String serviceTokenSignedWithAnotherKey() {
+    return sign(service().build(), newKey());
+  }
+
+  static String unsignedServiceToken() {
+    return new PlainJWT(service().build()).serialize();
+  }
+
   private static JWTClaimsSet.Builder user(String subject, UUID administrationId) {
     return base()
         .subject(subject)

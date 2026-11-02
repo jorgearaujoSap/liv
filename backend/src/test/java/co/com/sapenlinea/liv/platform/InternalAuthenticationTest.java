@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -61,6 +64,61 @@ class InternalAuthenticationTest extends PlatformWebTest {
   void otherServiceClient() {
     String other = OidcTestProvider.serviceToken(claims -> claims.claim("azp", "otro-cliente"));
     assertRejected(post(END, bearer(other)), ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
+  @DisplayName("001-14 · Un token del cliente de servicio sin la audiencia interna responde 401")
+  void serviceClientWithoutInternalAudience() {
+    String token =
+        OidcTestProvider.serviceToken(claims -> claims.audience(OidcTestProvider.USER_AUDIENCE));
+    assertRejected(post(END, bearer(token)), ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
+  @DisplayName(
+      "001-14 · Un token de servicio vencido, sin vencimiento o de otro emisor responde 401")
+  void invalidServiceTokenClaims() {
+    Instant past = Instant.now().minus(Duration.ofMinutes(15));
+    String expired =
+        OidcTestProvider.serviceToken(claims ->
+            claims
+                .issueTime(Date.from(past))
+                .expirationTime(Date.from(past.plus(Duration.ofMinutes(5)))));
+    String withoutExpiry = OidcTestProvider.serviceToken(claims -> claims.expirationTime(null));
+    String otherIssuer =
+        OidcTestProvider.serviceToken(
+            claims -> claims.issuer(OidcTestProvider.issuer().replace("/liv", "/otro")));
+
+    assertRejected(post(END, bearer(expired)), ErrorCodes.NOT_AUTHENTICATED);
+    assertRejected(post(END, bearer(withoutExpiry)), ErrorCodes.NOT_AUTHENTICATED);
+    assertRejected(post(END, bearer(otherIssuer)), ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
+  @DisplayName("001-14 · Un token de servicio con otra firma o sin firma responde 401")
+  void invalidServiceTokenSignature() {
+    assertRejected(
+        post(END, bearer(OidcTestProvider.serviceTokenSignedWithAnotherKey())),
+        ErrorCodes.NOT_AUTHENTICATED);
+    assertRejected(
+        post(END, bearer(OidcTestProvider.unsignedServiceToken())), ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
+  @DisplayName("001-14 · Un X-User-Token de más de 8.192 caracteres responde 401 aunque sea válido")
+  void userTokenOverTheContractLimit() {
+    String oversized =
+        OidcTestProvider.userToken(
+            ACTIVE, LivDatabase.ADMIN_A, claims -> claims.claim("relleno", "x".repeat(8200)));
+    assertThat(oversized.length()).isGreaterThan(8192);
+
+    assertRejected(
+        post(START, withUser(OidcTestProvider.serviceToken(), oversized)),
+        ErrorCodes.NOT_AUTHENTICATED);
   }
 
   @Test

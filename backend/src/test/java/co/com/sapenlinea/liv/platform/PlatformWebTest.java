@@ -6,13 +6,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.slf4j.MDC;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -35,7 +36,9 @@ abstract class PlatformWebTest {
   static final String INACTIVE = "api-inactivo";
   static final String UNREGISTERED = "api-sin-registro";
 
-  private static final HttpClient HTTP = HttpClient.newHttpClient();
+  private static final Duration TIMEOUT = Duration.ofSeconds(20);
+
+  private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
 
   static {
     seedUsers();
@@ -46,7 +49,7 @@ abstract class PlatformWebTest {
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", LivDatabase::jdbcUrl);
-    registry.add("spring.datasource.password", () -> LivDatabase.password(LivDatabase.APP));
+    registry.add("spring.datasource.password", LivDatabase::appPassword);
     registry.add("liv.security.issuer-uri", OidcTestProvider::issuer);
   }
 
@@ -75,6 +78,7 @@ abstract class PlatformWebTest {
   private static HttpResponse<String> send(
       HttpRequest.Builder request, Map<String, String> headers) {
     headers.forEach(request::header);
+    request.timeout(TIMEOUT);
     try {
       return HTTP.send(request.build(), HttpResponse.BodyHandlers.ofString());
     } catch (IOException e) {
@@ -88,29 +92,8 @@ abstract class PlatformWebTest {
   /** Users of the generic provider: one active in A, one deactivated in A. */
   private static void seedUsers() {
     String issuer = OidcTestProvider.issuer();
-    insertUser(UUID.randomUUID(), LivDatabase.ADMIN_A, issuer, ACTIVE, "ACTIVE");
-    insertUser(UUID.randomUUID(), LivDatabase.ADMIN_A, issuer, INACTIVE, "INACTIVE");
-  }
-
-  private static void insertUser(
-      UUID id, UUID administration, String issuer, String subject, String status) {
-    try {
-      LivDatabase.update(
-          LivDatabase.OWNER,
-          null,
-          """
-          INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
-                                       identity_issuer, identity_subject)
-          VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
-          """,
-          id,
-          administration,
-          status,
-          issuer,
-          subject);
-    } catch (java.sql.SQLException e) {
-      throw new IllegalStateException("No se pudo sembrar el usuario " + subject, e);
-    }
+    LivDatabase.registerUser(LivDatabase.ADMIN_A, issuer, ACTIVE, "ACTIVE");
+    LivDatabase.registerUser(LivDatabase.ADMIN_A, issuer, INACTIVE, "INACTIVE");
   }
 
   /** What a controller of /api/** sees after the filters. */
@@ -125,6 +108,16 @@ abstract class PlatformWebTest {
       seen.put("administrationId", AdministrationContext.current().orElseThrow().toString());
       seen.put("correlationId", MDC.get("correlation_id"));
       return seen;
+    }
+
+    @GetMapping("/api/v1/probe/failure")
+    Map<String, String> failure() {
+      throw new IllegalStateException("detalle interno de la falla");
+    }
+
+    @GetMapping("/api/v1/probe/unavailable")
+    Map<String, String> unavailable() {
+      throw new DataAccessResourceFailureException("base de datos caída");
     }
   }
 

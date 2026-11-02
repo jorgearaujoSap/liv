@@ -18,5 +18,12 @@ public final class ErrorCodes {
   /** The user lacks the permission (001-16). */
   public static final String FORBIDDEN = "001-16";
 
+  /** Technical errors, not tied to a criterion: {@code SYS-} and the HTTP status. */
+  public static final String NOT_FOUND = "SYS-404";
+
+  public static final String INTERNAL_ERROR = "SYS-500";
+
+  public static final String SERVICE_UNAVAILABLE = "SYS-503";
+
   private ErrorCodes() {}
 }
