@@ -56,7 +56,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
 | F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Faltan MinIO, ClamAV y observabilidad |
 | F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01 hasta T03), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Faltan publicación de imágenes y contratos, cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
-| F0‑08 | Roles de BD, RLS y primera migración | ⏳ | — |
+| F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway `V202611010900`–`0920` (T10 de la feature 001, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
 | F0‑09 | Auditoría, correlación y observabilidad | ⏳ | — |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
 | F0‑11 | Pruebas *golden* en rojo | ⏳ | — |
@@ -119,6 +119,19 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-02
 
+- Feature 001, T10 integrada (PR #25 y #28): migraciones Flyway del backend con roles, funciones y RLS.
+  - **Qué hay:** esquemas `platform`, `core` y `audit`; el *outbox* de Spring Modulith; `core.territorial_entity`, `tax_administration`, `admin_user` y `user_session`; `platform.app_role`, `app_permission` y `role_permission` con la matriz de H2; `audit.audit_event` de solo inserción, `import_cursor` y ShedLock; las funciones `core.find_user_by_identity` y `audit.record_platform_session_denied`. La aplicación se conecta siempre como `liv_app`; Flyway (`liv_owner`) corre solo en los perfiles `dev` y `test`.
+  - **Pruebas:** 87 con PostgreSQL 18.6 en Testcontainers y los roles reales de `dev/initdb`: aislamiento (001-17), la función de identidad (incluido un operador falso en el `search_path`), permisos exactos de `liv_app`, inmutabilidad de la auditoría, los dos caminos de filas de plataforma, el contrato de la primera migración y los perfiles de Flyway sobre bases vacías.
+  - **Revisión:** adversarial con dos `liv-revisor-critico` y las cuatro lentes en cada PR; 0 críticos y 0 altos tras corregir. Lo principal que salió: el *outbox* con `DELETE` y sin RLS, una sesión que se podía reabrir, la política del importador sin limitar el origen, la función de rechazos sin lista blanca ni fecha, y un contrato de roles que no se comprobaba. Hubo segunda ronda en #25; #28 no la tuvo.
+  - **Tamaño:** no cupo en ~400 líneas; se dividió en dos PR (1500 y 980, con unas 1200 y 700 de pruebas).
+  - **Desviaciones declaradas en `tasks.md`:** archivos fuera de la lista (`application.yml`, `config/application-dev.yml`, `dev/initdb`, `dev/README.md`, `dev/seed`, `README.md`, `CHANGELOG.md`) y los puntos que pasan a T12, T13 y T15.
+  - **Decisiones humanas pendientes** (detalle en `plan.md` › Decisiones, ajustes de T10):
+    - registrar en doc. 02 §5.2 y en el ADR 0025 la membresía de `liv_owner` en los dueños de las funciones, que la infraestructura de AWS debe repetir; los volúmenes locales anteriores deben recrearse;
+    - confirmar y llevar al ERD los valores de `entity_type` y de `admin_user.status`;
+    - aceptar la excepción de RLS del *outbox* en doc. 02 §5.1 y definir quién lo purga;
+    - decidir si el riesgo residual de `app.platform_job` se acepta o se pasa a un rol propio del importador;
+    - llevar la matriz de permisos a Doc. 01 §4 (doc. 02 §4.4);
+    - retención y particionado de la bitácora (requiere un ADR).
 - Feature 001, T07 integrada (PR #26): *realm* `liv` de Keycloak como código en `backend/identity/config/base/liv-realm.yaml`, aplicado con keycloak-config-cli.
   - Roles con MFA por rol compuesto, flujo con TOTP condicional, bloqueo de 15 min tras 5 intentos, política de contraseñas, tiempos de 001-10, eventos, `administration_id` solo para administradores y clientes `liv-bff`, `liv-bff-service` y `liv-audit-importer`.
   - `RealmConfigTest` con 17 pruebas; verificado contra Keycloak 26.8.1 desde cero y al reaplicar.
