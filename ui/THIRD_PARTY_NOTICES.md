@@ -27,7 +27,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ## Feather
 
-Siete de esos iconos (`arrow-right`, `chevron-down`, `chevron-right`, `info`, `lock`, `log-out` y `smartphone`) derivan de [Feather](https://feathericons.com), que Lucide acredita con la licencia MIT.
+Diez de esos iconos derivan de [Feather](https://feathericons.com), que Lucide acredita con la licencia MIT en el `LICENSE` de la versión indicada: `arrow-right`, `chevron-down`, `chevron-right`, `info`, `lock`, `log-out`, `smartphone` y, con su nombre anterior en Feather, `circle-alert` (`alert-circle`), `circle-help` (`help-circle`) y `triangle-alert` (`alert-triangle`).
 
 ```
 The MIT License (MIT)

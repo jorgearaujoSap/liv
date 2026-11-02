@@ -15,7 +15,6 @@ const meta: Meta<BadgeArgs> = {
   tags: ['autodocs'],
   decorators: [moduleMetadata({ imports: [BadgeComponent] })],
   parameters: {
-    design: { type: 'figma', url: figma },
     docs: {
       description: {
         component: `Etiqueta de estado corta. El texto, que se proyecta como contenido, siempre dice el estado: el color no es la única señal. [Diseño en Figma](${figma})`,

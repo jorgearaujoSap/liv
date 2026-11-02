@@ -8,7 +8,6 @@ const meta: Meta<SkeletonComponent> = {
   component: SkeletonComponent,
   tags: ['autodocs'],
   parameters: {
-    design: { type: 'figma', url: figma },
     docs: {
       description: {
         component: `Marcador de contenido mientras carga. Es decorativo: el contenedor lleva aria-busy="true". Pulsa suavemente salvo con prefers-reduced-motion. [Diseño en Figma](${figma})`,

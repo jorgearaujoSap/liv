@@ -34,6 +34,17 @@ describe('Spinner', () => {
     );
   });
 
+  it.each([
+    ['default', '--color-border-default', '--color-action-primary,'],
+    ['inverse', '--color-action-primary-hover', '--color-text-inverse'],
+  ])('el tono %s pinta la pista y el arco con los tokens de Figma', (tone, track, arc) => {
+    const host = render({ tone });
+    expect(getComputedStyle(host.querySelector('.spinner__track') as Element).stroke).toContain(
+      track,
+    );
+    expect(getComputedStyle(host.querySelector('.spinner__arc') as Element).stroke).toContain(arc);
+  });
+
   it('avisa lo que carga con aria-live polite y un texto', () => {
     const host = render();
     expect(host.getAttribute('role')).toBe('status');

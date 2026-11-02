@@ -37,6 +37,22 @@ describe('Logo', () => {
     expect(svg.querySelector('circle')?.getAttribute('r')).toBe('2.75');
   });
 
+  it('el punto está donde lo dibuja Figma', () => {
+    const dot = render().querySelector('circle') as SVGCircleElement;
+    expect([dot.getAttribute('cx'), dot.getAttribute('cy')]).toEqual(['24.5', '11.5']);
+  });
+
+  it.each([
+    ['default', '--color-action-primary,', '--color-text-inverse', '--color-text-primary'],
+    ['inverse', '--color-text-inverse', '--color-action-primary,', '--color-text-inverse'],
+  ])('el tono %s pinta monograma y nombre con los tokens de Figma', (tone, tile, letter, name) => {
+    const host = render({ tone });
+    const style = (selector: string) => getComputedStyle(host.querySelector(selector) as Element);
+    expect(style('.logo__tile').fill).toContain(tile);
+    expect(style('.logo__letter').stroke).toContain(letter);
+    expect(style('.logo__name').color).toContain(name);
+  });
+
   it('se anuncia como imagen con texto alternativo y oculta su contenido', () => {
     const host = render();
     expect(host.getAttribute('role')).toBe('img');
@@ -47,6 +63,10 @@ describe('Logo', () => {
 
   it('el texto alternativo se puede cambiar', () => {
     expect(render({ label: 'Sistema LIV' }).getAttribute('aria-label')).toBe('Sistema LIV');
+  });
+
+  it('un texto alternativo vacío vuelve al predeterminado', () => {
+    expect(render({ label: '' }).getAttribute('aria-label')).toBe('LIV, impuesto vehicular');
   });
 
   it('cumple axe con y sin nombre, en ambos tonos', async () => {

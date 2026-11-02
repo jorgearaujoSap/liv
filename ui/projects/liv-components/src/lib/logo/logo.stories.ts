@@ -8,7 +8,6 @@ const meta: Meta<LogoComponent> = {
   component: LogoComponent,
   tags: ['autodocs'],
   parameters: {
-    design: { type: 'figma', url: figma },
     docs: {
       description: {
         component: `Logotipo de LIV: monograma y nombre del producto. Provisional hasta tener la identidad institucional. [Diseño en Figma](${figma})`,

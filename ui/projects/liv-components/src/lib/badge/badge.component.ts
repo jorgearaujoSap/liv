@@ -5,7 +5,7 @@ export type BadgeTone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger'
 
 /**
  * Etiqueta de estado corta (Figma: `Badge`). El texto, que se proyecta como contenido, siempre dice el
- * estado: el color nunca es la única señal.
+ * estado: el color nunca es la única señal. La propiedad `Label` de Figma es ese contenido proyectado.
  */
 @Component({
   selector: 'liv-badge',

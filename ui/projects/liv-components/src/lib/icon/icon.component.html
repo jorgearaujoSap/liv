@@ -9,9 +9,9 @@
   focusable="false"
   [attr.width]="size()"
   [attr.height]="size()"
-  [attr.role]="label() ? 'img' : null"
-  [attr.aria-label]="label() ?? null"
-  [attr.aria-hidden]="label() ? null : 'true'"
+  [attr.role]="accessibleName() ? 'img' : null"
+  [attr.aria-label]="accessibleName()"
+  [attr.aria-hidden]="accessibleName() ? null : 'true'"
 >
   @for (shape of shapes(); track $index) {
     @switch (shape.tag) {

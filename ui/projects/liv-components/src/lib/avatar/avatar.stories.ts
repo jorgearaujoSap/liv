@@ -8,7 +8,6 @@ const meta: Meta<AvatarComponent> = {
   component: AvatarComponent,
   tags: ['autodocs'],
   parameters: {
-    design: { type: 'figma', url: figma },
     docs: {
       description: {
         component: `Iniciales del usuario (24, 32 o 40 px). Es decorativo: el nombre completo siempre aparece junto a él. [Diseño en Figma](${figma})`,

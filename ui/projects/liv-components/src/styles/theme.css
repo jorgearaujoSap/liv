@@ -7,10 +7,14 @@
  * `radius/lg` es `--radius-lg`. No se editan a mano: un cambio se hace primero en Figma y luego se
  * regenera este archivo.
  *
+ * `static` hace que Tailwind emita siempre todas las variables en `:root`, también las que la aplicación
+ * no usa en sus propias plantillas: los componentes de la librería las leen desde `node_modules`, donde
+ * Tailwind no busca clases.
+ *
  * Los valores por defecto de Tailwind para color, tamaño de texto, sombra, espaciado y radio se
  * anulan, así que solo existen los tokens del proyecto (docs/arquitectura/01 §11).
  */
-@theme {
+@theme static {
   --color-*: initial;
   --text-*: initial;
   --shadow-*: initial;

@@ -8,7 +8,9 @@ export type SpinnerSize = 16 | 20 | 24;
 
 /**
  * Carga indeterminada (Figma: `Spinner`). Siempre dice qué se carga, con un texto visible solo para los
- * lectores de pantalla (`aria-live="polite"`). Con `prefers-reduced-motion` no gira.
+ * lectores de pantalla (`aria-live="polite"`). Con `prefers-reduced-motion` no gira. Para que el
+ * anuncio sea fiable, el spinner debe insertarse dentro de un contenedor que ya exista, no aparecer
+ * junto con el texto en la misma pasada.
  */
 @Component({
   selector: 'liv-spinner',

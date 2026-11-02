@@ -7,10 +7,6 @@ const meta: Meta<IconComponent> = {
   component: IconComponent,
   tags: ['autodocs'],
   parameters: {
-    design: {
-      type: 'figma',
-      url: 'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=19-210',
-    },
     docs: {
       description: {
         component:

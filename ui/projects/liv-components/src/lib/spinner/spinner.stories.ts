@@ -8,7 +8,6 @@ const meta: Meta<SpinnerComponent> = {
   component: SpinnerComponent,
   tags: ['autodocs'],
   parameters: {
-    design: { type: 'figma', url: figma },
     docs: {
       description: {
         component: `Carga indeterminada de 20 px, escalable a 16 o 24. Siempre dice qué se carga (texto solo para lectores de pantalla) y no gira con prefers-reduced-motion. [Diseño en Figma](${figma})`,

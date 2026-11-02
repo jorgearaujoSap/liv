@@ -34,6 +34,14 @@ describe('Icon', () => {
     expect(paths).toEqual(['M5 12h14', 'm12 5 7 7-7 7']);
   });
 
+  it('un nombre desconocido no dibuja formas ni rompe el render', () => {
+    for (const name of ['no-existe', 'constructor', 'toString']) {
+      expect(
+        render(name as IconName).svg.querySelectorAll('path, circle, rect, line'),
+      ).toHaveLength(0);
+    }
+  });
+
   it('mide 24 px por defecto y admite 16 y 20', () => {
     expect(render('house').svg.getAttribute('width')).toBe('24');
     const small = render('house', { size: 16 }).svg;
@@ -55,6 +63,13 @@ describe('Icon', () => {
     expect(svg.getAttribute('role')).toBe('img');
     expect(svg.getAttribute('aria-label')).toBe('Error');
     expect(svg.hasAttribute('aria-hidden')).toBe(false);
+  });
+
+  it('un texto alternativo vacío sigue siendo decorativo', () => {
+    const { svg } = render('lock', { label: '  ' });
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.hasAttribute('role')).toBe(false);
+    expect(svg.hasAttribute('aria-label')).toBe(false);
   });
 
   it('cumple axe como decorativo y con texto alternativo', async () => {

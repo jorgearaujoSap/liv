@@ -19,4 +19,6 @@ export class IconComponent {
   readonly label = input<string>();
 
   protected readonly shapes = computed(() => iconShapes(this.name()));
+  /** Un texto vacío cuenta como ausente: el icono sigue siendo decorativo. */
+  protected readonly accessibleName = computed(() => this.label()?.trim() || null);
 }

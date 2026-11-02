@@ -293,5 +293,6 @@ export const ICON_NAMES = Object.keys(ICONS) as readonly IconName[];
 
 /** Formas de un icono. */
 export function iconShapes(name: IconName): readonly IconShape[] {
-  return ICONS[name];
+  // Un nombre que llega de datos sin tipo no debe resolver miembros heredados como `constructor`.
+  return Object.hasOwn(ICONS, name) ? ICONS[name] : [];
 }
