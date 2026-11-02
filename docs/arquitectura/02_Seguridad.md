@@ -109,7 +109,7 @@ La matriz de acciones de los documentos funcionales se convierte en una prueba p
 - El contexto se fija **por transacción** a partir del usuario autenticado (variable de sesión de PostgreSQL establecida con alcance local de transacción). Sin contexto, la política no devuelve filas.
 - Los datos nacionales compartidos (catálogo de avalúos, tarifas nacionales con `administration_id` nulo) se leen por todos, pero solo los escribe el proceso de publicación.
 - Las FK compuestas con `administration_id` impiden mezclar administraciones aunque falle la aplicación (ERD hallazgo 2).
-- Los procesos del worker fijan el contexto de la administración dueña del trabajo; ningún job corre "sin inquilino" salvo los de plataforma explícitamente marcados.
+- Los procesos del worker fijan el contexto de la administración dueña del trabajo; ningún job corre "sin inquilino" salvo los de plataforma explícitamente marcados. Las filas de auditoría de plataforma (`administration_id` nulo) solo las escriben el importador de eventos del proveedor (trabajo de plataforma) y la función `audit.record_platform_session_denied` (ADR 0025).
 
 ### 5.2 Roles de base de datos
 
@@ -119,6 +119,10 @@ La matriz de acciones de los documentos funcionales se convierte en una prueba p
 | `liv_app` | Aplicación (API y worker) | DML sujeto a RLS; **sin** `BYPASSRLS`; sin UPDATE/DELETE en tablas *append‑only* |
 | `liv_reporting` | Consultas pesadas y réplica de lectura | Solo SELECT sobre vistas publicadas |
 | `liv_readonly_ops` | Soporte de operaciones | SELECT con RLS; acceso nominal y auditado |
+| `liv_identity_lookup` | Sin inicio de sesión: dueño de `core.find_user_by_identity` (ADR 0025) | SELECT solo sobre las columnas de identidad de `core.admin_user` |
+| `liv_audit_platform` | Sin inicio de sesión: dueño de `audit.record_platform_session_denied` (ADR 0025) | INSERT de filas de plataforma `SESSION_DENIED` en `audit.audit_event` |
+| `liv_bff_owner` | Dueño del esquema `bff`; solo lo usan las migraciones del BFF | DDL en `bff` |
+| `liv_bff` | Aplicación BFF | DML en `bff`; sin acceso a los esquemas de LIV |
 
 ### 5.3 Pruebas de aislamiento
 

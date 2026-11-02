@@ -8,7 +8,7 @@ Guía para **cualquier agente de IA** (Claude Code, Codex, Gemini CLI, Cursor, C
 
 Sistema de liquidación y recaudo del impuesto anual de vehículos automotores de Colombia (Ley 488 de 1998), configurable por jurisdicción. Primer caso: municipio de Ipiales (Nariño), DANE 52356.
 
-La **arquitectura está aprobada** (ADR 0001–0021 aceptados el 2026-11-01). Estamos en la Fase 0: se crean los esqueletos de `backend/` y `frontend/` y las herramientas de calidad, todavía **sin funcionalidad de negocio**. Ninguna feature de negocio empieza antes de cerrar la Fase 0 (`spec/constitution/roadmap.md`).
+La **arquitectura está aprobada** (ADR 0001–0025 aceptados el 2026-11-01). Estamos en la Fase 0: se crean los esqueletos de `backend/` y `frontend/` y las herramientas de calidad, todavía **sin funcionalidad de negocio**. Ninguna feature de negocio empieza antes de cerrar la Fase 0 (`spec/constitution/roadmap.md`).
 
 Stack aprobado: Java 21 LTS + Spring Boot (monolito modular hexagonal), Angular con Tailwind CSS y la librería propia `liv-components`, PostgreSQL, Keycloak, Docker, GitHub Actions, Playwright. Alojamiento en AWS. Producto multi‑inquilino dimensionado para departamentos.
 
@@ -44,7 +44,7 @@ Si dos fuentes se contradicen, prevalece la de nivel más alto y se reporta la c
 | Nivel | Fuente | Ubicación actual |
 |---|---|---|
 | 1 | Normativa citada y documentos funcionales | `docs/funcional/` (`01_…md` a `04_…md`, `ERD_…md`, `anexos/`) |
-| 2 | ADR aceptados | Tabla del `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §6 (0001–0021 aceptados); un archivo por ADR en `docs/adr/` |
+| 2 | ADR aceptados | Tabla del `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §6 (0001–0025 aceptados); un archivo por ADR en `docs/adr/` |
 | 3 | Arquitectura | `docs/arquitectura/00` a `05` (versión 1.0, **aprobada**) |
 | 4 | Constitución SDD (misión, stack y convenciones, roadmap) | `spec/constitution/` — resumen de los niveles 1 a 3 |
 | 5 | Feature en curso (spec, plan, tareas) | `spec/features/NNN-nombre-feature/` |
@@ -67,7 +67,7 @@ Todos los documentos de módulo siguen la misma estructura: encabezado con **Ver
 
 | Documento | Contenido |
 |---|---|
-| `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | Impulsores, evaluación Spring Boot vs. NestJS, stack, ADR 0001–0021, decisiones del equipo P1–P10, hoja de ruta y entregables de la Fase 0 |
+| `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | Impulsores, evaluación Spring Boot vs. NestJS, stack, ADR 0001–0025, decisiones del equipo P1–P10, hoja de ruta y entregables de la Fase 0 |
 | `docs/arquitectura/01_Arquitectura_de_Software.md` | Módulos alineados con los esquemas del ERD, capas hexagonales, motor de reglas puro, motor de ingesta común, patrones, persistencia, API, frontend, `liv-components`, Figma, estructura del repositorio, glosario |
 | `docs/arquitectura/02_Seguridad.md` | Amenazas, autenticación, roles y segregación de funciones, RLS, datos personales, archivos, cadena de suministro, agentes de IA |
 | `docs/arquitectura/03_Escalabilidad_y_Operacion.md` | Requisitos no funcionales, escalado, entornos, Docker, despliegue, observabilidad, respaldos |
@@ -113,7 +113,7 @@ La constitución manda: si una feature choca con `spec/constitution/`, se replan
 | Normal | Nueva consulta, pantalla, validación o componente de `liv-components` | Feature completa (spec, plan, tareas) |
 | Crítico | Motor de liquidación, cuenta corriente, configuración de jurisdicción, seguridad, migraciones, CI, contratos, modificación de un componente existente de `liv-components` | Feature completa + revisión adversarial (`liv-revision-adversarial`) + las cuatro lentes de riesgo, resiliencia, legibilidad y confiabilidad (`liv-revision-4r`) + dos aprobaciones humanas |
 
-**Rutas críticas:** `backend/**/liv/tax/**`, `backend/**/liv/ledger/**`, `backend/**/liv/jurisdiction/**`, `backend/**/liv/platform/**/security/**`, `backend/**/db/migration/**`, `backend/contracts/**`, `backend/pom.xml`, `docs/funcional/anexos/**`, `ui/**`, `.github/**`.
+**Rutas críticas:** `backend/**/liv/tax/**`, `backend/**/liv/ledger/**`, `backend/**/liv/jurisdiction/**`, `backend/**/liv/platform/**/security/**`, `backend/**/db/migration/**`, `backend/contracts/**`, `backend/pom.xml`, `backend/bff/**`, `backend/identity/**`, `docs/funcional/anexos/**`, `ui/**`, `.github/**`.
 
 ### 4.4 Obligaciones
 
@@ -199,7 +199,7 @@ Todas las pantallas se construyen **solo** con componentes de la librería propi
 
 - Archivo oficial único: **LIV‑Diseño** — <https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o> (clave `s2r2Kdu31sQW5CmVeQNyZb`). Léelo con el servidor MCP de Figma o la API de Figma.
 - Páginas: `00 Guía`, `01 Fundamentos` (hoja de muestras de estilos), `02 Componentes`, `03 Pantallas`, `99 Archivo`. **Todas** las pantallas van en `03 Pantallas`, con una sección por módulo. No se crean más páginas ni página de plantillas.
-- Estilos locales obligatorios (26 de color, 11 de texto, 5 de efecto), con nombres iguales a los *tokens* del código (`text/primary`, `body/md`, `elevation/md`…). Ningún color, texto o sombra se aplica sin estilo.
+- Estilos locales obligatorios (28 de color, 13 de texto, 5 de efecto), con nombres iguales a los *tokens* del código (`text/primary`, `body/md`, `elevation/md`…). Ningún color, texto o sombra se aplica sin estilo.
 - Ninguna pantalla nueva se implementa sin diseño aprobado. **Única excepción:** una pantalla de otro módulo que copia la estructura de una pantalla ya diseñada y solo cambia el contenido; el `plan.md` de la feature declara "Reutiliza la estructura de: <pantalla> (<enlace al frame>)" y lista qué cambia. Si hace falta un componente o variante nueva, no aplica la excepción.
 - Si el diseño necesita un componente que no existe, primero se diseña y se implementa en `liv-components` como un cambio aparte.
 
@@ -245,7 +245,43 @@ Las *skills* del proyecto **prevalecen** sobre las que un equipo tenga instalada
 
 ---
 
-## 10. Antes de decir "terminado"
+## 10. Modelos de IA y consumo de tokens
+
+Cada tarea usa el modelo más económico que la resuelve bien. Los tokens se gastan donde se toman decisiones (especificar, diseñar, revisar seguridad), no en buscar, transcribir o dar formato. Esta sección define **niveles**; la correspondencia de cada nivel con los modelos de una herramienta está en su archivo propio (en Claude Code, `CLAUDE.md`).
+
+### 10.1 Niveles de modelo
+
+| Nivel | Para qué | Tareas |
+|---|---|---|
+| **Alto** (razonamiento profundo) | Decisiones difíciles de revertir y revisiones de cambios críticos | **Diseño:** `spec.md` y `plan.md`; ADR; modelo de amenazas. **Revisión:** adversarial de planes de features críticas y de cambios críticos (§4.3); lente de riesgo de `liv-revision-4r` en cambios críticos. **Diagnóstico** de un fallo que no se entendió en el primer intento |
+| **Estándar** | Construcción guiada por una spec y un plan aprobados | **Construcción:** `tasks.md`; implementar sus tareas con TDD; diseño en Figma sobre patrones ya definidos. **Revisión:** adversarial de planes y cambios normales; lentes de resiliencia y confiabilidad; lente de riesgo en cambios normales. **Documentación:** `ESTADO.md`, mensajes de *commit* y de PR |
+| **Económico** (rápido) | Tareas mecánicas o de solo lectura | Búsquedas e inventarios en el repositorio; resumir archivos o salidas largas; lente de legibilidad antes de cada *commit*; cambios triviales (texto, formato); verificar que una corrección puntual quedó aplicada |
+
+Reglas:
+
+1. **Se sube de nivel solo con motivo:** el nivel asignado falló dos veces en la misma tarea, o la tarea resultó crítica. Se anota en el PR.
+2. **La revisión de un cambio crítico nunca baja del nivel alto.** La de un cambio normal puede usar el estándar.
+3. **La segunda ronda de una revisión** examina solo lo corregido, con el mismo nivel de la primera.
+4. **Quien revisa no comparte el contexto de quien implementó** (§4.1, principio 7): se usa un subagente o una sesión nueva.
+
+### 10.2 Prácticas para no gastar de más
+
+- **Una sesión por fase:** spec y plan; cada tarea; validación. El estado pasa por el repositorio (`ESTADO.md`, `tasks.md`, la spec), no por un historial largo.
+- **Buscar antes de leer:**
+  - primero el índice de código, si existe, o una búsqueda por texto;
+  - de los archivos grandes, se lee solo el rango necesario;
+  - nunca se vuelca un documento completo para consultar una sección.
+- **Subagentes con encargo cerrado:**
+  - se pasan rutas y secciones, no contenido pegado;
+  - se hace la pregunta exacta y se pide un formato de salida corto (p. ej. "máximo 15 hallazgos, sin repetir el texto de las fuentes");
+  - no se lanzan subagentes para tareas de pocas acciones.
+- **En paralelo, solo lo independiente:** los dos revisores ciegos y las lentes de 4R. Lo que depende de un resultado anterior va en serie.
+- **Figma:** se lee el nodo concreto, no páginas enteras. Se toma una captura por composición, y otra solo después de una corrección.
+- **Salidas de comandos:** se filtran (`grep`, `head`, resúmenes de pruebas) en lugar de leer *logs* completos.
+
+---
+
+## 11. Antes de decir "terminado"
 
 - [ ] La especificación se cumple y cada requisito tiene su prueba en verde (cuando haya código).
 - [ ] Las verificaciones locales y las compuertas de CI están en verde, o se reporta qué falló.

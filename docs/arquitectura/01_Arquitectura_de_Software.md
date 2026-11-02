@@ -106,6 +106,8 @@ flowchart BT
     LED[ledger] --> JUR
     LED --> CORE
     POR[portfolio] --> LED
+    AUD[audit] --> CORE
+    AUD --> PL
     REP[reporting] -. vistas publicadas .-> TAX & LED & VAL
     TAX == "evento LiquidacionEmitida" ==> LED
     LED == "evento PagoImputado" ==> POR
@@ -321,7 +323,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 |---|---|
 | Estilo | REST sobre JSON, *contract‑first*: primero se escribe y aprueba el OpenAPI, luego se genera el código |
 | Ubicación | `backend/contracts/openapi/<modulo>.yaml`, uno por módulo. El backend es el dueño y lo publica como artefacto versionado; el frontend usa una copia fijada en `frontend/api-spec/` (§14.1, IN‑04) |
-| Versionado | Prefijo `/api/v1`. Un cambio incompatible (detectado en CI con un comparador de OpenAPI) exige nueva versión o aprobación explícita |
+| Versionado | Prefijo `/api/v1`. Los endpoints entre servicios que no se publican hacia el navegador usan `/internal/v1` (ADR 0025). Un cambio incompatible (detectado en CI con un comparador de OpenAPI) exige nueva versión o aprobación explícita |
 | Generación | Interfaces de servidor Spring generadas en el backend desde su OpenAPI; cliente Angular generado en el frontend desde su copia fijada. **El código generado no se edita a mano** |
 | Errores | Problem Details (RFC 9457). El campo de código lleva el código de la regla (`LQ-P04`, `R014`, `CJ12`, `OB-02`) para que la interfaz y las pruebas lo identifiquen |
 | Paginación y filtros | Convención única para todas las consultas (página, tamaño, orden, filtros tipados), igual en las 1.6.x, 3.6 y 4.7 |
@@ -360,7 +362,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 | Distribución | Paquete **público** en npm con el nombre **`liv-components`** (el *scope* `@liv` pertenece a otra organización). Versionado semántico, etiquetas `ui-vX.Y.Z` y `CHANGELOG.md`. La versión nueva se prepara en un PR y, una vez integrada en `main`, la publica un humano con permiso en npm (`npm owner add`) mediante `npm run release`, que antes verifica rama, sesión, permiso, número de versión y `CHANGELOG.md`. Proceso completo en `ui/README.md`; con F0‑07 lo hará el *pipeline* de `ui/` |
 | Consumo | El frontend la instala desde npm con **versión exacta** en su `package.json`, como cualquier dependencia. Cada desarrollador la recibe con `npm install`; para adoptar una versión nueva se cambia el número, se ejecuta `npm install` y se suben `package.json` y `package-lock.json`. Un cambio en un componente llega a todas las pantallas al adoptar la nueva versión. El frontend **nunca** lee `../ui`. El portal del contribuyente (P9) o cualquier otra aplicación la usaría igual |
 | API pública | Solo lo exportado en el punto de entrada público de la librería. Prohibidas las importaciones a archivos internos |
-| Contenido | **Tokens** (colores, tipografía y sombras generados desde los estilos locales de Figma; espaciado y radios, desde variables de Figma cuando se definan) · **Primitivos** (botón, campo de texto, selector, casilla, ícono, insignia de estado) · **Compuestos** (campo de formulario con mensaje de error y código de regla, tabla de datos con filtros, orden, paginación y exportación, panel de filtros de consulta, diálogo de confirmación, asistente por pasos, carga de archivo con progreso, visor de errores y advertencias de validación, línea de tiempo de estados, tarjeta de totales, monto en COP) · **Plantillas de pantalla** (consulta con filtros + tabla + exportar; bandeja de aprobación; asistente de carga de archivo; detalle con traza de cálculo; formulario de parámetros) · **Formateadores** (moneda COP, fechas, porcentajes) |
+| Contenido | **Tokens** (colores, tipografía y sombras generados desde los estilos locales de Figma; espaciado y radios, desde la colección de variables `Layout` de Figma) · **Primitivos** (botón, campo de texto, selector, casilla, ícono, insignia de estado) · **Compuestos** (campo de formulario con mensaje de error y código de regla, tabla de datos con filtros, orden, paginación y exportación, panel de filtros de consulta, diálogo de confirmación, asistente por pasos, carga de archivo con progreso, visor de errores y advertencias de validación, línea de tiempo de estados, tarjeta de totales, monto en COP) · **Plantillas de pantalla** (consulta con filtros + tabla + exportar; bandeja de aprobación; asistente de carga de archivo; detalle con traza de cálculo; formulario de parámetros) · **Formateadores** (moneda COP, fechas, porcentajes) |
 | Sin lógica de negocio | La librería es solo de presentación: no usa `HttpClient`, no conoce el cliente de la API, no calcula impuestos ni decide permisos. Recibe datos y textos por `input` y emite eventos por `output` |
 | Variantes | La personalización se hace solo con las entradas y variantes que el componente define (tamaño, tono, estado). Prohibido redefinir los estilos de un componente de la librería desde una pantalla (sin `::ng-deep`, sin sobrescribir sus clases) |
 | Estados | Cada componente define y documenta sus estados: normal, foco, deshabilitado, cargando, vacío, error, sin permiso |
@@ -369,6 +371,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 | Correspondencia con Figma | Cada componente de la librería tiene su componente equivalente, con las mismas variantes, en la página `02 Componentes` del archivo LIV‑Diseño (§11.2). Las plantillas de pantalla no tienen página propia en Figma: su diseño de referencia es la primera pantalla aprobada que usa esa estructura, en la página `03 Pantallas`. El plan de Figma es Professional con Dev Mode, sin Code Connect (P10): el enlace es por **nombre idéntico** (componente, variantes y propiedades) y cada historia de Storybook enlaza a su componente en Figma. Los desarrolladores y agentes inspeccionan medidas y estilos en Dev Mode o con el servidor MCP |
 | Cambios | Un componente nuevo nace primero en Figma, luego en la librería con su historia y sus pruebas, y solo después se usa en una pantalla. Modificar un componente existente es un **cambio crítico** (doc. 05 §3.3): afecta todas las pantallas y exige regresión visual completa y la aprobación del líder de frontend y de un responsable funcional |
 | Propietarios | Líder de frontend + responsable funcional (CODEOWNERS sobre `ui/`). No hay diseñador dedicado (P10) |
+| Excepción (ADR 0024) | Las páginas de acceso del tema de Keycloak (FreeMarker) no pueden usar los componentes Angular: reproducen los componentes aprobados con el CSS compilado desde los *tokens* del paquete `liv-components` (versión exacta) y pasan una prueba visual contra Figma en cada versión de la librería. `Keycloak/BrandPanel` y `Keycloak/Step` existen solo en el tema |
 
 ```mermaid
 flowchart LR
@@ -469,6 +472,7 @@ El repositorio es un **monorepo temporal**: backend, frontend y la librería de 
 │   ├── src/main/resources/db/migration/ ← migraciones Flyway
 │   ├── src/test/…/architecture/ ← guardias de arquitectura
 │   ├── bff/                    ← BFF (Spring Cloud Gateway) como proyecto Maven propio, cuando se cree
+│   ├── identity/               ← realm de Keycloak como código, tema e imágenes (ADR 0024)
 │   ├── dev/                    ← compose con sus dependencias (PostgreSQL, Keycloak, MinIO, ClamAV) y datos de prueba
 │   ├── deploy/                 ← definición de sus servicios en AWS (ECS)
 │   ├── Dockerfile              ← contexto de construcción: la carpeta backend/

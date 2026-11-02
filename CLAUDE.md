@@ -16,6 +16,19 @@ Este archivo no repite ni modifica reglas: cualquier regla nueva o cambio va en 
   - `liv-revision-adversarial` reemplaza a `judgment-day`;
   - `liv-revision-4r` reemplaza a `review-risk`, `review-resilience`, `review-readability` y `review-reliability`;
   - `liv-sdd-feature` reemplaza a los comandos SDD de gentle‑ai. Si se usan esos comandos, los artefactos van igual en `spec/features/NNN-nombre-feature/` (propose + spec → `spec.md`, design → `plan.md`, tasks → `tasks.md`), nunca en `openspec/`.
+- **Modelos y subagentes (`AGENTS.md` §10):**
+  - **Niveles:** el nivel **alto** es Opus, el **estándar** es Sonnet y el **económico** es Haiku. El esfuerzo de razonamiento va en el mismo orden: alto, medio y bajo.
+  - **Sesión principal:** el modelo se elige en el selector de la aplicación (o con `/model` en la terminal) según la fase. Opus para spec, plan, ADR y revisión de seguridad; Sonnet para `tasks.md`, implementar tareas, Figma y documentación. Al cambiar de fase, abre una sesión nueva.
+  - **Subagentes del proyecto** (`.claude/agents/`): cada uno fija su modelo, su esfuerzo y sus herramientas, y se lanza por su nombre, sin pasar otro modelo salvo que el usuario lo pida. Son de solo lectura.
+
+    | Subagente | Modelo | Úsalo para |
+    |---|---|---|
+    | `liv-explorador` | Haiku | Búsquedas, inventarios y resúmenes |
+    | `liv-revisor-rapido` | Haiku | Lente de legibilidad antes de cada *commit* y verificación de correcciones puntuales |
+    | `liv-revisor` | Sonnet | Revisión adversarial de cambios normales y lentes de resiliencia y confiabilidad |
+    | `liv-revisor-critico` | Opus | Revisión adversarial de planes y de cambios críticos y lente de riesgo en cambios críticos |
+
+  - **Tipos genéricos:** no se usan los subagentes genéricos (`general-purpose`, `Explore`, `Plan`) cuando uno del proyecto cubre la tarea.
 - **Figma:** usa el servidor MCP oficial de Figma con la *skill* `liv-figma`. Si el plugin de Figma está instalado, sus *skills* `figma-use` y `figma-generate-library` la complementan; si no, basta con `liv-figma`.
 - **Memoria (Engram), si está disponible:** guarda decisiones y descubrimientos con `mem_save` y cierra la sesión con `mem_session_summary`. Es opcional y personal de cada equipo: lo que afecte al equipo va al repositorio (ADR, `AGENTS.md`, `ESTADO.md`).
 - **Ganchos y permisos:** los ganchos que bloquean rutas protegidas y la lista blanca de comandos se configurarán en `.claude/settings.json` como parte del entregable F0‑03. Hasta entonces, respeta las prohibiciones de `AGENTS.md` §4.5 sin excepción.

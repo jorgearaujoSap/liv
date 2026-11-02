@@ -12,6 +12,12 @@ Reemplaza a los comandos SDD de gentle‑ai. La metodología completa está en `
 1. Lee `ESTADO.md` y `spec/constitution/roadmap.md`. Si la Fase 0 no está cerrada, solo se aceptan features de la Fase 0 o de documentación.
 2. Clasifica el cambio con `AGENTS.md` §4.3. Si es **trivial**, no uses esta *skill*: va directo a un PR.
 3. Lee los documentos funcionales de `docs/funcional/` que toca la feature y anota las secciones y los códigos de regla (`R0xx`, `LQ-*`, `CJxx`, `CA-x.xx`…).
+4. **Modelo por fase** (`AGENTS.md` §10):
+   - nivel **alto** para `spec.md`, `plan.md` y los ADR;
+   - nivel **estándar** para `tasks.md`, la implementación y la documentación;
+   - nivel **económico** para las búsquedas (en Claude Code, el subagente `liv-explorador`).
+
+   Abre una sesión nueva al pasar de una fase a otra: el estado está en el repositorio.
 
 ## 1. Crear la carpeta
 

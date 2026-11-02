@@ -59,7 +59,7 @@ El entorno local completo con Docker Compose llega con F0‑06.
 ## Estilo visual
 
 - **Componentes:** solo los de `liv-components`; las pantallas no crean componentes visuales propios ni redefinen sus estilos.
-- **Tokens:** los estilos locales del archivo de Figma LIV‑Diseño (26 de color, 11 de texto, 5 de efecto), con nombres iguales a los del código (`text/primary`, `body/md`, `elevation/md`…). Ningún color, texto o sombra sin *token*.
+- **Tokens:** los estilos locales del archivo de Figma LIV‑Diseño (28 de color, 13 de texto, 5 de efecto), con nombres iguales a los del código (`text/primary`, `body/md`, `elevation/md`…). Ningún color, texto o sombra sin *token*.
 - **Tipografías:** Inter para la interfaz; JetBrains Mono para códigos de regla, referencias y hashes.
 - **Estilos:** Tailwind CSS en el `.component.css` de cada componente; sin atributo `style`, sin utilidades en la plantilla, sin `::ng-deep`.
 - **Diseño previo:** toda pantalla nueva tiene un diseño aprobado en la página `03 Pantallas` de Figma, salvo la excepción de reutilización de estructura (`AGENTS.md` §6.2).

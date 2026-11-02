@@ -13,6 +13,15 @@ description: Revisión de un cambio del proyecto LIV con cuatro lentes (riesgo, 
 | Antes de cada *push* | **Legibilidad** |
 | Antes de abrir el PR, si toca rutas críticas (`AGENTS.md` §4.3) **o** supera 400 líneas cambiadas | Las **cuatro**, en paralelo si la herramienta permite subagentes |
 
+**Nivel de modelo por lente** (`AGENTS.md` §10). Entre paréntesis, el subagente de Claude Code; en otras herramientas se usa el modelo equivalente.
+
+| Lente | Cambio normal | Cambio crítico (§4.3) |
+|---|---|---|
+| Riesgo | Estándar (`liv-revisor`) | Alto (`liv-revisor-critico`) |
+| Resiliencia | Estándar (`liv-revisor`) | Estándar (`liv-revisor`) |
+| Legibilidad | Económico (`liv-revisor-rapido`) | Económico (`liv-revisor-rapido`) |
+| Confiabilidad | Estándar (`liv-revisor`) | Estándar (`liv-revisor`) |
+
 El objetivo es el diff frente a `main` (o el diff preparado para el commit). Cada lente produce hallazgos con: **severidad** (crítico / alto / medio / bajo), `archivo:línea`, **regla afectada** y **corrección propuesta**. Una lente sin hallazgos lo dice explícitamente.
 
 ## Lente 1 — Riesgo
