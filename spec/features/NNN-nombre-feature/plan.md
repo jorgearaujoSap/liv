@@ -30,7 +30,7 @@ _Borra las filas que no apliquen._
 
 _Solo si la feature tiene pantallas. Borra esta sección si no aplica._
 
-| Pantalla | Diseño en Figma (enlace al *frame* en `03 Pantallas`) o reutilización | Componentes de `@liv/ui` |
+| Pantalla | Diseño en Figma (enlace al *frame* en `03 Pantallas`) o reutilización | Componentes de `liv-components` |
 |---|---|---|
 | <Número y nombre de menú> | <enlace> · o "Reutiliza la estructura de: <pantalla> (<enlace>); cambia: <contenido>" | <componentes> |
 

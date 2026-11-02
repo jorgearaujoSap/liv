@@ -1,0 +1,8 @@
+# Configuración personal de Claude Code (las skills y settings.json del proyecto sí se versionan)
+.claude/settings.local.json
+
+# Sistema operativo y editores (cada proyecto define los suyos en su propio .gitignore)
+.DS_Store
+Thumbs.db
+/.idea/
+/.vscode/

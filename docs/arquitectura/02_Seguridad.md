@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0004, 0010, 0011) · `01_Arquitectura_de_Software.md`
-> **Versión:** 0.1 — **Propuesto**
+> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Advertencia:** el marco normativo se resume para fines de diseño y debe validarlo el área jurídica.
 
 ---

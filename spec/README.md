@@ -20,6 +20,8 @@ spec/
 
 ## Flujo para una feature nueva
 
+> Procedimiento detallado para personas y agentes: *skill* `liv-sdd-feature` (`.claude/skills/liv-sdd-feature/SKILL.md`). Las revisiones usan `liv-revision-adversarial` y `liv-revision-4r`.
+
 1. Copiar la plantilla `features/NNN-nombre-feature/` a una carpeta nueva con el siguiente número libre (`001`, `002`, …) y un nombre corto en minúsculas con guiones, p. ej. `features/001-vigencias-fiscales/`. Ese identificador es también el de la rama (`feat/001-nombre-feature`) y el del PR.
 2. Escribir `spec.md`: qué hace, por qué y criterios de aceptación medibles, cada uno con su código de regla o de criterio funcional.
    - **Aprobación H1:** el responsable funcional aprueba la spec. Sin H1 no hay plan.

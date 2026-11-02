@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0002, 0007, 0008) · `01_Arquitectura_de_Software.md`
-> **Versión:** 0.1 — **Propuesto**
+> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
 
 ---
 
@@ -184,7 +184,7 @@ Objetivos de nivel de servicio (SLO) derivados de §1, con presupuesto de errore
 | Práctica | Definición |
 |---|---|
 | Versiones | Versionado semántico del producto; *changelog* generado desde Conventional Commits |
-| Actualización de plataforma | Java: siguiente LTS dentro de los 6 meses de su salida. Spring Boot: mantenerse en una línea con soporte. Angular: cada versión mayor dentro de los 6 meses. PostgreSQL: evaluación anual de la versión mayor |
+| Actualización de plataforma | Java: se parte de Java 21 LTS; el paso a una LTS posterior se decide con un ADR, evaluando el soporte de Spring Boot y de las herramientas. Spring Boot: mantenerse en una línea con soporte. Angular: cada versión mayor dentro de los 6 meses. PostgreSQL: evaluación anual de la versión mayor |
 | Dependencias | Renovate con agrupación por ecosistema y actualizaciones de seguridad inmediatas |
 | *Runbooks* | Uno por alerta y por procedimiento (restauración, reproceso de un lote, reverso masivo, rotación de secretos) |
 | Deuda técnica | Registrada como *issue* con etiqueta, revisada en cada planificación; Sonar como medición de tendencia |

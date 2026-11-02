@@ -3,7 +3,7 @@
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Documentos base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` · `01` a `04` · `config_jurisdiccion_*.yaml`
 > **Serie de arquitectura:** `00` Decisiones (este) · `01` Arquitectura de software · `02` Seguridad · `03` Escalabilidad y operación · `04` Calidad, testing y CI · `05` Gobierno de agentes de IA y SDD
-> **Versión:** 0.1 — **Propuesto**, pendiente de aprobación del equipo
+> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Alcance:** solo definición. No incluye implementación ni código.
 
 ---
@@ -78,14 +78,14 @@ Puntuación de 1 a 5 por criterio, ponderada por su peso para **este** proyecto.
 
 ## 5. Stack definido
 
-Las versiones exactas se fijan en la Fase 0 con la última versión estable de cada línea y quedan centralizadas (catálogo de versiones de Gradle, `package.json`, imágenes por *digest*). Las versiones indicadas son la **línea base mínima**.
+Las versiones exactas se fijan en la Fase 0 con la última versión estable de cada línea y quedan centralizadas (propiedades del `pom.xml`, `package.json`, imágenes por *digest*). Las versiones indicadas son la **línea base mínima**.
 
 | Capa | Tecnología | Línea base | Justificación |
 |---|---|---|---|
-| Lenguaje backend | Java | 25 LTS | LTS, *records*, *pattern matching*, hilos virtuales |
+| Lenguaje backend | Java | 21 LTS | LTS ya instalado en los equipos del proyecto; *records*, *pattern matching*, hilos virtuales. Spring Boot 4 lo soporta. El paso a Java 25 se decide con un ADR |
 | Framework backend | Spring Boot | 4.x | Ecosistema de §3 |
 | Modularidad | Spring Modulith | Alineado con Spring Boot | Verificación de fronteras, eventos entre módulos con registro persistente (*outbox*) |
-| Build | Gradle (Kotlin DSL) con catálogo de versiones y *convention plugins* | 9.x | Reglas de calidad iguales en todos los módulos; *build cache* para CI |
+| Build | Maven con *wrapper* (`mvnw`), `spring-boot-starter-parent` y un solo artefacto | 3.10 | Base que el equipo ya usa (ADR 0021) |
 | Persistencia de escritura | Spring Data JPA (Hibernate) | — | Agregados y concurrencia optimista |
 | Consultas, reportes y masivos | jOOQ | — | SQL tipado generado desde el esquema real; consultas con filtros y exportaciones |
 | Migraciones | Flyway | — | Ya previsto en el ERD ("Checklist previo a Flyway") |
@@ -98,7 +98,7 @@ Las versiones exactas se fijan en la Fase 0 con la última versión estable de c
 | Errores de API | Problem Details (RFC 9457) | — | Código de error = código de regla (p. ej. `LQ-P04`) |
 | Frontend | Angular (*standalone*, *signals*, TypeScript estricto) | ≥ 21 | Requisito del proyecto |
 | Estilos de interfaz | Tailwind CSS, un archivo por componente | — | Cada componente declara sus clases en su `.component.css`. `frontend/src/styles.css` solo guarda lo reutilizado en toda la interfaz. Prohibido el atributo `style` y las utilidades de Tailwind escritas en la plantilla |
-| Librería de componentes | Librería Angular propia `@liv/ui` dentro del monorepo, externa a la aplicación | — | Una sola línea de componentes para todas las pantallas; un cambio se refleja en todas (01 §11.1) |
+| Librería de componentes | Librería Angular propia `liv-components`: proyecto autónomo `ui/`, publicada en npm como paquete público e instalada en el frontend con versión exacta (ADR 0022) | — | Una sola línea de componentes para todas las pantallas; un cambio se refleja en todas (01 §11.1) |
 | Catálogo de componentes | Storybook + regresión visual con Playwright sobre las historias | — | Referencia viva de la librería y detección de cambios visuales no deseados |
 | Diseño | Figma: sistema de diseño (estilos locales de color, texto y efecto, y componentes) + pantallas por módulo; plan Professional con Dev Mode; servidor MCP de Figma para los agentes | — | Toda pantalla nueva se diseña y aprueba antes de implementarse (01 §11.2) |
 | Identidad | Keycloak propio (OIDC), desplegado en AWS | — | MFA, roles; federable con un directorio de la entidad (P2) |
@@ -108,7 +108,7 @@ Las versiones exactas se fijan en la Fase 0 con la última versión estable de c
 | Antivirus de cargas | ClamAV | — | Archivos externos (bancos, ministerio, departamento) |
 | Observabilidad | OpenTelemetry, Micrometer, Prometheus, Grafana, Loki, Tempo | — | Trazas, métricas técnicas y de negocio, logs correlacionados |
 | Contenedores | Docker, Docker Compose (local), imágenes OCI firmadas (cosign) | — | Paridad de entornos |
-| CI/CD | GitHub Actions, con la lógica en tareas de Gradle, npm y `tools/` para poder migrar a Bitbucket Pipelines | — | Requisito del proyecto (P4) |
+| CI/CD | GitHub Actions, con la lógica en comandos de Maven, npm y `tools/` para poder migrar a Bitbucket Pipelines | — | Requisito del proyecto (P4) |
 | Calidad estática | Spotless, Error Prone + NullAway, ArchUnit, SonarQube, ESLint, Prettier, sqlfluff, yamllint, markdownlint | — | Ver doc. 04 |
 | Pruebas | JUnit 5, AssertJ, jqwik, Testcontainers, PIT (mutación), Vitest + Angular Testing Library, Playwright + axe‑core, k6 | — | Ver doc. 04 |
 | Seguridad en CI | CodeQL, Semgrep, gitleaks, Trivy, *dependency review*, OWASP ZAP, Renovate, SBOM CycloneDX | — | Ver doc. 02 |
@@ -123,26 +123,28 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 
 | ADR | Decisión | Estado | Documento |
 |---|---|---|---|
-| 0001 | Backend en Java + Spring Boot | Propuesto | 00 §3 |
-| 0002 | Monolito modular (Spring Modulith) con hexagonal por módulo; roles API y worker | Propuesto | 00 §4, 01 §3 |
-| 0003 | Una base PostgreSQL; un esquema por módulo; lectura cruzada solo por vistas publicadas | Propuesto | 01 §9 |
-| 0004 | Multi‑inquilino por `administration_id` con RLS | Propuesto | 02 §5 |
-| 0005 | API REST *contract‑first* con OpenAPI; cliente Angular generado | Propuesto | 01 §10 |
-| 0006 | JPA para escritura de agregados; jOOQ para consultas, reportes y masivos | Propuesto | 01 §9 |
-| 0007 | Spring Batch para procesos masivos; worker separado | Propuesto | 01 §12, 03 §2 |
-| 0008 | Eventos entre módulos con *outbox* en PostgreSQL; sin *broker* de mensajes hasta que se justifique | Propuesto | 01 §3, 03 §2 |
-| 0009 | Motor de reglas propio, determinista y dirigido por configuración (sin Drools ni BPM) | Propuesto | 01 §5 |
-| 0010 | Autenticación OIDC (Keycloak) con patrón BFF | Propuesto | 02 §3 |
-| 0011 | Archivos en almacenamiento S3 compatible e inmutable | Propuesto | 02 §7 |
-| 0012 | Tailwind CSS en el `.component.css` de cada componente; hoja global solo para estilos reutilizados | Propuesto | 01 §11 |
-| 0013 | Monorepo temporal y separable: *backend* y *frontend* son proyectos autónomos sin archivos, herramientas ni rutas compartidas, que se separarán en repositorios propios; el único contrato entre ellos es el OpenAPI publicado por el backend. Documentación, SDD, e2e e infraestructura compartida se quedan en este repositorio | Propuesto | 01 §14 |
-| 0014 | Proceso SDD + TDD obligatorio, también para agentes de IA | Propuesto | 05 |
-| 0015 | *Trunk‑based development*, Conventional Commits, versionado semántico | Propuesto | 04 §8 |
-| 0016 | Tipo `Dinero` sobre `BigDecimal`; redondeo solo al final y según la configuración | Propuesto | 01 §7, 04 §3 |
-| 0017 | Código en inglés (alineado con el ERD); interfaz y documentación en español; glosario obligatorio | Propuesto | 01 §15 |
-| 0018 | Librería de componentes propia `@liv/ui` en el monorepo; las pantallas solo componen sus componentes; *tokens* generados desde Figma | Propuesto | 01 §11.1 |
-| 0019 | Diseño en Figma aprobado antes de implementar toda pantalla nueva, con la excepción de las pantallas que copian la estructura de otra existente | Propuesto | 01 §11.2, 05 §3 |
-| 0020 | Alojamiento en AWS: ECS sobre Fargate, RDS for PostgreSQL, S3, ECR, Secrets Manager y KMS; sin servicios que impidan llevar la aplicación a otro proveedor | Propuesto | 03 §5 |
+| 0001 | Backend en Java 21 LTS + Spring Boot | Aceptado (2026-11-01) | 00 §3 |
+| 0002 | Monolito modular (Spring Modulith) con hexagonal por módulo; roles API y worker | Aceptado (2026-11-01) | 00 §4, 01 §3 |
+| 0003 | Una base PostgreSQL; un esquema por módulo; lectura cruzada solo por vistas publicadas | Aceptado (2026-11-01) | 01 §9 |
+| 0004 | Multi‑inquilino por `administration_id` con RLS | Aceptado (2026-11-01) | 02 §5 |
+| 0005 | API REST *contract‑first* con OpenAPI; cliente Angular generado | Aceptado (2026-11-01) | 01 §10 |
+| 0006 | JPA para escritura de agregados; jOOQ para consultas, reportes y masivos | Aceptado (2026-11-01) | 01 §9 |
+| 0007 | Spring Batch para procesos masivos; worker separado | Aceptado (2026-11-01) | 01 §12, 03 §2 |
+| 0008 | Eventos entre módulos con *outbox* en PostgreSQL; sin *broker* de mensajes hasta que se justifique | Aceptado (2026-11-01) | 01 §3, 03 §2 |
+| 0009 | Motor de reglas propio, determinista y dirigido por configuración (sin Drools ni BPM) | Aceptado (2026-11-01) | 01 §5 |
+| 0010 | Autenticación OIDC (Keycloak) con patrón BFF | Aceptado (2026-11-01) | 02 §3 |
+| 0011 | Archivos en almacenamiento S3 compatible e inmutable | Aceptado (2026-11-01) | 02 §7 |
+| 0012 | Tailwind CSS en el `.component.css` de cada componente; hoja global solo para estilos reutilizados | Aceptado (2026-11-01) | 01 §11 |
+| 0013 | Monorepo temporal y separable: *backend* y *frontend* son proyectos autónomos sin archivos, herramientas ni rutas compartidas, que se separarán en repositorios propios; el único contrato entre ellos es el OpenAPI publicado por el backend. Documentación, SDD, e2e e infraestructura compartida se quedan en este repositorio | Aceptado (2026-11-01) | 01 §14 |
+| 0014 | Proceso SDD + TDD obligatorio, también para agentes de IA | Aceptado (2026-11-01) | 05 |
+| 0015 | *Trunk‑based development*, Conventional Commits, versionado semántico | Aceptado (2026-11-01) | 04 §8 |
+| 0016 | Tipo `Dinero` sobre `BigDecimal`; redondeo solo al final y según la configuración | Aceptado (2026-11-01) | 01 §7, 04 §3 |
+| 0017 | Código en inglés (alineado con el ERD); interfaz y documentación en español; glosario obligatorio | Aceptado (2026-11-01) | 01 §15 |
+| 0018 | Librería de componentes propia `liv-components` en el monorepo; las pantallas solo componen sus componentes; *tokens* generados desde Figma | Aceptado (2026-11-01) | 01 §11.1 |
+| 0019 | Diseño en Figma aprobado antes de implementar toda pantalla nueva, con la excepción de las pantallas que copian la estructura de otra existente | Aceptado (2026-11-01) | 01 §11.2, 05 §3 |
+| 0020 | Alojamiento en AWS: ECS sobre Fargate, RDS for PostgreSQL, S3, ECR, Secrets Manager y KMS; sin servicios que impidan llevar la aplicación a otro proveedor | Aceptado (2026-11-01) | 03 §5 |
+| 0021 | Backend con la base que el equipo ya usa, mejorada: Maven con *wrapper* y un artefacto (`liv-api`) en la raíz de `backend/`; módulos como paquetes con capas `api`/`application`/`domain`/`infrastructure`; API pública del módulo en su paquete raíz; migraciones en `src/main/resources/db/migration`; pruebas guardianas de catálogo, capas y tamaño sin excepciones; Google Java Format. Reemplaza el uso de Gradle y de subproyectos por módulo | Aceptado (2026-11-01) | 01 §4, §14 |
+| 0022 | La librería `liv-components` es un proyecto autónomo en la raíz del monorepo (`ui/`), separable como `backend/` y `frontend/`; se publica en npm como paquete público (el *scope* `@liv` es de otra organización) con versionado semántico y etiquetas `ui-vX.Y.Z`, y el frontend la instala con versión exacta. Reemplaza en el ADR 0018 la ubicación dentro del frontend y el consumo por alias de código fuente | Aceptado (2026-11-01) | 01 §11.1, §14 |
 
 ---
 
@@ -160,8 +162,8 @@ Insumos que la documentación funcional no resolvía y que cambian el despliegue
 | P6 | Disponibilidad, RPO y RTO | **Los define la entidad.** Mientras llega el requisito formal se diseña con el supuesto: 99,5 % en horario laboral, RPO 15 min, RTO 4 h | ⏳ Esperando a la entidad | 03 §1, §5, §7 |
 | P7 | Retención documental y de auditoría | **No se borra nada** hasta que jurídica entregue la tabla de retención documental (Ley 594 de 2000) | 🔄 Provisional | 02 §6, 03 §7 |
 | P8 | Firma digital de actos | **Después del piloto**; queda el puerto previsto | ✅ Decidida | 01 §13 |
-| P9 | Portal del contribuyente | **Después del piloto**; la API y `@liv/ui` ya lo permiten | ✅ Decidida | 01 §1 |
-| P10 | Responsable de diseño y plan de Figma | **No hay diseñador dedicado**: diseñan el equipo o los agentes con el servidor MCP de Figma, y **aprueba el responsable funcional** del módulo. Plan de Figma: **Professional con Dev Mode**. No incluye Code Connect (exige Organization o Enterprise), así que la correspondencia Figma ↔ `@liv/ui` se hace por nombres iguales y se documenta en Storybook | ✅ Decidida | 01 §11, 05 §3 y §6 |
+| P9 | Portal del contribuyente | **Después del piloto**; la API y `liv-components` ya lo permiten | ✅ Decidida | 01 §1 |
+| P10 | Responsable de diseño y plan de Figma | **No hay diseñador dedicado**: diseñan el equipo o los agentes con el servidor MCP de Figma, y **aprueba el responsable funcional** del módulo. Plan de Figma: **Professional con Dev Mode**. No incluye Code Connect (exige Organization o Enterprise), así que la correspondencia Figma ↔ `liv-components` se hace por nombres iguales y se documenta en Storybook | ✅ Decidida | 01 §11, 05 §3 y §6 |
 
 ---
 
@@ -184,11 +186,11 @@ Ninguna fase empieza sin su documento funcional aprobado y sin sus pendientes cr
 | # | Entregable | Documento |
 |---|---|---|
 | F0‑01 | Reorganización del repositorio: documentación en `docs/` (hecho); creación de `backend/` y `frontend/` como proyectos autónomos y separables al iniciar sus esqueletos (F0‑04, F0‑05) | 01 §14 |
-| F0‑02 | ADR 0001–0020 revisados y aceptados (o reemplazados) | 00 §6 |
+| F0‑02 | ADR 0001–0021 revisados y aceptados (o reemplazados) | 00 §6 |
 | F0‑03 | `AGENTS.md` / `CLAUDE.md` jerárquicos, *skills* del proyecto, plantillas SDD, ganchos del agente y de Git | 05 |
 | F0‑04 | Esqueleto de backend con los módulos vacíos, verificación de fronteras y reglas de arquitectura activas | 01, 04 |
-| F0‑05 | Esqueleto de frontend con autenticación, *layout*, menú dirigido por permisos y cliente API generado, construido solo con componentes de `@liv/ui` | 01 §11 |
-| F0‑05a | Páginas de guía, fundamentos y componentes en el archivo de Figma LIV‑Diseño (las páginas ya existen, sin contenido), con los estilos locales (ya creados: 26 de color, 11 de texto, 5 de efecto) y los primeros componentes; librería `@liv/ui` con los *tokens* generados, los primitivos y la plantilla de consulta; Storybook y regresión visual en CI | 01 §11.1 |
+| F0‑05 | Esqueleto de frontend con autenticación, *layout*, menú dirigido por permisos y cliente API generado, construido solo con componentes de `liv-components` | 01 §11 |
+| F0‑05a | Páginas de guía, fundamentos y componentes en el archivo de Figma LIV‑Diseño (las páginas ya existen, sin contenido), con los estilos locales (ya creados: 26 de color, 11 de texto, 5 de efecto) y los primeros componentes; librería `liv-components` con los *tokens* generados, los primitivos y la plantilla de consulta; Storybook y regresión visual en CI | 01 §11.1 |
 | F0‑05b | Diseños en Figma aprobados del *layout* general, inicio de sesión y menú | 01 §11.2 |
 | F0‑06 | Docker Compose local: PostgreSQL, Keycloak con usuarios de prueba, MinIO, ClamAV y observabilidad opcional | 03 §4 |
 | F0‑07 | Flujos de GitHub Actions con todas las compuertas de calidad, aunque haya poco código | 04 §9 |
