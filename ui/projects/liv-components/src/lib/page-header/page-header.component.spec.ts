@@ -48,6 +48,13 @@ describe('PageHeader', () => {
     expect(header.querySelector('li:first-child')?.hasAttribute('aria-current')).toBe(false);
   });
 
+  it('con una sola parte, esa es la pantalla actual y no hay separadores', () => {
+    const header = render({ breadcrumb: ['Inicio'] });
+    expect(header.querySelectorAll('li')).toHaveLength(1);
+    expect(header.querySelector('li')?.getAttribute('aria-current')).toBe('page');
+    expect(header.querySelector('.page-header__separator')).toBeNull();
+  });
+
   it('sin ruta no dibuja la navegación', () => {
     expect(render({ breadcrumb: [] }).querySelector('nav')).toBeNull();
   });

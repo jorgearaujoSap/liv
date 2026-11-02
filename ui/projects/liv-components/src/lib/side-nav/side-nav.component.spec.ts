@@ -65,6 +65,10 @@ describe('SideNav', () => {
     const { sideNav } = render();
     expect(getComputedStyle(sideNav).backgroundColor).toContain('var(--color-bg-surface');
     expect(declaredStyle(sideNav, 'border-color')).toContain('var(--color-border-default');
+    // El borde es solo el derecho (separa el menú del contenido); los demás lados declaran 0.
+    expect(declaredStyle(sideNav, 'border-right-width')).toContain('1px');
+    expect(declaredStyle(sideNav, 'border-left-width')).toBe('0px');
+    expect(declaredStyle(sideNav, 'border-top-width')).toBe('0px');
     expect(declaredStyle(sideNav, 'width')).toContain('272px');
     const footer = sideNav.querySelector('.side-nav__footer') as HTMLElement;
     expect(getComputedStyle(footer).color).toContain('var(--color-text-muted');

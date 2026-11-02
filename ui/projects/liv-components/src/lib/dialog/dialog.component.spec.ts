@@ -17,7 +17,7 @@ import { DialogComponent } from './dialog.component';
       [description]="description"
       [icon]="icon"
       [dismissible]="dismissible"
-      (closed)="closes = closes + 1"
+      (closeRequested)="closes = closes + 1"
     >
       <button id="secondary" type="button">Cerrar sesión</button>
       <button
@@ -45,6 +45,31 @@ class HostComponent {
   template: `<liv-dialog [open]="true" heading="Aviso"></liv-dialog>`,
 })
 class WithoutActionsHostComponent {}
+
+@Component({
+  imports: [DialogComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Aviso">
+      <button id="only" type="button">Entendido</button>
+    </liv-dialog>
+  `,
+})
+class SingleActionHostComponent {}
+
+@Component({
+  imports: [DialogComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Primero" (closeRequested)="closes.push('primero')">
+      <button id="first-action" type="button">Uno</button>
+    </liv-dialog>
+    <liv-dialog [open]="true" heading="Segundo" (closeRequested)="closes.push('segundo')">
+      <button id="second-action" type="button">Dos</button>
+    </liv-dialog>
+  `,
+})
+class StackedHostComponent {
+  closes: string[] = [];
+}
 
 function render(inputs: Partial<HostComponent> = {}) {
   const fixture = TestBed.createComponent(HostComponent);
@@ -183,6 +208,45 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(primary);
     });
 
+    it('con un solo enfocable, Tab y Mayús+Tab no lo sueltan', () => {
+      const fixture = TestBed.createComponent(SingleActionHostComponent);
+      fixture.detectChanges();
+      const only = fixture.nativeElement.querySelector('#only') as HTMLButtonElement;
+      expect(document.activeElement).toBe(only);
+      expect(pressKey(only, 'Tab').defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(only);
+      expect(pressKey(only, 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(only);
+    });
+
+    it('sin enfocables, Tab se queda en el diálogo', () => {
+      const fixture = TestBed.createComponent(WithoutActionsHostComponent);
+      fixture.detectChanges();
+      const panel = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+      expect(pressKey(panel, 'Tab').defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(panel);
+    });
+
+    it('con dos diálogos abiertos, solo el último atrapa el foco y no se pelean', () => {
+      const errors: unknown[] = [];
+      const spy = vi.spyOn(console, 'error').mockImplementation((...args) => errors.push(args));
+      const fixture = TestBed.createComponent(StackedHostComponent);
+      try {
+        fixture.detectChanges();
+      } finally {
+        spy.mockRestore();
+      }
+      expect(errors).toEqual([]);
+      expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#second-action'));
+    });
+
+    it('con dos diálogos abiertos, Escape cierra solo el de arriba', () => {
+      const fixture = TestBed.createComponent(StackedHostComponent);
+      fixture.detectChanges();
+      pressKey(document, 'Escape');
+      expect(fixture.componentInstance.closes).toEqual(['segundo']);
+    });
+
     it('Tab fuera de los extremos (del primero al último y al revés) no se intercepta', () => {
       const { primary, secondary } = renderOpen();
       secondary.focus();
@@ -221,6 +285,43 @@ describe('Dialog', () => {
       const event = pressKey(document, 'Escape');
       expect(host.closes).toBe(0);
       expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('un Escape que otro control ya atendió no cierra', () => {
+      const { host } = renderOpen();
+      pressKey(document, 'Escape', { cancelable: true });
+      expect(host.closes).toBe(1);
+      const consumed = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      });
+      consumed.preventDefault();
+      document.dispatchEvent(consumed);
+      expect(host.closes).toBe(1);
+    });
+
+    it('un Escape durante una composición de texto (IME) no cierra', () => {
+      const { host } = renderOpen();
+      pressKey(document, 'Escape', { isComposing: true });
+      expect(host.closes).toBe(0);
+    });
+
+    it('cerrado después de abierto, ya no escucha el teclado ni el foco', () => {
+      const rendered = render();
+      setOpen(rendered, false);
+      pressKey(document, 'Escape');
+      rendered.trigger.focus();
+      rendered.trigger.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      expect(rendered.host.closes).toBe(0);
+      expect(document.activeElement).toBe(rendered.trigger);
+    });
+
+    it('destruido abierto, ya no escucha el teclado', () => {
+      const rendered = render();
+      rendered.fixture.destroy();
+      pressKey(document, 'Escape');
+      expect(rendered.host.closes).toBe(0);
     });
 
     it('otra tecla no cierra', () => {

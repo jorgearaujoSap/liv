@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import theme from '../../styles/theme.css' with { loader: 'text' };
 import { expectNoAxeViolations } from '../../testing/axe';
-import { cssVariable, declaredStyle, paintsShadow } from '../../testing/css';
+import { cssVariable, declaredStyle, paintsShadow, usesToken } from '../../testing/css';
 import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icons';
 import { NavItemComponent, NavItemType } from './nav-item.component';
@@ -47,6 +47,21 @@ class ItemHostComponent {
 class GroupHostComponent {
   expanded = false;
 }
+
+@Component({
+  imports: [NavItemComponent],
+  template: `
+    <liv-nav-item type="group" icon="settings" [active]="true" [expanded]="true">
+      Administración
+      <liv-nav-item id="current" type="subitem" href="/vigencias" [active]="true"
+        >Vigencias</liv-nav-item
+      >
+      <liv-nav-item id="other" type="subitem" href="/tablas">Tablas base</liv-nav-item>
+      <liv-nav-item id="soon" type="subitem" [disabled]="true">Próximamente</liv-nav-item>
+    </liv-nav-item>
+  `,
+})
+class ActiveGroupHostComponent {}
 
 function render(inputs: Partial<ItemHostComponent> = {}) {
   const fixture = TestBed.createComponent(ItemHostComponent);
@@ -120,19 +135,35 @@ describe('NavItem', () => {
     it('Active (001-15) marca la pantalla actual con aria-current="page" y usa los tokens de Figma', () => {
       const { control } = render({ active: true });
       expect(control.getAttribute('aria-current')).toBe('page');
-      expect(getComputedStyle(control).backgroundColor).toContain(
-        'var(--color-action-primary-subtle',
-      );
-      expect(getComputedStyle(control.querySelector('liv-icon') as HTMLElement).color).toContain(
-        'var(--color-action-primary',
-      );
       expect(
-        getComputedStyle(control.querySelector('.nav-item__label') as HTMLElement).color,
-      ).toContain('var(--color-action-primary');
+        usesToken(getComputedStyle(control).backgroundColor, '--color-action-primary-subtle'),
+      ).toBe(true);
+      const icon = control.querySelector('liv-icon') as HTMLElement;
+      expect(usesToken(getComputedStyle(icon).color, '--color-action-primary')).toBe(true);
+      const label = control.querySelector('.nav-item__label') as HTMLElement;
+      expect(usesToken(getComputedStyle(label).color, '--color-action-primary')).toBe(true);
     });
 
     it('sin Active no declara aria-current', () => {
       expect(render().control.hasAttribute('aria-current')).toBe(false);
+    });
+
+    it('Active y Disabled a la vez no declara aria-current: no hay destino', () => {
+      expect(render({ active: true, disabled: true }).control.hasAttribute('aria-current')).toBe(
+        false,
+      );
+    });
+
+    it.each(['', '   '])('un href vacío (%j) no dibuja href ni navega', (href) => {
+      const { control, host } = render({ href });
+      expect(control.hasAttribute('href')).toBe(false);
+      click(control);
+      expect(host.navigations).toEqual([]);
+    });
+
+    it('un href javascript: no llega al DOM como enlace ejecutable', () => {
+      const { control } = render({ href: 'javascript:alert(1)' });
+      expect(control.getAttribute('href') ?? '').not.toMatch(/^javascript:/i);
     });
 
     it('Disabled (001-15) declara aria-disabled, no tiene href y explica por qué', () => {
@@ -268,6 +299,58 @@ describe('NavItem', () => {
       fixture.detectChanges();
       expect(fixture.componentInstance.expanded).toBe(false);
       expect(toggle.hasAttribute('aria-expanded')).toBe(false);
+    });
+
+    describe('con el grupo activo y expandido', () => {
+      function renderActiveGroup() {
+        const fixture = TestBed.createComponent(ActiveGroupHostComponent);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const control = (id: string) =>
+          root.querySelector(`#${id} .nav-item__control`) as HTMLElement;
+        return { control };
+      }
+
+      it('sus subopciones no heredan el fondo ni el color de Active del grupo', () => {
+        const { control } = renderActiveGroup();
+        for (const id of ['other', 'soon']) {
+          const style = getComputedStyle(control(id));
+          expect(usesToken(style.backgroundColor, '--color-action-primary-subtle')).toBe(false);
+          expect(usesToken(style.color, '--color-action-primary')).toBe(false);
+        }
+      });
+
+      it('una subopción inactiva conserva el texto de un Subitem (text-secondary)', () => {
+        const { control } = renderActiveGroup();
+        const label = control('other').querySelector('.nav-item__label') as HTMLElement;
+        expect(usesToken(getComputedStyle(label).color, '--color-text-secondary')).toBe(true);
+      });
+
+      it('solo la subopción actual se pinta como Active', () => {
+        const { control } = renderActiveGroup();
+        expect(
+          usesToken(
+            getComputedStyle(control('current')).backgroundColor,
+            '--color-action-primary-subtle',
+          ),
+        ).toBe(true);
+      });
+
+      it('una subopción deshabilitada conserva text-disabled', () => {
+        const { control } = renderActiveGroup();
+        const label = control('soon').querySelector('.nav-item__label') as HTMLElement;
+        expect(usesToken(getComputedStyle(label).color, '--color-text-disabled')).toBe(true);
+      });
+    });
+
+    it('el botón del grupo y su lista de subopciones se relacionan para los lectores de pantalla', () => {
+      const { fixture, root, toggle } = renderGroup();
+      click(toggle);
+      fixture.detectChanges();
+      const children = root.querySelector('.nav-item__children') as HTMLElement;
+      expect(toggle.getAttribute('aria-controls')).toBe(children.id);
+      expect(children.getAttribute('aria-labelledby')).toBe(toggle.id);
+      expect(children.id).not.toBe('');
     });
 
     it('Active usa el fondo y el texto de la pantalla actual, pero sin aria-current', () => {

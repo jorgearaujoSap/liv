@@ -77,6 +77,9 @@ describe('AppHeader', () => {
     ['Laura Martínez', 'LM'],
     ['  laura   del  carmen martínez ', 'LM'],
     ['Administrador', 'A'],
+    ['J', 'J'],
+    ['😀 Ana', '😀A'],
+    ['   ', '?'],
     ['', '?'],
   ])('las iniciales de "%s" son "%s"', (userName, initials) => {
     expect(render({ userName }).header.querySelector('liv-avatar')?.textContent?.trim()).toBe(

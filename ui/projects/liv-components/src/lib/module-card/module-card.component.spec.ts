@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import theme from '../../styles/theme.css' with { loader: 'text' };
 import { expectNoAxeViolations } from '../../testing/axe';
-import { cssVariable, declaredStyle, paintsShadow } from '../../testing/css';
+import { cssVariable, declaredStyle, paintsShadow, usesToken } from '../../testing/css';
 import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icons';
 import { ModuleCardComponent } from './module-card.component';
@@ -102,9 +102,12 @@ describe('ModuleCard', () => {
     expect(
       getComputedStyle(card.querySelector('.module-card__tile') as HTMLElement).backgroundColor,
     ).toContain('var(--color-action-primary-subtle');
-    expect(getComputedStyle(card.querySelector('liv-icon') as HTMLElement).color).toContain(
-      'var(--color-action-primary',
-    );
+    expect(
+      usesToken(
+        getComputedStyle(card.querySelector('liv-icon') as HTMLElement).color,
+        '--color-action-primary',
+      ),
+    ).toBe(true);
   });
 
   it('Default usa los tokens de Figma: fondo, borde, radio y sombra sm', () => {
@@ -175,11 +178,41 @@ describe('ModuleCard', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it('un clic con Ctrl lo resuelve el navegador (nueva pestaña): no emite navigate', () => {
+  it.each<[string, MouseEventInit]>([
+    ['Ctrl', { ctrlKey: true }],
+    ['Cmd', { metaKey: true }],
+    ['Mayús', { shiftKey: true }],
+    ['Alt', { altKey: true }],
+    ['botón central', { button: 1 }],
+  ])('un clic con %s lo resuelve el navegador (nueva pestaña): no emite navigate', (_, init) => {
     const { link, host } = render();
-    const event = click(link, { ctrlKey: true });
+    const event = click(link, init);
     expect(host.navigations).toEqual([]);
     expect(event.defaultPrevented).toBe(false);
+  });
+
+  it.each(['', '   '])('un href vacío (%j) no dibuja href ni navega', (href) => {
+    const { link, host } = render({ href });
+    expect(link.hasAttribute('href')).toBe(false);
+    click(link);
+    expect(host.navigations).toEqual([]);
+  });
+
+  it('con foco del teclado, la regla de hover no aplica y el anillo de foco gana', () => {
+    // jsdom no aplica :hover: se comprueba que la regla de hover deja de valer cuando hay foco visible.
+    const { link } = render();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    link.focus();
+    expect(declaredHover(link, '--tw-shadow')).toBe('');
+    expect(declaredHover(link, 'border-color')).toBe('');
+    link.blur();
+    expect(declaredHover(link, '--tw-shadow')).not.toBe('');
+  });
+
+  it('la descripción vacía no deja un bloque vacío', () => {
+    expect(
+      render({ description: '  ' }).card.querySelector('.module-card__description'),
+    ).toBeNull();
   });
 
   it('pinta el anillo focus/ring de theme.css solo con el foco del teclado', () => {
