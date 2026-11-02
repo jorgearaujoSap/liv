@@ -47,14 +47,37 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el PR superó las ~400 líneas (unas 1.650 sin el *lockfile*: 297 de datos de iconos, 390 de pruebas y 269 de historias), porque Storybook, Tailwind y los componentes se prueban juntos;
     - dependencias de desarrollo nuevas, aprobadas en el ADR 0026.
   - Prueba primero: por componente, variantes, propiedades y atributos ARIA (`aria-hidden` en el icono decorativo; texto alternativo en `Logo`), más axe.
-- [ ] **T04** · `Button` (tamaños, iconos, `Loading`), `IconButton`, `TextField` (icono, acción, `Content`), `CodeInput` y `Alert`.
+- [x] **T04** · `Button` (tamaños, iconos, `Loading`), `IconButton`, `TextField` (icono, acción, `Content`), `CodeInput` y `Alert`. — Hecha: PR #36.
   - Archivos: `ui/projects/liv-components/src/lib/{button,icon-button,text-field,code-input,alert}/**`, `public-api.ts`.
+  - **Desviaciones declaradas:**
+    - se agregó `ui/projects/liv-components/src/testing/css.ts`, un ayudante de pruebas como `testing/axe.ts`: lee el valor declarado de una propiedad CSS, porque jsdom no calcula `border-color` con `var()`;
+    - el PR superó las ~400 líneas (unas 2.140, de ellas 1.310 de pruebas e historias), porque son cinco componentes;
+    - Loading anuncia la entrada `loadingLabel` y el texto visible no cambia, como en Figma. La prueba en rojo pedía anunciar el texto del botón, que no se puede leer de forma fiable con zone.js;
+    - nombres respecto de Figma: `Title` de `Alert` es `heading`, para no chocar con el atributo `title`; `Label` y `Message` se proyectan como contenido; `State=Error` se activa con la entrada `error`.
+  - **Decisiones del responsable (2026-11-02)** sobre lo que dejó abierto la revisión:
+    - **contraste:** «Corregir antes de T05», en la tarea T04a;
+    - **icono de ayuda:** «Ajustar Figma a 16 px», también en T04a; `Icon` mantiene 16, 20 y 24;
+    - **formularios de Angular:** «Decidir con la primera pantalla». Se mantiene `[(value)]`, y el ADR para `@angular/forms` se escribe cuando la primera pantalla de Angular con formulario lo necesite;
+    - **tooltip:** «Provisional y al backlog». `IconButton` sigue con `title` nativo, y un componente `Tooltip` queda en el backlog (primero en Figma).
   - Prueba primero:
     - `Loading` no emite clic;
     - `TextField` en error expone `aria-invalid` y `aria-describedby`;
     - `CodeInput` usa `inputmode="numeric"` y `autocomplete="one-time-code"`;
     - `Alert` de error usa `role="alert"`.
-- [ ] **T05** · `Dialog`, `ResultState`, `NavItem`, `SideNav`, `AppHeader`, `PageHeader` y `ModuleCard`. Versión 0.2.0 y `CHANGELOG.md`. **Un humano publica.**
+- [ ] **T04a** · Contraste de *tokens* e icono de ayuda (decisión del responsable, 2026-11-02). **Cambio de *tokens*: crítico.** Primero en Figma y después en el código.
+  - **En Figma (LIV‑Diseño):**
+    - oscurecer los estilos `border/strong` y `focus/ring` hasta un contraste mínimo de 3:1 sobre `bg/surface` (WCAG 1.4.11);
+    - que el texto de ejemplo (placeholder) de `TextField` y `CodeInput` use un estilo de texto con 4,5:1 sobre `bg/surface` (WCAG 1.4.3) en lugar de `text/disabled`; `text/muted` (≈4,8:1) es el candidato;
+    - pasar a 16 px el icono de ayuda de `TextField` y `CodeInput`.
+  - Archivos:
+    - `ui/projects/liv-components/src/styles/theme.css`;
+    - `ui/projects/liv-components/src/lib/{text-field,code-input}/**`: el placeholder y sus pruebas, y quitar la nota de «decisión pendiente» del icono de ayuda;
+    - las pruebas de contraste de los *tokens* y las capturas de referencia de los componentes afectados.
+  - Prueba primero:
+    - contraste de `border/strong` y `focus/ring` sobre `bg/surface`, cada uno ≥ 3:1;
+    - contraste del *token* del placeholder sobre `bg/surface` ≥ 4,5:1;
+    - `TextField` y `CodeInput` usan ese *token* en el placeholder.
+- [ ] **T05** · `Dialog`, `ResultState`, `NavItem`, `SideNav`, `AppHeader`, `PageHeader` y `ModuleCard`. Versión 0.2.0 y `CHANGELOG.md`. **Un humano publica.** Depende de T04a: la 0.2.0 sale con los *tokens* corregidos.
   - Archivos: `ui/projects/liv-components/src/lib/{dialog,result-state,nav-item,side-nav,app-header,page-header,module-card}/**`, `public-api.ts`, `projects/liv-components/package.json`, `CHANGELOG.md`.
   - Prueba primero:
     - `Dialog` atrapa el foco y cierra con Escape;
