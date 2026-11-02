@@ -16,7 +16,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librerí
 | Solo presentación | Sin `HttpClient`; no importa ninguna aplicación ni cliente de API; no calcula impuestos ni decide permisos. Recibe datos por `input` y emite eventos por `output` | ESLint (`no-restricted-imports`) |
 | API pública | Todo lo que se publica sale por `src/public-api.ts`; los tokens, por `styles/theme.css` | Revisión |
 | Tokens | `src/styles/theme.css` refleja los estilos locales de Figma; un cambio se hace primero en Figma | Revisión |
-| Estilos | Tailwind en el `.component.css` de cada componente; sin atributo `style`, sin `::ng-deep`; solo tokens | Revisión (Stylelint en F0‑07) |
+| Estilos | Tailwind en el `.component.css` de cada componente; sin atributo `style`, sin `::ng-deep`; solo tokens. **Única excepción:** `Skeleton` aplica sus entradas `width` y `height` como estilo del anfitrión, porque se ajusta al contenido que reemplaza; solo medidas, nunca color, tipografía ni sombra (decisión del responsable, 2026-11-02). Otro componente no la usa sin una decisión igual | Revisión (Stylelint en F0‑07) |
 | Accesibilidad | Cada componente cumple WCAG 2.1 AA por sí mismo | ESLint (accesibilidad de plantillas) + axe‑core |
 | Versiones | Todo cambio que deba llegar a las aplicaciones sube la versión en el mismo PR (`npm run version:patch`/`minor`/`major`, según la tabla de `README.md`) y agrega su sección en `CHANGELOG.md` | `npm run release:check` |
 | Publicación | Solo un humano publica, desde `main` y después de integrar el PR, siguiendo `README.md` › "Publicar una versión". Un agente puede preparar la versión y el `CHANGELOG.md`, pero nunca ejecuta `npm publish` ni `npm run release` | `npm run release:check` + revisión |
