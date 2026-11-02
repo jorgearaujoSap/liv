@@ -1,0 +1,41 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply inline-flex shrink-0;
+}
+
+.spinner__svg {
+  animation: liv-spinner-rotate 0.8s linear infinite;
+}
+
+.spinner__label {
+  @apply sr-only;
+}
+
+:host([data-tone='default']) .spinner__track {
+  @apply stroke-border-default;
+}
+
+:host([data-tone='default']) .spinner__arc {
+  @apply stroke-action-primary;
+}
+
+:host([data-tone='inverse']) .spinner__track {
+  @apply stroke-action-primary-hover;
+}
+
+:host([data-tone='inverse']) .spinner__arc {
+  @apply stroke-text-inverse;
+}
+
+@keyframes liv-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner__svg {
+    animation: none;
+  }
+}

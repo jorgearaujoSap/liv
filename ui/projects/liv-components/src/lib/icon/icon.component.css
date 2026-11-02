@@ -1,0 +1,5 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply inline-flex shrink-0;
+}

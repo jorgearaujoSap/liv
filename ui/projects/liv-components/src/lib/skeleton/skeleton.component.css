@@ -1,0 +1,29 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block bg-bg-subtle;
+}
+
+:host([data-shape='text']) {
+  @apply h-3 w-[160px] rounded-full;
+}
+
+:host([data-shape='circle']) {
+  @apply size-8 rounded-full;
+}
+
+:host([data-shape='block']) {
+  @apply h-[96px] w-[240px] rounded-lg;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :host {
+    animation: liv-skeleton-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes liv-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}

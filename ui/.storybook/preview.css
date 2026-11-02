@@ -1,0 +1,7 @@
+/* Estilos globales del catálogo: Tailwind y los tokens de la librería, como los carga una aplicación. */
+@import 'tailwindcss';
+@import '../projects/liv-components/src/styles/theme.css';
+
+body {
+  font-family: var(--font-sans);
+}

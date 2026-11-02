@@ -1,0 +1,33 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-label-sm whitespace-nowrap;
+}
+
+.badge__dot {
+  @apply size-[6px] rounded-full bg-current;
+}
+
+:host([data-tone='neutral']) {
+  @apply bg-bg-subtle text-text-secondary;
+}
+
+:host([data-tone='primary']) {
+  @apply bg-action-primary-subtle text-action-primary;
+}
+
+:host([data-tone='success']) {
+  @apply bg-status-success-subtle text-status-success;
+}
+
+:host([data-tone='warning']) {
+  @apply bg-status-warning-subtle text-status-warning;
+}
+
+:host([data-tone='danger']) {
+  @apply bg-status-danger-subtle text-status-danger;
+}
+
+:host([data-tone='info']) {
+  @apply bg-status-info-subtle text-status-info;
+}

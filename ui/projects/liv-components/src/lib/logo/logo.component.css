@@ -1,0 +1,63 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply inline-flex items-center gap-[10px];
+}
+
+.logo__mark {
+  @apply shrink-0;
+}
+
+.logo__wordmark {
+  @apply flex flex-col;
+}
+
+.logo__name {
+  @apply text-heading-h3;
+}
+
+.logo__tagline {
+  @apply text-body-sm;
+}
+
+/* Default: monograma azul con la L y el punto en blanco. */
+:host([data-tone='default']) .logo__tile {
+  @apply fill-action-primary;
+}
+
+:host([data-tone='default']) .logo__letter {
+  @apply stroke-text-inverse;
+}
+
+:host([data-tone='default']) .logo__dot {
+  @apply fill-text-inverse;
+}
+
+:host([data-tone='default']) .logo__name {
+  @apply text-text-primary;
+}
+
+:host([data-tone='default']) .logo__tagline {
+  @apply text-text-secondary;
+}
+
+/* Inverse: monograma blanco con la L y el punto azules, para fondos oscuros. */
+:host([data-tone='inverse']) .logo__tile {
+  @apply fill-text-inverse;
+}
+
+:host([data-tone='inverse']) .logo__letter {
+  @apply stroke-action-primary;
+}
+
+:host([data-tone='inverse']) .logo__dot {
+  @apply fill-action-primary;
+}
+
+:host([data-tone='inverse']) .logo__name {
+  @apply text-text-inverse;
+}
+
+:host([data-tone='inverse']) .logo__tagline {
+  @apply text-text-inverse-secondary;
+}

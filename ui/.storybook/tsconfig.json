@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../out-tsc/storybook",
+    "types": []
+  },
+  "include": ["../projects/liv-components/src/**/*.ts", "*.ts"],
+  "exclude": [
+    "../projects/liv-components/src/**/*.spec.ts",
+    "../projects/liv-components/src/testing/**"
+  ]
+}
