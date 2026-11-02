@@ -1,3 +1,6 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
 *.jar binary
+# Los scripts se ejecutan en contenedores Linux: siempre con LF, aunque Git en Windows use autocrlf.
+*.sh text eol=lf
+.env* text eol=lf
