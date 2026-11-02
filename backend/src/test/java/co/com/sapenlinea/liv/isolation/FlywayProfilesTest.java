@@ -88,7 +88,9 @@ class FlywayProfilesTest {
     @DisplayName(
         "T10 · Con el perfil test, Flyway migra una base vacía con liv_owner y la aplicación se conecta como liv_app")
     void flywayMigratesAnEmptyDatabaseAsTheOwner() throws SQLException {
-      assertThat(appliedVersions(flyway)).containsExactly("202611010900", "202611010905");
+      assertThat(appliedVersions(flyway))
+          .containsExactly(
+              "202611010900", "202611010905", "202611010910", "202611010915", "202611010920");
       assertThat(userOf(flyway.getConfiguration().getDataSource())).isEqualTo(LivDatabase.OWNER);
       assertThat(userOf(dataSource)).isEqualTo(LivDatabase.APP);
       try (Connection connection = dataSource.getConnection()) {
