@@ -18,7 +18,7 @@ const meta: Meta<IconComponent> = {
   },
   argTypes: {
     name: { control: 'select', options: ICON_NAMES },
-    size: { control: 'inline-radio', options: [16, 20, 24] },
+    size: { control: 'inline-radio', options: [16, 20, 24, 28] },
   },
   args: { name: 'arrow-right', size: 24 },
 };
@@ -37,6 +37,8 @@ export const Tamano16: Story = { args: { size: 16 } };
 export const Tamano20: Story = { args: { size: 20 } };
 
 export const Tamano24: Story = { args: { size: 24 } };
+
+export const Tamano28: Story = { args: { size: 28 } };
 
 export const Catalogo: Story = {
   decorators: [moduleMetadata({ imports: [IconComponent] })],

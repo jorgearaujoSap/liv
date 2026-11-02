@@ -17,6 +17,7 @@ Primera versión con componentes (feature 001, tareas T03, T04, T04a —contrast
 - `NavItem` y `ModuleCard` son enlaces: un clic normal emite `navigate` con el destino y cancela la navegación del navegador, para que la aplicación navegue con su enrutador; con Ctrl, Cmd, Mayús, Alt o el botón central el navegador abre el enlace como siempre. Si está deshabilitado (`disabled`), no tiene `href`, no navega y declara `aria-disabled="true"`.
 - `NavItem` y `ModuleCard` con `href` ausente, vacío o solo con espacios quedan inertes (sin enlace, sin foco de teclado): una opción o tarjeta habilitada necesita destino. El destino que emiten se recorta, pero no se sanea: la aplicación debe navegar solo a rutas propias.
 - El grupo de `NavItem` expone `aria-controls` y `aria-labelledby` entre su botón y la lista de subopciones.
+- `Icon` admite 28 px además de 16, 20 y 24 (`IconSize`), para el círculo de `ResultState`. Es compatible con lo anterior: el lienzo sigue siendo de 24 unidades y el trazo escala con el tamaño. Decisión del responsable (2026-11-02); la descripción de los 38 iconos de Figma ya dice «16, 20, 24 o 28 px».
 - `Dialog` atrapa el foco, lo devuelve a quien lo tenía al cerrarse y emite `closeRequested` con Escape si `dismissible` es verdadero y ningún control interno lo atendió (ni hay una composición de texto en curso); su fondo se desplaza si el panel no cabe. El foco inicial va al elemento con `data-initial-focus` o, si no hay, al primer enfocable.
 - Tokens nuevos en `styles/theme.css`: colores `text/inverse-secondary` y `bg/inverse-subtle`, textos `heading/display` y `code/lg`, y las variables `spacing/*` (0 a 16) y `radius/*` (`sm` a `full`) de Figma. Ahora son 28 de color, 13 de texto y 5 de efecto.
 - Proceso de publicación documentado y verificaciones automáticas antes de publicar (`scripts/check-release.mjs`): rama `main` sin cambios pendientes, sesión de npm, permiso de publicación, versión nueva y mayor que la última, y sección en este archivo. Comandos `version:patch`, `version:minor` y `version:major`.
@@ -35,7 +36,6 @@ Estos cambios modifican la apariencia de las aplicaciones que usan `styles/theme
 
 ### Notas
 
-- `ResultState` dibuja el icono a 24 px y no a los 28 px de Figma, porque `Icon` solo admite 16, 20 y 24 px.
 - `SideNav` y `AppHeader` son claros (`bg/surface`) en Figma, así que el anillo de foco y los textos se miden contra fondos claros (superficie, lienzo, `bg/subtle` y `action/primary-subtle`), no contra `bg/inverse-subtle`.
 - Todavía no hay pruebas de regresión visual (compuerta Q14 de CI): las capturas de referencia por variante quedan pendientes.
 - Con varios `Dialog` abiertos, solo el último abierto atrapa el foco y atiende Escape. El foco inicial por defecto es el primer elemento enfocable: en un aviso con una acción destructiva primero, marca la acción segura con `data-initial-focus`.
