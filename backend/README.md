@@ -26,6 +26,7 @@ En Windows, `mvnw.cmd` en lugar de `./mvnw`.
 backend/
 ├── pom.xml                         ← un solo artefacto: liv-api
 ├── mvnw, mvnw.cmd, .mvn/           ← Maven wrapper
+├── contracts/openapi/              ← contratos OpenAPI, uno por módulo (contract-first)
 └── src/
     ├── main/java/co/com/sapenlinea/liv/
     │   ├── LivApplication.java
@@ -52,6 +53,21 @@ backend/
 | `infrastructure` | Adaptadores: persistencia (entidades JPA y repositorios), clientes externos, configuración, tareas programadas |
 
 Lo que otros módulos pueden usar (fachadas y eventos) va en el **paquete raíz** del módulo; las subcarpetas son internas (Spring Modulith lo verifica).
+
+## Contratos de API
+
+La API es *contract-first* (ADR 0005, doc. 01 §10): primero se escribe el OpenAPI en `contracts/openapi/<modulo>.yaml` (y `<modulo>-internal.yaml` para los endpoints entre servicios) y luego se implementa.
+
+- `./mvnw` genera las interfaces de servidor y sus modelos con `openapi-generator-maven-plugin` en `target/generated-sources/openapi/`, dentro del paquete `<modulo>.api.contract`. **No se editan ni se suben al repositorio.**
+- La generación valida cada contrato: un OpenAPI inválido detiene el *build*.
+- Todo controlador implementa su interfaz generada y no declara rutas propias; nadie escribe a mano en los paquetes `api.contract`. `ContractRulesTest` lo verifica.
+- Los errores se responden con `ProblemDetail` de Spring (RFC 9457) y el código de la regla en `code`.
+
+| Contrato | Rutas | Interfaz generada |
+|---|---|---|
+| `core.yaml` | `GET /api/v1/me` | `core.api.contract.CurrentUserApi` |
+| `platform.yaml` | `GET /api/v1/me/capabilities` | `platform.api.contract.CapabilitiesApi` |
+| `core-internal.yaml` | `POST /internal/v1/sessions`, `POST /internal/v1/sessions/{sid}/end` (solo el BFF, ADR 0025) | `core.api.contract.internal.InternalSessionsApi` |
 
 ## Estado
 
