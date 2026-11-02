@@ -19,7 +19,7 @@ import { TextFieldComponent, TextFieldType } from './text-field.component';
       [leadingIcon]="leadingIcon"
       [disabled]="disabled"
       [sensitive]="sensitive"
-      autocomplete="username"
+      [autocomplete]="autocomplete"
     >
       @if (withAction) {
         <liv-icon-button icon="eye" label="Mostrar contraseña" />
@@ -36,6 +36,7 @@ class HostComponent {
   leadingIcon?: IconName;
   disabled = false;
   sensitive = false;
+  autocomplete = 'username';
   withAction = false;
 }
 
@@ -156,13 +157,13 @@ describe('TextField', () => {
   });
 
   it('sin corrector ni mayúscula automática en contraseñas, correos y campos sensibles', () => {
-    const plain = render().input;
+    const plain = render({ autocomplete: 'name' }).input;
     expect(plain.hasAttribute('spellcheck')).toBe(false);
     expect(plain.hasAttribute('autocapitalize')).toBe(false);
     for (const input of [
-      render({ type: 'password' }).input,
-      render({ type: 'email' }).input,
-      render({ sensitive: true }).input,
+      render({ type: 'password', autocomplete: 'name' }).input,
+      render({ type: 'email', autocomplete: 'name' }).input,
+      render({ sensitive: true, autocomplete: 'name' }).input,
     ]) {
       expect(input.getAttribute('spellcheck')).toBe('false');
       expect(input.getAttribute('autocapitalize')).toBe('none');
@@ -170,11 +171,38 @@ describe('TextField', () => {
     }
   });
 
+  it('al mostrar la contraseña (tipo text) sigue sin corrector si es una credencial', () => {
+    for (const autocomplete of ['current-password', 'new-password', 'username', 'one-time-code']) {
+      const input = render({ type: 'text', autocomplete }).input;
+      expect(input.getAttribute('spellcheck')).toBe('false');
+      expect(input.getAttribute('autocapitalize')).toBe('none');
+    }
+    expect(render({ autocomplete: 'name' }).input.hasAttribute('spellcheck')).toBe(false);
+  });
+
+  it('el anillo de foco del campo no aparece cuando el foco está en la acción final', () => {
+    const { host } = render({ withAction: true });
+    const control = host.querySelector('.text-field__control') as HTMLElement;
+    (host.querySelector('liv-icon-button button') as HTMLButtonElement).focus();
+    expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-strong,');
+    (host.querySelector('input') as HTMLInputElement).focus();
+    expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-focus,');
+  });
+
+  it('en Error con foco conserva el borde status/danger', () => {
+    const { host, input } = render({ error: 'Escribe tu usuario.' });
+    input.focus();
+    const control = host.querySelector('.text-field__control') as HTMLElement;
+    expect(declaredStyle(control, 'border-color')).toContain('var(--color-status-danger,');
+  });
+
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
     const { host, input } = render();
     input.focus();
     const control = host.querySelector('.text-field__control') as HTMLElement;
-    expect(declaredStyle(control, 'outline', 'forced-colors')).not.toBe('');
+    expect(declaredStyle(control, 'outline', 'forced-colors')).toContain('solid');
+    input.blur();
+    expect(declaredStyle(control, 'outline', 'forced-colors')).toBe('');
   });
 
   it('el icono inicial es opcional, de 20 px y decorativo', () => {

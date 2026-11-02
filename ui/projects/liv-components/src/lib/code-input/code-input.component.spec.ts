@@ -101,6 +101,57 @@ describe('CodeInput', () => {
     expect(second.input.value).toBe('482193');
   });
 
+  it('pegar un código completo sobre un campo lleno lo reemplaza', () => {
+    const { fixture, input, page } = render({ value: '111111' });
+    input.setSelectionRange(6, 6);
+    paste(fixture, input, '482 193');
+    expect(page.value).toBe('482193');
+  });
+
+  it('pegar unos dígitos en medio no empuja fuera los que ya estaban', () => {
+    const { fixture, input, page } = render({ value: '4893' });
+    input.setSelectionRange(2, 2);
+    paste(fixture, input, '2-1 7');
+    expect(page.value).toBe('482193');
+    expect(input.selectionStart).toBe(4);
+  });
+
+  it('al soltar texto arrastrado lo filtra antes de que maxlength lo recorte', () => {
+    const { fixture, input, page } = render();
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertFromDrop',
+      data: ' 482-193 ',
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(event);
+    fixture.detectChanges();
+    expect(event.defaultPrevented).toBe(true);
+    expect(page.value).toBe('482193');
+  });
+
+  it('conserva el cursor al descartar un carácter que no es dígito', () => {
+    const { fixture, input } = render({ value: '4821' });
+    input.focus();
+    input.value = '48x21';
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(input.value).toBe('4821');
+    expect(input.selectionStart).toBe(2);
+  });
+
+  it('no reescribe el campo durante una composición de IME', () => {
+    const { fixture, input, page } = render();
+    input.value = '４';
+    input.dispatchEvent(new InputEvent('input', { isComposing: true }));
+    fixture.detectChanges();
+    expect(input.value).toBe('４');
+    input.dispatchEvent(new CompositionEvent('compositionend'));
+    fixture.detectChanges();
+    expect(page.value).toBe('4');
+  });
+
   it('convierte los dígitos de ancho completo a dígitos ASCII', () => {
     const { fixture, input, page } = render();
     paste(fixture, input, '４８２１９３');
@@ -159,7 +210,9 @@ describe('CodeInput', () => {
     const { host, input } = render();
     input.focus();
     const control = host.querySelector('.code-input__control') as HTMLElement;
-    expect(declaredStyle(control, 'outline', 'forced-colors')).not.toBe('');
+    expect(declaredStyle(control, 'outline', 'forced-colors')).toContain('solid');
+    input.blur();
+    expect(declaredStyle(control, 'outline', 'forced-colors')).toBe('');
   });
 
   it('usa el estilo code/lg y el alto de 56 px de Figma', () => {

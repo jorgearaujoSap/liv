@@ -178,6 +178,19 @@ describe('Button', () => {
     expect(host.querySelector(':scope > [role="status"]')?.textContent?.trim()).toBe('');
   });
 
+  it('no emite clic deshabilitado ni en Loading, aunque el evento se despache por código', () => {
+    const disabled = render({ disabled: true });
+    disabled.button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(disabled.page.clicks).toBe(0);
+
+    const loading = render({ loading: true });
+    loading.host.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    loading.host
+      .querySelector(':scope > [role="status"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(loading.page.clicks).toBe(0);
+  });
+
   it('deshabilitado no emite clic', () => {
     const { fixture, button, page } = render({ disabled: true });
     expect(button.disabled).toBe(true);
@@ -234,7 +247,9 @@ describe('Button', () => {
     // Foco con el teclado (Tab), como lo distingue :focus-visible.
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
     button.focus();
-    expect(declaredStyle(button, 'outline', 'forced-colors')).not.toBe('');
+    expect(declaredStyle(button, 'outline', 'forced-colors')).toContain('solid');
+    button.blur();
+    expect(declaredStyle(button, 'outline', 'forced-colors')).toBe('');
   });
 
   it.each<[ButtonSize, string]>([
