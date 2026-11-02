@@ -3,7 +3,6 @@
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
 **Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
-
 _(borrador → aprobado (H2))_
 
 **Ajustes posteriores:** T07, aprobados por el responsable el 2026-11-02 (ver «Decisiones»).
