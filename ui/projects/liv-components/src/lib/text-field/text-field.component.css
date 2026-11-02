@@ -56,6 +56,11 @@
   @apply text-text-disabled;
 }
 
+/* Aparte: un selector de pseudoelemento invalida la lista entera en los motores que no lo reconocen. */
+:host([data-state='disabled']) .text-field__input::placeholder {
+  @apply text-text-disabled;
+}
+
 :host([data-state='disabled']) .text-field__control {
   @apply border-border-default bg-bg-subtle;
 }

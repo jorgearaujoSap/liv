@@ -1,7 +1,13 @@
 import { Component } from '@angular/core';
+import theme from '../../styles/theme.css' with { loader: 'text' };
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredStyle } from '../../testing/css';
+import {
+  cssVariable,
+  declaredPlaceholderStyle,
+  declaredStyle,
+  paintsShadow,
+} from '../../testing/css';
 import { CodeInputComponent } from './code-input.component';
 
 @Component({
@@ -185,15 +191,22 @@ describe('CodeInput', () => {
     expect(help?.querySelector('liv-icon')).toBeNull();
   });
 
-  it('en error expone aria-invalid y aria-describedby con el mensaje', () => {
+  it('en error expone aria-invalid, aria-describedby y el icono de error de 16 px', () => {
     const { host, input } = render({ error: 'El código no es válido. Escribe el código actual.' });
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(host.dataset['state']).toBe('error');
     const message = host.querySelector(`#${input.getAttribute('aria-describedby')}`);
     expect(message?.textContent?.trim()).toBe('El código no es válido. Escribe el código actual.');
-    expect(host.querySelector('.code-input__help liv-icon svg')?.getAttribute('aria-hidden')).toBe(
-      'true',
-    );
+    const icon = host.querySelector('.code-input__help liv-icon svg');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.getAttribute('width')).toBe('16');
+  });
+
+  it('el placeholder usa text/muted, opaco, que cumple 4,5:1 (WCAG 1.4.3)', () => {
+    const { input } = render();
+    expect(declaredPlaceholderStyle(input, 'color')).toContain('var(--color-text-muted,');
+    // Algunos navegadores atenúan el placeholder por defecto y bajarían el contraste.
+    expect(['1', '100%']).toContain(declaredPlaceholderStyle(input, 'opacity'));
   });
 
   it('el borde es border/strong y, en error, status/danger', () => {
@@ -205,6 +218,20 @@ describe('CodeInput', () => {
     );
     expect(declaredStyle(control({}), 'box-sizing')).toBe('border-box');
   });
+
+  it.each([{}, { error: 'No es válido.' }])(
+    'pinta el anillo focus/ring de theme.css solo con el foco (%o)',
+    (inputs) => {
+      const { host, input } = render(inputs);
+      const control = host.querySelector('.code-input__control') as HTMLElement;
+      const ring = cssVariable(theme, '--shadow-focus-ring');
+      expect(paintsShadow(control, ring)).toBe(false);
+      input.focus();
+      expect(paintsShadow(control, ring)).toBe(true);
+      input.blur();
+      expect(paintsShadow(control, ring)).toBe(false);
+    },
+  );
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
     const { host, input } = render();

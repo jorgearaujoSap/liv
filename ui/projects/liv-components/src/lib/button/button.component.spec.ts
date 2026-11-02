@@ -1,7 +1,8 @@
 import { Component, signal } from '@angular/core';
+import theme from '../../styles/theme.css' with { loader: 'text' };
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredStyle } from '../../testing/css';
+import { cssVariable, declaredStyle, paintsShadow } from '../../testing/css';
 import { IconName } from '../icon/icons';
 import { ButtonComponent, ButtonSize, ButtonType, ButtonVariant } from './button.component';
 
@@ -241,6 +242,20 @@ describe('Button', () => {
       declaredStyle(render({ variant: 'secondary', disabled: true }).button, 'border-color'),
     ).toContain('var(--color-border-default,');
   });
+
+  it.each<ButtonVariant>(['primary', 'secondary', 'ghost'])(
+    '%s pinta el anillo focus/ring de theme.css solo con el foco del teclado',
+    (variant) => {
+      const { button } = render({ variant });
+      const ring = cssVariable(theme, '--shadow-focus-ring');
+      expect(paintsShadow(button, ring)).toBe(false);
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+      button.focus();
+      expect(paintsShadow(button, ring)).toBe(true);
+      button.blur();
+      expect(paintsShadow(button, ring)).toBe(false);
+    },
+  );
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
     const { button } = render();
