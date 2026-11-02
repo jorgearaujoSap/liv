@@ -64,7 +64,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `TextField` en error expone `aria-invalid` y `aria-describedby`;
     - `CodeInput` usa `inputmode="numeric"` y `autocomplete="one-time-code"`;
     - `Alert` de error usa `role="alert"`.
-- [ ] **T04a** · Contraste de *tokens* e icono de ayuda (decisión del responsable, 2026-11-02). **Cambio de *tokens*: crítico.** Primero en Figma y después en el código.
+- [x] **T04a** · Contraste de *tokens* e icono de ayuda (decisión del responsable, 2026-11-02). **Cambio de *tokens*: crítico.** Primero en Figma y después en el código. — Hecha: PR #38.
   - **En Figma (LIV‑Diseño):**
     - oscurecer los estilos `border/strong` y `focus/ring` hasta un contraste mínimo de 3:1 sobre `bg/surface` (WCAG 1.4.11);
     - que el texto de ejemplo (placeholder) de `TextField` y `CodeInput` use un estilo de texto con 4,5:1 sobre `bg/surface` (WCAG 1.4.3) en lugar de `text/disabled`; `text/muted` (≈4,8:1) es el candidato;
@@ -77,7 +77,19 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - contraste de `border/strong` y `focus/ring` sobre `bg/surface`, cada uno ≥ 3:1;
     - contraste del *token* del placeholder sobre `bg/surface` ≥ 4,5:1;
     - `TextField` y `CodeInput` usan ese *token* en el placeholder.
+  - **Valores aprobados por el responsable (2026-11-02)**, aplicados en Figma y en `theme.css`:
+    - `border/strong`: `#cbd5e1` → `#64748b` (4,76:1 sobre `bg/surface`; 4,34:1 sobre `bg/subtle`);
+    - `focus/ring`: de `#2563eb` al 40 % a `0 0 0 2px #ffffff, 0 0 0 4px #2563eb`, un anillo opaco (5,17:1) con 2 px de separación en `bg/surface`. La separación es una **segunda decisión**, tomada durante la revisión: el anillo opaco quedaba pegado al relleno de `Button` Primary (1,30:1) y al borde de Error;
+    - placeholder de `CodeInput`: `text/disabled` → `text/muted` (4,76:1). `TextField` ya lo usaba; deshabilitado pasa a `text/disabled`, como su variante de Figma;
+    - icono de ayuda de `TextField` y `CodeInput`: 16 px en Figma (14 variantes); en código ya era 16.
+  - **Desviaciones declaradas:**
+    - ayudantes de prueba nuevos: `src/testing/contrast.ts` (con `contrast.spec.ts`) y `src/testing/text-imports.d.ts`, y en `css.ts` `declaredPlaceholderStyle`, `declaredShadow`, `paintsShadow` y `cssVariable`. `theme.css` se lee como texto con `with { loader: 'text' }` del compilador de Angular, sin agregar `@types/node`;
+    - se tocaron las pruebas de `button` e `icon-button`, que no estaban declaradas: el *token* `focus/ring` cambia también en esos componentes;
+    - no hay capturas de referencia, porque `ui/` todavía no tiene regresión visual (Q14). La verificación fue manual, en Storybook frente a Figma.
 - [ ] **T05** · `Dialog`, `ResultState`, `NavItem`, `SideNav`, `AppHeader`, `PageHeader` y `ModuleCard`. Versión 0.2.0 y `CHANGELOG.md`. **Un humano publica.** Depende de T04a: la 0.2.0 sale con los *tokens* corregidos.
+  - Pendientes que deja T04a:
+    - `CHANGELOG.md` registra en «Cambiado» los *tokens* `border/strong` y `focus/ring` (antes, después y motivo) y el placeholder de `CodeInput`: cambian la apariencia de las aplicaciones;
+    - medir el anillo de foco y los textos sobre los fondos oscuros que usen `SideNav` y `AppHeader`. `#2563eb` da ≈2,8:1 sobre `bg/inverse-subtle`; si no alcanza 3:1, se decide primero en Figma.
   - Archivos: `ui/projects/liv-components/src/lib/{dialog,result-state,nav-item,side-nav,app-header,page-header,module-card}/**`, `public-api.ts`, `projects/liv-components/package.json`, `CHANGELOG.md`.
   - Prueba primero:
     - `Dialog` atrapa el foco y cierra con Escape;
