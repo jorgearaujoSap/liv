@@ -14,3 +14,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Pruebas con PostgreSQL 18.6 en Testcontainers y los roles reales del entorno local: aislamiento por administración (001-17), endurecimiento de la función de identidad y permisos exactos de `liv_app`.
 - Migraciones Flyway de la feature 001 (T10), parte 2: `platform.app_role`, `app_permission` y `role_permission` con la matriz de permisos aprobada en H2; `audit.audit_event` de solo inserción (con `source`, `source_event_id` y `actor_ref`, y un disparador que rechaza el cambio de datos incluso al dueño; no protege contra su DDL), `audit.import_cursor`, `audit.record_platform_session_denied` (`SECURITY DEFINER`, dueño `liv_audit_platform`, con lista blanca de `new_values`, longitudes y fecha) y `platform.shedlock`. Las filas de plataforma solo las escriben el importador (`app.platform_job = 'on'`) y esa función.
 - Contratos OpenAPI de la feature 001 (T11): `contracts/openapi/core.yaml` (`GET /api/v1/me`), `platform.yaml` (`GET /api/v1/me/capabilities`) y `core-internal.yaml` (`POST /internal/v1/sessions` y `/{sid}/end`). `openapi-generator-maven-plugin` 7.26.0 (ADR 0023) genera las interfaces de servidor en `<modulo>.api.contract` con las opciones de Spring Boot 4 (Jackson 3, JSpecify y validación de Spring MVC), y valida cada contrato en el *build*. `ContractRulesTest` exige que todo controlador implemente una interfaz generada sin rutas propias, y `OpenApiContractTest` compara los contratos con el plan y con las decisiones del responsable del 2026-11-02: `StartSession` sin `sessionAuditId`, con el `sid` del token (si no coincide, 401 con `001-14`) e idempotente; `EndSession` siempre 204; `001-14` para el usuario no registrado.
+- Seguridad de `platform` (feature 001, T12): servidor de recursos con `spring-boot-starter-oauth2-resource-server` (ADR 0023) y solo OIDC estándar (001-20), configurado con `LIV_OIDC_ISSUER_URI` y `liv.security`. Tiene tres cadenas:
+  - `/internal/**`: token de servicio de `liv-bff-service`, con audiencia `liv-internal` y `azp`; al iniciar sesión, además, `X-User-Token` validado antes del controlador;
+  - `/api/**`: token de usuario con audiencia `liv-api`, más `CurrentUserFilter`, que responde 401 con `001-14`, `001-05` o `001-17` y abre `AdministrationContext` con la administración registrada;
+  - el resto: solo salud e información.
+
+  También agrega:
+  - `UserDirectoryAdapter` en `core`, sobre `core.find_user_by_identity`;
+  - Problem Details con el código del criterio;
+  - `X-Correlation-Id` solo como UUID, en el MDC y en el patrón de log;
+  - tokens enmascarados en los mensajes de log;
+  - cabeceras de hasta 32 KB;
+  - todo token con `exp`, y tiempos de espera de 3 s al proveedor y de 5 s a la base;
+  - todo error como Problem Details con `code` y sin detalles internos (`SYS-404`, `SYS-500` y `SYS-503` para los técnicos), también los fallos de los filtros, registrados con el id de correlación;
+  - enmascarado de credenciales también en las trazas, entre comillas y en `Bearer`;
+  - reglas de ArchUnit: sin `org.keycloak`; los modelos generados solo en la capa `api`, sin *loggers*; y `AdministrationContext` solo lo abren `platform` y la infraestructura.
+
+  Las pruebas corren contra `mock-oauth2-server` 3.0.1 en Testcontainers, con la configuración de producción.

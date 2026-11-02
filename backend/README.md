@@ -69,6 +69,25 @@ La API es *contract-first* (ADR 0005, doc. 01 §10): primero se escribe el OpenA
 | `platform.yaml` | `GET /api/v1/me/capabilities` | `platform.api.contract.CapabilitiesApi` |
 | `core-internal.yaml` | `POST /internal/v1/sessions`, `POST /internal/v1/sessions/{sid}/end` (solo el BFF, ADR 0025) | `core.api.contract.internal.InternalSessionsApi` |
 
+## Seguridad
+
+La API es un servidor de recursos OAuth 2.0 sin estado (doc. 02 §3, plan de la feature 001, paso 7). Valida los tokens solo con OIDC estándar (001-20): con cualquier proveedor que publique su *discovery* y su JWKS.
+
+| Rutas | Quién llama | Qué exige |
+|---|---|---|
+| `/api/**` | El navegador, a través del BFF | Token de usuario con audiencia `liv-api`. Luego `CurrentUserFilter` busca al usuario en el registro de LIV y responde 401 con `001-14` (sin registro), `001-05` (desactivado) o `001-17` (otra administración) |
+| `/internal/**` | Solo el BFF (ADR 0025) | Token de *client credentials* de `liv-bff-service`, con audiencia `liv-internal` y `azp` igual a ese cliente. Para iniciar sesión, además, el token del usuario en `X-User-Token` |
+| Resto | — | Solo `/actuator/health` y `/actuator/info`; lo demás se niega |
+
+- Variable obligatoria: `LIV_OIDC_ISSUER_URI`, el emisor. El perfil `dev` usa el Keycloak local. El *discovery* se hace con el primer token, así que la API arranca aunque el proveedor no esté arriba.
+- Audiencias, cliente de servicio y nombres de los *claims* se configuran en `liv.security` (`application.yml`).
+- La administración de cada petición sale del registro de LIV, nunca del token (`AdministrationContext`).
+- Todo token debe tener `exp`. Las llamadas al proveedor tienen un tiempo de espera de 3 s, y la base, de 5 s para obtener conexión.
+- Todo error es Problem Details con `code` y sin detalles internos (`ProblemDetailsHandler`). Los rechazos de seguridad llevan el código del criterio y `WWW-Authenticate: Bearer`; los errores técnicos, `SYS-<estado>` (404, 500 y 503 cuando la base o el proveedor no responden). Los fallos de los filtros también pasan por ahí (`ProblemFallbackFilter`). El detalle va al log, en una línea con el id de correlación.
+- `X-Correlation-Id` solo se acepta como UUID; si no lo es, se genera uno nuevo. Va en la respuesta y en cada línea de log.
+- Las credenciales se enmascaran en los mensajes y en las trazas de los logs (`logback-spring.xml`): JWT, `Bearer`, `X-User-Token`, `Authorization`, `client_secret` y los tokens de OAuth. El log estructurado (JSON) de Spring Boot no pasa por ese filtro, así que sigue apagado: `LogMaskingTest` falla si se enciende.
+- Las pruebas usan la configuración de producción contra `mock-oauth2-server` en un contenedor, que sirve el *discovery* y el JWKS (`platform/OidcTestProvider`).
+
 ## Estado
 
 Esqueleto de la Fase 0 (entregable F0‑04): módulos vacíos y guardias de arquitectura activas. Sin funcionalidad de negocio todavía. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
