@@ -46,6 +46,7 @@
         "storybook": {
           "builder": "@storybook/angular:start-storybook",
           "options": {
+            "browserTarget": "liv-components:build",
             "configDir": ".storybook",
             "tsConfig": ".storybook/tsconfig.json",
             "styles": [".storybook/preview.css"],
