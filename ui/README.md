@@ -19,7 +19,7 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 | `npm run release:check` | Verifica que la versión se puede publicar, sin publicar nada |
 | `npm run release` | Verifica, revisa el *lint*, compila y publica en npm |
 | `npm test` | Pruebas de los componentes (Vitest con jsdom), incluida la accesibilidad con axe |
-| `npm run storybook` | Catálogo de componentes en <http://localhost:6006> (Storybook) |
+| `npm run storybook` | Catálogo de componentes en <http://localhost:6006> (Storybook). Storybook 10 exige la opción `browserTarget` de su objetivo en `angular.json`: no la quites |
 | `npm run build-storybook` | Compila el catálogo en `dist/storybook` |
 | `npm run lint` | ESLint |
 | `npm run format` / `npm run format:check` | Prettier |
@@ -119,7 +119,7 @@ ui/
 ├── scripts/                      ← verificaciones previas a la publicación y avisos de terceros
 ├── THIRD_PARTY_NOTICES.md        ← licencias del material copiado (iconos de Lucide); se publica con el paquete
 ├── angular.json · tsconfig.json  ← workspace de Angular (solo la librería)
-└── eslint.config.js · .prettierrc
+└── eslint.config.js · .prettierrc · .gitattributes (fin de línea LF)
 ```
 
 ## Estado
