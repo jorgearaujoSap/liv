@@ -22,12 +22,18 @@ class LivAppGrantsTest {
   private static final String SCHEMAS = "ARRAY['core', 'platform', 'audit']";
 
   private static final Map<String, String> TABLE_GRANTS =
-      Map.of(
-          "core.territorial_entity", "SELECT",
-          "core.tax_administration", "SELECT",
-          "core.admin_user", "INSERT,SELECT",
-          "core.user_session", "INSERT,SELECT",
-          "platform.event_publication", "INSERT,SELECT");
+      Map.ofEntries(
+          Map.entry("core.territorial_entity", "SELECT"),
+          Map.entry("core.tax_administration", "SELECT"),
+          Map.entry("core.admin_user", "INSERT,SELECT"),
+          Map.entry("core.user_session", "INSERT,SELECT"),
+          Map.entry("platform.event_publication", "INSERT,SELECT"),
+          Map.entry("platform.app_role", "SELECT"),
+          Map.entry("platform.app_permission", "SELECT"),
+          Map.entry("platform.role_permission", "SELECT"),
+          Map.entry("platform.shedlock", "INSERT,SELECT,UPDATE"),
+          Map.entry("audit.audit_event", "INSERT,SELECT"),
+          Map.entry("audit.import_cursor", "INSERT,SELECT,UPDATE"));
 
   private static final Map<String, String> COLUMN_UPDATES =
       Map.of(
@@ -84,6 +90,14 @@ class LivAppGrantsTest {
                 """
                     .formatted(SCHEMAS)))
         .isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "001-17 · liv_bff y liv_identity_lookup no tienen permisos de tabla en los esquemas de LIV")
+  void otherRolesHaveNoTableGrants() throws SQLException {
+    assertThat(grants("'liv_bff'::regrole::oid")).isEmpty();
+    assertThat(grants("'liv_identity_lookup'::regrole::oid")).isEmpty();
   }
 
   @Test
@@ -154,7 +168,8 @@ class LivAppGrantsTest {
     assertThat(rows(OWNER, null, administrationTables + " ORDER BY 1"))
         .extracting(row -> row[0])
         .as("tablas de una administración")
-        .contains("core.tax_administration", "core.admin_user", "core.user_session");
+        .contains(
+            "core.tax_administration", "core.admin_user", "core.user_session", "audit.audit_event");
 
     assertThat(
             rows(
