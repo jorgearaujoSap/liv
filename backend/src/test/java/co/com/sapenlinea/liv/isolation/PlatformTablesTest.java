@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -53,8 +54,8 @@ class PlatformTablesTest {
           Map.entry("documents.document.read", ALL_ROLES));
 
   @Test
-  @Tag("001-16")
-  @DisplayName("001-16 · La matriz de permisos sembrada es exactamente la aprobada en H2")
+  @Tag("D-001-5")
+  @DisplayName("D-001-5 · La matriz de permisos sembrada es exactamente la aprobada en H2")
   void permissionMatrixIsTheApprovedOne() throws SQLException {
     Map<String, String> stored = new TreeMap<>();
     rows(
@@ -72,8 +73,8 @@ class PlatformTablesTest {
   }
 
   @Test
-  @Tag("001-16")
-  @DisplayName("001-16 · Los roles son los 11 de doc. 02 §4.2 y todos tienen algún permiso")
+  @Tag("D-001-5")
+  @DisplayName("D-001-5 · Los roles son los 11 de doc. 02 §4.2 y todos tienen algún permiso")
   void rolesAreTheConsolidatedOnes() throws SQLException {
     assertThat(
             rows(OWNER, null, "SELECT string_agg(code, ',' ORDER BY code) FROM platform.app_role")
@@ -90,6 +91,7 @@ class PlatformTablesTest {
   }
 
   @Test
+  @Tag("T10")
   @DisplayName(
       "T10 · Un bloqueo de ShedLock se toma, se respeta mientras está vigente y se retoma al vencer")
   void shedLockCanBeAcquiredAndReacquired() throws SQLException {
@@ -102,13 +104,19 @@ class PlatformTablesTest {
               locked_at = timezone('utc', now()), locked_by = 'host-b'
           WHERE platform.shedlock.name = ? AND platform.shedlock.lock_until <= timezone('utc', now())
         """;
-    assertThat(update(APP, null, acquire, "job-1", "job-1")).isEqualTo(1);
-    assertThat(update(APP, null, acquire, "job-1", "job-1")).as("bloqueo vigente").isZero();
+    String job = "job-" + UUID.randomUUID();
+    assertThat(update(APP, null, acquire, job, job)).isEqualTo(1);
+    assertThat(update(APP, null, acquire, job, job)).as("bloqueo vigente").isZero();
 
     update(
         APP,
         null,
-        "UPDATE platform.shedlock SET lock_until = timezone('utc', now()) WHERE name = 'job-1'");
-    assertThat(update(APP, null, acquire, "job-1", "job-1")).as("bloqueo vencido").isEqualTo(1);
+        "UPDATE platform.shedlock SET lock_until = timezone('utc', now()) WHERE name = ?",
+        job);
+    assertThat(update(APP, null, acquire, job, job)).as("bloqueo vencido").isEqualTo(1);
+    assertThat(
+            rows(APP, null, "SELECT locked_by FROM platform.shedlock WHERE name = ?", job)
+                .get(0)[0])
+        .isEqualTo("host-b");
   }
 }

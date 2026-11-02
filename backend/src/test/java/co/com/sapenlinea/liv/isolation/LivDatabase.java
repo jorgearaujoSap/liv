@@ -199,6 +199,47 @@ final class LivDatabase {
     return ((Number) rows(role, administration, sql, args).get(0)[0]).longValue();
   }
 
+  /**
+   * Inserta un evento de auditoría; {@code platformJob} (o null) fija app.platform_job en la
+   * transacción.
+   */
+  static int insertAuditEvent(
+      String role,
+      UUID context,
+      UUID administration,
+      String source,
+      String operation,
+      String eventId,
+      String platformJob)
+      throws SQLException {
+    return inTx(
+        role,
+        context,
+        c -> {
+          if (platformJob != null) {
+            update(c, "SELECT set_config('app.platform_job', ?, true)", platformJob);
+          }
+          return update(
+              c,
+              """
+              INSERT INTO audit.audit_event (administration_id, entity_name, operation, source,
+                                             source_event_id)
+              VALUES (?, 'session', ?, ?, ?)
+              """,
+              administration,
+              operation,
+              source,
+              eventId);
+        });
+  }
+
+  /** La operación debe fallar por la RLS: SQLSTATE 42501 y el mensaje de la política. */
+  static void assertRlsDenied(ThrowingCallable action) {
+    SQLException denied = failureOf(action);
+    assertThat(denied.getSQLState()).isEqualTo("42501");
+    assertThat(denied.getMessage()).contains("row-level security");
+  }
+
   static SQLException failureOf(ThrowingCallable action) {
     Throwable thrown = catchThrowable(action);
     assertThat(thrown).as("la operación debía fallar").isInstanceOf(SQLException.class);

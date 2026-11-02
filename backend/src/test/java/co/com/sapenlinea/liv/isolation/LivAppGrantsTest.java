@@ -94,6 +94,14 @@ class LivAppGrantsTest {
 
   @Test
   @DisplayName(
+      "001-17 · liv_bff y liv_identity_lookup no tienen permisos de tabla en los esquemas de LIV")
+  void otherRolesHaveNoTableGrants() throws SQLException {
+    assertThat(grants("'liv_bff'::regrole::oid")).isEmpty();
+    assertThat(grants("'liv_identity_lookup'::regrole::oid")).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
       "001-17 · liv_app no tiene BYPASSRLS, TEMP, CREATE ni acceso al esquema bff, y no es miembro de ningún rol")
   void roleIsConfined() throws SQLException {
     Object[] role =
