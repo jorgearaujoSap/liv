@@ -30,7 +30,7 @@ services:
   keycloak:
     # Keycloak 26.8.1, fijado por digest. Base de datos propia (doc. 03 §5).
     image: quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332
-    command: ["start-dev", "--import-realm"]
+    command: ["start-dev"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
@@ -39,14 +39,50 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:?}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
       KC_HEALTH_ENABLED: "true"
+    # Para el cierre por canal trasero: Keycloak llama al BFF que corre en el equipo (LIV_BFF_BACKCHANNEL_URL).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:${KEYCLOAK_PORT:-8180}:8080"
       - "127.0.0.1:${KEYCLOAK_MANAGEMENT_PORT:-9100}:9000"
-    volumes:
-      # Punto de montaje del realm de desarrollo; lo llena la tarea T07 (backend/identity).
-      - ./keycloak/realm:/opt/keycloak/data/import:ro
+    healthcheck:
+      # La imagen no trae curl: se consulta /health/ready por el puerto de gestión con bash.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 60
     depends_on:
       postgres:
+        condition: service_healthy
+
+  keycloak-config:
+    # Aplica el realm liv como código (ADR 0024, tarea T07): la configuración base de todos los entornos y,
+    # solo aquí, la capa de desarrollo con usuarios ficticios (dev/keycloak). Termina al aplicar. Reaplicar
+    # es seguro y es también la forma de recuperarse si una aplicación falló a mitad. Para repetir:
+    #   docker compose -f dev/compose.yaml --env-file dev/.env up -d --force-recreate keycloak-config
+    # keycloak-config-cli 6.5.1, compilado para Keycloak 26.5.5; compatible con 26.8.1 (verificado en T07).
+    image: adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_USER: ${KEYCLOAK_ADMIN_USER:?}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      # Espera a que la API de administración responda antes de aplicar.
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 120s
+      IMPORT_FILES_LOCATIONS: /config/base/liv-realm.yaml,/config/dev/liv-realm-dev.yaml
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
+      LIV_BFF_BASE_URL: ${LIV_BFF_BASE_URL:?}
+      LIV_BFF_BACKCHANNEL_URL: ${LIV_BFF_BACKCHANNEL_URL:?}
+      LIV_BFF_CLIENT_SECRET: ${LIV_BFF_CLIENT_SECRET:?}
+      LIV_BFF_SERVICE_CLIENT_SECRET: ${LIV_BFF_SERVICE_CLIENT_SECRET:?}
+      LIV_AUDIT_IMPORTER_SECRET: ${LIV_AUDIT_IMPORTER_SECRET:?}
+    volumes:
+      - ../identity/config/base:/config/base:ro
+      - ./keycloak:/config/dev:ro
+    restart: "no"
+    depends_on:
+      keycloak:
         condition: service_healthy
 
 volumes:

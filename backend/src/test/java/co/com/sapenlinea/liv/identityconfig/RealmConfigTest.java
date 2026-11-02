@@ -75,6 +75,16 @@ class RealmConfigTest {
           "JURIDICO",
           "CONSULTA",
           "AUDITOR");
+  private static final Set<String> DEV_USER_KEYS =
+      Set.of(
+          "username",
+          "enabled",
+          "email",
+          "firstName",
+          "lastName",
+          "attributes",
+          "realmRoles",
+          "credentials");
   private static final Set<String> LIV_CLIENTS =
       Set.of("liv-bff", "liv-bff-service", "liv-audit-importer");
 
@@ -152,6 +162,16 @@ class RealmConfigTest {
   @DisplayName("001-06 · El flujo de navegador exige TOTP a quien tiene el rol de MFA")
   void conditionalOtpFlow() {
     assertThat(realm).containsEntry("browserFlow", "liv-browser");
+    // Cada flujo con solo sus ejecuciones: otra alternativa permitiría entrar sin TOTP.
+    for (String flow : List.of("liv-browser", "liv-browser-forms", "liv-browser-mfa")) {
+      assertThat(flow(flow))
+          .as(flow)
+          .containsEntry("providerId", "basic-flow")
+          .containsEntry("topLevel", "liv-browser".equals(flow));
+      assertThat(executions(flow)).as(flow).hasSize(2);
+    }
+    assertThat(execution("liv-browser", "authenticator", "auth-cookie"))
+        .containsEntry("requirement", "ALTERNATIVE");
     assertThat(execution("liv-browser", "flowAlias", "liv-browser-forms"))
         .containsEntry("requirement", "ALTERNATIVE");
     Map<String, Object> password =
@@ -161,8 +181,7 @@ class RealmConfigTest {
     assertThat(mfa).containsEntry("requirement", "CONDITIONAL");
     assertThat(priority(password)).isLessThan(priority(mfa));
 
-    // Primero la condición por rol y luego el TOTP; nada más en el subflujo.
-    assertThat(executions("liv-browser-mfa")).hasSize(2);
+    // Primero la condición por rol y luego el TOTP.
     Map<String, Object> condition =
         execution("liv-browser-mfa", "authenticator", "conditional-user-role");
     Map<String, Object> otp = execution("liv-browser-mfa", "authenticator", "auth-otp-form");
@@ -255,6 +274,11 @@ class RealmConfigTest {
   @Test
   @DisplayName("001-20 · Clientes de LIV confidenciales, sin flujo implícito ni contraseña directa")
   void livClientsHardened() {
+    for (Map<String, Object> declared : list(realm.get("clients"))) {
+      assertThat(declared)
+          .as((String) declared.get("clientId"))
+          .doesNotContainKey("authenticationFlowBindingOverrides");
+    }
     for (String clientId : LIV_CLIENTS) {
       assertThat(client(clientId))
           .as(clientId)
@@ -358,7 +382,14 @@ class RealmConfigTest {
       "ADR 0024 · Capa de desarrollo: solo usuarios con contraseña, uno por rol, con su administración")
   void devLayer() {
     assertThat(dev.keySet()).containsExactlyInAnyOrder("realm", "users", "sslRequired");
+    assertThat(dev).containsEntry("sslRequired", "external");
     List<Map<String, Object>> users = list(dev.get("users"));
+    // Sin roles de clientes (como realm-management) ni otras claves que den permisos.
+    assertThat(users)
+        .allSatisfy(u ->
+            assertThat(DEV_USER_KEYS)
+                .as("claves de %s", u.get("username"))
+                .containsAll(u.keySet()));
     Set<String> rolesWithUser =
         users.stream()
             .flatMap(u -> strings(u.getOrDefault("realmRoles", List.of())).stream())
@@ -396,13 +427,15 @@ class RealmConfigTest {
         .orElseThrow(() -> new AssertionError("falta el cliente " + clientId));
   }
 
+  private static Map<String, Object> flow(String flowAlias) {
+    return list(realm.get("authenticationFlows")).stream()
+        .filter(f -> flowAlias.equals(f.get("alias")))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("falta el flujo " + flowAlias));
+  }
+
   private static List<Map<String, Object>> executions(String flowAlias) {
-    return list(
-        list(realm.get("authenticationFlows")).stream()
-            .filter(f -> flowAlias.equals(f.get("alias")))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("falta el flujo " + flowAlias))
-            .get("authenticationExecutions"));
+    return list(flow(flowAlias).get("authenticationExecutions"));
   }
 
   private static Map<String, Object> execution(String flowAlias, String key, String value) {

@@ -20,7 +20,7 @@ sh dev/check.sh
 
 `check.sh` termina con "Entorno local listo." cuando todo está bien. En Windows ejecútalo desde Git Bash (necesita `sh` y `curl`). Keycloak puede tardar un minuto en el primer arranque.
 
-Verifica las bases y sus dueños, que cada rol entre con su contraseña, los permisos (nada abierto a `PUBLIC`, `liv_app` sin `TEMP` ni acceso a `bff`, funciones nuevas sin `EXECUTE` para `PUBLIC`) y que Keycloak esté listo. La verificación del *realm* `liv` aparece como "pendiente" hasta que la tarea T07 lo agregue en `dev/keycloak/realm/`.
+Verifica las bases y sus dueños, que cada rol entre con su contraseña, los permisos (nada abierto a `PUBLIC`, `liv_app` sin `TEMP` ni acceso a `bff`, funciones nuevas sin `EXECUTE` para `PUBLIC`), que Keycloak esté listo y que el *realm* `liv` esté aplicado: el servicio `keycloak-config` terminó bien, el *realm* publica su configuración OpenID, `liv-bff-service` obtiene un *token* con audiencia `liv-internal`, `liv-audit-importer` lee los eventos, el rol por defecto no da `offline_access` y nadie entra con usuario y contraseña por API.
 
 ## Qué queda levantado
 
@@ -45,6 +45,34 @@ Los crea `dev/initdb/01-roles-y-bases.sh` la primera vez (doc. 02 §5.2, ADR 002
 | `liv_identity_lookup` | No | Dueño de la función de búsqueda de identidad (T10) |
 | `liv_audit_platform` | No | Dueño de la función de rechazos de plataforma (T10) |
 | `keycloak` | Sí | Base propia de Keycloak |
+
+## *Realm* `liv` y usuarios de prueba
+
+Al levantar el entorno, el servicio `keycloak-config` aplica el *realm* y termina: primero la configuración base de `identity/config/base/` y luego la capa de desarrollo de `dev/keycloak/` (ver `identity/README.md`). Después de cambiar esos archivos, o si `check.sh` dice que la aplicación falló, reaplícalo:
+
+```bash
+docker compose -f dev/compose.yaml --env-file dev/.env up -d --force-recreate keycloak-config
+```
+
+Todos los usuarios tienen la contraseña `Liv-Dev-2026!` y la administración de Ipiales, salvo `dev.consulta.b`. Los que tienen un rol con segundo factor deben configurar TOTP en su primer ingreso con una aplicación de autenticación.
+
+| Usuario | Rol | TOTP |
+|---|---|---|
+| `dev.admin.sistema` | `ADMIN_SISTEMA` | Sí |
+| `dev.cargador.tablas` | `CARGADOR_TABLAS` | No |
+| `dev.aprobador.tablas` | `APROBADOR_TABLAS` | Sí |
+| `dev.liquidador` | `LIQUIDADOR` | No |
+| `dev.aprobador.liquidacion` | `APROBADOR_LIQUIDACION` | Sí |
+| `dev.recaudo` | `RECAUDO` | No |
+| `dev.tesoreria` | `TESORERIA` | Sí |
+| `dev.aprobador.recaudo` | `APROBADOR_RECAUDO` | Sí |
+| `dev.juridico` | `JURIDICO` | Sí |
+| `dev.consulta` | `CONSULTA` | No |
+| `dev.auditor` | `AUDITOR` | Sí |
+| `dev.consulta.b` | `CONSULTA`, administración de prueba B | No |
+| `dev.desactivado` | `CONSULTA`, usuario desactivado | — |
+
+Para volver a pedir el TOTP a un usuario, borra su credencial OTP en la consola de Keycloak (*Users* › usuario › *Credentials*) o empieza de cero.
 
 ## Datos de prueba
 

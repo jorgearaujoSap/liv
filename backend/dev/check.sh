@@ -64,11 +64,62 @@ es liv "SELECT count(*) FROM pg_default_acl d JOIN pg_roles r ON r.oid = d.defac
 
 echo "Keycloak"
 if curl -fsS "http://127.0.0.1:$kc_mgmt/health/ready" >/dev/null 2>&1; then ok "listo (health/ready)"; else falla "no está listo en el puerto $kc_mgmt"; fi
-# El realm liv llega con la tarea T07 (backend/identity). Mientras no haya archivo de realm, la verificación queda pendiente.
-if ls keycloak/realm/*.json >/dev/null 2>&1; then
-  if curl -fsS "http://127.0.0.1:$kc_port/realms/liv/.well-known/openid-configuration" >/dev/null 2>&1; then ok "realm liv importado"; else falla "realm liv importado"; fi
+# El realm liv lo aplica el servicio keycloak-config (identity/config y dev/keycloak, tarea T07).
+# "exited 0": terminó y sin error; mientras corre todavía no está aplicado.
+if [ "$(docker compose ps -a --format '{{.State}} {{.ExitCode}}' keycloak-config 2>/dev/null)" = "exited 0" ]; then
+  ok "configuración del realm aplicada"
 else
-  printf '  pendiente  realm liv (llega con la tarea T07)\n'
+  falla "configuración del realm aplicada (keycloak-config sin terminar o con error; ver sus logs)"
+fi
+kc="http://127.0.0.1:$kc_port"
+if curl -fsS "$kc/realms/liv/.well-known/openid-configuration" >/dev/null 2>&1; then ok "realm liv publicado"; else falla "realm liv publicado"; fi
+
+# Extrae access_token de la respuesta JSON del endpoint de tokens (vacío si no está).
+access_token() { sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p'; }
+# token CLIENTE SECRETO: token de client credentials de un cliente del realm liv (vacío si falla).
+token() {
+  curl -fsS -d grant_type=client_credentials -d "client_id=$1" -d "client_secret=$2" \
+    "$kc/realms/liv/protocol/openid-connect/token" 2>/dev/null | access_token
+}
+# Contenido (payload) de un JWT: base64url sin relleno.
+jwt_payload() {
+  p=$(printf '%s' "$1" | cut -d. -f2 | tr '_-' '/+')
+  while [ $(( ${#p} % 4 )) -ne 0 ]; do p="$p="; done
+  printf '%s' "$p" | base64 -d 2>/dev/null
+}
+
+# La cuenta de servicio del BFF obtiene un token con su audiencia exclusiva (ADR 0025).
+servicio=$(token liv-bff-service "$(leer LIV_BFF_SERVICE_CLIENT_SECRET)")
+if [ -n "$servicio" ] && jwt_payload "$servicio" | grep -q '"aud":"liv-internal"'; then
+  ok "token de servicio de liv-bff-service, con audiencia liv-internal"
+else
+  falla "token de servicio de liv-bff-service, con audiencia liv-internal"
+fi
+
+# El importador de eventos puede leerlos (001-18).
+importador=$(token liv-audit-importer "$(leer LIV_AUDIT_IMPORTER_SECRET)")
+if [ -n "$importador" ] && curl -fsS -H "Authorization: Bearer $importador" "$kc/admin/realms/liv/events?max=1" >/dev/null 2>&1; then
+  ok "liv-audit-importer lee los eventos"
+else
+  falla "liv-audit-importer lee los eventos"
+fi
+
+# El rol por defecto quedó sin roles compuestos en el realm aplicado (001-20), con el administrador de Keycloak.
+admin=$(curl -fsS -d grant_type=password -d client_id=admin-cli -d "username=$(leer KEYCLOAK_ADMIN_USER)" \
+  -d "password=$(leer KEYCLOAK_ADMIN_PASSWORD)" "$kc/realms/master/protocol/openid-connect/token" 2>/dev/null \
+  | access_token)
+if [ "$(curl -fsS -H "Authorization: Bearer $admin" "$kc/admin/realms/liv/roles/default-roles-liv/composites" 2>/dev/null)" = "[]" ]; then
+  ok "rol por defecto sin roles compuestos (sin offline_access)"
+else
+  falla "rol por defecto sin roles compuestos (sin offline_access)"
+fi
+
+# El flujo de contraseña directa del realm aplicado es el que siempre niega el acceso (001-06).
+if curl -fsS -H "Authorization: Bearer $admin" "$kc/admin/realms/liv" 2>/dev/null \
+     | grep -q '"directGrantFlow":"liv-direct-grant-denegado"'; then
+  ok "contraseña directa por API denegada (directGrantFlow)"
+else
+  falla "contraseña directa por API denegada (directGrantFlow)"
 fi
 
 if [ "$fallas" -eq 0 ]; then
