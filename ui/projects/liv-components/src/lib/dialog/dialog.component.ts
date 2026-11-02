@@ -88,10 +88,16 @@ export class DialogComponent {
     this.document.addEventListener('focusin', onFocusin);
     afterNextRender(() => this.focusInitial(), { injector: this.injector });
     return () => {
-      openDialogs.splice(openDialogs.indexOf(this), 1);
+      const wasTopmost = this.isTopmost();
+      // El índice falta si la limpieza corre dos veces: sin la guarda, `splice(-1)` quitaría a otro diálogo.
+      const index = openDialogs.indexOf(this);
+      if (index >= 0) {
+        openDialogs.splice(index, 1);
+      }
       this.document.removeEventListener('keydown', onKeydown);
       this.document.removeEventListener('focusin', onFocusin);
-      if (previous instanceof HTMLElement) {
+      // Si se cierra uno que no era el de arriba, el foco sigue en el de arriba.
+      if (wasTopmost && previous instanceof HTMLElement) {
         previous.focus();
       }
     };
@@ -142,13 +148,13 @@ export class DialogComponent {
     const focusables = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
-    if (!first || !panel.contains(document.activeElement)) {
+    if (!first || !panel.contains(this.document.activeElement)) {
       event.preventDefault();
       (first ?? panel).focus();
-    } else if (event.shiftKey && document.activeElement === first) {
+    } else if (event.shiftKey && this.document.activeElement === first) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && this.document.activeElement === last) {
       event.preventDefault();
       first.focus();
     }

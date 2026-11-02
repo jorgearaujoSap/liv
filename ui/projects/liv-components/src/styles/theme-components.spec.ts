@@ -1,5 +1,5 @@
 import theme from './theme.css' with { loader: 'text' };
-import { contrastRatio, solidColor } from '../testing/contrast';
+import { contrastRatio, shadowLayers, solidColor } from '../testing/contrast';
 import { cssVariable } from '../testing/css';
 
 /*
@@ -31,8 +31,8 @@ describe('theme.css · contraste de las parejas de los componentes de estructura
   });
 
   it('el anillo de foco llega a 3:1 sobre el fondo de NavItem Active (action/primary-subtle)', () => {
-    expect(
-      contrastRatio(color('border-focus'), color('action-primary-subtle')),
-    ).toBeGreaterThanOrEqual(3);
+    // El anillo exterior es la segunda capa de la sombra (la primera es la separación blanca).
+    const ring = solidColor(shadowLayers(cssVariable(theme, '--shadow-focus-ring'))[1].color);
+    expect(contrastRatio(ring, color('action-primary-subtle'))).toBeGreaterThanOrEqual(3);
   });
 });

@@ -161,9 +161,11 @@ describe('NavItem', () => {
       expect(host.navigations).toEqual([]);
     });
 
-    it('un href javascript: no llega al DOM como enlace ejecutable', () => {
-      const { control } = render({ href: 'javascript:alert(1)' });
+    it('Angular sanea un href javascript: en el DOM (el valor emitido es responsabilidad de la aplicación)', () => {
+      const { control, host } = render({ href: 'javascript:alert(1)' });
       expect(control.getAttribute('href') ?? '').not.toMatch(/^javascript:/i);
+      click(control);
+      expect(host.navigations).toEqual(['javascript:alert(1)']);
     });
 
     it('Disabled (001-15) declara aria-disabled, no tiene href y explica por qué', () => {
@@ -334,6 +336,20 @@ describe('NavItem', () => {
             '--color-action-primary-subtle',
           ),
         ).toBe(true);
+      });
+
+      it('el icono y el chevron del grupo activo se pintan con action-primary', () => {
+        const fixture = TestBed.createComponent(ActiveGroupHostComponent);
+        fixture.detectChanges();
+        const group = (fixture.nativeElement as HTMLElement).querySelector(
+          'liv-nav-item',
+        ) as HTMLElement;
+        for (const selector of ['.nav-item__icon', '.nav-item__chevron']) {
+          const element = group.querySelector(`:scope > .nav-item__control ${selector}`);
+          expect(
+            usesToken(getComputedStyle(element as HTMLElement).color, '--color-action-primary'),
+          ).toBe(true);
+        }
       });
 
       it('una subopción deshabilitada conserva text-disabled', () => {

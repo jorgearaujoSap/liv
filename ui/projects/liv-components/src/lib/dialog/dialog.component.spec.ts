@@ -59,15 +59,23 @@ class SingleActionHostComponent {}
 @Component({
   imports: [DialogComponent],
   template: `
-    <liv-dialog [open]="true" heading="Primero" (closeRequested)="closes.push('primero')">
+    <liv-dialog [open]="firstOpen" heading="Primero" (closeRequested)="closes.push('primero')">
       <button id="first-action" type="button">Uno</button>
     </liv-dialog>
-    <liv-dialog [open]="true" heading="Segundo" (closeRequested)="closes.push('segundo')">
+    <liv-dialog
+      [open]="secondOpen"
+      [dismissible]="secondDismissible"
+      heading="Segundo"
+      (closeRequested)="closes.push('segundo')"
+    >
       <button id="second-action" type="button">Dos</button>
     </liv-dialog>
   `,
 })
 class StackedHostComponent {
+  firstOpen = true;
+  secondOpen = true;
+  secondDismissible = true;
   closes: string[] = [];
 }
 
@@ -102,6 +110,22 @@ function setOpen(rendered: ReturnType<typeof render>, open: boolean) {
   rendered.host.open = open;
   rendered.fixture.changeDetectorRef.markForCheck();
   rendered.fixture.detectChanges();
+}
+
+/** Dos diálogos abiertos, el segundo encima; `set` abre o cierra uno después de dibujado. */
+function renderStack(inputs: Partial<StackedHostComponent> = {}) {
+  const fixture = TestBed.createComponent(StackedHostComponent);
+  Object.assign(fixture.componentInstance, inputs);
+  fixture.detectChanges();
+  return {
+    host: fixture.componentInstance,
+    root: fixture.nativeElement as HTMLElement,
+    set(changes: Partial<StackedHostComponent>) {
+      Object.assign(fixture.componentInstance, changes);
+      fixture.changeDetectorRef.markForCheck();
+      fixture.detectChanges();
+    },
+  };
 }
 
 function pressKey(target: EventTarget, key: string, init: KeyboardEventInit = {}) {
@@ -247,6 +271,27 @@ describe('Dialog', () => {
       expect(fixture.componentInstance.closes).toEqual(['segundo']);
     });
 
+    it('cerrado el de arriba, el de abajo vuelve a atender Escape', () => {
+      const stack = renderStack();
+      stack.set({ secondOpen: false });
+      pressKey(document, 'Escape');
+      expect(stack.host.closes).toEqual(['primero']);
+    });
+
+    it('el de arriba, si no se puede descartar, no deja pasar Escape al de abajo', () => {
+      const stack = renderStack({ secondDismissible: false });
+      pressKey(document, 'Escape');
+      expect(stack.host.closes).toEqual([]);
+    });
+
+    it('cerrado el de abajo primero, el de arriba conserva el foco y Escape', () => {
+      const stack = renderStack();
+      stack.set({ firstOpen: false });
+      expect(document.activeElement).toBe(stack.root.querySelector('#second-action'));
+      pressKey(document, 'Escape');
+      expect(stack.host.closes).toEqual(['segundo']);
+    });
+
     it('Tab fuera de los extremos (del primero al último y al revés) no se intercepta', () => {
       const { primary, secondary } = renderOpen();
       secondary.focus();
@@ -329,6 +374,16 @@ describe('Dialog', () => {
       pressKey(document, 'Enter');
       expect(host.closes).toBe(0);
     });
+  });
+
+  it('el fondo se desplaza si el panel no cabe', () => {
+    const { root } = renderOpen();
+    const overlay = root.querySelector('.dialog__overlay') as HTMLElement;
+    expect(declaredStyle(overlay, 'overflow-y')).toBe('auto');
+  });
+
+  it('el panel se centra con margen automático, para que el fondo pueda desplazarlo', () => {
+    expect(declaredStyle(renderOpen().panel, 'margin')).toBe('auto');
   });
 
   it('cumple axe (001-19), con y sin descripción', async () => {
