@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-01
+> **Última actualización:** 2026-11-02
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -54,7 +54,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05 | Esqueleto de frontend | 🔄 | Workspace Angular 21.2 (Node 22), Tailwind 4, *tokens* desde el paquete `liv-components@0.1.0` instalado desde npm (versión exacta), ESLint con reglas de frontera (comprobadas), Prettier, Vitest; raíz sin pantallas. Faltan autenticación, *layout* y menú (necesitan F0‑05b y el BFF) y el cliente generado desde `api-spec/` |
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Faltan componentes (primero en Figma), *script* que regenere los tokens desde Figma, Storybook y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
-| F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* llega con T07. Faltan MinIO, ClamAV y observabilidad |
+| F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Faltan MinIO, ClamAV y observabilidad |
 | F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01 hasta T03), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Faltan publicación de imágenes y contratos, cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
 | F0‑08 | Roles de BD, RLS y primera migración | ⏳ | — |
 | F0‑09 | Auditoría, correlación y observabilidad | ⏳ | — |
@@ -116,6 +116,19 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-02
+
+- Feature 001, T07 integrada (PR #26): *realm* `liv` de Keycloak como código en `backend/identity/config/base/liv-realm.yaml`, aplicado con keycloak-config-cli.
+  - Roles con MFA por rol compuesto, flujo con TOTP condicional, bloqueo de 15 min tras 5 intentos, política de contraseñas, tiempos de 001-10, eventos, `administration_id` solo para administradores y clientes `liv-bff`, `liv-bff-service` y `liv-audit-importer`.
+  - `RealmConfigTest` con 17 pruebas; verificado contra Keycloak 26.8.1 desde cero y al reaplicar.
+  - La revisión adversarial y las cuatro lentes encontraron 7 altos y 0 críticos, todos corregidos; en la segunda ronda, 0 altos. Los principales: `admin-cli` daba *token* solo con contraseña, la prueba del flujo MFA pasaba con el flujo roto, la capa dev podía publicarse y `jboss-logging` escribía datos personales.
+  - **Dos decisiones del responsable:** sin rotación del *refresh token* y HTTPS siempre (`sslRequired: all`). Están en `plan.md` › Decisiones, junto con el resto de los ajustes de T07.
+  - **Desviaciones declaradas en `tasks.md`:**
+    - la capa de desarrollo vive en `backend/dev/keycloak/` y no trae TOTP; los usuarios con TOTP conocido pasan a T23;
+    - la prueba está en `src/test/java`;
+    - se tocaron archivos de `backend/dev/` (T09).
+  - **Hallazgo:** keycloak-config-cli no puede reaplicar credenciales TOTP sin duplicarlas.
 
 ### 2026-11-01
 

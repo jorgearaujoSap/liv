@@ -5,6 +5,8 @@ _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` 
 **Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
 
+**Ajustes posteriores:** T07, aprobados por el responsable el 2026-11-02 (ver «Decisiones»).
+
 ## Enfoque
 
 Se implementa el patrón del ADR 0010:
@@ -63,10 +65,12 @@ Entre corchetes, el proyecto y su PR (IN‑07).
      - **bloqueo por intentos** (D-001-1), que también cuenta los fallos de TOTP;
      - **política de contraseñas** (D-001-7);
      - **tiempos** de la tabla "Sesión y tiempos", como variables de sustitución con los valores de producción por defecto; el e2e solo los acorta en su capa;
+     - **HTTPS siempre** (`sslRequired: all`) y **bloqueo** como valores fijos, que ningún entorno puede cambiar con una variable; solo la capa de desarrollo relaja HTTPS a `external` para usar `http://localhost`;
+     - **flujo de contraseña directa** que siempre niega el acceso, y `admin-cli` del *realm* desactivado: nadie obtiene un *token* solo con usuario y contraseña;
      - **TOTP obligatorio** por rol, con un flujo condicional;
-     - **eventos de usuario y de administración** activados, con la representación de los recursos (hace falta para saber qué rol o atributo cambió) y caducidad de 30 días. Solo se copian a LIV los campos de una lista blanca (ver paso 9);
+     - **eventos de usuario y de administración** activados, con la representación de los recursos (hace falta para saber qué rol o atributo cambió) y caducidad de 30 días. Se guardan en la base de Keycloak, sin el *listener* `jboss-logging`, que escribiría el usuario intentado y la IP sin enmascarar. Solo se copian a LIV los campos de una lista blanca (ver paso 9);
      - **consola de cuenta** desactivada e **idioma** `es`.
-   - **`config/dev/`:** usuarios ficticios (uno por rol en Ipiales y uno en la administración B) y secretos TOTP de prueba. Nunca se aplica fuera de desarrollo, y CI lo bloquea.
+   - **Capa de desarrollo** en `backend/dev/keycloak/`, fuera de `identity/config/` para que ninguna imagen la copie: usuarios ficticios (uno por rol en Ipiales, uno en la administración B y uno desactivado), **sin TOTP**. Los usuarios con rol de MFA lo configuran en su primer ingreso, porque keycloak-config-cli duplica las credenciales TOTP al reaplicar; los usuarios con TOTP conocido para el e2e van en `infra/keycloak/` (T23). `RealmConfigTest`, que corre en CI, falla si `identity/config/` contiene algo más que la base.
    - **`theme/liv/`:** FreeMarker con el CSS de los *tokens* del paquete `liv-components` (excepción aprobada, ADR 0024). Prueba visual contra los *frames*. En `messages_es`, la cuenta desactivada usa el mensaje genérico.
    - **Imagen de Keycloak con el tema:** se publica en CI, junto con la imagen `liv-identity-config` (`keycloak-config-cli` + `config/base`), que también usa `infra/`.
    - **Primera tarea: un *spike*** (T06, hecho; `backend/identity/spike/RESULTADOS.md`). Resultados con Keycloak 26.8.1:
@@ -236,6 +240,7 @@ Entre corchetes, el proyecto y su PR (IN‑07).
 | Inactividad del proveedor | 25 min (≥ inactividad del BFF + vida del *token* + 5 min de margen) | Keycloak (*SSO Session Idle*). Con `prompt=login` nunca reabre una sesión vencida |
 | Máximo absoluto | 8 h en el BFF (filtro). 8 h 10 min en Keycloak (*SSO Session Max*): empieza unos segundos antes, así que el margen evita que la renovación falle al final | BFF y Keycloak, sin "Recordarme" ni `offline_access` |
 | *Token* de acceso | 5 min. El BFF lo renueva si le queda menos de 1 min, y siempre en `keepalive` | Keycloak, BFF |
+| Rotación del *refresh token* | Desactivada (`revokeRefreshToken: false`). Dos renovaciones simultáneas (varias peticiones o réplicas del BFF) harían fallar la segunda y cerrarían la sesión sin motivo; el *refresh token* nunca sale del BFF | Keycloak |
 | Revocación | Todo final de sesión pasa por el `SessionTerminator`, que revoca el *refresh token*. Los cambios hechos en Keycloak (desactivar al usuario, cambiar su rol o su administración) aplican **al renovar el *token*** (≤ 5 min): el usuario desactivado hace fallar la renovación, y el rol o la administración nuevos llegan en el *token* renovado, donde `CurrentUserFilter` los compara con el registro de LIV y responde 401. Los cambios en el registro de LIV aplican en la siguiente petición | BFF, API |
 | Aviso | 2 min antes de la expiración por inactividad; aviso aparte cerca del máximo | Frontend |
 
@@ -340,7 +345,7 @@ El e2e prueba la combinación.
   - **Repudio:** auditoría inmutable, con los ingresos rechazados, las expiraciones y los eventos del proveedor.
   - **Topología:** Keycloak y LIV comparten dominio registrable. La consola de Keycloak y `master` no se exponen y exigen segundo factor con cuentas nominales.
   - **Inyección en *logs*:** correlación solo como UUID; datos personales enmascarados.
-  - **Secretos:** los de prueba solo en `config/dev/` e `infra/keycloak/`, y CI lo verifica.
+  - **Secretos:** los de prueba solo en `backend/dev/keycloak/` e `infra/keycloak/`; `RealmConfigTest` verifica en CI que no estén en `identity/config/`. El cierre por canal trasero usa la URL interna del BFF (`LIV_BFF_BACKCHANNEL_URL`), no la pública.
 
 ## Diseño de interfaz
 
@@ -395,6 +400,10 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - Se descartó navegar a `end_session` con `id_token_hint`.
 - **Menú: el backend decide qué, el frontend cómo se ve.**
 - **Plan B del BFF.** Si no hay una versión de Spring Cloud Gateway compatible, se usa Spring MVC con `RestClient`, registrado en un ADR que modifique el ADR 0010 y doc. 00 §5.
+- **Ajustes de T07 (aprobados por el responsable el 2026-11-02).** Salieron de la revisión adversarial de T07 (PR #26):
+  - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
+  - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
+  - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
 - **Valores propuestos (D-001-7, H2):** contraseñas de 12 caracteres o más, sin reutilizar las últimas 5, sin vencimiento forzado y distintas del usuario.
 
 ## Riesgos
