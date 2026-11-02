@@ -119,6 +119,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-01
 
+- Decisión del responsable: mientras el equipo sea de una sola persona, la rama `main` no exige aprobaciones y quien abre el PR lo revisa (H3) e integra. Las dos aprobaciones de los cambios críticos se suplen con las revisiones automáticas de nivel alto. Registrada como excepción temporal en `AGENTS.md` §4.3, que se elimina al sumar una segunda persona.
 - Integrado el PR #7 (documentación de la feature 001, ADR 0023–0025 y política de modelos).
 - Preparado T02 (F0‑07, CI de PR mínimo), en la rama `chore/f0-07-ci-pr`:
   - cuatro *workflows* con acciones fijadas por SHA, Dependabot y CODEOWNERS;

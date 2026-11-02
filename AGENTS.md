@@ -115,6 +115,8 @@ La constitución manda: si una feature choca con `spec/constitution/`, se replan
 
 **Rutas críticas:** `backend/**/liv/tax/**`, `backend/**/liv/ledger/**`, `backend/**/liv/jurisdiction/**`, `backend/**/liv/platform/**/security/**`, `backend/**/db/migration/**`, `backend/contracts/**`, `backend/pom.xml`, `backend/bff/**`, `backend/identity/**`, `docs/funcional/anexos/**`, `ui/**`, `.github/**`.
 
+**Excepción temporal: equipo de una sola persona** (decisión del responsable del proyecto, 2026-11-01). Mientras el repositorio tenga un solo colaborador humano, GitHub no exige aprobaciones: quien abre el PR hace la revisión H3 y lo integra. Las "dos aprobaciones humanas" de los cambios críticos se suplen con la revisión adversarial y las cuatro lentes hechas por revisores de nivel alto (§10), cuyo resumen va en la descripción del PR. Siguen vigentes: todo cambio entra por PR, CI en verde e integración por un humano. Al sumarse una segunda persona se activan las aprobaciones y la revisión de CODEOWNERS, y esta excepción se elimina.
+
 ### 4.4 Obligaciones
 
 1. Leer la especificación y las secciones citadas **antes** de escribir.
