@@ -26,7 +26,8 @@ class HostComponent {
   eyebrow: string | undefined = 'Error 403';
   heading = 'No tienes permiso para ver esta página';
   headingLevel: 1 | 2 | 3 = 2;
-  description: string | undefined = 'Tu rol no incluye esta opción. Si necesitas acceso, solicítalo.';
+  description: string | undefined =
+    'Tu rol no incluye esta opción. Si necesitas acceso, solicítalo.';
 }
 
 function render(inputs: Partial<HostComponent> = {}) {
@@ -47,7 +48,7 @@ describe('ResultState', () => {
   it('muestra el icono, la etiqueta, el título, la descripción y las acciones proyectadas', () => {
     const host = render();
     expect(host.querySelector('liv-icon svg')?.innerHTML).toBe(iconMarkup('shield-x'));
-    expect(host.querySelector('liv-icon svg')?.getAttribute('width')).toBe('28');
+    expect(host.querySelector('liv-icon svg')?.getAttribute('width')).toBe('24');
     expect(host.querySelector('.result-state__eyebrow')?.textContent?.trim()).toBe('Error 403');
     expect(host.querySelector('.result-state__title')?.textContent?.trim()).toBe(
       'No tienes permiso para ver esta página',
@@ -88,8 +89,7 @@ describe('ResultState', () => {
 
   it.each<1 | 2 | 3>([1, 2, 3])('el título es un encabezado de nivel %i', (level) => {
     const title = render({ headingLevel: level }).querySelector('.result-state__title');
-    expect(title?.getAttribute('role')).toBe('heading');
-    expect(title?.getAttribute('aria-level')).toBe(String(level));
+    expect(title?.tagName).toBe(`H${level}`);
   });
 
   it('cumple axe (001-19) en cada tono, con y sin textos opcionales', async () => {

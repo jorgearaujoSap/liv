@@ -15,6 +15,7 @@ export {
   type ButtonVariant,
 } from './lib/button/button.component';
 export { CodeInputComponent } from './lib/code-input/code-input.component';
+export { DialogComponent } from './lib/dialog/dialog.component';
 export {
   IconButtonComponent,
   type IconButtonSize,
@@ -23,6 +24,10 @@ export {
 export { IconComponent } from './lib/icon/icon.component';
 export { ICON_NAMES, type IconName, type IconSize } from './lib/icon/icons';
 export { LogoComponent, type LogoTone } from './lib/logo/logo.component';
+export {
+  ResultStateComponent,
+  type ResultStateTone,
+} from './lib/result-state/result-state.component';
 export { SkeletonComponent, type SkeletonShape } from './lib/skeleton/skeleton.component';
 export {
   SpinnerComponent,

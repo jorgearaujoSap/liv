@@ -1,0 +1,41 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply mx-auto box-border flex w-full max-w-[480px] flex-col items-center gap-6 text-center;
+}
+
+.result-state__tile {
+  @apply flex size-16 items-center justify-center rounded-full;
+}
+
+.result-state__text {
+  @apply flex flex-col items-center gap-2;
+}
+
+.result-state__eyebrow {
+  @apply m-0 font-mono text-code-sm text-text-muted;
+}
+
+.result-state__title {
+  @apply m-0 text-heading-h2 text-text-primary;
+}
+
+.result-state__description {
+  @apply m-0 text-body-md text-text-secondary;
+}
+
+.result-state__actions {
+  @apply flex items-start justify-center gap-3;
+}
+
+:host([data-tone='danger']) .result-state__tile {
+  @apply bg-status-danger-subtle text-status-danger;
+}
+
+:host([data-tone='warning']) .result-state__tile {
+  @apply bg-status-warning-subtle text-status-warning;
+}
+
+:host([data-tone='info']) .result-state__tile {
+  @apply bg-status-info-subtle text-status-info;
+}

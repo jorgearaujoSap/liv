@@ -1,0 +1,24 @@
+@if (open()) {
+  <div class="dialog__overlay">
+    <div
+      #panel
+      class="dialog__panel"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      [attr.aria-labelledby]="titleId"
+      [attr.aria-describedby]="descriptionText() ? descriptionId : null"
+    >
+      <div class="dialog__content">
+        <span class="dialog__tile"><liv-icon [name]="iconName()" [size]="20" /></span>
+        <div class="dialog__text">
+          <h2 class="dialog__title" [id]="titleId">{{ heading() }}</h2>
+          @if (descriptionText(); as text) {
+            <p class="dialog__description" [id]="descriptionId">{{ text }}</p>
+          }
+        </div>
+      </div>
+      <div class="dialog__actions"><ng-content /></div>
+    </div>
+  </div>
+}

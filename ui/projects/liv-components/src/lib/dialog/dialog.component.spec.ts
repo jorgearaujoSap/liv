@@ -20,7 +20,11 @@ import { DialogComponent } from './dialog.component';
       (closed)="closes = closes + 1"
     >
       <button id="secondary" type="button">Cerrar sesión</button>
-      <button id="primary" type="button" [attr.autofocus]="autofocusPrimary ? '' : null">
+      <button
+        id="primary"
+        type="button"
+        [attr.data-initial-focus]="initialFocusOnPrimary ? '' : null"
+      >
         Seguir conectado
       </button>
     </liv-dialog>
@@ -32,7 +36,7 @@ class HostComponent {
   description: string | undefined = 'Por seguridad cerraremos tu sesión en 2 minutos.';
   icon: IconName | undefined;
   dismissible = true;
-  autofocusPrimary = false;
+  initialFocusOnPrimary = false;
   closes = 0;
 }
 
@@ -66,6 +70,13 @@ function renderOpen(inputs: Partial<HostComponent> = {}) {
     throw new Error('El diálogo abierto no dibujó su panel');
   }
   return { ...rendered, panel };
+}
+
+/** Abre o cierra el diálogo después de dibujado: el anfitrión de prueba no usa señales, así que se marca. */
+function setOpen(rendered: ReturnType<typeof render>, open: boolean) {
+  rendered.host.open = open;
+  rendered.fixture.changeDetectorRef.markForCheck();
+  rendered.fixture.detectChanges();
 }
 
 function pressKey(target: EventTarget, key: string, init: KeyboardEventInit = {}) {
@@ -129,27 +140,25 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(secondary);
     });
 
-    it('al abrir, va al elemento marcado con autofocus', () => {
-      const { primary } = renderOpen({ autofocusPrimary: true });
+    it('al abrir, va al elemento marcado con data-initial-focus', () => {
+      const { primary } = renderOpen({ initialFocusOnPrimary: true });
       expect(document.activeElement).toBe(primary);
     });
 
     it('al abrirse después, mueve el foco adentro', () => {
-      const { fixture, host, trigger, secondary } = render({ open: false });
-      trigger.focus();
-      host.open = true;
-      fixture.detectChanges();
-      expect(document.activeElement).toBe(secondary);
+      const rendered = render({ open: false });
+      rendered.trigger.focus();
+      setOpen(rendered, true);
+      // Cerrado, las acciones no están en el DOM: se buscan después de abrir.
+      expect(document.activeElement).toBe(rendered.root.querySelector('#secondary'));
     });
 
     it('al cerrarse, devuelve el foco a quien lo tenía', () => {
-      const { fixture, host, trigger } = render({ open: false });
-      trigger.focus();
-      host.open = true;
-      fixture.detectChanges();
-      host.open = false;
-      fixture.detectChanges();
-      expect(document.activeElement).toBe(trigger);
+      const rendered = render({ open: false });
+      rendered.trigger.focus();
+      setOpen(rendered, true);
+      setOpen(rendered, false);
+      expect(document.activeElement).toBe(rendered.trigger);
     });
 
     it('sin elementos enfocables, enfoca el propio diálogo', () => {
