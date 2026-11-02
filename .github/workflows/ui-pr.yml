@@ -46,5 +46,11 @@ jobs:
       - name: Formato (Q01)
         run: npm run format:check
 
+      - name: Pruebas de componentes con accesibilidad (Q02, Q14)
+        run: npm test
+
+      - name: Catálogo de Storybook (Q14)
+        run: npm run build-storybook
+
       - name: Build y empaquetado (Q01)
         run: npm run pack
