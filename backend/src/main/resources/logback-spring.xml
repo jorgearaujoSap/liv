@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Configuración de Spring Boot (consola y archivo) con el mensaje enmascarado: los tokens y el
+  valor de X-User-Token no llegan a los logs a través del mensaje (doc. 02 §6, T12). Las trazas
+  de excepción y el MDC no pasan por el conversor. Las reglas van antes del include para que los
+  patrones de Spring Boot usen este conversor en %m, %msg y %message.
+-->
+<configuration>
+  <conversionRule conversionWord="m"
+      class="co.com.sapenlinea.liv.platform.logging.MaskingMessageConverter"/>
+  <conversionRule conversionWord="msg"
+      class="co.com.sapenlinea.liv.platform.logging.MaskingMessageConverter"/>
+  <conversionRule conversionWord="message"
+      class="co.com.sapenlinea.liv.platform.logging.MaskingMessageConverter"/>
+  <include resource="org/springframework/boot/logging/logback/base.xml"/>
+</configuration>

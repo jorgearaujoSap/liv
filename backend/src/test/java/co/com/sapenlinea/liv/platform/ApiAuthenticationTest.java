@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -24,6 +25,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   private static final String PROBE = "/api/v1/probe";
 
   @Test
+  @Tag("001-20")
   @DisplayName(
       "001-20 · Un token válido de un emisor OIDC genérico entra con la administración registrada")
   void validTokenFromGenericIssuer() {
@@ -37,12 +39,14 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Sin token responde 401 sin datos")
   void missingToken() {
     assertRejected(get(PROBE, Map.of()), ErrorCodes.NOT_AUTHENTICATED);
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token vencido responde 401")
   void expiredToken() {
     Instant past = Instant.now().minus(Duration.ofMinutes(15));
@@ -58,6 +62,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token de otra audiencia responde 401")
   void otherAudience() {
     String token =
@@ -67,6 +72,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token de otro emisor responde 401")
   void otherIssuer() {
     String token =
@@ -78,6 +84,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token con firma inválida responde 401")
   void invalidSignature() {
     String token = OidcTestProvider.userTokenSignedWithAnotherKey(ACTIVE, LivDatabase.ADMIN_A);
@@ -85,6 +92,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token sin firma (alg: none) responde 401")
   void unsignedToken() {
     String token = OidcTestProvider.unsignedUserToken(ACTIVE, LivDatabase.ADMIN_A);
@@ -92,6 +100,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token de servicio no sirve en /api")
   void serviceTokenOnApi() {
     assertRejected(
@@ -99,6 +108,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un usuario sin registro en LIV responde 401 (no hay sesión iniciada)")
   void unregisteredUser() {
     String token = OidcTestProvider.userToken(UNREGISTERED, LivDatabase.ADMIN_A);
@@ -106,6 +116,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-05")
   @DisplayName("001-05 · Un usuario desactivado en LIV responde 401 aunque su token sea válido")
   void inactiveUser() {
     String token = OidcTestProvider.userToken(INACTIVE, LivDatabase.ADMIN_A);
@@ -113,6 +124,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-17")
   @DisplayName("001-17 · Un token con otra administración que la registrada responde 401")
   void administrationMismatch() {
     String token = OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_B);
@@ -120,6 +132,7 @@ class ApiAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-17")
   @DisplayName("001-17 · Un token sin administración responde 401")
   void missingAdministration() {
     String token =
@@ -137,6 +150,8 @@ class ApiAuthenticationTest extends PlatformWebTest {
     JsonNode body = JSON.readTree(response.body());
     assertThat(body.get("code").asString()).isEqualTo(code);
     assertThat(body.get("status").asInt()).isEqualTo(401);
-    assertThat(body.propertyNames()).containsOnly("type", "title", "status", "instance", "code");
+    // RFC 9457 §4.2.1: without "type" the type is about:blank.
+    assertThat(body.propertyNames())
+        .containsExactlyInAnyOrder("title", "status", "instance", "code");
   }
 }

@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -31,12 +32,14 @@ class InternalAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Sin token de servicio responde 401")
   void missingServiceToken() {
     assertRejected(post(END, Map.of()), ErrorCodes.NOT_AUTHENTICATED);
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName(
       "001-14 · Un token de usuario con todos los alcances no sirve como token de servicio")
   void userTokenAsServiceToken() {
@@ -53,6 +56,7 @@ class InternalAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token de servicio de otro cliente responde 401")
   void otherServiceClient() {
     String other = OidcTestProvider.serviceToken(claims -> claims.claim("azp", "otro-cliente"));
@@ -66,6 +70,7 @@ class InternalAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Iniciar sesión sin X-User-Token responde 401")
   void missingUserToken() {
     assertRejected(
@@ -73,6 +78,7 @@ class InternalAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un X-User-Token con firma inválida responde 401")
   void invalidUserToken() {
     String forged = OidcTestProvider.userTokenSignedWithAnotherKey(ACTIVE, LivDatabase.ADMIN_A);
@@ -82,6 +88,7 @@ class InternalAuthenticationTest extends PlatformWebTest {
   }
 
   @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token de servicio no sirve como X-User-Token")
   void serviceTokenAsUserToken() {
     String service = OidcTestProvider.serviceToken();

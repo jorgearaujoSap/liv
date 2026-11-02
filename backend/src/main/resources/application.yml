@@ -18,6 +18,27 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  # El BFF envía Authorization y, al iniciar sesión, X-User-Token de hasta 8.192 caracteres
+  # (core-internal.yaml): el valor por omisión (8 KB para todas las cabeceras) no alcanza.
+  max-http-request-header-size: 32KB
+
+# Validación de tokens solo por propiedades (plan, paso 7): el emisor se descubre con OIDC, así
+# que sirve cualquier proveedor estándar (001-20). LIV_OIDC_ISSUER_URI no tiene valor por defecto:
+# sin emisor no se acepta ningún token.
+liv:
+  security:
+    issuer-uri: ${LIV_OIDC_ISSUER_URI}
+    user-audience: liv-api
+    service-audience: liv-internal
+    service-client-id: liv-bff-service
+    claims:
+      administration-id: administration_id
+      roles: roles
+
+# Cada línea de log lleva el id de correlación de la petición (doc. 02 §9, CorrelationIdFilter).
+logging:
+  pattern:
+    correlation: "[%X{correlation_id:-}] "
 
 management:
   endpoints:

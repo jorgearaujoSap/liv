@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -19,6 +20,7 @@ class ClaimsAdapterTest {
       new ClaimsAdapter(new LivSecurityProperties.Claims("tenant", "groups"));
 
   @Test
+  @Tag("001-20")
   @DisplayName("001-20 · Los nombres de los claims se configuran")
   void configurableNames() {
     TokenIdentity identity =
@@ -35,6 +37,7 @@ class ClaimsAdapterTest {
   }
 
   @Test
+  @Tag("001-17")
   @DisplayName("001-17 · Una administración ausente o que no es UUID queda vacía")
   void invalidAdministration() {
     assertThat(adapter.identityOf(jwt().build()).administrationId()).isEmpty();
