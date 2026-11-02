@@ -209,7 +209,7 @@ Suite obligatoria con Testcontainers: un usuario de la administración A no pued
 
 | Control | Herramienta | Momento |
 |---|---|---|
-| Actualización de dependencias | Renovate (agrupado, con ventana semanal) | Continuo |
+| Actualización de dependencias | Manual, sin servicio automático (decisión del responsable, 2026-11-01): cada proyecto revisa sus versiones con sus propios comandos (`./mvnw versions:display-dependency-updates`, `npm outdated`); una versión mayor exige ADR | Al iniciar cada fase y ante una vulnerabilidad |
 | Revisión de dependencias nuevas | *Dependency review* de GitHub | Cada PR |
 | Vulnerabilidades conocidas | Trivy (sistema de archivos e imágenes), OWASP Dependency‑Check | Cada PR y nocturno |
 | Análisis estático de seguridad | CodeQL y Semgrep | Cada PR |
