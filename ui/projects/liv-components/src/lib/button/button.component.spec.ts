@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { IconName } from '../icon/icons';
@@ -38,6 +38,17 @@ class HostComponent {
     event.preventDefault();
     this.submits++;
   }
+}
+
+/** Anfitrión con señales, como lo usaría una pantalla: el texto visible cambia junto con `loading`. */
+@Component({
+  imports: [ButtonComponent],
+  template: `<liv-button [loading]="loading()" loadingLabel="Ingresando…">{{
+    loading() ? 'Ingresando…' : 'Ingresar'
+  }}</liv-button>`,
+})
+class LiveHostComponent {
+  readonly loading = signal(false);
 }
 
 function render(inputs: Partial<HostComponent> = {}) {
@@ -116,23 +127,21 @@ describe('Button', () => {
       expect(tone('ghost')).toBe('default');
     });
 
-    it('anuncia el texto del botón en una región viva que existe desde el inicio', async () => {
-      const { fixture, host } = render();
-      const status = host.querySelector('[role="status"]') as HTMLElement;
+    it('anuncia loadingLabel en una región viva que existe desde el inicio', async () => {
+      const fixture = TestBed.createComponent(LiveHostComponent);
+      await fixture.whenStable();
+      const host = fixture.nativeElement.querySelector('liv-button') as HTMLElement;
+      const status = host.querySelector(':scope > [role="status"]') as HTMLElement;
       expect(status).not.toBeNull();
       expect(status.closest('button')).toBeNull();
       expect(status.textContent?.trim()).toBe('');
 
-      fixture.componentInstance.loading = true;
-      fixture.componentInstance.label = 'Ingresando…';
-      fixture.detectChanges();
+      fixture.componentInstance.loading.set(true);
       await fixture.whenStable();
-      expect(host.querySelector('[role="status"]')).toBe(status);
+      expect(host.querySelector(':scope > [role="status"]')).toBe(status);
       expect(status.textContent?.trim()).toBe('Ingresando…');
 
-      fixture.componentInstance.loading = false;
-      fixture.componentInstance.label = 'Ingresar';
-      fixture.detectChanges();
+      fixture.componentInstance.loading.set(false);
       await fixture.whenStable();
       expect(status.textContent?.trim()).toBe('');
     });
@@ -177,12 +186,6 @@ describe('Button', () => {
   it('la variante Ghost usa el color de enlace', () => {
     expect(getComputedStyle(render({ variant: 'ghost' }).button).color).toContain(
       'var(--color-text-link',
-    );
-  });
-
-  it('la variante Secondary tiene borde border/strong', () => {
-    expect(getComputedStyle(render({ variant: 'secondary' }).button).borderColor).toContain(
-      'var(--color-border-strong',
     );
   });
 

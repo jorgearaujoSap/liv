@@ -1,0 +1,20 @@
+<button
+  class="button"
+  [attr.type]="type()"
+  [disabled]="disabled()"
+  [attr.aria-disabled]="busy() ? 'true' : null"
+  (click)="onClick($event)"
+>
+  @if (busy()) {
+    <span class="button__spinner" aria-hidden="true">
+      <liv-spinner [tone]="spinnerTone()" [size]="iconSize()" />
+    </span>
+  } @else if (leadingIcon(); as icon) {
+    <liv-icon class="button__leading-icon" [name]="icon" [size]="iconSize()" />
+  }
+  <span class="button__label"><ng-content /></span>
+  @if (trailingIcon(); as icon) {
+    <liv-icon class="button__trailing-icon" [name]="icon" [size]="iconSize()" />
+  }
+</button>
+<span class="button__status" role="status">{{ busy() ? loadingLabel() : '' }}</span>

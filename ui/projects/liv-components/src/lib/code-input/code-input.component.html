@@ -1,0 +1,26 @@
+<label class="code-input__label" [for]="inputId">{{ label() }}</label>
+<div class="code-input__control">
+  <input
+    class="code-input__input"
+    type="text"
+    inputmode="numeric"
+    autocomplete="one-time-code"
+    spellcheck="false"
+    [id]="inputId"
+    [attr.maxlength]="maxLength"
+    [value]="value()"
+    [attr.name]="name() ?? null"
+    [attr.placeholder]="placeholder() ?? null"
+    [attr.aria-invalid]="errorText() ? 'true' : null"
+    [attr.aria-describedby]="message() ? messageId : null"
+    (input)="onInput($event)"
+  />
+</div>
+@if (message(); as text) {
+  <p class="code-input__help" [id]="messageId">
+    @if (errorText()) {
+      <liv-icon name="circle-alert" [size]="16" />
+    }
+    <span>{{ text }}</span>
+  </p>
+}

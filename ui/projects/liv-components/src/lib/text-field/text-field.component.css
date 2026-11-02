@@ -1,0 +1,60 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply flex flex-col gap-2;
+}
+
+.text-field__label {
+  @apply text-label-md text-text-primary;
+}
+
+/* El borde de Focus y Error mide 1,5 px en Figma: 1 px de borde más 0,5 px de anillo interior. */
+.text-field__control {
+  @apply flex h-[44px] items-center gap-2 rounded-lg border border-solid border-border-strong bg-bg-surface pr-1 pl-3;
+}
+
+.text-field__control:focus-within {
+  @apply border-border-focus shadow-focus-ring inset-ring-[0.5px] inset-ring-border-focus;
+}
+
+.text-field__icon {
+  @apply text-text-muted;
+}
+
+.text-field__input {
+  @apply m-0 h-full min-w-0 flex-1 border-0 bg-transparent p-0 font-sans text-body-md text-text-primary outline-none;
+}
+
+.text-field__input::placeholder {
+  @apply text-text-muted opacity-100;
+}
+
+.text-field__help {
+  @apply m-0 flex items-center gap-1 text-body-sm text-text-secondary;
+}
+
+/* Error */
+
+:host([data-state='error']) .text-field__control {
+  @apply border-status-danger inset-ring-[0.5px] inset-ring-status-danger;
+}
+
+:host([data-state='error']) .text-field__help {
+  @apply text-status-danger;
+}
+
+/* Disabled */
+
+:host([data-state='disabled']) .text-field__label,
+:host([data-state='disabled']) .text-field__input,
+:host([data-state='disabled']) .text-field__icon {
+  @apply text-text-disabled;
+}
+
+:host([data-state='disabled']) .text-field__control {
+  @apply border-border-default bg-bg-subtle;
+}
+
+:host([data-state='disabled']) .text-field__input {
+  @apply cursor-not-allowed;
+}
