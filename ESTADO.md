@@ -55,7 +55,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Faltan componentes (primero en Figma), *script* que regenere los tokens desde Figma, Storybook y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
 | F0‑06 | Docker Compose local | ⏳ | — |
-| F0‑07 | GitHub Actions con compuertas de calidad | ⏳ | — |
+| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01 hasta T03), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks), Dependabot y CODEOWNERS. Faltan publicación de imágenes y contratos, cobertura, mutación, Sonar, guardián SDD y la protección de la rama `main` (configuración del repositorio, la hace el dueño) |
 | F0‑08 | Roles de BD, RLS y primera migración | ⏳ | — |
 | F0‑09 | Auditoría, correlación y observabilidad | ⏳ | — |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
@@ -119,6 +119,11 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-01
 
+- Integrado el PR #7 (documentación de la feature 001, ADR 0023–0025 y política de modelos).
+- Preparado T02 (F0‑07, CI de PR mínimo), en la rama `chore/f0-07-ci-pr`:
+  - cuatro *workflows* con acciones fijadas por SHA, Dependabot y CODEOWNERS;
+  - los comandos de cada proyecto pasan en local;
+  - en Windows, `format:check` falla en local por los finales de línea CRLF de la copia de trabajo (en Git están en LF y pasan).
 - Abierto el PR #7 (raíz, tarea T01 de la feature 001): spec, diseño, plan (H2) y tareas del inicio de sesión, ADR 0023–0025 con sus cambios en la arquitectura, y política de modelos con los subagentes del proyecto. Antes del *commit* se aplicó la lente de legibilidad (`liv-revisor-rapido`): 7 hallazgos corregidos y 3 descartados. Siguiente: T02 (F0‑07, CI), que necesita aprobación humana.
 - Feature 001 · Inicio de sesión:
   - **Plan aprobado (H2)** por el arquitecto y el responsable funcional (versión 4). La aprobación incluye la matriz de permisos, los ajustes al modelo, los roles de BD nuevos, la política de contraseñas, la pantalla "Próximamente" y la autorización de migrar antes del *checklist* del ERD.

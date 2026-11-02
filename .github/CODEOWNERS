@@ -1,0 +1,10 @@
+# Propietarios por carpeta (doc. 04 §9; rutas críticas en AGENTS.md §4.3).
+# Hoy hay un solo responsable. Al sumar equipo, cada carpeta pasa a su grupo (backend, frontend, ui)
+# y las rutas críticas exigen dos aprobaciones con la protección de la rama main.
+*            @jorgearaujoSap
+/backend/    @jorgearaujoSap
+/frontend/   @jorgearaujoSap
+/ui/         @jorgearaujoSap
+/.github/    @jorgearaujoSap
+/docs/       @jorgearaujoSap
+/spec/       @jorgearaujoSap

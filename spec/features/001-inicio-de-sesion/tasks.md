@@ -29,13 +29,14 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 ## Raíz
 
 - [ ] **T01** · Documentación de la feature y ADR 0023–0025 — Archivos: `spec/features/001-inicio-de-sesion/**`, `docs/adr/ADR-0023…0025`, `docs/arquitectura/00`, `01`, `02`, `AGENTS.md` (§4.3, §6.2, §10), `CLAUDE.md`, `spec/constitution/**`, `.claude/**`, `ESTADO.md` — Prueba primero: no aplica (documentación). Se revisan los enlaces y la consistencia de los códigos de criterio.
-- [ ] **T02** · Requisito previo F0‑07: CI mínimo por proyecto. Un cambio de CI requiere aprobación humana explícita (`AGENTS.md` §4.5).
-  - Archivos: `.github/workflows/backend-*.yml`, `frontend-*.yml`, `ui-*.yml`, `.github/CODEOWNERS`.
+- [ ] **T02** · Requisito previo F0‑07: CI de PR mínimo por proyecto. Cambia CI, así que requiere aprobación humana explícita (`AGENTS.md` §4.5).
+  - Archivos: `.github/workflows/{backend-pr,frontend-pr,ui-pr,sistema-pr}.yml`, `.github/dependabot.yml`, `.github/CODEOWNERS`.
   - Contenido:
-    - *build*, *lint* y pruebas;
-    - publicación de imágenes y de los contratos OpenAPI como artefactos versionados;
-    - verificación de que los secretos de prueba no aparezcan en la configuración base.
-  - Prueba primero: un PR de prueba con una prueba en rojo debe quedar bloqueado.
+    - por proyecto, con filtro de ruta y `working-directory`: compilación, formato, *lint*, pruebas y arquitectura (Q01–Q03 en backend y frontend; en `ui`, solo Q01 hasta que T03 agregue pruebas e historias);
+    - en todo PR: título en Conventional Commits (Q13) y búsqueda de secretos con gitleaks;
+    - acciones fijadas por SHA, permisos mínimos y `concurrency`.
+  - Prueba primero: los comandos de cada *workflow* ejecutados en local; los *workflows* corren sobre su propio PR. La expresión del título se probó con casos válidos e inválidos.
+  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T11, T16 y T21; verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
 
 ## `ui/` — `liv-components` 0.2.0
 
