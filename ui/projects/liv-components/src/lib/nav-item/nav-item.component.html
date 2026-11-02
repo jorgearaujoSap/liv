@@ -16,6 +16,8 @@
   <button
     type="button"
     class="nav-item__control"
+    [id]="controlId"
+    [attr.aria-controls]="expanded() && !disabled() ? childrenId : null"
     [attr.aria-expanded]="disabled() ? null : expanded()"
     [attr.aria-disabled]="disabled() ? 'true' : null"
     [attr.title]="disabled() ? disabledHint() : null"
@@ -24,16 +26,21 @@
     <ng-container [ngTemplateOutlet]="body" />
   </button>
   @if (expanded() && !disabled()) {
-    <div class="nav-item__children" role="group">
+    <div
+      class="nav-item__children"
+      role="group"
+      [id]="childrenId"
+      [attr.aria-labelledby]="controlId"
+    >
       <ng-content select="liv-nav-item" />
     </div>
   }
 } @else {
   <a
     class="nav-item__control"
-    [attr.href]="disabled() ? null : href()"
+    [attr.href]="disabled() ? null : target()"
     [attr.role]="disabled() ? 'link' : null"
-    [attr.aria-current]="active() ? 'page' : null"
+    [attr.aria-current]="active() && !disabled() ? 'page' : null"
     [attr.aria-disabled]="disabled() ? 'true' : null"
     [attr.title]="disabled() ? disabledHint() : null"
     (click)="onLinkClick($event)"

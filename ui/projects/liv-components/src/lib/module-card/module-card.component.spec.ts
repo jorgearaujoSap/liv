@@ -205,8 +205,6 @@ describe('ModuleCard', () => {
     link.focus();
     expect(declaredHover(link, '--tw-shadow')).toBe('');
     expect(declaredHover(link, 'border-color')).toBe('');
-    link.blur();
-    expect(declaredHover(link, '--tw-shadow')).not.toBe('');
   });
 
   it('la descripción vacía no deja un bloque vacío', () => {

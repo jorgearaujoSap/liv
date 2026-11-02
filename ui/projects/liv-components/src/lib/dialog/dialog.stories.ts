@@ -23,7 +23,7 @@ const meta: Meta<DialogArgs> = {
     docs: {
       story: { inline: false, iframeHeight: 360 },
       description: {
-        component: `Diálogo modal sobre \`bg/overlay\`. Atrapa el foco, lo devuelve al cerrarse y Escape emite \`closed\` si \`dismissible\` es verdadero. Las acciones se proyectan como contenido; el foco inicial va al elemento con \`data-initial-focus\` o al primer enfocable. Se usa, entre otros, para el aviso de sesión por expirar (WCAG 2.2.1). [Diseño en Figma](${figma})`,
+        component: `Diálogo modal sobre \`bg/overlay\`. Atrapa el foco, lo devuelve al cerrarse y Escape emite \`closeRequested\` si \`dismissible\` es verdadero. Las acciones se proyectan como contenido; el foco inicial va al elemento con \`data-initial-focus\` o al primer enfocable. Se usa, entre otros, para el aviso de sesión por expirar (WCAG 2.2.1). [Diseño en Figma](${figma})`,
       },
     },
   },

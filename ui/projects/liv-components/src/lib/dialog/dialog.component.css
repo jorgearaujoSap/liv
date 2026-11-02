@@ -1,12 +1,14 @@
 @reference '../tailwind-reference.css';
 
+/* El fondo se desplaza si el panel no cabe (zoom o pantalla baja). */
 .dialog__overlay {
-  @apply fixed inset-0 z-50 box-border flex items-center justify-center bg-bg-overlay p-4;
+  @apply fixed inset-0 z-50 box-border flex overflow-y-auto bg-bg-overlay p-4;
 }
 
 .dialog__panel {
+  /* `m-auto` centra el panel y deja que el fondo lo desplace. */
   /* En alto contraste (forced-colors) las sombras desaparecen: el borde delimita el panel. */
-  @apply box-border flex w-[440px] max-w-full flex-col gap-6 rounded-xl bg-bg-surface p-6 shadow-elevation-xl outline-hidden forced-colors:border forced-colors:border-solid;
+  @apply m-auto box-border flex w-[440px] max-w-full flex-col gap-6 rounded-xl bg-bg-surface p-6 shadow-elevation-xl outline-hidden forced-colors:border forced-colors:border-solid;
 }
 
 .dialog__content {
@@ -30,5 +32,5 @@
 }
 
 .dialog__actions {
-  @apply flex justify-end gap-3;
+  @apply flex flex-wrap justify-end gap-3;
 }

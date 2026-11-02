@@ -31,7 +31,7 @@
 
 /* Hover: borde y sombra mayores. */
 
-:host(:not([data-disabled])) .module-card__link:hover {
+:host(:not([data-disabled])) .module-card__link:hover:not(:focus-visible) {
   @apply border-border-strong shadow-elevation-md;
 }
 
@@ -50,8 +50,10 @@
 }
 
 /*
- * El anillo de foco va al final para ganar a cada estado. En alto contraste (forced-colors) las sombras
- * desaparecen y `outline-hidden` deja un contorno visible.
+ * El anillo de foco gana a cada estado: la regla de hover se aparta con :not(:focus-visible) porque su
+ * especificidad es mayor y, si no, taparía el anillo con el puntero sobre la tarjeta enfocada.
+ *
+ * En alto contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno visible.
  */
 .module-card__link:focus-visible {
   @apply shadow-focus-ring outline-hidden;

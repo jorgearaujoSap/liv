@@ -1,7 +1,7 @@
 <!-- Sin href, un enlace deshabilitado no es enfocable ni navega; `role="link"` conserva su semántica para los lectores de pantalla. -->
 <a
   class="module-card__link"
-  [attr.href]="disabled() ? null : href()"
+  [attr.href]="disabled() ? null : target()"
   [attr.role]="disabled() ? 'link' : null"
   [attr.aria-disabled]="disabled() ? 'true' : null"
   (click)="onClick($event)"
@@ -14,6 +14,8 @@
   </span>
   <span class="module-card__body">
     <span class="module-card__title">{{ heading() }}</span>
-    <span class="module-card__description">{{ description() }}</span>
+    @if (descriptionText(); as text) {
+      <span class="module-card__description">{{ text }}</span>
+    }
   </span>
 </a>

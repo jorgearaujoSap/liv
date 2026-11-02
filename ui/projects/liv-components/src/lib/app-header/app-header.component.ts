@@ -36,10 +36,15 @@ export class AppHeaderComponent {
 
 /** Primera letra de la primera y de la última palabra, en mayúscula; `?` si el nombre está vacío. */
 function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) {
     return UNKNOWN_INITIALS;
   }
-  const last = words.length > 1 ? words[words.length - 1][0] : '';
-  return (words[0][0] + last).toUpperCase();
+  const last = words.length > 1 ? firstLetter(words[words.length - 1]) : '';
+  return (firstLetter(words[0]) + last).toUpperCase();
+}
+
+/** Primer carácter de la palabra, sin partir un par sustituto (un emoji o un carácter fuera del plano básico). */
+function firstLetter(word: string): string {
+  return Array.from(word)[0];
 }

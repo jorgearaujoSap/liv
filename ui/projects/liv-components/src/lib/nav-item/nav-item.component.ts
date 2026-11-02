@@ -10,6 +10,9 @@ import {
 } from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icons';
+import { isPlainClick, linkTarget } from '../shared/link-click';
+
+let nextId = 0;
 
 /**
  * Tipo de opción: `item` (con icono), `group` (módulo con icono y chevron que se expande, y cuyas
@@ -20,15 +23,20 @@ export type NavItemType = 'item' | 'group' | 'subitem';
 /**
  * Opción del menú lateral (Figma: `NavItem`). El texto se proyecta como contenido (`Label` de Figma).
  *
- * `item` y `subitem` son enlaces: con `href`, un clic normal emite `navigate` con el destino y cancela la
- * navegación del navegador, para que la aplicación navegue con su enrutador; con Ctrl, Cmd, Mayús, Alt o
- * el botón central el navegador abre el enlace como siempre. `active` marca la pantalla actual con
- * `aria-current="page"`. `group` es un botón con `aria-expanded`; `active` solo lo pinta (el grupo que
- * contiene la pantalla actual) y no declara `aria-current`.
+ * `item` y `subitem` son enlaces: con `href`, un clic normal emite `navigate` con el destino (sin espacios
+ * sobrantes, pero sin sanear) y cancela la navegación del navegador, para que la aplicación navegue con
+ * su enrutador y solo a rutas propias; con Ctrl, Cmd, Mayús, Alt o el botón central el navegador abre el
+ * enlace como siempre. Un `href` ausente o vacío deja la opción inerte: una opción habilitada necesita
+ * destino.
+ *
+ * `active` marca la pantalla actual con `aria-current="page"`. `group` es un botón con `aria-expanded`;
+ * en él, `active` solo lo pinta (el grupo que contiene la pantalla actual) y no declara `aria-current`.
  *
  * `disabled` es una opción aún no construida: no tiene `href`, no navega ni se expande, declara
  * `aria-disabled="true"`, explica por qué con `disabledHint` y el clic no llega a quien escuche el
- * anfitrión. Hover (fondo `bg-subtle`) y Focus (anillo `focus/ring`) son los del navegador.
+ * anfitrión. Un grupo que se deshabilita conserva `expanded`: vuelve a abrirse al habilitarse.
+ *
+ * Hover (fondo `bg-subtle`) y Focus (anillo `focus/ring`) son los del navegador.
  */
 @Component({
   selector: 'liv-nav-item',
@@ -57,10 +65,14 @@ export class NavItemComponent {
   /** Clic normal sobre un enlace habilitado: la aplicación navega a este destino. */
   readonly navigate = output<string>();
 
+  private readonly uid = nextId++;
+  protected readonly controlId = `liv-nav-item-${this.uid}`;
+  protected readonly childrenId = `liv-nav-item-children-${this.uid}`;
+  protected readonly target = computed(() => linkTarget(this.href()));
   protected readonly iconName = computed(() => (this.type() === 'subitem' ? null : this.icon()));
 
   protected onLinkClick(event: MouseEvent) {
-    const href = this.href();
+    const href = this.target();
     if (this.disabled()) {
       event.preventDefault();
       event.stopPropagation();
@@ -78,9 +90,4 @@ export class NavItemComponent {
       this.expanded.update((expanded) => !expanded);
     }
   }
-}
-
-/** Clic principal sin teclas modificadoras: el que la aplicación debe resolver con su enrutador. */
-function isPlainClick(event: MouseEvent) {
-  return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
 }

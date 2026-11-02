@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   afterNextRender,
   booleanAttribute,
@@ -20,6 +21,9 @@ const FOCUSABLE =
 
 let nextId = 0;
 
+/** Diálogos abiertos, el último abierto al final: solo ese atrapa el foco y atiende Escape. */
+const openDialogs: DialogComponent[] = [];
+
 /**
  * Diálogo modal (Figma: `Dialog`) sobre `bg/overlay`, p. ej. el aviso de sesión por expirar que exige
  * WCAG 2.2.1. `open` lo controla la pantalla; el diálogo no se cierra solo. Las acciones se proyectan
@@ -27,11 +31,12 @@ let nextId = 0;
  *
  * Al abrirse, el foco va al elemento marcado con `data-initial-focus` (o a su primer enfocable) o, si no lo hay,
  * al primer enfocable; el foco queda atrapado adentro y, al cerrarse, vuelve a quien lo tenía. Escape
- * emite `closed` si `dismissible` es verdadero; en acciones críticas, pásalo en falso. Hacer clic fuera
+ * emite `closeRequested` si `dismissible` es verdadero; en acciones críticas, pásalo en falso. Hacer clic fuera
  * no cierra, para no perder lo que el usuario estaba haciendo.
  *
  * El diálogo no vuelve inerte el resto de la página: lo atrapa el foco y `aria-modal` lo oculta a los
- * lectores de pantalla. Debe haber un solo diálogo abierto a la vez.
+ * lectores de pantalla. Con varios diálogos abiertos, solo el último abierto atrapa el foco y atiende
+ * Escape.
  */
 @Component({
   selector: 'liv-dialog',
@@ -50,7 +55,7 @@ export class DialogComponent {
   /** Si Escape cierra el diálogo. */
   readonly dismissible = input(true, { transform: booleanAttribute });
   /** Escape pidió cerrar: la pantalla decide si lo hace. */
-  readonly closed = output<void>();
+  readonly closeRequested = output<void>();
 
   private readonly uid = nextId++;
   protected readonly titleId = `liv-dialog-title-${this.uid}`;
@@ -60,6 +65,7 @@ export class DialogComponent {
 
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   private readonly injector = inject(Injector);
+  private readonly document = inject(DOCUMENT);
 
   constructor() {
     effect((onCleanup) => {
@@ -74,15 +80,17 @@ export class DialogComponent {
    * y devuelve el foco a quien lo tenía.
    */
   private trapFocus(): () => void {
-    const previous = document.activeElement;
+    const previous = this.document.activeElement;
+    openDialogs.push(this);
     const onKeydown = (event: KeyboardEvent) => this.onKeydown(event);
     const onFocusin = (event: FocusEvent) => this.onFocusin(event);
-    document.addEventListener('keydown', onKeydown);
-    document.addEventListener('focusin', onFocusin);
+    this.document.addEventListener('keydown', onKeydown);
+    this.document.addEventListener('focusin', onFocusin);
     afterNextRender(() => this.focusInitial(), { injector: this.injector });
     return () => {
-      document.removeEventListener('keydown', onKeydown);
-      document.removeEventListener('focusin', onFocusin);
+      openDialogs.splice(openDialogs.indexOf(this), 1);
+      this.document.removeEventListener('keydown', onKeydown);
+      this.document.removeEventListener('focusin', onFocusin);
       if (previous instanceof HTMLElement) {
         previous.focus();
       }
@@ -90,18 +98,37 @@ export class DialogComponent {
   }
 
   private onKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && this.dismissible()) {
-      event.preventDefault();
-      this.closed.emit();
+    if (!this.isTopmost()) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      this.requestClose(event);
     } else if (event.key === 'Tab') {
       this.trapTab(event);
+    }
+  }
+
+  private isTopmost(): boolean {
+    return openDialogs[openDialogs.length - 1] === this;
+  }
+
+  /** Escape cierra si se puede descartar y nadie más lo atendió (un control interno o un IME). */
+  private requestClose(event: KeyboardEvent) {
+    if (this.dismissible() && !event.defaultPrevented && !event.isComposing) {
+      event.preventDefault();
+      this.closeRequested.emit();
     }
   }
 
   /** Si el foco llega a algo fuera del diálogo, lo devuelve adentro. */
   private onFocusin(event: FocusEvent) {
     const panel = this.panel()?.nativeElement;
-    if (panel && event.target instanceof Node && !panel.contains(event.target)) {
+    if (
+      this.isTopmost() &&
+      panel &&
+      event.target instanceof Node &&
+      !panel.contains(event.target)
+    ) {
       this.focusInitial();
     }
   }
