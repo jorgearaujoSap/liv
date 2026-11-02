@@ -8,13 +8,17 @@
   @apply text-label-md text-text-primary;
 }
 
-/* El borde de Focus y Error mide 1,5 px en Figma: 1 px de borde más 0,5 px de anillo interior. */
 .text-field__control {
-  @apply flex h-[44px] items-center gap-2 rounded-lg border border-solid border-border-strong bg-bg-surface pr-1 pl-3;
+  @apply box-border flex h-[44px] items-center gap-2 rounded-lg border border-solid border-border-strong bg-bg-surface pr-1 pl-3;
 }
 
-.text-field__control:focus-within {
-  @apply border-border-focus shadow-focus-ring inset-ring-[0.5px] inset-ring-border-focus;
+/*
+ * El borde de Focus y Error mide 1,5 px en Figma: 1 px de borde más 0,5 px de anillo interior. El foco
+ * se marca solo cuando lo tiene el input, no la acción final, que ya muestra su propio anillo. En alto
+ * contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno.
+ */
+.text-field__control:has(.text-field__input:focus) {
+  @apply border-border-focus shadow-focus-ring outline-hidden inset-ring-[0.5px] inset-ring-border-focus;
 }
 
 .text-field__icon {

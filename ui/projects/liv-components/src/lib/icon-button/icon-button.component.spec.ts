@@ -77,13 +77,17 @@ describe('IconButton', () => {
     expect(getComputedStyle(render().button).color).toContain('var(--color-text-secondary');
     const secondary = getComputedStyle(render({ variant: 'secondary' }).button);
     expect(secondary.backgroundColor).toContain('var(--color-bg-surface');
-    expect(declaredStyle(render({ variant: 'secondary' }).button, 'border-color')).toBe(
-      'var(--color-border-strong)',
+    expect(declaredStyle(render({ variant: 'secondary' }).button, 'border-color')).toContain(
+      'var(--color-border-strong,',
     );
   });
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
-    expect(declaredStyle(render().button, 'outline-style', 'forced-colors')).not.toBe('');
+    const { button } = render();
+    // Foco con el teclado (Tab), como lo distingue :focus-visible.
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    button.focus();
+    expect(declaredStyle(button, 'outline', 'forced-colors')).not.toBe('');
   });
 
   it('emite clic y, deshabilitado, no lo emite', () => {

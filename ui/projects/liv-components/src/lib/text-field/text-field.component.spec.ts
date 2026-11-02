@@ -113,7 +113,7 @@ describe('TextField', () => {
     it('el borde y la ayuda usan status/danger', () => {
       const { host } = render({ error: 'Escribe tu usuario.' });
       const control = host.querySelector('.text-field__control') as HTMLElement;
-      expect(declaredStyle(control, 'border-color')).toBe('var(--color-status-danger)');
+      expect(declaredStyle(control, 'border-color')).toContain('var(--color-status-danger,');
       const help = host.querySelector('.text-field__help') as HTMLElement;
       expect(getComputedStyle(help).color).toContain('var(--color-status-danger');
     });
@@ -130,7 +130,7 @@ describe('TextField', () => {
     expect(input.disabled).toBe(true);
     expect(host.dataset['state']).toBe('disabled');
     const control = host.querySelector('.text-field__control') as HTMLElement;
-    expect(declaredStyle(control, 'border-color')).toBe('var(--color-border-default)');
+    expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-default,');
     expect(getComputedStyle(control).backgroundColor).toContain('var(--color-bg-subtle');
     expect(getComputedStyle(input).color).toContain('var(--color-text-disabled');
   });
@@ -171,8 +171,10 @@ describe('TextField', () => {
   });
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
-    const control = render().host.querySelector('.text-field__control') as HTMLElement;
-    expect(declaredStyle(control, 'outline-style', 'forced-colors')).not.toBe('');
+    const { host, input } = render();
+    input.focus();
+    const control = host.querySelector('.text-field__control') as HTMLElement;
+    expect(declaredStyle(control, 'outline', 'forced-colors')).not.toBe('');
   });
 
   it('el icono inicial es opcional, de 20 px y decorativo', () => {
@@ -192,7 +194,7 @@ describe('TextField', () => {
   it('el campo mide 44 px de alto', () => {
     const control = render().host.querySelector('.text-field__control') as HTMLElement;
     expect(getComputedStyle(control).height).toContain('44px');
-    expect(declaredStyle(control, 'border-color')).toBe('var(--color-border-strong)');
+    expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-strong,');
     expect(declaredStyle(control, 'box-sizing')).toBe('border-box');
   });
 

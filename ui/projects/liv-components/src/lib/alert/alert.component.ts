@@ -15,8 +15,12 @@ const ICONS: Record<AlertStatus, IconName> = {
 /**
  * Mensaje en línea con icono y fondo suave (Figma: `Alert`). El título (`heading`, la propiedad `Title`
  * de Figma) dice qué pasó y el mensaje, que se proyecta como contenido (`Message`), qué hacer. El
- * estado Error usa `role="alert"` y los demás `role="status"`; el icono es decorativo porque el texto
- * dice el estado.
+ * estado Error usa `role="alert"` y los demás `role="status"`. El icono es decorativo: el título o el
+ * mensaje deben decir el estado, porque el color no es la única señal.
+ *
+ * Un lector de pantalla anuncia la alerta cuando aparece o cuando cambia su texto. Si un reintento
+ * falla con el mismo mensaje, la pantalla debe volver a crear la alerta (p. ej. con un `@for` que
+ * siga el número de intento) para que se anuncie otra vez.
  */
 @Component({
   selector: 'liv-alert',

@@ -22,8 +22,13 @@ let nextId = 0;
  * ejemplo y nunca la reemplaza (`Content=Placeholder` en Figma). El valor se enlaza con `[(value)]`.
  *
  * Con `error` el campo pasa al estado Error: expone `aria-invalid="true"` y el mensaje, que dice cómo
- * corregir, reemplaza a la ayuda y queda enlazado con `aria-describedby`. La acción final (por ejemplo
- * "Mostrar contraseña") se proyecta como un `liv-icon-button` dentro del campo.
+ * corregir, reemplaza a la ayuda y queda enlazado con `aria-describedby`. Deshabilitado, el error no se
+ * muestra porque no se puede corregir. La acción final (por ejemplo "Mostrar contraseña") se proyecta
+ * como un `liv-icon-button` dentro del campo; si el campo se deshabilita, la pantalla la deshabilita
+ * también.
+ *
+ * Contraseñas, correos y campos con `sensitive` (usuario, código) van sin corrector ortográfico, que en
+ * algunos navegadores envía el texto a un servidor, y sin mayúscula ni corrección automáticas.
  */
 @Component({
   selector: 'liv-text-field',
@@ -51,18 +56,26 @@ export class TextFieldComponent {
   readonly leadingIcon = input<IconName>();
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly required = input(false, { transform: booleanAttribute });
+  /** Credencial o identificador: sin corrector ni mayúscula automática aunque el tipo sea `text`. */
+  readonly sensitive = input(false, { transform: booleanAttribute });
 
   protected readonly inputId = `liv-text-field-${nextId++}`;
   protected readonly messageId = `${this.inputId}-message`;
 
-  /** Un error vacío cuenta como ausente. */
-  protected readonly errorText = computed(() => this.error()?.trim() || null);
+  /** Un error vacío cuenta como ausente, y un campo deshabilitado no muestra error. */
+  protected readonly errorText = computed(() =>
+    this.disabled() ? null : this.error()?.trim() || null,
+  );
   protected readonly message = computed(() => this.errorText() ?? (this.help()?.trim() || null));
+  protected readonly plainText = computed(
+    () => this.sensitive() || this.type() === 'password' || this.type() === 'email',
+  );
   protected readonly state = computed<TextFieldState>(() => {
     if (this.disabled()) return 'disabled';
     return this.errorText() ? 'error' : 'default';
   });
 
+  /** `input` al escribir y `change` para el autocompletado que no dispara `input`. */
   protected onInput(event: Event): void {
     this.value.set((event.target as HTMLInputElement).value);
   }

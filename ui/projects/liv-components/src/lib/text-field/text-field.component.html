@@ -15,13 +15,18 @@
     [attr.placeholder]="placeholder() ?? null"
     [attr.aria-invalid]="errorText() ? 'true' : null"
     [attr.aria-describedby]="message() ? messageId : null"
+    [attr.spellcheck]="plainText() ? 'false' : null"
+    [attr.autocapitalize]="plainText() ? 'none' : null"
+    [attr.autocorrect]="plainText() ? 'off' : null"
     (input)="onInput($event)"
+    (change)="onInput($event)"
   />
   <ng-content select="liv-icon-button" />
 </div>
 @if (message(); as text) {
   <p class="text-field__help" [id]="messageId">
     @if (errorText()) {
+      <!-- Figma dibuja este icono a 14 px, pero Icon solo admite 16, 20 o 24 (decisión pendiente). -->
       <liv-icon name="circle-alert" [size]="16" />
     }
     <span>{{ text }}</span>

@@ -148,16 +148,18 @@ describe('CodeInput', () => {
   it('el borde es border/strong y, en error, status/danger', () => {
     const control = (inputs: Partial<HostComponent>) =>
       render(inputs).host.querySelector('.code-input__control') as HTMLElement;
-    expect(declaredStyle(control({}), 'border-color')).toBe('var(--color-border-strong)');
-    expect(declaredStyle(control({ error: 'No es válido.' }), 'border-color')).toBe(
-      'var(--color-status-danger)',
+    expect(declaredStyle(control({}), 'border-color')).toContain('var(--color-border-strong,');
+    expect(declaredStyle(control({ error: 'No es válido.' }), 'border-color')).toContain(
+      'var(--color-status-danger,',
     );
     expect(declaredStyle(control({}), 'box-sizing')).toBe('border-box');
   });
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
-    const control = render().host.querySelector('.code-input__control') as HTMLElement;
-    expect(declaredStyle(control, 'outline-style', 'forced-colors')).not.toBe('');
+    const { host, input } = render();
+    input.focus();
+    const control = host.querySelector('.code-input__control') as HTMLElement;
+    expect(declaredStyle(control, 'outline', 'forced-colors')).not.toBe('');
   });
 
   it('usa el estilo code/lg y el alto de 56 px de Figma', () => {

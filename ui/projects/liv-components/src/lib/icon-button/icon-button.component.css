@@ -5,15 +5,16 @@
 }
 
 .icon-button {
-  @apply relative m-0 inline-flex cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-text-secondary outline-none;
+  @apply relative m-0 box-border inline-flex cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-text-secondary outline-none;
 }
 
 .icon-button:hover:enabled {
   @apply bg-bg-subtle;
 }
 
+/* En alto contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno. */
 .icon-button:focus-visible {
-  @apply shadow-focus-ring;
+  @apply shadow-focus-ring outline-hidden;
 }
 
 .icon-button:disabled {
@@ -39,6 +40,7 @@
   @apply border border-solid border-border-strong bg-bg-surface;
 }
 
+/* Repite el Hover de la base porque la regla de Secondary, de igual especificidad, lo pisaría. */
 :host([data-variant='secondary']) .icon-button:hover:enabled {
   @apply bg-bg-subtle;
 }

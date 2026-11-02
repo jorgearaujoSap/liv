@@ -4,8 +4,9 @@
   @apply inline-flex;
 }
 
+/* `w-full`: el ancho lo decide el anfitrión, así la pantalla puede estirarlo sin tocar el botón. */
 .button {
-  @apply m-0 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 font-sans text-button-md whitespace-nowrap outline-none;
+  @apply m-0 box-border inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 font-sans text-button-md whitespace-nowrap outline-none;
 }
 
 .button:disabled {
@@ -29,6 +30,8 @@
 :host([data-size='lg']) .button {
   @apply h-12 px-5;
 }
+
+/* Variantes. Loading usa el fondo de Hover, como en Figma. */
 
 /* Primary */
 
@@ -75,7 +78,10 @@
   @apply text-text-disabled;
 }
 
-/* El anillo de foco reemplaza la sombra, como en Figma; va al final para ganar a cada variante. */
+/*
+ * El anillo de foco reemplaza la sombra, como en Figma; va al final para ganar a cada variante. En alto
+ * contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno visible.
+ */
 :host .button:focus-visible {
-  @apply shadow-focus-ring;
+  @apply shadow-focus-ring outline-hidden;
 }

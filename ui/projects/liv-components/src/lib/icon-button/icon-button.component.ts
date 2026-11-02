@@ -5,6 +5,7 @@ import {
   computed,
   input,
 } from '@angular/core';
+import { ButtonType } from '../button/button.component';
 import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icons';
 
@@ -37,7 +38,7 @@ export class IconButtonComponent {
   readonly label = input.required<string>();
   readonly variant = input<IconButtonVariant>('ghost');
   readonly size = input<IconButtonSize>('sm');
-  readonly type = input<'button' | 'submit' | 'reset'>('button');
+  readonly type = input<ButtonType>('button');
   readonly disabled = input(false, { transform: booleanAttribute });
 
   protected readonly iconSize = computed(() => (this.size() === 'md' ? 20 : 16));

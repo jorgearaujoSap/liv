@@ -71,5 +71,8 @@ export const Success: Story = {
 };
 
 export const SinTitulo: Story = {
-  args: { status: 'info', message: 'Mensaje para el usuario, en una o dos frases.' },
+  args: {
+    status: 'info',
+    message: 'Tu sesión se cerró por inactividad. Ingresa de nuevo para continuar.',
+  },
 };

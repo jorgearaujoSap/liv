@@ -139,7 +139,7 @@ describe('Button', () => {
       await fixture.whenStable();
       expect(host.querySelector(':scope > [role="status"]')).toBe(status);
       expect(status.textContent?.trim()).toBe('Ingresando…');
-      expect(host.querySelector('button')?.textContent?.trim()).toBe('Ingresar');
+      expect(host.querySelector('.button__label')?.textContent?.trim()).toBe('Ingresar');
 
       fixture.componentInstance.loading.set(false);
       await fixture.whenStable();
@@ -221,16 +221,20 @@ describe('Button', () => {
   });
 
   it('la variante Secondary tiene borde border/strong y, deshabilitada, border/default', () => {
-    expect(declaredStyle(render({ variant: 'secondary' }).button, 'border-color')).toBe(
-      'var(--color-border-strong)',
+    expect(declaredStyle(render({ variant: 'secondary' }).button, 'border-color')).toContain(
+      'var(--color-border-strong,',
     );
     expect(
       declaredStyle(render({ variant: 'secondary', disabled: true }).button, 'border-color'),
-    ).toBe('var(--color-border-default)');
+    ).toContain('var(--color-border-default,');
   });
 
   it('el foco sigue visible en alto contraste (forced-colors)', () => {
-    expect(declaredStyle(render().button, 'outline-style', 'forced-colors')).not.toBe('');
+    const { button } = render();
+    // Foco con el teclado (Tab), como lo distingue :focus-visible.
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    button.focus();
+    expect(declaredStyle(button, 'outline', 'forced-colors')).not.toBe('');
   });
 
   it.each<[ButtonSize, string]>([

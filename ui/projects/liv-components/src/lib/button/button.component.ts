@@ -24,9 +24,10 @@ export type ButtonType = 'button' | 'submit' | 'reset';
  * (`:hover` y `:focus-visible`).
  *
  * En `loading` muestra el spinner en lugar del icono inicial, no emite clic ni envía el formulario y
- * sigue enfocable (`aria-disabled`), para que el foco no se pierda. `loadingLabel` (p. ej.
- * "Ingresando…") se anuncia en una región viva que existe desde el inicio, fuera del botón; si la
- * pantalla también cambia el texto visible, debe usar el mismo.
+ * sigue enfocable (`aria-disabled`), para que el foco no se pierda. Como en Figma, el texto visible no
+ * cambia: lo que se anuncia es `loadingLabel` (p. ej. "Ingresando…"), en una región viva que existe
+ * desde el inicio, fuera del botón. `disabled` prevalece sobre `loading`, así que no se ata al mismo
+ * estado pendiente: el doble envío lo evita `loading`.
  */
 @Component({
   selector: 'liv-button',
@@ -60,7 +61,8 @@ export class ButtonComponent {
   protected readonly busy = computed(() => this.loading() && !this.disabled());
 
   protected onClick(event: MouseEvent): void {
-    if (this.busy()) {
+    // El navegador no despacha clics en un botón deshabilitado; se cubre también el clic programático.
+    if (this.busy() || this.disabled()) {
       event.preventDefault();
       event.stopImmediatePropagation();
     }

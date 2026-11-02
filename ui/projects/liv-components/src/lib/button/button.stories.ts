@@ -23,7 +23,7 @@ const meta: Meta<ButtonArgs> = {
   parameters: {
     docs: {
       description: {
-        component: `Botón con tres variantes (Primary es la acción principal, una por vista), dos tamaños (Md 40 px en la aplicación, Lg 48 px en los formularios de acceso y en móvil) e iconos opcionales. Hover y Focus son los del navegador: pasa el puntero o enfoca con Tab. En Loading no emite clic, sigue enfocable y anuncia \`loadingLabel\`, que debe coincidir con el texto visible. [Diseño en Figma](${figma})`,
+        component: `Botón con tres variantes (Primary es la acción principal, una por vista), dos tamaños (Md 40 px en la aplicación, Lg 48 px en los formularios de acceso y en móvil) e iconos opcionales. Hover y Focus son los del navegador: pasa el puntero o enfoca con Tab. En Loading no emite clic, sigue enfocable y, como en Figma, mantiene su texto y anuncia \`loadingLabel\`. [Diseño en Figma](${figma})`,
       },
     },
   },
@@ -84,17 +84,17 @@ export const GhostDisabled: Story = {
 };
 
 export const Loading: Story = {
-  args: { loading: true, label: 'Ingresando…', loadingLabel: 'Ingresando…' },
+  args: { loading: true, label: 'Ingresar', loadingLabel: 'Ingresando…' },
 };
 
 export const LoadingLg: Story = {
-  args: { loading: true, size: 'lg', label: 'Ingresando…', loadingLabel: 'Ingresando…' },
+  args: { loading: true, size: 'lg', label: 'Ingresar', loadingLabel: 'Ingresando…' },
 };
 
 export const SecondaryLoading: Story = {
-  args: { variant: 'secondary', loading: true, label: 'Guardando…', loadingLabel: 'Guardando…' },
+  args: { variant: 'secondary', loading: true, label: 'Guardar', loadingLabel: 'Guardando…' },
 };
 
 export const GhostLoading: Story = {
-  args: { variant: 'ghost', loading: true, label: 'Enviando…', loadingLabel: 'Enviando…' },
+  args: { variant: 'ghost', loading: true, label: 'Enviar', loadingLabel: 'Enviando…' },
 };
