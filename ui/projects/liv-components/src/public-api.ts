@@ -6,6 +6,7 @@
  * Los tokens de diseño se publican como `liv-components/styles/theme.css`.
  */
 export { AlertComponent, type AlertStatus } from './lib/alert/alert.component';
+export { AppHeaderComponent } from './lib/app-header/app-header.component';
 export { AvatarComponent, type AvatarSize } from './lib/avatar/avatar.component';
 export { BadgeComponent, type BadgeTone } from './lib/badge/badge.component';
 export {
@@ -24,12 +25,14 @@ export {
 export { IconComponent } from './lib/icon/icon.component';
 export { ICON_NAMES, type IconName, type IconSize } from './lib/icon/icons';
 export { LogoComponent, type LogoTone } from './lib/logo/logo.component';
+export { ModuleCardComponent } from './lib/module-card/module-card.component';
 export { NavItemComponent, type NavItemType } from './lib/nav-item/nav-item.component';
+export { NavSectionComponent } from './lib/side-nav/nav-section.component';
+export { PageHeaderComponent } from './lib/page-header/page-header.component';
 export {
   ResultStateComponent,
   type ResultStateTone,
 } from './lib/result-state/result-state.component';
-export { NavSectionComponent } from './lib/side-nav/nav-section.component';
 export { SideNavComponent } from './lib/side-nav/side-nav.component';
 export { SkeletonComponent, type SkeletonShape } from './lib/skeleton/skeleton.component';
 export {

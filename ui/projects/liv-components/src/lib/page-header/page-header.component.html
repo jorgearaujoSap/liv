@@ -1,0 +1,18 @@
+@if (breadcrumb().length > 0) {
+  <nav class="page-header__breadcrumb" aria-label="Ruta de navegación">
+    <ol class="page-header__list">
+      @for (part of breadcrumb(); track $index; let last = $last) {
+        <li class="page-header__part" [attr.aria-current]="last ? 'page' : null">
+          {{ part }}
+          @if (!last) {
+            <liv-icon class="page-header__separator" name="chevron-right" [size]="16" />
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+}
+<h1 class="page-header__title">{{ heading() }}</h1>
+@if (descriptionText(); as text) {
+  <p class="page-header__description">{{ text }}</p>
+}
