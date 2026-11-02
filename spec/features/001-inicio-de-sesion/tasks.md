@@ -67,8 +67,13 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     3. si revocar el *refresh token* (RFC 7009) cierra la sesión del usuario;
     4. qué eventos emite.
   - Prueba primero: no aplica. **Si alguna respuesta obliga a escribir una extensión de Keycloak o cambia una decisión del plan, se detiene y se lleva al responsable.**
-- [ ] **T07** · *Realm* como código.
-  - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/identity/config/dev/**`, `backend/identity/README.md`, pruebas de configuración en `backend/identity/test/**`.
+- [x] **T07** · *Realm* como código. — Hecha: PR #26.
+  - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/identity/README.md`, `backend/src/test/java/**/identityconfig/RealmConfigTest.java`.
+  - **Desviaciones declaradas:**
+    - la prueba está en `backend/src/test/java`, porque Maven no corre pruebas desde `backend/identity/test/`;
+    - la capa de desarrollo quedó en `backend/dev/keycloak/` (no en `identity/config/dev/`) y sin TOTP; los usuarios con TOTP conocido pasan a T23;
+    - se tocaron archivos de T09: `backend/dev/compose.yaml` (servicio `keycloak-config`), `check.sh` (verificación del *realm* aplicado), `.env.example` y `README.md`;
+    - que un TOTP equivocado cuente para el bloqueo es comportamiento de Keycloak: lo verificará el e2e de T23.
   - Prueba primero: `RealmConfigTest`, en rojo, que verifica:
     - roles; clientes `liv-bff` y `liv-bff-service` (solo *client credentials*, audiencia `liv-internal`); sin `offline_access`;
     - `administration_id` editable solo por un administrador;
@@ -144,6 +149,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `StartSession` con los dos *tokens*;
     - Spring Session JDBC con *tokens* cifrados;
     - `/bff/logout` con revocación y la ruta de LIV;
+    - cierre por canal trasero en `/bff/backchannel-logout`: fijar el puerto del BFF en `LIV_BFF_BACKCHANNEL_URL` de `backend/dev/.env.example` (hoy apunta a `host.docker.internal:4200`, el proxy del frontend);
     - rechazo con revocación y vuelta a `/bff/login`, sin parámetro de motivo.
   - Archivos: `backend/bff/src/main/**` (paquetes de login y logout), `backend/bff/src/test/**`.
   - Prueba primero:
@@ -192,7 +198,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 ## Sistema
 
 - [ ] **T23** · `infra/` y `e2e/`.
-  - Archivos: `infra/compose.yaml` (solo imágenes publicadas), `infra/keycloak/e2e-users.yaml`, `infra/e2e/seed.sql`, `infra/caddy/**`, `e2e/**`.
+  - Archivos: `infra/compose.yaml` (solo imágenes publicadas), `infra/keycloak/e2e-users.yaml` (usuarios con TOTP conocido; la capa de desarrollo no los trae, ver T07), `infra/e2e/seed.sql`, `infra/caddy/**`, `e2e/**`.
   - Prueba primero: las especificaciones de Playwright de 001-01 a 001-22, escritas en rojo, incluidas:
     - el aviso y "Seguir conectado";
     - volver a entrar tras la expiración;
