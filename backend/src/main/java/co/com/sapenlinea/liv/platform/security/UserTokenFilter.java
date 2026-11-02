@@ -8,21 +8,24 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * On session start, after the service token is validated, validates the user token of {@code
- * X-User-Token} with the decoder of {@code /api/**} (core-internal.yaml). A missing or invalid
- * token is a 401 with 001-14 before the controller runs; a valid one is left in {@link
- * VerifiedUserToken}.
+ * X-User-Token} with the decoder of {@code /api/**} (core-internal.yaml). A missing, oversized or
+ * invalid token is a 401 with 001-14 before the controller runs; a valid one is left in {@link
+ * VerifiedUserToken}. A provider that cannot be reached is not a rejection: it propagates as a 503.
  */
 final class UserTokenFilter extends OncePerRequestFilter {
 
   static final String HEADER = "X-User-Token";
+
+  /** {@code maxLength} of the header in core-internal.yaml. */
+  private static final int MAX_LENGTH = 8192;
 
   private final RequestMatcher sessionStart;
   private final JwtDecoder userTokens;
@@ -42,13 +45,14 @@ final class UserTokenFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     String token = request.getHeader(HEADER);
-    if (!StringUtils.hasText(token)) {
+    if (!StringUtils.hasText(token) || token.length() > MAX_LENGTH) {
       throw new AuthenticationRejectedException(ErrorCodes.NOT_AUTHENTICATED, "No user token");
     }
     try {
       request.setAttribute(VerifiedUserToken.ATTRIBUTE, userTokens.decode(token));
-    } catch (JwtException e) {
-      throw new AuthenticationRejectedException(ErrorCodes.NOT_AUTHENTICATED, "Invalid user token");
+    } catch (BadJwtException e) {
+      throw new AuthenticationRejectedException(
+          ErrorCodes.NOT_AUTHENTICATED, "Invalid user token: " + e.getMessage());
     }
     chain.doFilter(request, response);
   }

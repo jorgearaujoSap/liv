@@ -37,6 +37,11 @@ final class CurrentUserFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
+    if (AdministrationContext.current().isPresent()) {
+      // A listener, job or earlier request that ran on this thread did not close its scope:
+      // serving this request with it could show another administration's data (001-17).
+      throw new IllegalStateException("An administration context is already open");
+    }
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (!(authentication instanceof JwtAuthenticationToken token)) {
       throw rejected(ErrorCodes.NOT_AUTHENTICATED, "No bearer token");
@@ -47,10 +52,12 @@ final class CurrentUserFilter extends OncePerRequestFilter {
             .resolve(identity.issuer(), identity.subject())
             .orElseThrow(() -> rejected(ErrorCodes.NOT_AUTHENTICATED, "No LIV session"));
     if (!user.active()) {
-      throw rejected(ErrorCodes.USER_INACTIVE, "Deactivated user");
+      throw rejected(ErrorCodes.USER_INACTIVE, "Deactivated user " + user.id());
     }
     if (!identity.administrationId().filter(user.administrationId()::equals).isPresent()) {
-      throw rejected(ErrorCodes.ADMINISTRATION_MISMATCH, "Administration mismatch");
+      throw rejected(
+          ErrorCodes.ADMINISTRATION_MISMATCH,
+          "Administration of the token is not the registered one for user " + user.id());
     }
     request.setAttribute(
         CurrentUser.ATTRIBUTE,

@@ -6,11 +6,16 @@ spring:
       enabled: true
   # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
   # llegan por variables de entorno y no tienen valor por defecto (sin LIV_DB_URL no arranca; sin la contraseña no
-  # se autentica). El despliegue no debe sobrescribir el usuario; T12 agrega la comprobación al arrancar.
+  # se autentica). El despliegue no debe sobrescribir el usuario; la comprobación al arrancar llega con el gestor
+  # de transacciones (T12, segunda parte).
   datasource:
     url: ${LIV_DB_URL}
     username: liv_app
     password: ${LIV_APP_PASSWORD}
+    # Cada petición a /api consulta el registro de usuarios: si la base no responde, 503 a los 5 s en lugar de
+    # esperar los 30 s por omisión.
+    hikari:
+      connection-timeout: 5000
   # Flyway (liv_owner) corre solo en los perfiles dev y test. En staging y producción migra la imagen
   # liv-migrations como paso del despliegue.
   flyway:
@@ -39,6 +44,11 @@ liv:
 logging:
   pattern:
     correlation: "[%X{correlation_id:-}] "
+  # Trazas de excepción con las credenciales enmascaradas (logback-spring.xml).
+  exception-conversion-word: "%maskedEx"
+  level:
+    # En DEBUG, Spring MVC registra el toString de los modelos generados, que tiene datos personales (T11).
+    org.springframework.web: INFO
 
 management:
   endpoints:

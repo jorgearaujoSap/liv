@@ -10,6 +10,10 @@ import java.util.UUID;
  *
  * <p>It belongs to the thread: the security filter opens it for each request, and asynchronous
  * listeners and jobs open it with the administration of their event before their transaction.
+ *
+ * <p>It does not travel to other threads: asynchronous controllers and {@code @Async} methods run
+ * without it until a propagator exists. Only {@code platform} and infrastructure adapters may open
+ * it (ArchitectureRulesTest).
  */
 public final class AdministrationContext {
 

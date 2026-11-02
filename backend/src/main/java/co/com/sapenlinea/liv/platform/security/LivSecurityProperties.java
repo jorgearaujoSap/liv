@@ -3,6 +3,7 @@ package co.com.sapenlinea.liv.platform.security;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -19,7 +20,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("liv.security")
 record LivSecurityProperties(
-    @NotBlank String issuerUri,
+    @NotBlank @Pattern(regexp = "https?://[!-~]+") String issuerUri,
     @NotBlank String userAudience,
     @NotBlank String serviceAudience,
     @NotBlank String serviceClientId,
