@@ -87,7 +87,10 @@ final class LivDatabase {
   }
 
   static void setContext(Connection connection, UUID administration) throws SQLException {
-    update(connection, "SELECT set_config('app.administration_id', ?, true)", administration);
+    update(
+        connection,
+        "SELECT set_config('app.administration_id', ?, true)",
+        administration.toString());
   }
 
   static int update(String role, UUID administration, String sql, Object... args)

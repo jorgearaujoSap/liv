@@ -51,6 +51,28 @@ class FindUserByIdentityTest {
   }
 
   @Test
+  @DisplayName(
+      "001-17 · El alta con la identidad de otra administración no inserta nada y la función revela el conflicto")
+  void provisioningAnExistingIdentityOfAnotherAdministrationDoesNothing() throws SQLException {
+    int inserted =
+        update(
+            APP,
+            ADMIN_A,
+            """
+            INSERT INTO core.admin_user (administration_id, full_name, email, status,
+                                         identity_issuer, identity_subject)
+            VALUES (?, 'Duplicado', 'd@test.invalid', 'ACTIVE', ?, ?)
+            ON CONFLICT DO NOTHING
+            """,
+            ADMIN_A,
+            ISSUER,
+            SUBJECT_B);
+
+    assertThat(inserted).isZero();
+    assertThat(rows(APP, ADMIN_A, FIND, ISSUER, SUBJECT_B).get(0)[1]).isEqualTo(ADMIN_B);
+  }
+
+  @Test
   @DisplayName("001-05 · Una identidad desconocida no devuelve filas")
   void unknownIdentityReturnsNothing() throws SQLException {
     assertThat(rows(APP, ADMIN_A, FIND, ISSUER, "no-existe")).isEmpty();

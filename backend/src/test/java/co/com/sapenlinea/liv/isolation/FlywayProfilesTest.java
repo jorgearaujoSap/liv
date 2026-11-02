@@ -54,8 +54,10 @@ class FlywayProfilesTest {
     @DisplayName(
         "Con el perfil test, Flyway migra con liv_owner y la aplicación se conecta como liv_app")
     void flywayUsesTheOwnerAndTheAppUsesLivApp() throws Exception {
-      assertThat(flyway.getConfiguration().getUser()).isEqualTo(LivDatabase.OWNER);
       assertThat(flyway.info().pending()).isEmpty();
+      try (var connection = flyway.getConfiguration().getDataSource().getConnection()) {
+        assertThat(connection.getMetaData().getUserName()).isEqualTo(LivDatabase.OWNER);
+      }
       try (var connection = dataSource.getConnection()) {
         assertThat(connection.getMetaData().getUserName()).isEqualTo(LivDatabase.APP);
       }

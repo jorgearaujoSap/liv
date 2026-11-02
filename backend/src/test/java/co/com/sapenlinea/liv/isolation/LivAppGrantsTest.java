@@ -24,12 +24,13 @@ class LivAppGrantsTest {
           "core.territorial_entity", "SELECT",
           "core.tax_administration", "SELECT",
           "core.admin_user", "INSERT,SELECT",
-          "core.user_session", "INSERT,SELECT");
+          "core.user_session", "INSERT,SELECT",
+          "platform.event_publication", "DELETE,INSERT,SELECT,UPDATE");
 
   private static final Map<String, String> COLUMN_UPDATES =
       Map.of(
           "core.admin_user", "last_login_at",
-          "core.user_session", "ended_at,end_reason");
+          "core.user_session", "end_reason,ended_at");
 
   @Test
   @DisplayName(

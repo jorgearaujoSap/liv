@@ -1,0 +1,10 @@
+# Perfil de desarrollo local (backend/dev/README.md): migra con liv_owner y carga la semilla ficticia.
+# Variables: las de dev/.env (LIV_OWNER_PASSWORD, LIV_APP_PASSWORD); ver backend/dev/README.md.
+spring:
+  flyway:
+    enabled: true
+    url: ${LIV_DB_URL:jdbc:postgresql://localhost:5433/liv}
+    user: liv_owner
+    password: ${LIV_OWNER_PASSWORD}
+    # La semilla vive fuera de src/main/resources: no se empaqueta en la imagen.
+    locations: classpath:db/migration,filesystem:dev/seed

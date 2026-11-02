@@ -20,6 +20,10 @@ CREATE ROLE liv_identity_lookup NOLOGIN NOBYPASSRLS NOSUPERUSER NOCREATEDB NOCRE
 CREATE ROLE liv_audit_platform  NOLOGIN NOBYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE;                               -- dueño de audit.record_platform_session_denied (T10)
 CREATE ROLE keycloak            LOGIN   NOBYPASSRLS NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'keycloak_pw';      -- base propia de Keycloak
 
+-- Flyway (liv_owner) crea las funciones SECURITY DEFINER y las entrega a sus dueños sin inicio de sesión (T10):
+-- ALTER FUNCTION ... OWNER TO exige poder asumir el rol. Sin INHERIT: liv_owner no hereda sus permisos.
+GRANT liv_identity_lookup, liv_audit_platform TO liv_owner WITH INHERIT FALSE, SET TRUE;
+
 CREATE DATABASE liv OWNER liv_owner;
 CREATE DATABASE keycloak OWNER keycloak;
 

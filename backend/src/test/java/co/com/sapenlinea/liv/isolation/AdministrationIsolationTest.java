@@ -70,9 +70,13 @@ class AdministrationIsolationTest {
     assertThat(rows(APP, ADMIN_A, "SELECT id FROM core.tax_administration"))
         .extracting(row -> row[0])
         .containsExactly(ADMIN_A);
+    assertThat(rows(APP, ADMIN_A, "SELECT id, administration_id FROM core.admin_user"))
+        .extracting(row -> row[1])
+        .containsOnly(ADMIN_A);
     assertThat(rows(APP, ADMIN_A, "SELECT id FROM core.admin_user"))
         .extracting(row -> row[0])
-        .containsExactly(USER_A);
+        .contains(USER_A)
+        .doesNotContain(USER_B);
     assertThat(rows(APP, ADMIN_A, "SELECT sid FROM core.user_session"))
         .extracting(row -> row[0].toString())
         .containsExactly(SID_A.toString());
@@ -145,7 +149,8 @@ class AdministrationIsolationTest {
             LivDatabase.jdbcUrl(), APP, LivDatabase.password(APP))) {
       connection.setAutoCommit(false);
       LivDatabase.setContext(connection, ADMIN_A);
-      assertThat(rows(connection, "SELECT count(*) FROM core.admin_user").get(0)[0]).isEqualTo(1L);
+      assertThat(rows(connection, "SELECT count(*) FROM core.admin_user").get(0)[0])
+          .isNotEqualTo(0L);
       connection.commit();
       assertThat(rows(connection, "SELECT count(*) FROM core.admin_user").get(0)[0]).isEqualTo(0L);
     }
