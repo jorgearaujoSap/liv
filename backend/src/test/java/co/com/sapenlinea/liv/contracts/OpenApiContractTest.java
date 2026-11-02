@@ -174,6 +174,17 @@ class OpenApiContractTest {
   }
 
   @Test
+  @DisplayName("001-14 · Un sid que no es el del token del usuario es 401 con 001-14, no 403")
+  void sidMismatchIsUnauthorized() {
+    Map<String, Object> contract = load("core-internal.yaml");
+    assertThat((String) response(contract, "Unauthorized").get("description"))
+        .contains("001-14")
+        .contains("sid");
+    assertThat((String) response(contract, "SessionRejected").get("description"))
+        .doesNotContain("001-14");
+  }
+
+  @Test
   @DisplayName("001-14 · Un usuario sin sesión o no registrado recibe 401 con el código 001-14")
   void unregisteredUserIsNotASessionlessCodeOf00105() {
     for (String file : List.of("core.yaml", "platform.yaml")) {
