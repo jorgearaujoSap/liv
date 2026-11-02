@@ -54,7 +54,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05 | Esqueleto de frontend | 🔄 | Workspace Angular 21.2 (Node 22), Tailwind 4, *tokens* desde el paquete `liv-components@0.1.0` instalado desde npm (versión exacta), ESLint con reglas de frontera (comprobadas), Prettier, Vitest; raíz sin pantallas. Faltan autenticación, *layout* y menú (necesitan F0‑05b y el BFF) y el cliente generado desde `api-spec/` |
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Faltan componentes (primero en Figma), *script* que regenere los tokens desde Figma, Storybook y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
-| F0‑06 | Docker Compose local | ⏳ | — |
+| F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* llega con T07. Faltan MinIO, ClamAV y observabilidad |
 | F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01 hasta T03), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Faltan publicación de imágenes y contratos, cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
 | F0‑08 | Roles de BD, RLS y primera migración | ⏳ | — |
 | F0‑09 | Auditoría, correlación y observabilidad | ⏳ | — |
@@ -119,6 +119,13 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-01
 
+- Feature 001, T09 integrada (PR #20): entorno local del backend en `backend/dev/`.
+  - PostgreSQL 18.6 y Keycloak 26.8.1 fijados por *digest*, puerto 5433 para no chocar con un PostgreSQL local.
+  - Roles sin privilegios de administración, nada abierto a `PUBLIC` y funciones nuevas sin `EXECUTE` para `PUBLIC`.
+  - Semilla ficticia para T10 y `check.sh` con 28 verificaciones.
+  - **Desviación declarada:** la verificación del *realm* importado queda pendiente hasta T07.
+  - **Hallazgo:** la imagen de PostgreSQL confía (`trust`) en `127.0.0.1`, así que las pruebas de contraseña deben conectar por el nombre del servicio.
+  - Casillas de T01, T02 y T09 marcadas en `tasks.md`.
 - Decisión del responsable: no se usa un servicio automático de actualización de dependencias. Se retiró Dependabot (`.github/dependabot.yml`) y se cerraron sus 11 PR. Las actualizaciones son manuales, con los comandos de cada proyecto, al iniciar cada fase y ante una vulnerabilidad; una versión mayor sigue exigiendo ADR. Actualizado doc. 02 §11 (antes preveía Renovate). La mención a Dependabot en las consecuencias del ADR 0023 queda reemplazada por esta decisión.
 - Creada la regla de protección de `main` (*ruleset* "main"), sin excepciones para nadie: bloquea borrado y *force push*; exige PR, historial lineal, conversaciones resueltas y los *checks* `sistema · título Conventional Commits` y `sistema · secretos`; 0 aprobaciones (equipo de una persona). El repositorio integra solo con *squash* (título del PR como *commit*) y borra la rama al integrar.
 - Decisión del responsable: mientras el equipo sea de una sola persona, la rama `main` no exige aprobaciones y quien abre el PR lo revisa (H3) e integra. Las dos aprobaciones de los cambios críticos se suplen con las revisiones automáticas de nivel alto. Registrada como excepción temporal en `AGENTS.md` §4.3, que se elimina al sumar una segunda persona.
