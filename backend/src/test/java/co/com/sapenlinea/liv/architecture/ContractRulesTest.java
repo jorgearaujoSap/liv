@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.architecture.fixture.api.contracts.LookalikeApi;
 import co.com.sapenlinea.liv.core.api.contract.CurrentUserApi;
 import co.com.sapenlinea.liv.core.api.contract.model.CurrentUser;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -15,6 +16,9 @@ import com.tngtech.archunit.lang.EvaluationResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +41,9 @@ class ContractRulesTest {
   @ArchTest
   static final ArchRule productionControllersImplementGeneratedContracts =
       ContractRules.CONTROLLERS_IMPLEMENT_GENERATED_CONTRACTS;
+
+  @ArchTest
+  static final ArchRule noRoutesWithoutContract = ContractRules.NO_ROUTES_WITHOUT_CONTRACT;
 
   @Test
   @DisplayName("ADR 0005 · Un controlador que implementa la interfaz generada cumple la regla")
@@ -75,12 +82,44 @@ class ContractRulesTest {
   }
 
   @Test
-  @DisplayName("ADR 0005 · Nadie escribe a mano en los paquetes de contratos generados")
-  void noHandWrittenCodeInGeneratedPackages() throws IOException {
-    try (Stream<Path> files = Files.walk(Path.of("src", "main", "java"))) {
-      assertThat(files.map(Path::toString).map(p -> p.replace('\\', '/')))
-          .noneMatch(p -> p.contains("/api/contract/"));
+  @DisplayName("ADR 0005 · Una ruta heredada de una interfaz escrita a mano viola la regla")
+  void inheritedInterfaceRouteFails() {
+    assertViolation(InheritedInterfaceRouteController.class);
+  }
+
+  @Test
+  @DisplayName("ADR 0005 · Una ruta heredada de una clase base viola la regla")
+  void inheritedBaseClassRouteFails() {
+    assertViolation(InheritedBaseClassRouteController.class);
+  }
+
+  @Test
+  @DisplayName("ADR 0005 · En los paquetes de contratos solo hay clases generadas")
+  void onlyGeneratedClassesInContractPackages() throws IOException {
+    Set<String> generated;
+    try (Stream<Path> files = Files.walk(Path.of("target", "generated-sources", "openapi"))) {
+      generated =
+          files
+              .map(path -> path.getFileName().toString())
+              .filter(name -> name.endsWith(".java"))
+              .map(name -> name.substring(0, name.length() - ".java".length()))
+              .collect(Collectors.toSet());
     }
+    assertThat(generated).as("clases generadas").isNotEmpty();
+    // Checked by class, not by folder: javac accepts a package that does not match its folder.
+    List<String> inContractPackages =
+        new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("co.com.sapenlinea.liv")
+                .stream()
+                .filter(JavaClass::isTopLevelClass)
+                .filter(c ->
+                    ContractRules.GENERATED_CONTRACT_PACKAGE
+                        .matcher(c.getPackageName().replaceFirst("\\.model$", ""))
+                        .matches())
+                .map(JavaClass::getSimpleName)
+                .toList();
+    assertThat(inContractPackages).isNotEmpty().allMatch(generated::contains);
   }
 
   private static void assertViolation(Class<?> controller) {
@@ -137,6 +176,39 @@ class ContractRulesTest {
     @GetMapping("/api/v1/me/extra")
     ResponseEntity<String> extra() {
       return ResponseEntity.ok("outside the contract");
+    }
+  }
+
+  interface HandWrittenRoutes {
+    @GetMapping("/api/v1/me/hidden")
+    ResponseEntity<String> hidden();
+  }
+
+  @RestController
+  static class InheritedInterfaceRouteController implements CurrentUserApi, HandWrittenRoutes {
+    @Override
+    public ResponseEntity<CurrentUser> getCurrentUser() {
+      return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<String> hidden() {
+      return ResponseEntity.ok("outside the contract");
+    }
+  }
+
+  abstract static class RoutedBase {
+    @GetMapping("/api/v1/me/base")
+    ResponseEntity<String> base() {
+      return ResponseEntity.ok("outside the contract");
+    }
+  }
+
+  @RestController
+  static class InheritedBaseClassRouteController extends RoutedBase implements CurrentUserApi {
+    @Override
+    public ResponseEntity<CurrentUser> getCurrentUser() {
+      return ResponseEntity.ok().build();
     }
   }
 

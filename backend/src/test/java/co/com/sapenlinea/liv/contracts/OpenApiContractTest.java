@@ -29,6 +29,9 @@ class OpenApiContractTest {
   /** Length of core.user_session.sid (migration V202611010905). */
   private static final int SID_MAX_LENGTH = 100;
 
+  /** Visible ASCII, no spaces or control characters: identifiers that end up in logs. */
+  private static final String VISIBLE_ASCII = "^[!-~]+$";
+
   @Test
   @DisplayName("001-13 · GET /api/v1/me devuelve el usuario, su administración, roles y permisos")
   void currentUser() {
@@ -88,7 +91,11 @@ class OpenApiContractTest {
             assertThat(p)
                 .containsEntry("name", "X-User-Token")
                 .containsEntry("in", "header")
-                .containsEntry("required", true));
+                .containsEntry("required", true)
+                .satisfies(header ->
+                    assertThat(map(header.get("schema")))
+                        .containsEntry("minLength", 1)
+                        .containsEntry("maxLength", 8192)));
     Map<String, Object> request = schema(contract, "StartSessionRequest");
     assertThat(strings(request.get("required"))).containsExactly("sid");
     assertSid(property(request, "sid"));
@@ -112,8 +119,20 @@ class OpenApiContractTest {
     assertThat(list(post.get("parameters")))
         .singleElement()
         .satisfies(p -> assertSid(map(p.get("schema"))));
-    assertThat(strings(schema(contract, "EndSessionRequest").get("required")))
+    Map<String, Object> request = schema(contract, "EndSessionRequest");
+    assertThat(strings(request.get("required")))
         .containsExactlyInAnyOrder("issuer", "subject", "reason");
+    // issuer es texto: format uri genera java.net.URI y @Size sobre URI rompe la validación (500).
+    assertThat(property(request, "issuer"))
+        .containsEntry("type", "string")
+        .doesNotContainKey("format")
+        .containsEntry("minLength", 1)
+        .containsEntry("maxLength", 255)
+        .containsEntry("pattern", "^https?://[!-~]+$");
+    assertThat(property(request, "subject"))
+        .containsEntry("minLength", 1)
+        .containsEntry("maxLength", 255)
+        .containsEntry("pattern", VISIBLE_ASCII);
     assertThat(strings(schema(contract, "SessionEndReason").get("enum")))
         .containsExactly("LOGOUT", "IDLE", "ABSOLUTE", "PROVIDER");
     assertErrorsAreProblems(contract, post);
@@ -143,6 +162,18 @@ class OpenApiContractTest {
   }
 
   @Test
+  @DisplayName(
+      "ADR 0025 · Los errores internos también se sirven como JSON, para que el cierre no dé 406")
+  void internalErrorsAlsoServeJson() {
+    Map<String, Object> contract = load("core-internal.yaml");
+    for (String name : List.of("BadRequest", "Unauthorized", "SessionRejected")) {
+      assertThat(map(response(contract, name).get("content")))
+          .as(name)
+          .containsOnlyKeys(PROBLEM_JSON, "application/json");
+    }
+  }
+
+  @Test
   @DisplayName("001-14 · Un usuario sin sesión o no registrado recibe 401 con el código 001-14")
   void unregisteredUserIsNotASessionlessCodeOf00105() {
     for (String file : List.of("core.yaml", "platform.yaml")) {
@@ -158,7 +189,8 @@ class OpenApiContractTest {
     assertThat(sid)
         .containsEntry("type", "string")
         .containsEntry("minLength", 1)
-        .containsEntry("maxLength", SID_MAX_LENGTH);
+        .containsEntry("maxLength", SID_MAX_LENGTH)
+        .containsEntry("pattern", VISIBLE_ASCII);
   }
 
   private static void assertSecurity(String file, String scheme, String prefix) {
