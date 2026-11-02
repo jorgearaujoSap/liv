@@ -3,7 +3,6 @@
   [attr.type]="type()"
   [disabled]="disabled()"
   [attr.aria-disabled]="busy() ? 'true' : null"
-  (click)="onClick($event)"
 >
   @if (busy()) {
     <span class="button__spinner" aria-hidden="true">

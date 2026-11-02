@@ -12,8 +12,16 @@ import { IconName } from '../icon/icons';
 /** Tipos de texto que admite el campo. */
 export type TextFieldType = 'text' | 'password' | 'email' | 'search' | 'tel' | 'url';
 
-/** Estado visible del campo, como la propiedad `State` de Figma (Focus lo da `:focus-within`). */
+/** Estado visible del campo, como la propiedad `State` de Figma (Focus lo da el foco del input). */
 type TextFieldState = 'default' | 'error' | 'disabled';
+
+/** Valores de `autocomplete` de credenciales: siguen sin corrector aunque se muestre la contraseña. */
+const CREDENTIAL_AUTOCOMPLETE = new Set([
+  'username',
+  'current-password',
+  'new-password',
+  'one-time-code',
+]);
 
 let nextId = 0;
 
@@ -27,8 +35,10 @@ let nextId = 0;
  * como un `liv-icon-button` dentro del campo; si el campo se deshabilita, la pantalla la deshabilita
  * también.
  *
- * Contraseñas, correos y campos con `sensitive` (usuario, código) van sin corrector ortográfico, que en
- * algunos navegadores envía el texto a un servidor, y sin mayúscula ni corrección automáticas.
+ * Contraseñas, correos, credenciales por su `autocomplete` (`username`, `current-password`,
+ * `new-password`, `one-time-code`) y campos con `sensitive` van sin corrector ortográfico, que en
+ * algunos navegadores envía el texto a un servidor, y sin mayúscula ni corrección automáticas. Así una
+ * contraseña sigue protegida cuando "Mostrar contraseña" cambia su tipo a `text`.
  */
 @Component({
   selector: 'liv-text-field',
@@ -68,7 +78,11 @@ export class TextFieldComponent {
   );
   protected readonly message = computed(() => this.errorText() ?? (this.help()?.trim() || null));
   protected readonly plainText = computed(
-    () => this.sensitive() || this.type() === 'password' || this.type() === 'email',
+    () =>
+      this.sensitive() ||
+      this.type() === 'password' ||
+      this.type() === 'email' ||
+      CREDENTIAL_AUTOCOMPLETE.has(this.autocomplete() ?? ''),
   );
   protected readonly state = computed<TextFieldState>(() => {
     if (this.disabled()) return 'disabled';

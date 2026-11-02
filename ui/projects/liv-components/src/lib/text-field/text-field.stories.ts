@@ -13,6 +13,7 @@ interface TextFieldArgs {
   help?: string;
   error?: string;
   leadingIcon?: IconName;
+  autocomplete?: string;
   disabled: boolean;
   showAction: boolean;
 }
@@ -56,6 +57,7 @@ const meta: Meta<TextFieldArgs> = {
           [help]="help"
           [error]="error"
           [leadingIcon]="leadingIcon"
+          [autocomplete]="autocomplete"
           [disabled]="disabled"
         >
           @if (showAction) {
@@ -93,6 +95,7 @@ export const ConAccionFinal: Story = {
     label: 'Contraseña',
     value: 'secreta',
     type: 'password',
+    autocomplete: 'current-password',
     leadingIcon: 'lock',
     showAction: true,
   },

@@ -3,6 +3,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
+  ElementRef,
+  inject,
   input,
 } from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
@@ -60,11 +63,18 @@ export class ButtonComponent {
   /** Ocupado solo si no está deshabilitado: el estado Disabled prevalece. */
   protected readonly busy = computed(() => this.loading() && !this.disabled());
 
-  protected onClick(event: MouseEvent): void {
-    // El navegador no despacha clics en un botón deshabilitado; se cubre también el clic programático.
-    if (this.busy() || this.disabled()) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    }
+  constructor() {
+    // En fase de captura sobre el anfitrión, para correr antes que el `(click)` que la pantalla pone en
+    // liv-button y cubrir el clic sobre el botón, el anfitrión o la región viva, también si se despacha
+    // por código. `preventDefault` evita además el envío del formulario.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const guard = (event: Event) => {
+      if (this.busy() || this.disabled()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    host.addEventListener('click', guard, { capture: true });
+    inject(DestroyRef).onDestroy(() => host.removeEventListener('click', guard, { capture: true }));
   }
 }

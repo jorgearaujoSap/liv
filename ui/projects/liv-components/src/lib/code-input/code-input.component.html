@@ -15,7 +15,9 @@
     [attr.aria-describedby]="message() ? messageId : null"
     (input)="onInput($event)"
     (change)="onInput($event)"
+    (compositionend)="onInput($event)"
     (paste)="onPaste($event)"
+    (beforeinput)="onBeforeInput($event)"
   />
 </div>
 @if (message(); as text) {

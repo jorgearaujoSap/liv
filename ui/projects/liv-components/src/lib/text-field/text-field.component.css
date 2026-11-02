@@ -39,6 +39,7 @@
 
 /* Error */
 
+/* Va después de la regla de foco, con la misma especificidad: en Error con foco el borde sigue rojo. */
 :host([data-state='error']) .text-field__control {
   @apply border-status-danger inset-ring-[0.5px] inset-ring-status-danger;
 }
