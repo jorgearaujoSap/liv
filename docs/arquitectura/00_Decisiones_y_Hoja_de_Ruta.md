@@ -148,6 +148,7 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 | 0023 | Dependencias de la feature 001 (inicio de sesión): *starters* de seguridad, JPA, Flyway, *outbox* JDBC de Spring Modulith, ShedLock, Spring Cloud Gateway, Spring Session JDBC, Bucket4j, `keycloak-config-cli`, `ng-openapi-gen` (solo frontend), Storybook, Playwright y Caddy para e2e; iconos Lucide copiados sin dependencia | Aceptado (2026-11-01) | `docs/adr/ADR-0023-…`, feature 001 |
 | 0024 | Identidad como proyecto `backend/identity/` (*realm* como código para todos los entornos, capa solo de desarrollo, tema e imágenes publicadas) y excepción del tema de Keycloak al ADR 0018 | Aceptado (2026-11-01) | `docs/adr/ADR-0024-…`, 01 §11.1, §14 |
 | 0025 | Dependencias entre módulos `audit → core` y `audit → platform`; endpoints entre servicios `/internal/v1`; filas de auditoría de plataforma y roles de BD nuevos | Aceptado (2026-11-01) | `docs/adr/ADR-0025-…`, 01 §3.2, §10, 02 §5 |
+| 0026 | Dependencias de desarrollo de `ui/` (Tailwind, axe-core, complementos de Storybook y los pares obligatorios de `@storybook/angular`) y excepción acotada de vulnerabilidades de desarrollo | Propuesto (2026-11-02) | `docs/adr/ADR-0026-…`, ADR 0023, 02 §11 |
 
 ---
 
