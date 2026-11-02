@@ -111,7 +111,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 3. Siguientes entregables: F0‑07 (GitHub Actions por proyecto), F0‑06 (Docker Compose), F0‑08 (base de datos, RLS y primera migración), F0‑10 y F0‑11; en la feature 001 (plan aprobado H2, `tasks.md` con 23 tareas), integrar el PR de documentación (T01) y hacer F0‑07 (T02), que es requisito previo; luego `tasks.md` y la implementación (primero F0‑07, porque las pruebas de seguridad del backend deben correr en CI).
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 5. `liv-components`, en este orden:
-   - **T05:** integrar el PR #43 y publicar la 0.2.0 (un humano, desde `main`); después, en otro PR, `frontend/` adopta la versión. Antes, decidir lo abierto de T05 (bitácora del 2026-11-02): icono de `ResultState` (24 o 28 px), estilo de texto de la etiqueta de sección, recorte de textos y opciones deshabilitadas del menú.
+   - **T05:** integrar el PR #43 y publicar la 0.2.0 (un humano, desde `main`); después, en otro PR, `frontend/` adopta la versión. Antes, decidir lo abierto de T05 (bitácora del 2026-11-02): estilo de texto de la etiqueta de sección, recorte de textos y opciones deshabilitadas del menú.
    - **Backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
 
 ---
@@ -125,11 +125,12 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 - Feature 001, T05 en revisión (PR #43): `Dialog`, `ResultState`, `NavItem`, `SideNav` (con `NavSection`), `AppHeader`, `PageHeader` y `ModuleCard` en `liv-components`, versión 0.2.0 y `CHANGELOG.md`, solo en `ui/`. Un humano publica la 0.2.0 desde `main` después de integrar el PR.
   - **Contraste (pendiente de T04a):** `SideNav` y `AppHeader` son claros en Figma (`bg/surface`) y no usan `bg/inverse-subtle`; el anillo mide como mínimo 4,72:1 (sobre `bg/subtle`) en los fondos claros que usan y las parejas de texto nuevas llegan a 4,5:1. No hizo falta decidir nada en Figma.
   - **Revisión:** adversarial con dos revisores ciegos y lente de riesgo a nivel alto; resiliencia y confiabilidad a nivel estándar; legibilidad a nivel económico. Ningún crítico y 3 altos: dos corregidos con prueba en rojo primero (los estilos del grupo de `NavItem` se filtraban a sus subopciones y dos `Dialog` abiertos se disputaban el foco) y uno, las capturas de referencia (Q14), declarado como desviación. Segunda ronda sin críticos ni altos.
+  - **Decisión del responsable:** `Icon` admite 28 px, para el círculo de `ResultState` como en Figma. Se actualizó primero Figma (descripción de los 38 iconos) y luego el código, con prueba en rojo.
   - **Decisiones abiertas para el responsable:**
-    - icono de `ResultState`: 24 px en el código y 28 px en Figma (`Icon` admite 16, 20 y 24);
     - la etiqueta de sección de `SideNav` no tiene estilo de texto en Figma;
     - `PageHeader` y `AppHeader` recortan texto (WCAG 1.4.10);
-    - opciones deshabilitadas del menú: solo `title`, no enfocables.
+    - opciones deshabilitadas del menú: solo `title`, no enfocables;
+    - foco inicial por defecto de `Dialog`: el primer enfocable; la pantalla del aviso de sesión debe marcar la acción segura con `data-initial-focus`.
   - **Desviaciones declaradas:** sin capturas de referencia (Q14, `ui/` no tiene regresión visual todavía); detalle en `tasks.md`.
 
 - Decisión del responsable: en un cambio crítico, solo la revisión adversarial y la lente de riesgo usan el nivel alto. Resiliencia y confiabilidad usan el estándar, y legibilidad el económico. `AGENTS.md` §10.1, regla 2, se alinea con su tabla y con `liv-revision-4r`, que ya lo decían. La contradicción la encontró la revisión del registro de T11.

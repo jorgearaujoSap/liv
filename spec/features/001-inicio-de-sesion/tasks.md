@@ -101,16 +101,15 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - **Decisiones de diseño de la implementación:**
     - `NavItem` y `ModuleCard` emiten `navigate` con el destino en un clic normal (la librería no importa `@angular/router`); con Ctrl, Cmd, Mayús, Alt o el botón central el navegador abre el enlace. Sin `href` quedan inertes;
     - `Dialog` emite `closeRequested` (no `closed`): Escape solo pide cerrar y la pantalla decide. Con varios abiertos, solo el último atrapa el foco y atiende Escape. El foco inicial va al elemento con `data-initial-focus` porque el *lint* de plantillas prohíbe `autofocus`;
-    - `NavSection` (la etiqueta de sección del menú, que Figma dibuja dentro de `SideNav`) se exporta como componente aparte.
+    - `NavSection` (la etiqueta de sección del menú, que Figma dibuja dentro de `SideNav`) se exporta como componente aparte;
+    - **decisión del responsable (2026-11-02): `Icon` admite 28 px.** El círculo de `ResultState` dibuja su icono a 28 px, como en Figma, en lugar de bajarlo a 24 px. `IconSize` pasa a `16 | 20 | 24 | 28`. Primero se actualizó Figma (la descripción de los 38 iconos dice «16, 20, 24 o 28 px») y después el código, con prueba en rojo. Es un cambio crítico (`AGENTS.md` §4.3) por modificar un componente existente, aprobado por el responsable en el chat; compatible con lo anterior. `lib/icon/**` queda tocado, fuera de la lista de archivos.
   - **Desviaciones declaradas:**
     - sin capturas de referencia por variante (Q14), porque `ui/` todavía no tiene regresión visual. La verificación fue manual, en Storybook frente a Figma;
-    - archivos fuera de la lista: `lib/shared/link-click.ts` (ayudante de los enlaces), `src/testing/css.ts` (`usesToken`, que compara el *token* exacto y no un prefijo) y `src/styles/theme-components.spec.ts` (contraste de las parejas nuevas);
-    - el icono de `ResultState` mide 24 px y no los 28 px de Figma, porque `Icon` solo admite 16, 20 y 24;
+    - archivos fuera de la lista: `lib/icon/**` (28 px, ver la decisión), `lib/shared/link-click.ts` (ayudante de los enlaces), `src/testing/css.ts` (`usesToken`, que compara el *token* exacto y no un prefijo) y `src/styles/theme-components.spec.ts` (contraste de las parejas nuevas);
     - la etiqueta de sección de `SideNav` no tiene estilo de texto en Figma: usa `label/sm` con 6 % de espaciado entre letras (`tracking-[0.06em]`);
     - medidas literales sin *token* de espaciado: 2, 6 y 44 px, y los anchos de 272, 440, 480 y 720 px;
     - el icono de «Salir» toma el color del botón Ghost (`text/link`) y no `text/primary` como en la instancia de Figma.
   - **Decisiones abiertas para el responsable:**
-    - icono de `ResultState`: ajustar Figma a 24 px o admitir 28 px en `Icon` (cambio crítico);
     - crear en Figma el estilo de texto de la etiqueta de sección y transcribirlo a `theme.css`;
     - `PageHeader` (máximo dos líneas) y `AppHeader` (administración truncada) pierden texto con zoom alto o pantallas angostas (WCAG 1.4.10);
     - opciones deshabilitadas del menú: hoy explican el motivo solo con `title` y no son enfocables (`item` y `subitem`; el `group` sí). Un `Tooltip` accesible está en el *backlog*;
