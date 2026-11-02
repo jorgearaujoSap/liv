@@ -5,7 +5,8 @@ spring:
     virtual:
       enabled: true
   # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
-  # llegan por variables de entorno y no tienen valor por defecto: sin ellas la aplicación no arranca.
+  # llegan por variables de entorno y no tienen valor por defecto (sin LIV_DB_URL no arranca; sin la contraseña no
+  # se autentica). El despliegue no debe sobrescribir el usuario; T12 agrega la comprobación al arrancar.
   datasource:
     url: ${LIV_DB_URL}
     username: liv_app

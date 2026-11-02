@@ -89,8 +89,12 @@ final class LivDatabase {
    * infraestructura.
    */
   static void asSuperuser(String sql) throws SQLException {
+    asSuperuser("postgres", sql);
+  }
+
+  static void asSuperuser(String database, String sql) throws SQLException {
     try (Connection superuser =
-            DriverManager.getConnection(jdbcUrl("postgres"), "postgres", "postgres-test-pw");
+            DriverManager.getConnection(jdbcUrl(database), "postgres", "postgres-test-pw");
         var statement = superuser.createStatement()) {
       statement.execute(sql);
     }

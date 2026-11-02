@@ -4,16 +4,33 @@
 -- (backend/dev/initdb): en AWS los roles los crea la infraestructura como código, y aquí se comprueba que
 -- existan como se necesitan y se fija el endurecimiento que le corresponde al dueño.
 
--- Contrato de roles (doc. 02 §5.2, ADR 0025): si la infraestructura no lo cumple, la migración se detiene con un
--- mensaje claro en lugar de fallar más adelante. Requiere PostgreSQL 16 o superior (GRANT ... WITH SET).
+-- Contrato de la base y de los roles (doc. 02 §5.2, ADR 0025): si la infraestructura no lo cumple, la migración se
+-- detiene con un mensaje claro en lugar de fallar más adelante o, peor, de seguir sin endurecer nada.
+-- Requiere PostgreSQL 16 o superior (GRANT ... WITH SET).
 DO $$
 BEGIN
+  IF current_setting('server_version_num')::int < 160000 THEN
+    RAISE EXCEPTION 'Se requiere PostgreSQL 16 o superior';
+  END IF;
+  -- Los REVOKE de abajo solo surten efecto si los ejecuta el dueño de la base.
+  IF (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()) <> current_user THEN
+    RAISE EXCEPTION '% debe ser el dueño de la base de datos %', current_user, current_database();
+  END IF;
   IF (SELECT count(*) FROM pg_roles
        WHERE rolname IN ('liv_app', 'liv_identity_lookup', 'liv_audit_platform')) <> 3 THEN
     RAISE EXCEPTION 'Faltan roles de base de datos: liv_app, liv_identity_lookup y liv_audit_platform (doc. 02 §5.2)';
   END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liv_app' AND (rolbypassrls OR rolsuper)) THEN
-    RAISE EXCEPTION 'liv_app no puede tener BYPASSRLS ni ser superusuario (doc. 02 §5.1)';
+  IF EXISTS (SELECT 1 FROM pg_roles
+              WHERE rolname IN ('liv_app', 'liv_identity_lookup', 'liv_audit_platform')
+                AND (rolbypassrls OR rolsuper)) THEN
+    RAISE EXCEPTION 'liv_app, liv_identity_lookup y liv_audit_platform no pueden tener BYPASSRLS ni ser superusuarios';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles
+              WHERE rolname IN ('liv_identity_lookup', 'liv_audit_platform') AND rolcanlogin) THEN
+    RAISE EXCEPTION 'liv_identity_lookup y liv_audit_platform no pueden iniciar sesión (doc. 02 §5.2)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_auth_members WHERE member = 'liv_app'::regrole) THEN
+    RAISE EXCEPTION 'liv_app no puede ser miembro de otros roles';
   END IF;
   IF to_regnamespace('bff') IS NOT NULL AND has_schema_privilege('liv_app', 'bff', 'USAGE') THEN
     RAISE EXCEPTION 'liv_app no puede tener acceso al esquema bff (ADR 0025)';
@@ -24,6 +41,11 @@ BEGIN
       'GRANT liv_identity_lookup, liv_audit_platform TO % WITH INHERIT FALSE, SET TRUE (backend/dev/README.md)',
       current_user, current_user;
   END IF;
+  IF pg_has_role(current_user, 'liv_identity_lookup', 'USAGE')
+     OR pg_has_role(current_user, 'liv_audit_platform', 'USAGE') THEN
+    RAISE EXCEPTION '% no debe heredar los permisos de liv_identity_lookup ni de liv_audit_platform (WITH INHERIT FALSE)',
+      current_user;
+  END IF;
 END
 $$;
 
@@ -31,6 +53,9 @@ $$;
 DO $$
 BEGIN
   EXECUTE format('REVOKE TEMPORARY ON DATABASE %I FROM PUBLIC, liv_app', current_database());
+  IF has_database_privilege('liv_app', current_database(), 'TEMP') THEN
+    RAISE EXCEPTION 'liv_app conserva TEMP sobre la base %: revísense los permisos de la base', current_database();
+  END IF;
 END
 $$;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;

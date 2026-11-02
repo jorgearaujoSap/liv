@@ -23,7 +23,8 @@ class FirstMigrationContractTest {
       "001-17 · Si liv_owner no es el dueño de la base, la migración se detiene: los REVOKE no surtirían efecto")
   void databaseOwnedBySomeoneElseStopsTheMigration() throws SQLException {
     String url = createEmptyDatabase("liv_contract_owner", "postgres");
-    asSuperuser("GRANT CREATE ON DATABASE liv_contract_owner TO liv_owner");
+    // Para que Flyway pueda crear su tabla de historial y la migración llegue a su comprobación.
+    asSuperuser("liv_contract_owner", "GRANT ALL ON SCHEMA public TO liv_owner");
 
     assertThatThrownBy(() -> migrate(url))
         .isInstanceOf(FlywayException.class)
