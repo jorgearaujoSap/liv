@@ -1,0 +1,48 @@
+{
+  "name": "liv-components-workspace",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "build": "ng build liv-components",
+    "watch": "ng build liv-components --watch --configuration development",
+    "pack": "npm run build && npm pack ./dist/liv-components --pack-destination ./dist",
+    "version:patch": "cd projects/liv-components && npm version patch --no-git-tag-version",
+    "version:minor": "cd projects/liv-components && npm version minor --no-git-tag-version",
+    "version:major": "cd projects/liv-components && npm version major --no-git-tag-version",
+    "release:check": "node scripts/check-release.mjs",
+    "prerelease": "npm run release:check && npm run lint",
+    "release": "npm run build && npm publish ./dist/liv-components",
+    "format": "prettier --write \"projects/**/*.{ts,html,css}\"",
+    "format:check": "prettier --check \"projects/**/*.{ts,html,css}\"",
+    "lint": "ng lint"
+  },
+  "private": true,
+  "packageManager": "npm@11.12.0",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/compiler": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/forms": "^21.2.0",
+    "@angular/platform-browser": "^21.2.0",
+    "@angular/router": "^21.2.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.2.29",
+    "@angular/cli": "^21.2.29",
+    "@angular/compiler-cli": "^21.2.0",
+    "@eslint/js": "^10.0.1",
+    "angular-eslint": "21.4.0",
+    "eslint": "^10.3.0",
+    "jsdom": "^28.0.0",
+    "ng-packagr": "^21.2.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "8.59.2",
+    "vitest": "^4.0.8"
+  }
+}
