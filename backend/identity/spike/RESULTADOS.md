@@ -105,3 +105,10 @@ Según la regla del *spike* y los riesgos del plan, el trabajo se detiene aquí 
    - (a) Escribir una extensión en Java;
    - (b) una página pública de LIV antes del inicio de sesión, que necesita diseño y aprobación;
    - (c) sin mensaje: tras cerrar o expirar la sesión se muestra directamente la página de inicio de sesión. Los criterios de la spec no exigen el mensaje; solo el diseño lo mostraba.
+
+## Decisiones del responsable (2026-11-01)
+
+1. **Aviso de cuenta bloqueada:** **mensaje único**. Todo fallo de inicio de sesión muestra "Usuario o contraseña incorrectos. Tras varios intentos fallidos el acceso se bloquea por 15 minutos." Sin extensión en Java y sin revelar qué usuarios existen. La pantalla "Cuenta bloqueada" se fusiona con "Credenciales incorrectas" (enmienda 2 de la spec).
+2. **Mensaje "Tu sesión terminó":** **sin mensaje**. Tras cerrar o expirar la sesión se muestra directamente la página de inicio de sesión. El BFF no envía ningún parámetro de motivo y la pantalla "Sesión cerrada o expirada" se archiva.
+
+Ninguna de las dos decisiones requiere código propio dentro de Keycloak.
