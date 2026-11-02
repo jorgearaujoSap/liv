@@ -119,6 +119,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-01
 
+- Abierto el PR #7 (raíz, tarea T01 de la feature 001): spec, diseño, plan (H2) y tareas del inicio de sesión, ADR 0023–0025 con sus cambios en la arquitectura, y política de modelos con los subagentes del proyecto. Antes del *commit* se aplicó la lente de legibilidad (`liv-revisor-rapido`): 7 hallazgos corregidos y 3 descartados. Siguiente: T02 (F0‑07, CI), que necesita aprobación humana.
 - Feature 001 · Inicio de sesión:
   - **Plan aprobado (H2)** por el arquitecto y el responsable funcional (versión 4). La aprobación incluye la matriz de permisos, los ajustes al modelo, los roles de BD nuevos, la política de contraseñas, la pantalla "Próximamente" y la autorización de migrar antes del *checklist* del ERD.
   - Creados y aceptados los ADR 0023 (dependencias), 0024 (identidad como `backend/identity/` y excepción del tema de Keycloak al ADR 0018) y 0025 (dependencias `audit → core` y `audit → platform`, `/internal/v1`, filas de plataforma).
