@@ -5,7 +5,7 @@ _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` 
 **Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
 
-**Ajustes posteriores:** T07, aprobados por el responsable el 2026-11-02 (ver «Decisiones»).
+**Ajustes posteriores:** T07, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
 
 ## Enfoque
 
@@ -404,6 +404,20 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T10 (PR #25 y #28; revisados por la adversarial y las cuatro lentes, pendientes de aprobación humana donde se indica).**
+  - **Integrados tras la revisión del PR (H3):**
+    - la primera migración comprueba el contrato de la base y de los roles (dueño de la base, PostgreSQL 16 o superior, roles sin `BYPASSRLS` ni inicio de sesión, `liv_app` sin membresías) y revoca `TEMP` y los permisos por defecto;
+    - `core.user_session`: una sesión nace abierta y se cierra una sola vez (políticas por comando), y su FK compuesta incluye emisor y `sub`;
+    - `platform.event_publication`: `liv_app` inserta y actualiza solo las columnas de finalización y reenvío, sin `DELETE`;
+    - en la auditoría, la fila de plataforma del importador exige `source = 'IDENTITY_PROVIDER'`; `new_values` y `previous_values` tienen un máximo de 4096 caracteres; la función de rechazos recibe `occurred_at` y valida lista blanca de claves, longitudes y fecha;
+    - la aplicación se conecta siempre como `liv_app`, sin valor por defecto de la URL ni de la contraseña, y el perfil `dev` vive en `backend/config/` (fuera del jar).
+  - **Pendientes de decisión humana (listadas en los PR):**
+    - la membresía de `liv_owner` en `liv_identity_lookup` y `liv_audit_platform` (`WITH INHERIT FALSE, SET TRUE`) que agrega `initdb` y que la infraestructura de AWS debe repetir: falta registrarla en doc. 02 §5.2 y en el ADR 0025;
+    - los valores de `entity_type` (`DEPARTAMENTO`, `DISTRITO_CAPITAL`, `DISTRITO`, `MUNICIPIO`, los de los YAML de jurisdicción) y de `admin_user.status` (`ACTIVE`, `INACTIVE`), que el ERD no fija;
+    - la excepción de RLS del *outbox* (sin `administration_id`; los eventos deben llevar solo identificadores) en doc. 02 §5.1, y quién lo purga;
+    - el riesgo residual de `app.platform_job`: cualquier sesión de `liv_app` puede fijarlo; alternativa más fuerte (rol propio del importador o funciones `SECURITY DEFINER`) para el ADR 0025;
+    - la matriz de permisos ya está en la base antes que en Doc. 01 §4 (doc. 02 §4.4 pide el mismo cambio);
+    - la retención y el particionado de `audit.audit_event`, que no se pueden corregir ni borrar (requiere un ADR).
 - **Valores propuestos (D-001-7, H2):** contraseñas de 12 caracteres o más, sin reutilizar las últimas 5, sin vencimiento forzado y distintas del usuario.
 
 ## Riesgos
