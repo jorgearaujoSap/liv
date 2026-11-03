@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.Advisor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.Ordered;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authorization.method.AuthorizationAdvisor;
 import org.springframework.transaction.interceptor.BeanFactoryTransactionAttributeSourceAdvisor;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -32,6 +32,10 @@ class RequiresPermissionTest extends PlatformWebTest {
 
   @Autowired PermissionProbe probe;
   @Autowired List<Advisor> advisors;
+
+  @Autowired
+  @Qualifier("requiresPermissionAdvisor")
+  Advisor permissionAdvisor;
 
   @Test
   @Tag("001-16")
@@ -98,10 +102,14 @@ class RequiresPermissionTest extends PlatformWebTest {
   @Tag("001-16")
   @DisplayName("001-16 · El permiso se comprueba antes de abrir la transacción del caso de uso")
   void permissionIsCheckedBeforeTheTransaction() {
-    int authorization = orderOf(AuthorizationAdvisor.class);
-    int transaction = orderOf(BeanFactoryTransactionAttributeSourceAdvisor.class);
+    int authorization = ((Ordered) permissionAdvisor).getOrder();
 
-    assertThat(authorization).isLessThan(transaction);
+    assertThat(advisors).anyMatch(BeanFactoryTransactionAttributeSourceAdvisor.class::isInstance);
+    for (Advisor other : advisors) {
+      if (other != permissionAdvisor) {
+        assertThat(authorization).as(other.getClass().getName()).isLessThan(order(other));
+      }
+    }
   }
 
   private void assertForbidden(String path, List<String> roles) {
@@ -118,14 +126,8 @@ class RequiresPermissionTest extends PlatformWebTest {
     assertThat(probe.runs()).as("ejecuciones de %s con %s", path, roles).isEqualTo(before);
   }
 
-  private int orderOf(Class<?> type) {
-    List<Integer> orders =
-        advisors.stream()
-            .filter(type::isInstance)
-            .map(advisor -> ((Ordered) advisor).getOrder())
-            .toList();
-    assertThat(orders).as("advisors de %s", type.getSimpleName()).hasSize(1);
-    return orders.getFirst();
+  private static int order(Advisor advisor) {
+    return advisor instanceof Ordered ordered ? ordered.getOrder() : Ordered.LOWEST_PRECEDENCE;
   }
 
   private static String tokenWith(List<String> roles) {

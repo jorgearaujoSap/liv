@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
-import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
@@ -26,8 +25,11 @@ public final class MenuCatalog {
 
   static final Resource LIV_CATALOG = new ClassPathResource("platform/menu-catalog.yaml");
 
-  /** Menu numbers as the contract defines them (platform.yaml, Capability.code). */
-  private static final Pattern CODE = Pattern.compile("[0-9]+(\\.[0-9]+)*");
+  /**
+   * Menu numbers as the contract defines them (platform.yaml, Capability.code), without leading
+   * zeros: 1.01 would be a second 1.1.
+   */
+  private static final Pattern CODE = Pattern.compile("[1-9][0-9]*(\\.[1-9][0-9]*)*");
 
   private static final int CODE_MAX_LENGTH = 16;
 
@@ -60,7 +62,8 @@ public final class MenuCatalog {
           new Binder(ConfigurationPropertySources.from(sources))
               .bind("items", Bindable.listOf(Option.class))
               .orElse(List.of());
-    } catch (IOException | BindException e) {
+    } catch (IOException | RuntimeException e) {
+      // A missing file, broken YAML or a value of the wrong type (an unknown status).
       throw new IllegalStateException("The menu catalog " + resource + " cannot be read", e);
     }
     require(!items.isEmpty(), "The menu catalog has no options");
@@ -70,7 +73,18 @@ public final class MenuCatalog {
 
   /** The permissions the leaves of the menu name. */
   Set<String> permissions() {
-    throw new UnsupportedOperationException("T14, segunda ronda");
+    Set<String> permissions = new HashSet<>();
+    collectPermissions(items, permissions);
+    return Set.copyOf(permissions);
+  }
+
+  private static void collectPermissions(List<Option> options, Set<String> permissions) {
+    for (Option option : options) {
+      if (option.children().isEmpty()) {
+        permissions.add(option.permission());
+      }
+      collectPermissions(option.children(), permissions);
+    }
   }
 
   /** The options the holder of {@code permissions} sees, in the order of the menu. */
