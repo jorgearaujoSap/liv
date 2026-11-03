@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.platform.security;
 
+import co.com.sapenlinea.liv.platform.TokenUser;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -26,6 +27,23 @@ final class ClaimsAdapter {
         jwt.getSubject(),
         administrationOf(jwt),
         roles == null ? Set.of() : Set.copyOf(roles));
+  }
+
+  /** Everything the token says about its user, for session start (plan step 8). */
+  TokenUser userOf(Jwt jwt) {
+    TokenIdentity identity = identityOf(jwt);
+    return new TokenUser(
+        identity.issuer(),
+        identity.subject(),
+        text(jwt, "sid"),
+        identity.administrationId(),
+        text(jwt, "name"),
+        text(jwt, "email"),
+        identity.roles());
+  }
+
+  private static Optional<String> text(Jwt jwt, String claim) {
+    return Optional.ofNullable(jwt.getClaimAsString(claim)).filter(value -> !value.isBlank());
   }
 
   /** A missing or malformed administration is empty: it never matches the registered one. */

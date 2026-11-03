@@ -28,10 +28,15 @@ class InternalAuthenticationTest extends PlatformWebTest {
   @Test
   @DisplayName("ADR 0025 · El BFF inicia la sesión con su token y el del usuario validado")
   void serviceAndUserTokens() {
-    HttpResponse<String> response = post(START, withUser(OidcTestProvider.serviceToken(), user()));
+    String user = user();
+    HttpResponse<String> response =
+        post(
+            START,
+            withUser(OidcTestProvider.serviceToken(), user),
+            "{\"sid\":\"" + OidcTestProvider.sessionIdOf(user) + "\"}");
 
     assertThat(response.statusCode()).isEqualTo(201);
-    assertThat(response.body()).contains(ACTIVE);
+    assertThat(response.body()).contains("\"userId\"");
   }
 
   @Test
@@ -124,7 +129,11 @@ class InternalAuthenticationTest extends PlatformWebTest {
   @Test
   @DisplayName("ADR 0025 · El cierre de sesión solo exige el token de servicio")
   void endWithServiceToken() {
-    assertThat(post(END, bearer(OidcTestProvider.serviceToken())).statusCode()).isEqualTo(204);
+    String body =
+        "{\"issuer\":\"%s\",\"subject\":\"%s\",\"reason\":\"LOGOUT\"}"
+            .formatted(OidcTestProvider.issuer(), ACTIVE);
+    assertThat(post(END, bearer(OidcTestProvider.serviceToken()), body).statusCode())
+        .isEqualTo(204);
   }
 
   @Test

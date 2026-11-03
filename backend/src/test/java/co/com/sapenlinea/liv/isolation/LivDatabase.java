@@ -150,6 +150,21 @@ public final class LivDatabase {
         subject);
   }
 
+  /**
+   * Reads as the owner, past RLS, to check what the application wrote (tests of other packages).
+   * Only for SELECT: the writes of a test go through the application or the helpers above.
+   */
+  public static List<Object[]> readAsOwner(String select, Object... args) {
+    if (!select.strip().regionMatches(true, 0, "SELECT", 0, 6)) {
+      throw new IllegalArgumentException("Solo lectura: " + select);
+    }
+    try {
+      return rows(OWNER, null, select, args);
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** Password of {@code liv_app}, the only role the application connects with. */
   public static String appPassword() {
     return password(APP);
