@@ -169,7 +169,7 @@ public final class LivDatabase {
           INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
                                        identity_issuer, identity_subject)
           VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
-          ON CONFLICT DO NOTHING
+          ON CONFLICT (identity_issuer, identity_subject) DO NOTHING
           """,
           UUID.randomUUID(),
           administration,
@@ -178,6 +178,40 @@ public final class LivDatabase {
           subject);
     } catch (SQLException e) {
       throw new IllegalStateException("No se pudo registrar el usuario " + subject, e);
+    }
+  }
+
+  /**
+   * Registers an administration (and its territorial entity), as the owner and idempotently, for
+   * the tests of other packages whose provider issues tokens of another administration (T12).
+   */
+  public static void registerAdministration(UUID administration, String name) {
+    try {
+      // Its own territorial entity, with a fictitious DANE code derived from the administration:
+      // a clash with another one fails here, not later as a foreign key.
+      UUID territory = UUID.nameUUIDFromBytes(("territory-" + administration).getBytes());
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO core.territorial_entity (id, dane_code, name, entity_type)
+          VALUES (?, ?, ?, 'MUNICIPIO') ON CONFLICT (id) DO NOTHING
+          """,
+          territory,
+          "T-" + administration.toString().substring(24),
+          name);
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO core.tax_administration (id, territorial_entity_id, name)
+          VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING
+          """,
+          administration,
+          territory,
+          name);
+    } catch (SQLException e) {
+      throw new IllegalStateException("No se pudo registrar la administración " + name, e);
     }
   }
 

@@ -9,6 +9,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeSet;
 import org.slf4j.MDC;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -106,6 +107,7 @@ abstract class PlatformWebTest {
       Map<String, String> seen = new LinkedHashMap<>();
       seen.put("userId", user.userId().toString());
       seen.put("subject", user.subject());
+      seen.put("roles", String.join(",", new TreeSet<>(user.roles())));
       seen.put("administrationId", AdministrationContext.current().orElseThrow().toString());
       seen.put("correlationId", MDC.get("correlation_id"));
       return seen;
