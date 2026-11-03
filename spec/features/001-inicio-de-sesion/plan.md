@@ -466,6 +466,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - inserción de filas de plataforma sin `app.platform_job`.
 - **Retraso del importador.** Si se atrasa más de 30 días se pierden eventos del proveedor. La alerta salta con 1 día de retraso.
 - **Secretos de prueba y deriva visual.** Ver los pasos 3 y 2.
+- **Latencia del bloqueo de Keycloak** (riesgo aceptado por el responsable, 2026-11-03, en la revisión de T08). Keycloak 26.8.1 registra los intentos fallidos en segundo plano. Justo después del quinto fallo hay un instante en que el bloqueo todavía no aplica, así que con peticiones en paralelo se podrían hacer más de 5 intentos. Lo mitigan la WAF por IP delante de Keycloak y la limitación de tasa del BFF (ver "Datos, API y seguridad"). En el bloqueo por códigos del segundo factor, `identity/theme/check.sh` espera hasta 10 s a que la API de detección de ataques confirme el bloqueo antes de probar el código correcto.
 - **Semilla de *staging*.** La administración real se carga con un *script* controlado y auditado en el despliegue, hasta que exista el menú 1.1. Se decide en F0‑08.
 
 ## Revisión
