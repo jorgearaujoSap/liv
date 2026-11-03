@@ -36,7 +36,14 @@ class InternalAuthenticationTest extends PlatformWebTest {
             "{\"sid\":\"" + OidcTestProvider.sessionIdOf(user) + "\"}");
 
     assertThat(response.statusCode()).isEqualTo(201);
-    assertThat(response.body()).contains("\"userId\"");
+    // The filter handed the real subject to the use case: the session is the registered user's.
+    Object registered =
+        LivDatabase.readAsOwner(
+                "SELECT id FROM core.admin_user WHERE identity_subject = ? AND identity_issuer = ?",
+                ACTIVE,
+                OidcTestProvider.issuer())
+            .getFirst()[0];
+    assertThat(response.body()).contains("\"userId\":\"" + registered + "\"");
   }
 
   @Test

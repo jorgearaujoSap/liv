@@ -131,7 +131,7 @@ class RealKeycloakTest {
     headers.put("X-User-Token", userToken);
 
     String start = "{\"sid\":\"" + sessionIdOfUser + "\"}";
-    assertThat(post(START, headers, start).statusCode()).isIn(200, 201);
+    assertThat(post(START, headers, start).statusCode()).isEqualTo(201);
   }
 
   @Test

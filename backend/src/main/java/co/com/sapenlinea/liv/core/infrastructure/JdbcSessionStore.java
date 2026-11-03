@@ -121,7 +121,8 @@ class JdbcSessionStore implements SessionStore {
   public void denied(String code, TokenUser token, UUID userId, UUID administrationId) {
     separateTransaction.executeWithoutResult(status ->
         events.publishEvent(
-            new SessionDenied(code, token.issuer(), token.subject(), userId, administrationId)));
+            new SessionDenied(
+                code, token.issuer(), token.subject(), null, userId, administrationId, null)));
   }
 
   /** The session row; a retry of the same user returns it, another user's sid returns empty. */

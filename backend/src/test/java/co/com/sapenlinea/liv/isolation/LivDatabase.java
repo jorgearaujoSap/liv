@@ -158,8 +158,55 @@ public final class LivDatabase {
     if (!select.strip().regionMatches(true, 0, "SELECT", 0, 6)) {
       throw new IllegalArgumentException("Solo lectura: " + select);
     }
+    try (Connection connection = connect(OWNER)) {
+      connection.setReadOnly(true);
+      connection.setAutoCommit(false);
+      try {
+        return rows(connection, select, args);
+      } finally {
+        connection.rollback();
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** Marks an administration inactive (or active again), as its owner. */
+  public static void setAdministrationActive(UUID administration, boolean active) {
     try {
-      return rows(OWNER, null, select, args);
+      update(
+          OWNER,
+          null,
+          "UPDATE core.tax_administration SET active = ? WHERE id = ?",
+          active,
+          administration);
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Inserts a user in a transaction of the owner that stays open while {@code during} runs, and
+   * then commits it: a concurrent insert of the same identity waits on the unique key meanwhile.
+   */
+  public static void insertUserUncommittedDuring(
+      UUID administration, String issuer, String subject, String status, Runnable during) {
+    try (Connection connection = connect(OWNER)) {
+      connection.setAutoCommit(false);
+      update(
+          connection,
+          """
+          INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
+                                       identity_issuer, identity_subject)
+          VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
+          """,
+          UUID.randomUUID(),
+          administration,
+          status,
+          issuer,
+          subject);
+      during.run();
+      connection.commit();
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
