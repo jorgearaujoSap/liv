@@ -1,6 +1,7 @@
 <#--
-  Iconos de Lucide v1.66.0 (https://lucide.dev, licencia ISC), copiados de liv-components 0.2.0: los mismos de
-  `Icon/<nombre>` en la página 02 Componentes de Figma. Lienzo de 24 px, trazo de 2 px; el color es el del texto.
+  Iconos de Lucide v1.66.0 (https://lucide.dev, licencia ISC; los derivados de Feather, MIT), copiados de
+  liv-components 0.2.0: los mismos de `Icon/<nombre>` en la página 02 Componentes de Figma. Los avisos de licencia
+  están en identity/THIRD_PARTY_NOTICES.md, que la imagen copia. Lienzo de 24 px, trazo de 2 px; el color es el del texto.
   Decorativos (aria-hidden): el nombre accesible lo da el control que los contiene.
 -->
 <#macro icon name size=20 extraClass="">

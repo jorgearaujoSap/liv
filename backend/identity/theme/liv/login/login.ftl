@@ -9,11 +9,13 @@
 <#--
   Keycloak liga a los campos el error de credenciales incorrectas, usuario inexistente y cuenta bloqueada, pero manda
   el de cuenta desactivada como mensaje general. Los dos se pintan igual, con la misma alerta y los mismos atributos en
-  los campos, para que el HTML tampoco revele que la cuenta existe (001-05; check.sh compara las páginas).
+  los campos, para que el HTML tampoco revele que la cuenta existe (001-05; check.sh compara las páginas). Se reconoce
+  por el texto, que es el mismo mensaje único (messages_es.properties); otros errores generales, como el tiempo
+  agotado, van por la alerta de la plantilla sin marcar los campos.
 -->
 <#if messagesPerField.existsError('username', 'password')>
   <#assign errorAcceso = messagesPerField.getFirstError('username', 'password')>
-<#elseif message?has_content && message.type == 'error'>
+<#elseif message?has_content && message.type == 'error' && message.summary == msg("accountDisabledMessage")>
   <#assign errorAcceso = message.summary>
 <#else>
   <#assign errorAcceso = "">

@@ -4,16 +4,19 @@
 // data-auth-session-id-hash (template.ftl); el botón que alterna lleva data-liv-password-toggle y aria-controls; el
 // formulario, data-liv-busy; su botón de envío, data-busy-label y un .liv-button__label; el anuncio, data-liv-status.
 
-// authChecker.js es de la plantilla base de Keycloak; el tema liv la hereda (parent=base).
-import { startSessionPolling, checkAuthSession } from './authChecker.js';
-
+// authChecker.js es de la plantilla base de Keycloak; el tema liv la hereda (parent=base). Es un archivo interno de
+// Keycloak: se importa aparte para que, si cambiara en otra versión, el resto de este módulo siga funcionando.
 const { ssoLoginInOtherTabsUrl, authSessionIdHash } = document.body.dataset;
-if (ssoLoginInOtherTabsUrl) {
-  startSessionPolling(ssoLoginInOtherTabsUrl);
-}
-if (authSessionIdHash) {
-  checkAuthSession(authSessionIdHash);
-}
+import('./authChecker.js')
+  .then(({ startSessionPolling, checkAuthSession }) => {
+    if (ssoLoginInOtherTabsUrl) {
+      startSessionPolling(ssoLoginInOtherTabsUrl);
+    }
+    if (authSessionIdHash) {
+      checkAuthSession(authSessionIdHash);
+    }
+  })
+  .catch((error) => console.error('Tema liv: no se pudo cargar authChecker.js', error));
 
 for (const button of document.querySelectorAll('[data-liv-password-toggle]')) {
   const input = document.getElementById(button.getAttribute('aria-controls'));
