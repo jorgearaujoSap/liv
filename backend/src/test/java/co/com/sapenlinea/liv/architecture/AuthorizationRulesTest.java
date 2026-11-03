@@ -198,11 +198,13 @@ class AuthorizationRulesTest {
   @Tag("001-16")
   @DisplayName("001-16 · Un caso de uso creado con @Bean, sin @Service, viola la regla")
   void beanMethodForUseCaseFails() {
+    // The detail names the method: the rule selected it, it did not fail for selecting nothing.
     assertThat(
             AuthorizationRules.noBeanMethodsForUseCases(FIXTURES)
                 .evaluate(classes(UseCaseConfiguration.class))
-                .hasViolation())
-        .isTrue();
+                .getFailureReport()
+                .getDetails())
+        .anyMatch(detail -> detail.contains("UseCaseConfiguration.plainUseCase()"));
   }
 
   @Test
@@ -248,7 +250,8 @@ class AuthorizationRulesTest {
   @Tag("001-16")
   @DisplayName("001-16 · Un método asíncrono u oyente con @RequiresPermission viola la regla")
   void detachedGuardedMethodFails() {
-    assertThat(marksOnly(DetachedUseCase.class).hasViolation()).isTrue();
+    assertThat(marksOnly(DetachedUseCase.class).getFailureReport().getDetails())
+        .anyMatch(detail -> detail.contains("runs without a request"));
   }
 
   private static List<ArchRule> fixtureRules() {
