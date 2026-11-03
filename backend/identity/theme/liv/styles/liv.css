@@ -118,8 +118,72 @@ body {
   @apply m-0 text-body-md text-text-secondary;
 }
 
+/* Pasos posteriores al inicio de sesión: recuadro con icono sobre el título. */
+.liv-heading--with-icon {
+  @apply gap-4;
+}
+
+.liv-icon-tile {
+  @apply flex size-12 items-center justify-center rounded-xl bg-action-primary-subtle text-action-primary;
+}
+
 .liv-attempted-user {
   @apply m-0 flex flex-wrap items-center gap-2 text-body-md text-text-secondary;
+}
+
+/* Keycloak/Step y el QR del segundo factor */
+
+.liv-steps {
+  @apply m-0 flex list-none flex-col gap-5 p-0;
+}
+
+.liv-step {
+  @apply flex flex-wrap items-start gap-x-3 gap-y-5;
+}
+
+.liv-step__number {
+  @apply flex size-6 shrink-0 items-center justify-center rounded-full bg-action-primary-subtle text-label-sm text-action-primary;
+}
+
+.liv-step__text {
+  @apply flex min-w-0 flex-1 flex-col gap-[2px];
+}
+
+.liv-step__title {
+  @apply text-body-md-strong text-text-primary;
+}
+
+.liv-step__description {
+  @apply text-body-sm text-text-secondary;
+}
+
+/* El QR va bajo el paso 2, alineado con su texto (24 px del número más 12 de separación). */
+.liv-totp-qr {
+  @apply flex basis-full items-start gap-5 pl-[36px];
+}
+
+.liv-totp-qr__image {
+  @apply box-border size-[136px] shrink-0 rounded-lg border border-solid border-border-strong bg-bg-surface;
+}
+
+.liv-totp-qr__manual {
+  @apply flex min-w-0 flex-1 flex-col gap-2;
+}
+
+.liv-totp-qr__hint {
+  @apply m-0 text-body-sm text-text-secondary;
+}
+
+.liv-totp-qr__secret {
+  @apply self-start rounded-lg bg-bg-subtle px-3 py-2 font-mono text-code-sm break-all text-text-primary;
+}
+
+.liv-choices {
+  @apply m-0 flex flex-col gap-2 border-0 p-0;
+}
+
+.liv-choice {
+  @apply flex items-center gap-2 text-body-md text-text-primary;
 }
 
 .liv-form__body,
@@ -290,6 +354,55 @@ body {
   @apply border-border-focus shadow-focus-ring outline-hidden;
 }
 
+.liv-text-field__help,
+.liv-code-input__help {
+  @apply m-0 flex items-center gap-1 text-body-sm text-text-secondary;
+}
+
+.liv-text-field__help .liv-icon,
+.liv-code-input__help .liv-icon {
+  @apply shrink-0;
+}
+
+/* CodeInput: alto 56, dígitos en code/lg (JetBrains Mono, espaciado amplio) centrados. */
+
+.liv-code-input {
+  @apply flex flex-col gap-2;
+}
+
+.liv-code-input__label {
+  @apply text-label-md text-text-primary;
+}
+
+.liv-code-input__control {
+  @apply box-border flex h-[56px] items-center rounded-lg border border-solid border-border-strong bg-bg-surface px-3;
+}
+
+.liv-code-input__control:focus-within {
+  @apply border-border-focus shadow-focus-ring outline-hidden inset-ring-[0.5px] inset-ring-border-focus;
+}
+
+.liv-code-input__input {
+  @apply m-0 h-full w-full min-w-0 border-0 bg-transparent p-0 text-center font-mono text-code-lg text-text-primary outline-none;
+}
+
+.liv-code-input__input::placeholder {
+  @apply text-text-muted opacity-100;
+}
+
+/* State=Error del TextField y del CodeInput: va después de las reglas de foco y las iguala o supera en especificidad,
+   para que el borde siga rojo con el foco. */
+.liv-text-field--error .liv-text-field__control,
+.liv-text-field--error .liv-text-field__control:has(.liv-text-field__input:focus),
+.liv-code-input--error .liv-code-input__control {
+  @apply border-status-danger inset-ring-[0.5px] inset-ring-status-danger;
+}
+
+.liv-text-field--error .liv-text-field__help,
+.liv-code-input--error .liv-code-input__help {
+  @apply text-status-danger;
+}
+
 /* IconButton Ghost, tamaño Sm (32 px), con área táctil de 44 px en pantallas táctiles. */
 
 .liv-icon-button {
@@ -336,6 +449,15 @@ body {
 
 .liv-button--secondary:hover {
   @apply bg-bg-subtle;
+}
+
+/* Ghost: también como enlace ("Volver a iniciar sesión"). */
+.liv-button--ghost {
+  @apply bg-transparent text-text-link no-underline;
+}
+
+.liv-button--ghost:hover {
+  @apply bg-action-primary-subtle;
 }
 
 .liv-button[aria-disabled='true'] {

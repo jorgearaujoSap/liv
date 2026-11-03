@@ -42,3 +42,72 @@
   <path class="liv-spinner__arc" d="M10 1.25A8.75 8.75 0 0 1 16.187 16.187"/>
 </svg>
 </#macro>
+
+<#--
+  Button Primary, tamaño Lg, que envía el formulario. Con data-liv-busy en el formulario, liv.js lo pasa a Loading
+  (spinner y busyLabel) y evita un segundo envío; el anuncio va en el role="status" de al lado.
+-->
+<#macro submitButton label busyLabel id="" name="" trailingIcon="">
+<button class="liv-button liv-button--primary"<#if id?has_content> id="${id}"</#if><#if name?has_content> name="${name}"</#if> type="submit" data-busy-label="${busyLabel}">
+  <span class="liv-button__spinner"><@spinner/></span>
+  <span class="liv-button__label">${label}</span>
+  <#if trailingIcon?has_content><@i.icon name=trailingIcon extraClass="liv-button__trailing-icon"/></#if>
+</button>
+<span class="liv-sr-only" role="status" data-liv-status></span>
+</#macro>
+
+<#--
+  TextField (alto 44): etiqueta siempre visible, icono opcional al inicio y, si es de contraseña, el IconButton para
+  mostrarla. Con error (State=Error), el borde y la ayuda pasan a status/danger con icono, el campo queda aria-invalid y
+  la ayuda dice qué corregir. invalid y describedBy marcan el campo cuando el error lo explica otro elemento (la alerta
+  del inicio de sesión). extra: atributos fijos de la plantilla (autofocus, autocapitalize…), nunca datos.
+-->
+<#macro textField id label icon="" name="" type="text" value="" autocomplete="" placeholder="" help="" error="" invalid=false describedBy="" extra="">
+<#local ayuda = error?has_content?then(error, help)>
+<#local ayudaId = id + "-help">
+<div class="liv-text-field<#if error?has_content> liv-text-field--error</#if>">
+  <label class="liv-text-field__label" for="${id}">${label}</label>
+  <div class="liv-text-field__control">
+    <#if icon?has_content><@i.icon name=icon extraClass="liv-text-field__icon"/></#if>
+    <input class="liv-text-field__input" id="${id}" name="${name?has_content?then(name, id)}" type="${type}" value="${value}"<#if autocomplete?has_content> autocomplete="${autocomplete}"</#if><#if placeholder?has_content> placeholder="${placeholder}"</#if> dir="ltr" ${extra?no_esc}<#if invalid || error?has_content> aria-invalid="true"</#if><#if describedBy?has_content> aria-describedby="${describedBy}"<#elseif ayuda?has_content> aria-describedby="${ayudaId}"</#if>>
+    <#if type == "password">
+    <button class="liv-icon-button" type="button" aria-controls="${id}" aria-label="${msg("showPassword")}"
+            data-liv-password-toggle data-label-show="${msg("showPassword")}" data-label-hide="${msg("hidePassword")}">
+      <@i.icon name="eye" size=16 extraClass="liv-icon-button__show"/>
+      <@i.icon name="eye-off" size=16 extraClass="liv-icon-button__hide"/>
+    </button>
+    </#if>
+  </div>
+  <#if ayuda?has_content>
+  <p class="liv-text-field__help" id="${ayudaId}"><#if error?has_content><@i.icon name="circle-alert" size=16/></#if><span>${kcSanitize(ayuda)?no_esc}</span></p>
+  </#if>
+</div>
+</#macro>
+
+<#--
+  CodeInput: un solo campo para el código de 6 dígitos (inputmode numérico, one-time-code), con dígitos grandes y
+  espaciados; liv.js deja pegar el código con espacios. Con error, como el TextField. Lleva autofocus: en las
+  páginas del segundo factor es el único campo que se escribe.
+-->
+<#macro codeInput id label help name="" error="">
+<#local ayuda = error?has_content?then(error, help)>
+<div class="liv-code-input<#if error?has_content> liv-code-input--error</#if>">
+  <label class="liv-code-input__label" for="${id}">${label}</label>
+  <div class="liv-code-input__control">
+    <input class="liv-code-input__input" id="${id}" name="${name?has_content?then(name, id)}" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" spellcheck="false" dir="ltr" autofocus data-liv-code aria-describedby="${id}-help"<#if error?has_content> aria-invalid="true"</#if>>
+  </div>
+  <p class="liv-code-input__help" id="${id}-help"><#if error?has_content><@i.icon name="circle-alert" size=16/></#if><span>${kcSanitize(ayuda)?no_esc}</span></p>
+</div>
+</#macro>
+
+<#-- Keycloak/Step (solo del tema): paso numerado de la configuración del segundo factor, dentro de un <ol>. -->
+<#macro step number title text>
+<li class="liv-step">
+  <span class="liv-step__number" aria-hidden="true">${number}</span>
+  <span class="liv-step__text">
+    <span class="liv-step__title">${title}</span>
+    <span class="liv-step__description">${text}</span>
+  </span>
+  <#nested>
+</li>
+</#macro>

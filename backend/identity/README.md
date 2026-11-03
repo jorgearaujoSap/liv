@@ -4,7 +4,7 @@ Configuración de Keycloak del backend (ADR 0024): el *realm* `liv` como código
 
 ## Tema `liv` e imagen
 
-`theme/liv/login/` tiene las plantillas FreeMarker de las páginas de acceso, hechas a partir de los *frames* "001 · Acceso" de LIV‑Diseño. `theme/liv/styles/liv.css` es su hoja de estilos: Tailwind con los *tokens* del paquete `liv-components`, con versión exacta en `theme/package.json`. Por la excepción del ADR 0024, el tema reproduce los componentes de la librería (Logo, Alert, TextField, IconButton, Button y Spinner) y `Keycloak/BrandPanel`, que solo existe en el tema. Los colores, las tipografías y las sombras salen solo de los *tokens*.
+`theme/liv/login/` tiene las plantillas FreeMarker de las páginas de acceso, hechas a partir de los *frames* "001 · Acceso" de LIV‑Diseño: inicio de sesión (escritorio y móvil) y página de error, contraseña nueva, configurar el segundo factor y pedir su código. Las demás páginas de Keycloak usan la misma estructura con las plantillas de la base. `theme/liv/styles/liv.css` es su hoja de estilos: Tailwind con los *tokens* del paquete `liv-components`, con versión exacta en `theme/package.json`. Por la excepción del ADR 0024, el tema reproduce los componentes de la librería (Logo, Alert, TextField, CodeInput, IconButton, Button y Spinner) y `Keycloak/BrandPanel` y `Keycloak/Step`, que solo existen en el tema. Los colores, las tipografías y las sombras salen solo de los *tokens*.
 
 `Dockerfile` compila la hoja y construye Keycloak 26.8.1 con el tema y optimizado para PostgreSQL. Su comando por defecto es `start --optimized`; el entorno local (`dev/compose.yaml`) la construye y la arranca con `start-dev`. El *realm* activa el tema con `loginTheme: liv`, así que **todo entorno que aplique `config/base` debe usar esta imagen**: con la imagen oficial, Keycloak cae sin aviso al tema por defecto, que muestra "La cuenta está desactivada…" y revela que el usuario existe (*spike* T06). Las pruebas de la API contra Keycloak real (`RealKeycloak`, en `src/test`) todavía usan la imagen oficial, que les basta porque no prueban las páginas. La imagen incluye `THIRD_PARTY_NOTICES.md` con las licencias de los iconos.
 
@@ -18,6 +18,7 @@ La prueba levanta un entorno desechable, con proyecto, puertos y etiqueta de ima
 
 - que la página de inicio de sesión y la de error usen el tema, estén en español y solo usen colores de los *tokens* (001-19);
 - que la contraseña incorrecta, el usuario inexistente, la cuenta bloqueada tras 5 fallos y el usuario desactivado, estos dos con la contraseña correcta, no entren y reciban **la misma página**, no solo el mismo mensaje (001-03, 001-04, 001-05); como control, que un usuario activo sí entre;
+- que las páginas de contraseña nueva, configurar el segundo factor (001-06) y pedir su código (001-07) sean las de los *frames*, y que sus errores queden en el campo; lo prepara con la API de administración del entorno desechable (una acción requerida y un usuario de prueba con TOTP);
 - que el *realm* se pueda reaplicar y que la imagen arranque con `start --optimized` y sirva el tema.
 
 La prueba visual contra los *frames* y la de accesibilidad con axe van en las e2e (tarea T23).
