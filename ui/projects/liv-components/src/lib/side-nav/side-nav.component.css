@@ -1,0 +1,21 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply box-border block h-full w-[272px] shrink-0 border-0 border-r border-solid border-border-default bg-bg-surface;
+}
+
+.side-nav__nav {
+  @apply flex h-full flex-col;
+}
+
+.side-nav__brand {
+  @apply box-border flex h-16 shrink-0 items-center border-0 border-b border-solid border-border-default px-5;
+}
+
+.side-nav__menu {
+  @apply flex flex-1 flex-col gap-[2px] overflow-y-auto p-4;
+}
+
+.side-nav__footer {
+  @apply m-0 box-border shrink-0 border-0 border-t border-solid border-border-default px-5 py-4 text-body-sm text-text-muted;
+}

@@ -1,0 +1,60 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block;
+}
+
+.module-card__link {
+  @apply box-border flex w-full cursor-pointer flex-col gap-4 p-5 text-left no-underline outline-none;
+  @apply rounded-xl border border-solid border-border-default bg-bg-surface shadow-elevation-sm;
+}
+
+.module-card__top {
+  @apply flex items-start justify-between;
+}
+
+.module-card__tile {
+  @apply flex size-10 items-center justify-center rounded-lg bg-action-primary-subtle text-action-primary;
+}
+
+.module-card__body {
+  @apply flex flex-col gap-1;
+}
+
+.module-card__title {
+  @apply text-heading-h3 text-text-primary;
+}
+
+.module-card__description {
+  @apply text-body-sm text-text-secondary;
+}
+
+/* Hover: borde y sombra mayores. */
+
+:host(:not([data-disabled])) .module-card__link:hover:not(:focus-visible) {
+  @apply border-border-strong shadow-elevation-md;
+}
+
+/* Disabled: módulo aún no disponible; no navega. */
+
+:host([data-disabled]) .module-card__link {
+  @apply cursor-not-allowed;
+}
+
+:host([data-disabled]) .module-card__tile {
+  @apply bg-bg-subtle text-text-muted;
+}
+
+:host([data-disabled]) .module-card__title {
+  @apply text-text-secondary;
+}
+
+/*
+ * El anillo de foco gana a cada estado: la regla de hover se aparta con :not(:focus-visible) porque su
+ * especificidad es mayor y, si no, taparía el anillo con el puntero sobre la tarjeta enfocada.
+ *
+ * En alto contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno visible.
+ */
+.module-card__link:focus-visible {
+  @apply shadow-focus-ring outline-hidden;
+}

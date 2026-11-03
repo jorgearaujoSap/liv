@@ -1,0 +1,21 @@
+<!-- Sin href, un enlace deshabilitado no es enfocable ni navega; `role="link"` conserva su semántica para los lectores de pantalla. -->
+<a
+  class="module-card__link"
+  [attr.href]="disabled() ? null : target()"
+  [attr.role]="disabled() ? 'link' : null"
+  [attr.aria-disabled]="disabled() ? 'true' : null"
+  (click)="onClick($event)"
+>
+  <span class="module-card__top">
+    <span class="module-card__tile"><liv-icon [name]="icon()" [size]="20" /></span>
+    @if (disabled()) {
+      <liv-badge>{{ disabledLabel() }}</liv-badge>
+    }
+  </span>
+  <span class="module-card__body">
+    <span class="module-card__title">{{ heading() }}</span>
+    @if (descriptionText(); as text) {
+      <span class="module-card__description">{{ text }}</span>
+    }
+  </span>
+</a>

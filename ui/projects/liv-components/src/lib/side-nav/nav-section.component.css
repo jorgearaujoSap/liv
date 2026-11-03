@@ -1,0 +1,9 @@
+@reference '../tailwind-reference.css';
+
+/*
+ * En Figma esta etiqueta no tiene un estilo de texto: usa label/sm (12/16, medio) con 6 % de espaciado
+ * entre letras, valor que ningún token de theme.css recoge.
+ */
+:host {
+  @apply block pt-4 pr-0 pb-[6px] pl-3 text-label-sm tracking-[0.06em] text-text-muted uppercase;
+}
