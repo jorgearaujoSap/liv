@@ -6,6 +6,7 @@ import co.com.sapenlinea.liv.platform.OpenUseCase;
 import co.com.sapenlinea.liv.platform.RequiresPermission;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -14,13 +15,18 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The authorization rules over the production code, plus fixtures that prove they can fail. The
@@ -42,6 +48,18 @@ class AuthorizationRulesTest {
   @ArchTest
   static final ArchRule useCasesAreInterceptableServices =
       AuthorizationRules.useCasesAreInterceptableServices(AuthorizationRules.USE_CASES);
+
+  @ArchTest
+  static final ArchRule noBeanMethodsForUseCases =
+      AuthorizationRules.noBeanMethodsForUseCases(AuthorizationRules.USE_CASES);
+
+  @ArchTest
+  static final ArchRule controllersUseOnlyUseCases =
+      AuthorizationRules.controllersUseOnlyUseCases(AuthorizationRules.USE_CASES);
+
+  @ArchTest
+  static final ArchRule useCaseMethodsArePublicOrPrivate =
+      AuthorizationRules.useCaseMethodsArePublicOrPrivate(AuthorizationRules.USE_CASES);
 
   @ArchTest
   static final ArchRule useCaseMethodsAreMarked =
@@ -88,7 +106,7 @@ class AuthorizationRulesTest {
         PRODUCTION.stream()
             .flatMap(c -> c.getMethods().stream())
             .filter(m -> m.isAnnotatedWith(OpenUseCase.class))
-            .map(m -> m.getOwner().getName() + "." + m.getName())
+            .map(JavaMethod::getFullName)
             .collect(Collectors.toSet());
 
     assertThat(open).isEqualTo(AuthorizationRules.OPEN_USE_CASES);
@@ -176,9 +194,67 @@ class AuthorizationRulesTest {
         .isTrue();
   }
 
+  @Test
+  @Tag("001-16")
+  @DisplayName("001-16 · Un caso de uso creado con @Bean, sin @Service, viola la regla")
+  void beanMethodForUseCaseFails() {
+    assertThat(
+            AuthorizationRules.noBeanMethodsForUseCases(FIXTURES)
+                .evaluate(classes(UseCaseConfiguration.class))
+                .hasViolation())
+        .isTrue();
+  }
+
+  @Test
+  @Tag("001-16")
+  @DisplayName(
+      "001-16 · Un controlador que usa un puerto de application en lugar del caso de uso viola la regla")
+  void controllerUsingAPortFails() {
+    assertThat(
+            AuthorizationRules.controllersUseOnlyUseCases(FIXTURES)
+                .evaluate(classes(PortController.class))
+                .hasViolation())
+        .isTrue();
+    assertThat(
+            AuthorizationRules.controllersUseOnlyUseCases(FIXTURES)
+                .evaluate(classes(UseCaseController.class))
+                .hasViolation())
+        .isFalse();
+  }
+
+  @Test
+  @Tag("001-16")
+  @DisplayName("001-16 · Un método de caso de uso package-private o protected viola la regla")
+  void packagePrivateMethodFails() {
+    assertThat(
+            AuthorizationRules.useCaseMethodsArePublicOrPrivate(FIXTURES)
+                .evaluate(classes(PackagePrivateUseCase.class))
+                .hasViolation())
+        .isTrue();
+  }
+
+  @Test
+  @Tag("001-16")
+  @DisplayName("001-16 · Una referencia this::metodo a un método protegido viola la regla")
+  void selfReferenceToGuardedMethodFails() {
+    assertThat(
+            AuthorizationRules.noSelfCallsToGuardedMethods(FIXTURES)
+                .evaluate(classes(SelfReferencingUseCase.class))
+                .hasViolation())
+        .isTrue();
+  }
+
+  @Test
+  @Tag("001-16")
+  @DisplayName("001-16 · Un método asíncrono u oyente con @RequiresPermission viola la regla")
+  void detachedGuardedMethodFails() {
+    assertThat(marksOnly(DetachedUseCase.class).hasViolation()).isTrue();
+  }
+
   private static List<ArchRule> fixtureRules() {
     return List.of(
         AuthorizationRules.useCasesAreInterceptableServices(FIXTURES),
+        AuthorizationRules.useCaseMethodsArePublicOrPrivate(FIXTURES),
         AuthorizationRules.useCaseMethodsAreMarked(FIXTURES),
         AuthorizationRules.marksOnlyOnUseCases(FIXTURES),
         AuthorizationRules.noSelfCallsToGuardedMethods(FIXTURES),
@@ -306,6 +382,79 @@ class AuthorizationRulesTest {
     public String approve() {
       return "";
     }
+  }
+
+  /** Not a @Service: a port or helper of application, made by a @Bean method. */
+  static class PlainUseCase {
+    public String run() {
+      return "";
+    }
+  }
+
+  @Configuration
+  static class UseCaseConfiguration {
+    @Bean
+    PlainUseCase plainUseCase() {
+      return new PlainUseCase();
+    }
+  }
+
+  @RestController
+  static class PortController {
+    private final PlainUseCase port;
+
+    PortController(PlainUseCase port) {
+      this.port = port;
+    }
+
+    String read() {
+      return port.run();
+    }
+  }
+
+  @RestController
+  static class UseCaseController {
+    private final MarkedUseCase useCase;
+
+    UseCaseController(MarkedUseCase useCase) {
+      this.useCase = useCase;
+    }
+
+    String read() {
+      return useCase.run();
+    }
+  }
+
+  @Service
+  static class PackagePrivateUseCase {
+    @RequiresPermission("core.user.read")
+    public String run() {
+      return "";
+    }
+
+    String unchecked() {
+      return "";
+    }
+  }
+
+  @Service
+  static class SelfReferencingUseCase {
+    @RequiresPermission("core.user.read")
+    public Supplier<String> read() {
+      return this::approve;
+    }
+
+    @RequiresPermission("core.user.approve")
+    public String approve() {
+      return "";
+    }
+  }
+
+  @Service
+  static class DetachedUseCase {
+    @Async
+    @RequiresPermission("core.user.read")
+    public void run() {}
   }
 
   @Service
