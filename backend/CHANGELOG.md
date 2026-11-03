@@ -51,3 +51,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - el usuario y su administración salen del registro de LIV, bajo RLS (puerto `UserProfiles`);
   - roles del token filtrados por el catálogo de LIV y la unión de sus permisos (`PermissionCatalog`, en `platform`);
   - las pruebas comparan con la matriz aprobada, escrita aparte.
+- Autorización y menú (feature 001, T14):
+  - `@RequiresPermission` en los métodos públicos de los servicios de `application`, con `@EnableMethodSecurity` y un `AuthorizationManager` propio, sin AspectJ. Sin el permiso, el caso de uso no se ejecuta y la respuesta es 403 `001-16`; fuera de una petición se niega siempre;
+  - ArchUnit exige la anotación en esos métodos, con tres excepciones (`GetCurrentUser`, `StartSession` y `EndSession`), y no la admite en otro lugar;
+  - `GET /api/v1/me/capabilities` (`platform.yaml`) devuelve el árbol del menú que permiten los permisos del usuario (001-15). Las opciones salen de `platform/menu-catalog.yaml`, con el mapa de Doc. 01 §3 hasta las hojas de 1.5 y 1.6, todas en `COMING_SOON`; un catálogo mal escrito impide arrancar;
+  - las pruebas comparan cada uno de los 11 roles con la matriz aprobada, escrita aparte.

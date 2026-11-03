@@ -1,0 +1,110 @@
+# Catálogo del menú de LIV (feature 001, criterio 001-15).
+#
+# - Opciones y orden: mapa del menú de Doc. 01 §3.
+# - Permisos: matriz aprobada en H2 (plan de la feature 001, «Permisos»). Quién tiene cada permiso
+#   está en platform.role_permission, no aquí.
+# - Una hoja lleva su permiso y su estado:
+#   - AVAILABLE: navega;
+#   - COMING_SOON: se muestra deshabilitada hasta que su feature la construya.
+# - Una rama no lleva ni permiso ni estado: se ve si se ve alguno de sus hijos, y está disponible si
+#   alguno de sus hijos visibles lo está.
+# - Los módulos 2 a 9 son hojas hasta que tengan matriz por opción.
+# - "Inicio" no está aquí porque no exige permiso.
+# - Profundidad, estados y reparto de 1.5: plan de la feature 001, «Decisiones», ajustes de T14.
+items:
+  - code: "1"
+    children:
+      - code: "1.1"
+        permission: core.administration.read
+        status: COMING_SOON
+      - code: "1.2"
+        permission: core.user.read
+        status: COMING_SOON
+      - code: "1.3"
+        permission: documents.legal-instrument.read
+        status: COMING_SOON
+      - code: "1.4"
+        permission: tax.fiscal-year.read
+        status: COMING_SOON
+      - code: "1.5"
+        children:
+          - code: "1.5.1"
+            permission: valuation.batch.read
+            status: COMING_SOON
+          - code: "1.5.2"
+            permission: valuation.batch.read
+            status: COMING_SOON
+          - code: "1.5.3"
+            permission: valuation.batch.read
+            status: COMING_SOON
+          - code: "1.5.4"
+            permission: valuation.batch.read
+            status: COMING_SOON
+          - code: "1.5.5"
+            permission: tax.rate.read
+            status: COMING_SOON
+          - code: "1.5.6"
+            permission: tax.rate.read
+            status: COMING_SOON
+          - code: "1.5.7"
+            permission: tax.rate.read
+            status: COMING_SOON
+          - code: "1.5.8"
+            permission: tax.rate.read
+            status: COMING_SOON
+          - code: "1.5.9"
+            permission: jurisdiction.config.read
+            status: COMING_SOON
+      - code: "1.6"
+        children:
+          - code: "1.6.1"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+          - code: "1.6.2"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+          - code: "1.6.3"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+          - code: "1.6.4"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+          - code: "1.6.5"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+          - code: "1.6.6"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+          - code: "1.6.7"
+            permission: valuation.catalog.read
+            status: COMING_SOON
+      - code: "1.7"
+        permission: valuation.vehicle-reference.read
+        status: COMING_SOON
+      - code: "1.8"
+        permission: core.parameter.read
+        status: COMING_SOON
+  - code: "2"
+    permission: core.vehicle.read
+    status: COMING_SOON
+  - code: "3"
+    permission: tax.assessment.read
+    status: COMING_SOON
+  - code: "4"
+    permission: ledger.obligation.read
+    status: COMING_SOON
+  - code: "5"
+    permission: portfolio.balance.read
+    status: COMING_SOON
+  - code: "6"
+    permission: collection.case.read
+    status: COMING_SOON
+  - code: "7"
+    permission: enforcement.measure.read
+    status: COMING_SOON
+  - code: "8"
+    permission: documents.document.read
+    status: COMING_SOON
+  - code: "9"
+    permission: audit.event.read
+    status: COMING_SOON

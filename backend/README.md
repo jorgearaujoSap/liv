@@ -112,6 +112,8 @@ El BFF inicia y cierra la sesión de LIV de cada usuario por `core-internal.yaml
   - el usuario y su administración salen del registro de LIV, bajo RLS con la administración registrada;
   - los roles son los del token que están en el catálogo de LIV (`platform.app_role`), y los permisos, la unión de los suyos (`PermissionCatalog`);
   - sin roles conocidos, las listas van vacías: el usuario solo llega a Inicio.
+- **Autorización (001-16):** cada método público de un servicio de `application` lleva `@RequiresPermission("<modulo>.<recurso>.<accion>")`. Antes de ejecutarlo se comprueba que el usuario de la petición tenga ese permiso por alguno de los roles de su token que LIV conoce; si no, 403 `001-16` y el método no corre. Las únicas excepciones, fijadas en la prueba de arquitectura `AuthorizationRules`, son `GetCurrentUser`, `StartSession` y `EndSession`.
+- **Menú (`GET /api/v1/me/capabilities`, 001-15):** `src/main/resources/platform/menu-catalog.yaml` lista las opciones de Doc. 01 §3. Cada hoja lleva su permiso y su estado (`AVAILABLE` o `COMING_SOON`); una rama se ve si se ve alguno de sus hijos. Cuando una feature construye una opción, cambia su estado a `AVAILABLE` en ese archivo.
 
 ## Estado
 
