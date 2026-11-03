@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.platform.security;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -29,6 +30,12 @@ record LivSecurityProperties(
     @NotBlank String serviceAudience,
     @NotBlank String serviceClientId,
     @Valid @NotNull Claims claims) {
+
+  /** An issuer over plain http lets anyone on the network replace its keys (doc. 02 §3). */
+  @AssertTrue(message = "liv.security.issuer-uri must be https outside dev and test")
+  boolean isIssuerSecure() {
+    return allowHttpIssuer || issuerUri == null || issuerUri.startsWith("https://");
+  }
 
   /**
    * @param administrationId claim with the administration of the user

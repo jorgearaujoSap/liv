@@ -16,6 +16,28 @@ spring:
     # esperar los 30 s por omisión.
     hikari:
       connection-timeout: 5000
+      # Cada conexión nueva comprueba que el rol sea liv_app y no salte la RLS: si el despliegue cambia el usuario
+      # (p. ej. SPRING_DATASOURCE_USERNAME), no se obtiene ninguna conexión y el error dice por qué (T12). El CAST
+      # de un texto a boolean es a propósito: falla, y PostgreSQL devuelve ese texto en el mensaje de error.
+      connection-init-sql: >-
+        SELECT CASE WHEN current_user = 'liv_app' AND NOT r.rolbypassrls THEN true
+        ELSE CAST('LIV solo se conecta como liv_app sin BYPASSRLS, no como ' || current_user AS boolean) END
+        FROM pg_roles r WHERE r.rolname = current_user
+  # JPA sin consultar la base al arrancar (la API arranca aunque la base no esté arriba). El gestor de transacciones
+  # fija el contexto RLS en cada transacción (platform.persistence).
+  jpa:
+    open-in-view: false
+    # Como Hibernate no lee los metadatos de la base, el dialecto se indica aquí. Hibernate avisa que sobra porque
+    # supone que puede detectarlo; sin él, el arranque falla.
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      # No abrir una conexión al arrancar para leer los metadatos JDBC.
+      hibernate.boot.allow_jdbc_metadata_access: false
+  # Tabla del outbox en el esquema platform (V202611010900); la usa el starter JDBC de Spring Modulith.
+  modulith:
+    events:
+      jdbc:
+        schema: platform
   # Flyway (liv_owner) corre solo en los perfiles dev y test. En staging y producción migra la imagen
   # liv-migrations como paso del despliegue.
   flyway:

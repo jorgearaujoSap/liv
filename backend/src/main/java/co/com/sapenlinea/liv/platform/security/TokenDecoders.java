@@ -22,7 +22,8 @@ import org.springframework.web.client.RestTemplate;
  * keys (signature, issuer, expiry and audience):
  *
  * <ul>
- *   <li>user tokens, with the audience of the API;
+ *   <li>user tokens, with the audience of the API and the BFF as {@code azp}: users log in only
+ *       through the BFF (plan › Decisiones, T12);
  *   <li>the service token of the BFF, with the internal audience and its client as {@code azp}. A
  *       user token never meets both, even if the user asks for more scopes (plan, step 8).
  * </ul>
@@ -38,16 +39,16 @@ final class TokenDecoders {
   private TokenDecoders() {}
 
   static JwtDecoder userTokens(LivSecurityProperties properties) {
-    return decoder(properties.issuerUri(), List.of(audience(properties.userAudience())));
+    return decoder(
+        properties.issuerUri(),
+        List.of(audience(properties.userAudience()), authorizedParty(properties.userClientId())));
   }
 
   static JwtDecoder serviceTokens(LivSecurityProperties properties) {
     return decoder(
         properties.issuerUri(),
         List.of(
-            audience(properties.serviceAudience()),
-            new JwtClaimValidator<String>(
-                IdTokenClaimNames.AZP, properties.serviceClientId()::equals)));
+            audience(properties.serviceAudience()), authorizedParty(properties.serviceClientId())));
   }
 
   private static JwtDecoder decoder(String issuer, List<OAuth2TokenValidator<Jwt>> extra) {
@@ -70,6 +71,11 @@ final class TokenDecoders {
     JwtTimestampValidator timestamps = new JwtTimestampValidator();
     timestamps.setAllowEmptyExpiryClaim(false);
     return timestamps;
+  }
+
+  /** The client the token was issued to ({@code azp}, OIDC). */
+  private static OAuth2TokenValidator<Jwt> authorizedParty(String clientId) {
+    return new JwtClaimValidator<String>(IdTokenClaimNames.AZP, clientId::equals);
   }
 
   private static OAuth2TokenValidator<Jwt> audience(String audience) {
