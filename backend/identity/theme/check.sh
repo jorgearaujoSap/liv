@@ -286,7 +286,9 @@ pagina "$tmp/configurar.html" 'configurar segundo factor: página del frame (001
   'src="data:image/png;base64,' 'Escribe esta clave en la aplicación:' 'id="kc-totp-secret-key"' \
   '>Código de verificación</label>' 'inputmode="numeric"' 'autocomplete="one-time-code"' 'maxlength="6"' \
   'Escribe los 6 dígitos sin espacios.' '"liv-button__label">Activar y continuar<'
-enviar_paso "$tmp/configurar.html" "$tmp/configurar-invalido.html" kc-totp-settings-form totp=000000
+# Keycloak recibe el secreto en un campo oculto junto con el código.
+secreto=$(tr -d '\r\n' <"$tmp/configurar.html" | sed -n 's/.*name="totpSecret" value="\([^"]*\)".*/\1/p')
+enviar_paso "$tmp/configurar.html" "$tmp/configurar-invalido.html" kc-totp-settings-form totp=000000 "totpSecret=$secreto"
 pagina "$tmp/configurar-invalido.html" 'configurar segundo factor: código inválido, error en el campo' login-config-totp \
   "$codigo_invalido" 'aria-invalid="true"'
 
