@@ -1,8 +1,12 @@
 package co.com.sapenlinea.liv.architecture;
 
+import static com.tngtech.archunit.core.domain.AccessTarget.Predicates.declaredIn;
+import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.target;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.nameMatching;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
+import co.com.sapenlinea.liv.platform.AdministrationContext;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -116,5 +120,54 @@ class ArchitectureRulesTest {
           .should()
           .beAnnotatedWith(Autowired.class)
           .because("dependencies are injected through constructors (CC-08)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule noIdentityProviderLibraries =
+      noClasses()
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("org.keycloak..")
+          .because("authentication uses only standard OIDC and OAuth 2.0 (D-001-6, 001-20)");
+
+  @ArchTest
+  static final ArchRule administrationContextComesFromTheRegistry =
+      noClasses()
+          .that()
+          .resideOutsideOfPackages("..liv.platform..", "..liv.*.infrastructure..")
+          .should()
+          .accessTargetWhere(
+              target(
+                  declaredIn(AdministrationContext.class).and(nameMatching("open|discardLeaked"))))
+          .because(
+              "the administration comes from the LIV registry (security filter) or from the event"
+                  + " of a listener or job, never from a request (001-17, doc. 02 §5.1)");
+
+  @ArchTest
+  static final ArchRule generatedModelsStayInTheApiLayer =
+      noClasses()
+          .that()
+          .resideOutsideOfPackage("..liv.*.api..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..api.contract..model")
+          .because(
+              "the generated models carry personal data in toString; only controllers map them"
+                  + " (T11)")
+          .allowEmptyShould(true);
+
+  @ArchTest
+  static final ArchRule controllersDoNotLog =
+      noClasses()
+          .that()
+          .resideInAPackage("..liv.*.api..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("org.slf4j..", "java.util.logging..", "org.apache.commons.logging..")
+          .orShould()
+          .dependOnClassesThat()
+          .areAssignableTo(System.Logger.class)
+          .because(
+              "a generated model must never reach a logger: its toString has personal data (T11)")
           .allowEmptyShould(true);
 }

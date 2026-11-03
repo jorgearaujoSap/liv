@@ -15,3 +15,8 @@ spring:
     # el arranque falla en lugar de omitirla en silencio.
     locations: classpath:db/migration,filesystem:dev/seed
     fail-on-missing-locations: true
+
+# Keycloak del entorno local (dev/compose.yaml).
+liv:
+  security:
+    issuer-uri: ${LIV_OIDC_ISSUER_URI:http://localhost:8180/realms/liv}

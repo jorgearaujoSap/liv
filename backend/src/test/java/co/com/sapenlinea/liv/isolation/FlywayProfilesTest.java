@@ -32,6 +32,7 @@ class FlywayProfilesTest {
   @SpringBootTest(
       properties = {
         "spring.datasource.url=jdbc:postgresql://localhost:1/sin-base",
+        "liv.security.issuer-uri=http://localhost:1/sin-proveedor",
         "spring.datasource.password=sin-uso"
       })
   class DefaultProfile {
@@ -144,6 +145,7 @@ class FlywayProfilesTest {
 
   private static void registerDatabase(DynamicPropertyRegistry registry, String url) {
     registry.add("spring.datasource.url", () -> url);
+    registry.add("liv.security.issuer-uri", () -> "http://localhost:1/sin-proveedor");
     registry.add("spring.datasource.password", () -> LivDatabase.password(LivDatabase.APP));
     registry.add("spring.flyway.url", () -> url);
     registry.add("spring.flyway.password", () -> LivDatabase.OWNER_PASSWORD);
