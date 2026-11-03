@@ -23,7 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Users and sessions with plain SQL under RLS (plan step 8, migrations of T10): every operation
  * opens the administration it works for and then its transaction, so the database filters by it.
- * Times come from the clock of the database.
+ * Times are {@code now()}, the start of the transaction by the clock of the database.
  */
 @Component
 class JdbcSessionStore implements SessionStore {
@@ -31,8 +31,8 @@ class JdbcSessionStore implements SessionStore {
   private final JdbcClient jdbc;
   private final UserDirectory directory;
   private final ApplicationEventPublisher events;
-  private final TransactionTemplate transaction;
-  private final TransactionTemplate separateTransaction;
+  private final TransactionTemplate administrationTransaction;
+  private final TransactionTemplate newTransaction;
 
   JdbcSessionStore(
       JdbcClient jdbc,
@@ -42,91 +42,124 @@ class JdbcSessionStore implements SessionStore {
     this.jdbc = jdbc;
     this.directory = directory;
     this.events = events;
-    this.transaction = new TransactionTemplate(transactions);
-    this.separateTransaction = new TransactionTemplate(transactions);
-    separateTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    this.administrationTransaction = new TransactionTemplate(transactions);
+    this.newTransaction = new TransactionTemplate(transactions);
+    newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
 
   @Override
-  public Optional<StartedSession> start(DirectoryUser user, TokenUser token, String sid) {
-    return inAdministration(
-        user.administrationId(),
-        () -> {
-          requireActiveAdministration(user.administrationId());
-          return startSession(user, token, sid);
-        });
+  public StartOutcome start(DirectoryUser user, TokenUser token, String sid) {
+    return startIn(user.administrationId(), () -> startSession(user, token, sid));
   }
 
   @Override
-  public Optional<StartedSession> provisionAndStart(
+  public StartOutcome provisionAndStart(
       UUID administrationId, String fullName, String email, TokenUser token, String sid) {
-    return inAdministration(
+    return startIn(
         administrationId,
         () -> {
-          requireActiveAdministration(administrationId);
-          // A concurrent first login waits on the unique key and then inserts nothing.
-          Optional<UUID> created =
-              jdbc.sql(
-                      """
-                      INSERT INTO core.admin_user (administration_id, full_name, email, status,
-                                                   identity_issuer, identity_subject)
-                      VALUES (?, ?, ?, 'ACTIVE', ?, ?)
-                      ON CONFLICT ON CONSTRAINT admin_user_identity_key DO NOTHING
-                      RETURNING id
-                      """)
-                  .params(administrationId, fullName, email, token.issuer(), token.subject())
-                  .query(UUID.class)
-                  .optional();
+          Optional<UUID> created = insertUser(administrationId, fullName, email, token);
           if (created.isPresent()) {
-            DirectoryUser user = new DirectoryUser(created.get(), administrationId, true);
-            events.publishEvent(new UserProvisioned(user.id(), administrationId));
-            return startSession(user, token, sid);
+            events.publishEvent(new UserProvisioned(created.get(), administrationId));
+            return startSession(
+                new DirectoryUser(created.get(), administrationId, true), token, sid);
           }
+          // Another login inserted it first; its commit released our insert. The function reads
+          // it whatever the RLS context (READ COMMITTED: a new snapshot per statement).
           DirectoryUser existing =
               directory
                   .resolve(token.issuer(), token.subject())
                   .orElseThrow(() -> new IllegalStateException("User vanished after a conflict"));
-          if (!existing.active() || !existing.administrationId().equals(administrationId)) {
-            throw new UserRegisteredElsewhereException(existing);
-          }
           return startSession(existing, token, sid);
         });
   }
 
   @Override
   public boolean end(DirectoryUser user, String issuer, String subject, String sid, String reason) {
-    return inAdministration(
-        user.administrationId(),
-        () -> {
-          Optional<OffsetDateTime> endedAt =
-              jdbc.sql(
-                      """
-                      UPDATE core.user_session SET ended_at = now(), end_reason = ?
-                       WHERE sid = ? AND user_id = ? AND identity_issuer = ? AND identity_subject = ?
-                         AND ended_at IS NULL
-                      RETURNING ended_at
-                      """)
-                  .params(reason, sid, user.id(), issuer, subject)
-                  .query(OffsetDateTime.class)
-                  .optional();
-          endedAt.ifPresent(at ->
-              events.publishEvent(
-                  new SessionEnded(
-                      sid, user.id(), user.administrationId(), reason, at.toInstant())));
-          return endedAt.isPresent();
-        });
+    try (var scope = AdministrationContext.open(user.administrationId())) {
+      return Boolean.TRUE.equals(
+          administrationTransaction.execute(status -> {
+            Optional<OffsetDateTime> endedAt =
+                jdbc.sql(
+                        """
+                        UPDATE core.user_session SET ended_at = now(), end_reason = ?
+                         WHERE sid = ? AND user_id = ? AND identity_issuer = ?
+                           AND identity_subject = ? AND ended_at IS NULL
+                        RETURNING ended_at
+                        """)
+                    .params(reason, sid, user.id(), issuer, subject)
+                    .query(OffsetDateTime.class)
+                    .optional();
+            endedAt.ifPresent(at ->
+                events.publishEvent(
+                    new SessionEnded(
+                        sid, user.id(), user.administrationId(), reason, at.toInstant())));
+            return endedAt.isPresent();
+          }));
+    }
   }
 
+  /**
+   * The audit listener of T15 will run after this transaction commits, without an administration
+   * context: the refusal may belong to no administration (ADR 0025, platform rows).
+   */
   @Override
-  public void denied(String code, TokenUser token, UUID userId, UUID administrationId) {
-    separateTransaction.executeWithoutResult(status ->
-        events.publishEvent(
-            new SessionDenied(
-                code, token.issuer(), token.subject(), null, userId, administrationId, null)));
+  public void denied(SessionDenied refusal) {
+    newTransaction.executeWithoutResult(status -> events.publishEvent(refusal));
   }
 
-  /** The session row; a retry of the same user returns it, another user's sid returns empty. */
-  private Optional<StartedSession> startSession(DirectoryUser user, TokenUser token, String sid) {
+  /**
+   * One transaction in the administration: it checks that the administration is active, runs the
+   * start and keeps its changes only if a new session was started.
+   */
+  private StartOutcome startIn(UUID administrationId, Supplier<StartOutcome> start) {
+    try (var scope = AdministrationContext.open(administrationId)) {
+      return administrationTransaction.execute(status -> {
+        StartOutcome outcome =
+            activeAdministration(administrationId)
+                ? start.get()
+                : new StartOutcome(Result.ADMINISTRATION_UNAVAILABLE, null);
+        if (outcome.result() != Result.STARTED) {
+          status.setRollbackOnly();
+        }
+        return outcome;
+      });
+    }
+  }
+
+  private Optional<UUID> insertUser(
+      UUID administrationId, String fullName, String email, TokenUser token) {
+    // A concurrent first login waits on the unique key and then inserts nothing.
+    return jdbc.sql(
+            """
+            INSERT INTO core.admin_user (administration_id, full_name, email, status,
+                                         identity_issuer, identity_subject)
+            VALUES (?, ?, ?, 'ACTIVE', ?, ?)
+            ON CONFLICT ON CONSTRAINT admin_user_identity_key DO NOTHING
+            RETURNING id
+            """)
+        .params(administrationId, fullName, email, token.issuer(), token.subject())
+        .query(UUID.class)
+        .optional();
+  }
+
+  /**
+   * Checks the user again inside the transaction (it may have been deactivated or moved since it
+   * was read), then records the session; a retry, another user's sid or an ended session are told
+   * apart (001-14).
+   */
+  private StartOutcome startSession(DirectoryUser user, TokenUser token, String sid) {
+    int stillActive =
+        jdbc.sql(
+                """
+                UPDATE core.admin_user SET last_login_at = now()
+                 WHERE id = ? AND administration_id = ? AND status = 'ACTIVE'
+                """)
+            .params(user.id(), user.administrationId())
+            .update();
+    if (stillActive == 0) {
+      return new StartOutcome(Result.USER_CHANGED, user.id());
+    }
     Optional<OffsetDateTime> startedAt =
         jdbc.sql(
                 """
@@ -139,38 +172,25 @@ class JdbcSessionStore implements SessionStore {
             .params(sid, user.id(), user.administrationId(), token.issuer(), token.subject())
             .query(OffsetDateTime.class)
             .optional();
-    if (startedAt.isEmpty()) {
-      // Under RLS a session of another administration is not even visible: it is not this one.
-      return jdbc.sql("SELECT user_id FROM core.user_session WHERE sid = ?")
-          .param(sid)
-          .query(UUID.class)
-          .optional()
-          .filter(user.id()::equals)
-          .map(id -> new StartedSession(id, false));
+    if (startedAt.isPresent()) {
+      events.publishEvent(
+          new SessionStarted(sid, user.id(), user.administrationId(), startedAt.get().toInstant()));
+      return new StartOutcome(Result.STARTED, user.id());
     }
-    jdbc.sql("UPDATE core.admin_user SET last_login_at = now() WHERE id = ?")
-        .param(user.id())
-        .update();
-    events.publishEvent(
-        new SessionStarted(sid, user.id(), user.administrationId(), startedAt.get().toInstant()));
-    return Optional.of(new StartedSession(user.id(), true));
+    // Under RLS a session of another administration is not even visible: it is not this user's.
+    return jdbc.sql("SELECT ended_at IS NULL FROM core.user_session WHERE sid = ? AND user_id = ?")
+        .params(sid, user.id())
+        .query(Boolean.class)
+        .optional()
+        .map(open -> new StartOutcome(open ? Result.RETRIED : Result.SESSION_CLOSED, user.id()))
+        .orElse(new StartOutcome(Result.SID_TAKEN, null));
   }
 
-  private void requireActiveAdministration(UUID administrationId) {
-    boolean active =
-        jdbc.sql("SELECT active FROM core.tax_administration WHERE id = ?")
-            .param(administrationId)
-            .query(Boolean.class)
-            .optional()
-            .orElse(false);
-    if (!active) {
-      throw new AdministrationUnavailableException(administrationId);
-    }
-  }
-
-  private <T> T inAdministration(UUID administrationId, Supplier<T> work) {
-    try (var scope = AdministrationContext.open(administrationId)) {
-      return transaction.execute(status -> work.get());
-    }
+  private boolean activeAdministration(UUID administrationId) {
+    return jdbc.sql("SELECT active FROM core.tax_administration WHERE id = ?")
+        .param(administrationId)
+        .query(Boolean.class)
+        .optional()
+        .orElse(false);
   }
 }

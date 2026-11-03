@@ -43,6 +43,10 @@ server:
 # que sirve cualquier proveedor estándar (001-20). LIV_OIDC_ISSUER_URI no tiene valor por defecto:
 # sin emisor no se acepta ningún token.
 liv:
+  # Alta automática en el primer ingreso (001-21). Se apaga, por ejemplo, durante un cambio de proveedor de
+  # identidad: un usuario desconocido recibe 403 (001-17) y se vincula de forma explícita (decisión de T13).
+  sessions:
+    auto-provision: true
   security:
     issuer-uri: ${LIV_OIDC_ISSUER_URI}
     user-audience: liv-api

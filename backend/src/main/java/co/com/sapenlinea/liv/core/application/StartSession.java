@@ -1,8 +1,7 @@
 package co.com.sapenlinea.liv.core.application;
 
-import co.com.sapenlinea.liv.core.application.SessionStore.AdministrationUnavailableException;
-import co.com.sapenlinea.liv.core.application.SessionStore.StartedSession;
-import co.com.sapenlinea.liv.core.application.SessionStore.UserRegisteredElsewhereException;
+import co.com.sapenlinea.liv.core.SessionDenied;
+import co.com.sapenlinea.liv.core.application.SessionStore.StartOutcome;
 import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
 import co.com.sapenlinea.liv.platform.DirectoryUser;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
@@ -11,6 +10,7 @@ import co.com.sapenlinea.liv.platform.TokenUser;
 import co.com.sapenlinea.liv.platform.UserDirectory;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,86 +18,134 @@ import org.springframework.stereotype.Service;
  * comes from the validated user token; the registry of LIV decides:
  *
  * <ul>
- *   <li>the {@code sid} of the body must be the token's, and not another user's (401, 001-14);
- *   <li>a registered user must be active (001-05) and in the administration the token claims
- *       (001-17);
- *   <li>a new user is registered in the claimed administration if it exists and is active (001-17),
- *       with its own LIV id (001-21).
+ *   <li>the {@code sid} of the body must be the token's, not another user's and not of a session
+ *       that ended (401, 001-14);
+ *   <li>a registered user must be active (403, 001-05) and in the administration the token claims
+ *       (403, 001-17);
+ *   <li>a new user is registered, if automatic registration is on, in the claimed administration if
+ *       it exists and is active (403, 001-17), with its own LIV id (001-21); its email and name
+ *       must fit the registry (401, 001-14).
  * </ul>
  *
- * <p>A refusal is a 403 with its code and a {@code SessionDenied} event that survives the refusal.
- * A retry with the same {@code sid} returns the session already started.
+ * <p>Every refusal publishes {@code SessionDenied} (decision of the project lead, T13). A retry
+ * with the same {@code sid} returns the open session already started.
  */
 @Service
+@EnableConfigurationProperties(SessionProperties.class)
 public class StartSession {
+
+  /** Lengths of {@code core.admin_user.full_name} and {@code email}. */
+  private static final int MAX_FULL_NAME = 150;
+
+  private static final int MAX_EMAIL = 200;
 
   private final UserDirectory directory;
   private final SessionStore store;
+  private final SessionProperties properties;
 
-  StartSession(UserDirectory directory, SessionStore store) {
+  StartSession(UserDirectory directory, SessionStore store, SessionProperties properties) {
     this.directory = directory;
     this.store = store;
+    this.properties = properties;
   }
+
+  /**
+   * A started (or retried) session.
+   *
+   * @param userId the LIV id of the user
+   * @param created whether this call created it (false: a retry with the same sid)
+   */
+  public record StartedSession(UUID userId, boolean created) {}
 
   public StartedSession start(TokenUser token, String sid) {
+    Attempt attempt = new Attempt(token, sid);
     if (!token.sessionId().filter(sid::equals).isPresent()) {
-      throw new AuthenticationRejectedException(
-          ErrorCodes.NOT_AUTHENTICATED, "The sid of the body is not the token's");
+      throw attempt.unauthenticated(null);
     }
     Optional<DirectoryUser> registered = directory.resolve(token.issuer(), token.subject());
-    Optional<StartedSession> session =
-        registered.isPresent()
-            ? startRegistered(registered.get(), token, sid)
-            : provision(token, sid);
-    return session.orElseThrow(() ->
-        new AuthenticationRejectedException(
-            ErrorCodes.NOT_AUTHENTICATED, "The sid belongs to another session"));
-  }
-
-  private Optional<StartedSession> startRegistered(
-      DirectoryUser user, TokenUser token, String sid) {
-    checkRegistered(user, token);
-    try {
-      return store.start(user, token, sid);
-    } catch (AdministrationUnavailableException e) {
-      throw refuse(ErrorCodes.ADMINISTRATION_MISMATCH, token, user.id(), user.administrationId());
+    if (registered.isPresent()) {
+      DirectoryUser user = registered.get();
+      attempt.checkRegistered(user);
+      return attempt.outcome(store.start(user, token, sid), user);
     }
+    return attempt.outcome(provision(attempt), null);
   }
 
-  private Optional<StartedSession> provision(TokenUser token, String sid) {
-    UUID administration =
-        token
-            .administrationId()
-            .orElseThrow(() -> refuse(ErrorCodes.ADMINISTRATION_MISMATCH, token, null, null));
-    // admin_user requires both: without an email the provider did not say who the user is.
-    String email =
-        token
-            .email()
-            .orElseThrow(() -> refuse(ErrorCodes.NOT_AUTHENTICATED, token, null, administration));
+  private StartOutcome provision(Attempt attempt) {
+    TokenUser token = attempt.token;
+    if (!properties.autoProvision()) {
+      throw attempt.refused(ErrorCodes.ADMINISTRATION_MISMATCH, null);
+    }
+    if (token.administrationId().isEmpty()) {
+      throw attempt.refused(ErrorCodes.ADMINISTRATION_MISMATCH, null);
+    }
+    // Without an email the provider did not say who the user is; longer values do not fit.
+    String email = token.email().filter(value -> value.length() <= MAX_EMAIL).orElse(null);
     String fullName = token.fullName().orElse(email);
-    try {
-      return store.provisionAndStart(administration, fullName, email, token, sid);
-    } catch (AdministrationUnavailableException e) {
-      throw refuse(ErrorCodes.ADMINISTRATION_MISMATCH, token, null, administration);
-    } catch (UserRegisteredElsewhereException e) {
-      checkRegistered(e.user(), token);
-      throw refuse(
-          ErrorCodes.ADMINISTRATION_MISMATCH, token, e.user().id(), e.user().administrationId());
+    if (email == null || fullName.length() > MAX_FULL_NAME) {
+      throw attempt.unauthenticated(null);
     }
+    return store.provisionAndStart(
+        token.administrationId().get(), fullName, email, token, attempt.sid);
   }
 
-  private void checkRegistered(DirectoryUser user, TokenUser token) {
-    if (!user.active()) {
-      throw refuse(ErrorCodes.USER_INACTIVE, token, user.id(), user.administrationId());
-    }
-    if (!token.administrationId().filter(user.administrationId()::equals).isPresent()) {
-      throw refuse(ErrorCodes.ADMINISTRATION_MISMATCH, token, user.id(), user.administrationId());
-    }
-  }
+  /** One start: it knows how to refuse itself, publishing the refusal first. */
+  private final class Attempt {
+    private final TokenUser token;
+    private final String sid;
 
-  private RequestRefusedException refuse(
-      String code, TokenUser token, UUID userId, UUID administrationId) {
-    store.denied(code, token, userId, administrationId);
-    return new RequestRefusedException(code, "Session start refused with " + code);
+    private Attempt(TokenUser token, String sid) {
+      this.token = token;
+      this.sid = sid;
+    }
+
+    private StartedSession outcome(StartOutcome outcome, DirectoryUser user) {
+      return switch (outcome.result()) {
+        case STARTED -> new StartedSession(outcome.userId(), true);
+        case RETRIED -> new StartedSession(outcome.userId(), false);
+        case SID_TAKEN, SESSION_CLOSED -> throw unauthenticated(user);
+        case ADMINISTRATION_UNAVAILABLE -> throw refused(ErrorCodes.ADMINISTRATION_MISMATCH, user);
+        case USER_CHANGED -> throw changed();
+      };
+    }
+
+    /** The user changed while starting (or a concurrent login registered it otherwise). */
+    private RuntimeException changed() {
+      Optional<DirectoryUser> now = directory.resolve(token.issuer(), token.subject());
+      now.ifPresent(this::checkRegistered);
+      return refused(ErrorCodes.ADMINISTRATION_MISMATCH, now.orElse(null));
+    }
+
+    private void checkRegistered(DirectoryUser user) {
+      if (!user.active()) {
+        throw refused(ErrorCodes.USER_INACTIVE, user);
+      }
+      if (!token.administrationId().filter(user.administrationId()::equals).isPresent()) {
+        throw refused(ErrorCodes.ADMINISTRATION_MISMATCH, user);
+      }
+    }
+
+    private RequestRefusedException refused(String code, DirectoryUser user) {
+      publish(code, user);
+      return new RequestRefusedException(code, "Session start refused with " + code);
+    }
+
+    private AuthenticationRejectedException unauthenticated(DirectoryUser user) {
+      publish(ErrorCodes.NOT_AUTHENTICATED, user);
+      return new AuthenticationRejectedException(
+          ErrorCodes.NOT_AUTHENTICATED, "Session start refused: sid or identity data");
+    }
+
+    private void publish(String code, DirectoryUser user) {
+      store.denied(
+          new SessionDenied(
+              code,
+              token.issuer(),
+              token.subject(),
+              sid,
+              user == null ? null : user.id(),
+              user == null ? null : user.administrationId(),
+              token.administrationId().orElse(null)));
+    }
   }
 }

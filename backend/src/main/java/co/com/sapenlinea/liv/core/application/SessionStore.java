@@ -1,35 +1,30 @@
 package co.com.sapenlinea.liv.core.application;
 
+import co.com.sapenlinea.liv.core.SessionDenied;
 import co.com.sapenlinea.liv.platform.DirectoryUser;
 import co.com.sapenlinea.liv.platform.TokenUser;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Persistence of users and sessions (plan step 8). Each operation is one transaction in the
- * administration it names, opened before the transaction (doc. 02 §5.1), and publishes its events
- * in it: they exist only if the change does.
+ * Users and sessions of LIV (plan step 8). Each operation is one transaction in the administration
+ * it names, opened before the transaction (doc. 02 §5.1), and publishes the events of what it
+ * changed in that transaction: they arrive only if the change commits. A start that does not start
+ * rolls back entirely, so a refused first login leaves no user behind.
  */
 public interface SessionStore {
 
   /**
-   * Starts the session of a registered user: updates its last login and records the session.
-   *
-   * @return the started session, or empty if the sid is already used by another user
-   * @throws AdministrationUnavailableException if the administration is not active
+   * Starts the session of a registered user, checking again inside the transaction that it is still
+   * active and in its administration, and updates its last login.
    */
-  Optional<StartedSession> start(DirectoryUser user, TokenUser token, String sid);
+  StartOutcome start(DirectoryUser user, TokenUser token, String sid);
 
   /**
    * Registers the user in the administration the token claims (001-21) and starts its session.
-   * Concurrent first logins register one user: the others read it back.
-   *
-   * @return the started session, or empty if the sid is already used by another user
-   * @throws AdministrationUnavailableException if the administration does not exist or is not
-   *     active
-   * @throws UserRegisteredElsewhereException if a concurrent login registered the user otherwise
+   * Concurrent first logins register one user: the others read it back and use it if it is active
+   * and in that administration.
    */
-  Optional<StartedSession> provisionAndStart(
+  StartOutcome provisionAndStart(
       UUID administrationId, String fullName, String email, TokenUser token, String sid);
 
   /**
@@ -39,35 +34,30 @@ public interface SessionStore {
    */
   boolean end(DirectoryUser user, String issuer, String subject, String sid, String reason);
 
-  /** Publishes {@code SessionDenied} in a transaction of its own, whatever happens to the rest. */
-  void denied(String code, TokenUser token, UUID userId, UUID administrationId);
+  /** Publishes a refusal in a transaction of its own, whatever happens to the start. */
+  void denied(SessionDenied refusal);
 
   /**
-   * A session of the user.
+   * What a start did.
    *
-   * @param userId the LIV id of the user
-   * @param created whether this call created it (false: a retry with the same sid)
+   * @param result the outcome
+   * @param userId the LIV id of the user, if the outcome has one
    */
-  record StartedSession(UUID userId, boolean created) {}
+  record StartOutcome(Result result, UUID userId) {}
 
-  /** The administration does not exist or is not active (001-17). */
-  class AdministrationUnavailableException extends RuntimeException {
-    public AdministrationUnavailableException(UUID administrationId) {
-      super("Administration " + administrationId + " is not available");
-    }
-  }
-
-  /** The user exists, but not as this login expected (inactive or in another administration). */
-  class UserRegisteredElsewhereException extends RuntimeException {
-    private final DirectoryUser user;
-
-    public UserRegisteredElsewhereException(DirectoryUser user) {
-      super("User " + user.id() + " is registered otherwise");
-      this.user = user;
-    }
-
-    public DirectoryUser user() {
-      return user;
-    }
+  /** The outcomes of a start; only the first two keep their changes. */
+  enum Result {
+    /** A new session. */
+    STARTED,
+    /** A retry: the open session of this user with this sid already exists. */
+    RETRIED,
+    /** The sid belongs to another user's session (or one this administration cannot see). */
+    SID_TAKEN,
+    /** The sid is this user's, but the session already ended: it is not reopened. */
+    SESSION_CLOSED,
+    /** The user is no longer (or not) active in the administration this start expected. */
+    USER_CHANGED,
+    /** The administration does not exist or is not active (001-17). */
+    ADMINISTRATION_UNAVAILABLE
   }
 }
