@@ -2,7 +2,6 @@ package co.com.sapenlinea.liv.platform.authorization;
 
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -31,18 +30,22 @@ class JdbcPermissionCatalog implements PermissionCatalog {
             .list());
   }
 
+  /** Only roles of the catalog count, even if the caller passes others. */
   @Override
   public Set<String> permissionsOf(Set<String> roles) {
     if (roles.isEmpty()) {
       return Set.of();
     }
-    return jdbc
-        .sql(
-            "SELECT DISTINCT permission_code FROM platform.role_permission WHERE role_code = ANY (?)")
-        .param(roles.toArray(String[]::new))
-        .query(String.class)
-        .list()
-        .stream()
-        .collect(Collectors.toUnmodifiableSet());
+    return Set.copyOf(
+        jdbc.sql(
+                """
+                SELECT DISTINCT rp.permission_code
+                  FROM platform.role_permission rp
+                  JOIN platform.app_role r ON r.code = rp.role_code
+                 WHERE r.code = ANY (?)
+                """)
+            .param(roles.toArray(String[]::new))
+            .query(String.class)
+            .list());
   }
 }

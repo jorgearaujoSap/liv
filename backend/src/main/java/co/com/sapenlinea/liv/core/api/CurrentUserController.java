@@ -5,11 +5,15 @@ import co.com.sapenlinea.liv.core.api.contract.model.AdministrationSummary;
 import co.com.sapenlinea.liv.core.api.contract.model.CurrentUser;
 import co.com.sapenlinea.liv.core.application.GetCurrentUser;
 import co.com.sapenlinea.liv.core.application.GetCurrentUser.Me;
-import java.util.List;
+import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
+import co.com.sapenlinea.liv.platform.ErrorCodes;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-/** {@code GET /api/v1/me} (core.yaml, 001-13). */
+/**
+ * {@code GET /api/v1/me} (core.yaml, 001-13): the user the security filter resolved, with the roles
+ * and permissions in alphabetical order.
+ */
 @RestController
 class CurrentUserController implements CurrentUserApi {
 
@@ -21,14 +25,19 @@ class CurrentUserController implements CurrentUserApi {
 
   @Override
   public ResponseEntity<CurrentUser> getCurrentUser() {
-    Me me = getCurrentUser.get();
+    co.com.sapenlinea.liv.platform.CurrentUser user =
+        co.com.sapenlinea.liv.platform.CurrentUser.current()
+            .orElseThrow(() ->
+                new AuthenticationRejectedException(
+                    ErrorCodes.NOT_AUTHENTICATED, "No current user"));
+    Me me = getCurrentUser.get(user);
     return ResponseEntity.ok(
         new CurrentUser(
             me.id(),
             me.fullName(),
             me.email(),
             new AdministrationSummary(me.administrationId(), me.administrationName()),
-            List.copyOf(me.roles().stream().sorted().toList()),
-            List.copyOf(me.permissions().stream().sorted().toList())));
+            me.roles().stream().sorted().toList(),
+            me.permissions().stream().sorted().toList()));
   }
 }
