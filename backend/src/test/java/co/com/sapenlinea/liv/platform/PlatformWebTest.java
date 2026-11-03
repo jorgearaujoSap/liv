@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.platform;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
+import co.com.sapenlinea.liv.platform.application.PermissionProbe;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -102,6 +103,28 @@ public abstract class PlatformWebTest {
   /** What a controller of /api/** sees after the filters. */
   @RestController
   static class ApiProbe {
+
+    private final PermissionProbe permissionProbe;
+
+    ApiProbe(PermissionProbe permissionProbe) {
+      this.permissionProbe = permissionProbe;
+    }
+
+    @GetMapping("/api/v1/probe/permission")
+    Map<String, String> permission() {
+      return Map.of("result", permissionProbe.run());
+    }
+
+    @GetMapping("/api/v1/probe/unmarked")
+    Map<String, String> unmarked() {
+      return Map.of("result", permissionProbe.unmarked());
+    }
+
+    @GetMapping("/api/v1/probe/inherited")
+    Map<String, String> inherited() {
+      return Map.of("result", permissionProbe.inherited());
+    }
+
     @GetMapping("/api/v1/probe")
     Map<String, String> probe() {
       CurrentUser user = CurrentUser.current().orElseThrow();
