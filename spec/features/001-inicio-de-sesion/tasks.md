@@ -179,12 +179,18 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - la publicación de los contratos en CI pasa a una tarea aparte de F0‑07 (ver T02);
     - la segunda ronda de revisión trajo un alto, corregido con TDD; el responsable decidió no hacer tercera ronda.
   - Prueba primero: una regla de ArchUnit que exige que los controladores implementen las interfaces generadas, y una validación del OpenAPI en el *build*.
-- [ ] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details. — **Parte 1 hecha** (PR #45): servidor de recursos, filtros, Problem Details, correlación y enmascarado. **Parte 2 hecha** (PR #47):
+- [x] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details. — **Parte 1 hecha** (PR #45): servidor de recursos, filtros, Problem Details, correlación y enmascarado. **Parte 2 hecha** (PR #47):
     - contexto RLS fijado siempre al empezar cada transacción, y abrir otra administración dentro de una transacción falla;
     - comprobación de `liv_app` al crear cada conexión, impuesta en código, con la base en la sonda de *readiness*;
     - `azp = liv-bff` y `https://` (plan › Decisiones, ajustes de T12).
 
-  **Parte 3 pendiente** (PR aparte, por decisión del responsable): la prueba de la API contra Keycloak real con el *realm* como código.
+  **Parte 3 hecha** (PR #49, aparte por decisión del responsable): la prueba de la API contra Keycloak real con el *realm* como código, aplicado por keycloak-config-cli como en `dev/compose.yaml`:
+    - la forma real de los tokens (`typ`, audiencias, `azp`, roles planos);
+    - cada token en su lugar y ninguno en el del otro;
+    - 001-17 con un usuario real de otra administración;
+    - PKCE exigido.
+
+    Sin dependencias nuevas. La renovación, la revocación y el cierre por canal trasero se prueban con el BFF (T16 y T17).
   - **Desviaciones de la parte 2:**
     - archivos fuera de la lista: `pom.xml` (`spring-boot-starter-data-jpa`, ADR 0023), `config/application-dev.yml`, `src/test/resources/config/application.yml`, `isolation/LivAppConnectionTest.java`, `README.md` y `CHANGELOG.md`;
     - `spring.modulith.events.jdbc.schema=platform` (de T10) queda para la tarea que agregue el *starter* JDBC del *outbox* (T13 o T15): sin él no tiene efecto;
