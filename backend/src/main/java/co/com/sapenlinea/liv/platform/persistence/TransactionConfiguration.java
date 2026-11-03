@@ -15,6 +15,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration(proxyBeanMethods = false)
 class TransactionConfiguration {
 
+  /** Static: a post-processor must exist before the data source it checks. */
+  @Bean
+  static LivAppConnectionCheck livAppConnectionCheck() {
+    return new LivAppConnectionCheck();
+  }
+
   @Bean
   PlatformTransactionManager transactionManager(
       ObjectProvider<TransactionManagerCustomizers> customizers) {

@@ -6,8 +6,8 @@ spring:
       enabled: true
   # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
   # llegan por variables de entorno y no tienen valor por defecto (sin LIV_DB_URL no arranca; sin la contraseña no
-  # se autentica). El despliegue no debe sobrescribir el usuario; la comprobación al arrancar llega con el gestor
-  # de transacciones (T12, segunda parte).
+  # se autentica). Si el despliegue cambia el usuario, ninguna conexión pasa la comprobación de liv_app (abajo) y la
+  # instancia no queda lista (readiness).
   datasource:
     url: ${LIV_DB_URL}
     username: liv_app
@@ -16,13 +16,8 @@ spring:
     # esperar los 30 s por omisión.
     hikari:
       connection-timeout: 5000
-      # Cada conexión nueva comprueba que el rol sea liv_app y no salte la RLS: si el despliegue cambia el usuario
-      # (p. ej. SPRING_DATASOURCE_USERNAME), no se obtiene ninguna conexión y el error dice por qué (T12). El CAST
-      # de un texto a boolean es a propósito: falla, y PostgreSQL devuelve ese texto en el mensaje de error.
-      connection-init-sql: >-
-        SELECT CASE WHEN current_user = 'liv_app' AND NOT r.rolbypassrls THEN true
-        ELSE CAST('LIV solo se conecta como liv_app sin BYPASSRLS, no como ' || current_user AS boolean) END
-        FROM pg_roles r WHERE r.rolname = current_user
+      # Cada conexión nueva comprueba que el rol sea liv_app sin forma de saltarse la RLS: lo impone el código
+      # (platform.persistence.LivAppConnectionCheck), así que ninguna propiedad lo quita (T12).
   # JPA sin consultar la base al arrancar (la API arranca aunque la base no esté arriba). El gestor de transacciones
   # fija el contexto RLS en cada transacción (platform.persistence).
   jpa:
@@ -33,11 +28,6 @@ spring:
     properties:
       # No abrir una conexión al arrancar para leer los metadatos JDBC.
       hibernate.boot.allow_jdbc_metadata_access: false
-  # Tabla del outbox en el esquema platform (V202611010900); la usa el starter JDBC de Spring Modulith.
-  modulith:
-    events:
-      jdbc:
-        schema: platform
   # Flyway (liv_owner) corre solo en los perfiles dev y test. En staging y producción migra la imagen
   # liv-migrations como paso del despliegue.
   flyway:
@@ -75,6 +65,15 @@ logging:
     org.springframework.web: INFO
 
 management:
+  # Sondas de liveness y readiness; readiness incluye la base (con el rol equivocado no hay conexión), así que una
+  # instancia mal configurada nunca recibe tráfico (T12).
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
   endpoints:
     web:
       exposure:

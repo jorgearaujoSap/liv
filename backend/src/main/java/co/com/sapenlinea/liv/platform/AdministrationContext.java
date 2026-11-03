@@ -1,15 +1,20 @@
 package co.com.sapenlinea.liv.platform;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * The administration the current work runs for (doc. 02 §5.1). It always comes from the LIV
- * registry, never from a parameter or a token claim. The transaction manager reads it to set the
- * RLS context; without it nothing is set and the policies return no rows.
+ * registry, never from a parameter or a token claim. The transaction manager sets it as the RLS
+ * context at the start of every transaction; without it the context is empty and the policies
+ * return no rows.
  *
  * <p>It belongs to the thread: the security filter opens it for each request, and asynchronous
  * listeners and jobs open it with the administration of their event before their transaction.
+ * Opening another administration inside an open transaction fails: the database would keep
+ * filtering by the one the transaction started with.
  *
  * <p>It does not travel to other threads: asynchronous controllers and {@code @Async} methods run
  * without it until a propagator exists. Only {@code platform} and infrastructure adapters may open
@@ -25,9 +30,19 @@ public final class AdministrationContext {
     return Optional.ofNullable(CURRENT.get());
   }
 
-  /** Opens a scope with the given administration; closing it restores the previous one. */
+  /**
+   * Opens a scope with the given administration; closing it restores the previous one.
+   *
+   * @throws IllegalStateException if a transaction is active and the current administration is not
+   *     the requested one (also when there is none)
+   */
   public static Scope open(UUID administrationId) {
     UUID previous = CURRENT.get();
+    if (TransactionSynchronizationManager.isActualTransactionActive()
+        && !Objects.equals(previous, administrationId)) {
+      throw new IllegalStateException(
+          "Open the administration context before the transaction, not inside it");
+    }
     CURRENT.set(administrationId);
     return () -> {
       if (previous == null) {
