@@ -122,6 +122,12 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-02
 
+- Feature 001, T12 terminada con la parte 3 (PR #49): la API contra Keycloak real.
+  - Keycloak 26.8.1 con el *realm* como código, aplicado por keycloak-config-cli como en `dev/compose.yaml`, sin dependencias nuevas.
+  - Verifica la forma real de los tokens (`typ: JWT`, `liv-api`/`liv-internal`, `azp`, roles planos) y que cada token sirva solo en su lugar, con todas las cuentas registradas para que el rechazo solo venga del token.
+  - También verifica 001-17 con un usuario real de otra administración, y que el *realm* exige PKCE.
+  - `./mvnw verify` termina con 199 pruebas en verde. Dos rondas de revisión adversarial de nivel estándar; la segunda, sin altos.
+
 - Feature 001, T12 parte 2 (PR #47): contexto RLS por transacción y rol `liv_app` en el backend.
   - **Qué hace:**
     - un `JpaTransactionManager` extendido fija siempre, con alcance local, `app.administration_id` (o vacío) y vacía `app.platform_job` al empezar cada transacción;
