@@ -220,7 +220,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el contexto en `REQUIRES_NEW` y en los oyentes;
     - correlación solo como UUID;
     - 001-20, parte de la API.
-- [ ] **T13** · `core`: `UserDirectoryAdapter`, `StartSession`, `EndSession`, `GET /me`, `core.user_session` y los eventos. — **Parte 1 hecha** (PR #51): `StartSession`, `EndSession`, `JdbcSessionStore` y los eventos, con las decisiones del responsable (plan › Decisiones, ajustes de T13). **Parte 2 pendiente:** `GET /me` con roles y permisos.
+- [x] **T13** · `core`: `UserDirectoryAdapter`, `StartSession`, `EndSession`, `GET /me`, `core.user_session` y los eventos. — **Parte 1 hecha** (PR #51): `StartSession`, `EndSession`, `JdbcSessionStore` y los eventos, con las decisiones del responsable (plan › Decisiones, ajustes de T13). **Parte 2 hecha** (PR #53): `GET /me` con los datos del registro, los roles del token que están en el catálogo de LIV y sus permisos (puerto `PermissionCatalog` de `platform`, en `platform/authorization`, que T14 reutilizará).
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/core/**`, `backend/src/test/**/core/**`.
   - **Desviaciones de la parte 1:**
     - archivos fuera de la lista: en `platform`, `TokenUser`, `VerifiedUserToken`, `RequestRefusedException`, `ClaimsAdapter`, `UserTokenFilter`, `SecurityConfiguration` y `ProblemDetailsHandler`; `contracts/openapi/core-internal.yaml` (solo descripciones); `application.yml`; pruebas de `platform/**` e `isolation/LivDatabase.java`; `README.md` y `CHANGELOG.md`;

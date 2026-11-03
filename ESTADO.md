@@ -122,6 +122,11 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-02
 
+- Feature 001, T13 terminada con la parte 2 (PR #53): `GET /api/v1/me`.
+  - Usuario y administración del registro de LIV bajo RLS; roles del token que están en el catálogo de LIV y la unión de sus permisos (`PermissionCatalog`); sin roles conocidos, listas vacías.
+  - Pruebas contra la matriz aprobada en H2, escrita aparte. 001-13 queda marcado en la spec.
+  - `./mvnw verify` termina con 225 pruebas en verde. Dos rondas de revisión adversarial de nivel estándar, sin altos.
+
 - Feature 001, T13 parte 1 (PR #51): inicio y fin de sesión de LIV en `core`.
   - **Qué hace:**
     - `StartSession` registra al usuario en su primer ingreso, con su identificador de LIV (001-21), y crea la sesión;
