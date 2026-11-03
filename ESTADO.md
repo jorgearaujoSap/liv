@@ -122,6 +122,21 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-02
 
+- Feature 001, T13 parte 1 (PR #51): inicio y fin de sesión de LIV en `core`.
+  - **Qué hace:**
+    - `StartSession` registra al usuario en su primer ingreso, con su identificador de LIV (001-21), y crea la sesión;
+    - rechaza con 401 `001-14`, 403 `001-05` o 403 `001-17`, y publica `SessionDenied` en todos los casos;
+    - `EndSession` cierra una sola vez;
+    - un inicio rechazado no deja cambios;
+    - eventos `SessionStarted`, `UserProvisioned` y `SessionEnded`.
+  - **Pruebas:** 220 en verde, con concurrencia determinista y Keycloak real.
+  - **Revisión, dos rondas:** dos adversariales de nivel alto y las cuatro lentes. En la segunda ronda, 0 críticos y 0 altos.
+  - **Decisiones del responsable**, registradas en `plan.md`:
+    - rechazar y auditar los datos de identidad que no caben;
+    - una sesión cerrada no se reabre;
+    - auditar los 401;
+    - el interruptor `liv.sessions.auto-provision`.
+
 - Feature 001, T12 terminada con la parte 3 (PR #49): la API contra Keycloak real.
   - Keycloak 26.8.1 con el *realm* como código, aplicado por keycloak-config-cli como en `dev/compose.yaml`, sin dependencias nuevas.
   - Verifica la forma real de los tokens (`typ: JWT`, `liv-api`/`liv-internal`, `azp`, roles planos) y que cada token sirva solo en su lugar, con todas las cuentas registradas para que el rechazo solo venga del token.
