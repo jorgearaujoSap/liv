@@ -118,6 +118,10 @@ body {
   @apply m-0 text-body-md text-text-secondary;
 }
 
+.liv-attempted-user {
+  @apply m-0 flex flex-wrap items-center gap-2 text-body-md text-text-secondary;
+}
+
 .liv-form__body,
 .liv-fields {
   @apply flex flex-col;

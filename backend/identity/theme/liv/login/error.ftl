@@ -8,7 +8,7 @@
   <#if section = "header">
     ${msg("errorTitle")}
   <#elseif section = "form">
-    <@c.alert status="error" text=kcSanitize(message.summary)/>
+    <@c.alert status="error" text=message.summary/>
     <#if traceId??>
       <p class="liv-heading__subtitle" id="traceId">${msg("traceIdSupportMessage", traceId)}</p>
     </#if>

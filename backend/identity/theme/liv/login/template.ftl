@@ -23,19 +23,10 @@
   <link href="${url.resourcesPath}/${style}" rel="stylesheet">
     </#list>
   </#if>
+  <#-- Sin scripts en línea, para admitir una CSP con script-src 'self': liv.js lee los datos del body. -->
   <script src="${url.resourcesPath}/js/liv.js" type="module"></script>
-  <#-- Como la plantilla base: si se inicia sesión en otra pestaña, esta la sigue. -->
-  <script type="module">
-    <#outputformat "JavaScript">
-    import { startSessionPolling, checkAuthSession } from ${(url.resourcesPath + "/js/authChecker.js")?c};
-    startSessionPolling(${url.ssoLoginInOtherTabsUrl?c});
-    <#if authenticationSession??>
-    checkAuthSession(${authenticationSession.authSessionIdHash?c});
-    </#if>
-    </#outputformat>
-  </script>
 </head>
-<body data-page-id="login-${pageId}">
+<body data-page-id="login-${pageId}" data-sso-login-in-other-tabs-url="${url.ssoLoginInOtherTabsUrl}"<#if authenticationSession??> data-auth-session-id-hash="${authenticationSession.authSessionIdHash}"</#if>>
 <div class="liv-page">
   <aside class="liv-brand">
     <@c.logo tone="inverse"/>
@@ -59,10 +50,19 @@
         <h1 class="liv-heading__title" id="kc-page-title"><#nested "header"></h1>
         <#nested "subtitle">
       </header>
+      <#-- Como en la base: después del primer paso, la cuenta con la que se entra y el enlace para cambiarla. -->
+      <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
+        <#nested "show-username">
+        <p class="liv-attempted-user">
+          <@i.icon name="user" size=16/>
+          <span id="kc-attempted-username">${auth.attemptedUsername}</span>
+          <a class="liv-link" id="reset-login" href="${url.loginRestartFlowUrl}">${msg("restartLoginTooltip")}</a>
+        </p>
+      </#if>
       <#-- Como en la base: las acciones que pide la aplicación no muestran el aviso de que hay que completarlas. -->
       <#assign mostrarMensaje = displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
       <#if mostrarMensaje>
-        <@c.alert status=message.type text=kcSanitize(message.summary) title=(message.type == 'error')?then(alertTitle, "")/>
+        <@c.alert status=message.type text=message.summary title=(message.type == 'error')?then(alertTitle, "")/>
       </#if>
       <#nested "form">
       <#if auth?has_content && auth.showTryAnotherWayLink()>

@@ -21,5 +21,7 @@ RUN /opt/keycloak/bin/kc.sh build
 
 FROM quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332
 COPY --from=keycloak /opt/keycloak/ /opt/keycloak/
+# Licencias de los iconos de Lucide y Feather que el tema copia de liv-components (ADR 0023).
+COPY --from=estilos /theme/node_modules/liv-components/THIRD_PARTY_NOTICES.md /opt/keycloak/themes/liv/
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
 CMD ["start", "--optimized"]

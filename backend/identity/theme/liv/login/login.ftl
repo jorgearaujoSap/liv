@@ -6,7 +6,19 @@
 <#import "template.ftl" as layout>
 <#import "components.ftl" as c>
 <#import "icons.ftl" as i>
-<#assign hayError = messagesPerField.existsError('username', 'password')>
+<#--
+  Keycloak liga a los campos el error de credenciales incorrectas, usuario inexistente y cuenta bloqueada, pero manda
+  el de cuenta desactivada como mensaje general. Los dos se pintan igual, con la misma alerta y los mismos atributos en
+  los campos, para que el HTML tampoco revele que la cuenta existe (001-05; check.sh compara las páginas).
+-->
+<#if messagesPerField.existsError('username', 'password')>
+  <#assign errorAcceso = messagesPerField.getFirstError('username', 'password')>
+<#elseif message?has_content && message.type == 'error'>
+  <#assign errorAcceso = message.summary>
+<#else>
+  <#assign errorAcceso = "">
+</#if>
+<#assign hayError = errorAcceso?has_content>
 <@layout.registrationLayout displayMessage=!hayError pageTitle=msg("loginAccountTitle") alertTitle=msg("livLoginErrorTitle") securityNote=true; section>
   <#if section = "header">
     ${msg("loginAccountTitle")}
@@ -14,7 +26,7 @@
     <p class="liv-heading__subtitle">${msg("livLoginSubtitle")}</p>
   <#elseif section = "form">
     <#if hayError>
-      <@c.alert status="error" title=msg("livLoginErrorTitle") text=kcSanitize(messagesPerField.getFirstError('username', 'password'))/>
+      <@c.alert status="error" title=msg("livLoginErrorTitle") text=errorAcceso/>
     </#if>
     <form id="kc-form-login" class="liv-form__body" action="${url.loginAction}" method="post" data-liv-busy>
       <div class="liv-fields">

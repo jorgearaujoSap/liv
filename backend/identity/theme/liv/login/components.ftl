@@ -22,7 +22,7 @@
 <#--
   Alert. status: error, warning, info o success (los tipos de mensaje de Keycloak). Error usa role="alert" y los
   demás role="status". El mensaje lleva id="liv-alert-message" para que los campos lo enlacen con aria-describedby.
-  text ya viene saneado con kcSanitize.
+  text llega sin tratar: el macro lo sanea con kcSanitize, como la plantilla base, porque puede traer HTML de Keycloak.
 -->
 <#macro alert status text title="">
 <#assign iconos = {"error": "circle-alert", "warning": "triangle-alert", "info": "info", "success": "circle-check"}>
@@ -30,7 +30,7 @@
   <@i.icon name=(iconos[status]!"circle-alert") extraClass="liv-alert__icon"/>
   <div class="liv-alert__body">
     <#if title?has_content><p class="liv-alert__title">${title}</p></#if>
-    <p class="liv-alert__message" id="liv-alert-message">${text?no_esc}</p>
+    <p class="liv-alert__message" id="liv-alert-message">${kcSanitize(text)?no_esc}</p>
   </div>
 </div>
 </#macro>
