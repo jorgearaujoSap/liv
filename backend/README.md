@@ -81,7 +81,9 @@ La API es un servidor de recursos OAuth 2.0 sin estado (doc. 02 §3, plan de la 
 
 - Variable obligatoria: `LIV_OIDC_ISSUER_URI`, el emisor. El perfil `dev` usa el Keycloak local. El *discovery* se hace con el primer token, así que la API arranca aunque el proveedor no esté arriba.
 - Audiencias, cliente de servicio y nombres de los *claims* se configuran en `liv.security` (`application.yml`).
-- La administración de cada petición sale del registro de LIV, nunca del token (`AdministrationContext`).
+- La administración de cada petición sale del registro de LIV, nunca del token (`AdministrationContext`). El gestor de transacciones la fija como `app.administration_id`, con alcance local, al empezar **cada** transacción (también `REQUIRES_NEW`), y la RLS limita las filas a esa administración. Sin contexto no se fija nada y las políticas no devuelven filas. Un oyente o un trabajo abre el contexto con la administración de su evento antes de su transacción.
+- La aplicación solo se conecta como `liv_app` sin `BYPASSRLS`: cada conexión nueva lo comprueba (`connection-init-sql`). Si el despliegue cambia el usuario, no se obtiene ninguna conexión.
+- El token de usuario exige, además de la audiencia `liv-api`, `azp = liv-bff`: los usuarios solo inician sesión por el BFF. El emisor debe ser `https://`, salvo en `dev` y en las pruebas (`liv.security.allow-http-issuer`).
 - Todo token debe tener `exp`. Las llamadas al proveedor tienen un tiempo de espera de 3 s, y la base, de 5 s para obtener conexión.
 - Todo error es Problem Details con `code` y sin detalles internos (`ProblemDetailsHandler`). Los rechazos de seguridad llevan el código del criterio y `WWW-Authenticate: Bearer`; los errores técnicos, `SYS-<estado>` (404, 500 y 503 cuando la base o el proveedor no responden). Los fallos de los filtros también pasan por ahí (`ProblemFallbackFilter`). El detalle va al log, en una línea con el id de correlación.
 - `X-Correlation-Id` solo se acepta como UUID; si no lo es, se genera uno nuevo. Va en la respuesta y en cada línea de log.

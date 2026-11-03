@@ -31,3 +31,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - reglas de ArchUnit: sin `org.keycloak`; los modelos generados solo en la capa `api`, sin *loggers*; y `AdministrationContext` solo lo abren `platform` y la infraestructura.
 
   Las pruebas corren contra `mock-oauth2-server` 3.0.1 en Testcontainers, con la configuración de producción.
+- Contexto RLS por transacción (feature 001, T12 parte 2):
+  - `spring-boot-starter-data-jpa` (ADR 0023);
+  - un `JpaTransactionManager` extendido fija `app.administration_id` con alcance local al empezar cada transacción, también en `REQUIRES_NEW`, desde `AdministrationContext`. Se prueba con un *pool* de una sola conexión (A y luego B), con `REQUIRES_NEW` y con un oyente asíncrono;
+  - cada conexión nueva comprueba que el rol sea `liv_app` sin `BYPASSRLS`;
+  - decisiones del responsable: el token de usuario exige `azp = liv-bff` y el emisor `https://` salvo con `liv.security.allow-http-issuer` (`dev` y pruebas);
+  - `spring.modulith.events.jdbc.schema=platform` para el *outbox*.
