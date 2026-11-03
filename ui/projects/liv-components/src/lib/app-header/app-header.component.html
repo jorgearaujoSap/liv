@@ -1,0 +1,19 @@
+<header class="app-header__bar">
+  <div class="app-header__context">
+    <liv-icon class="app-header__icon" name="landmark" [size]="20" />
+    <span class="app-header__administration">{{ administration() }}</span>
+  </div>
+  <div class="app-header__user">
+    <div class="app-header__identity">
+      <liv-avatar [initials]="initials()" size="md" />
+      <div class="app-header__names">
+        <span class="app-header__name">{{ userName() }}</span>
+        @if (roleText(); as text) {
+          <span class="app-header__role">{{ text }}</span>
+        }
+      </div>
+    </div>
+    <span class="app-header__divider" aria-hidden="true"></span>
+    <liv-button variant="ghost" leadingIcon="log-out" (click)="signOut.emit()">Salir</liv-button>
+  </div>
+</header>

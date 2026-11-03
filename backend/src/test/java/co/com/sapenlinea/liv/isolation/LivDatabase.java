@@ -26,15 +26,15 @@ import org.testcontainers.utility.DockerImageName;
  * dev/initdb}, aplica las migraciones como {@code liv_owner} (igual que el despliegue) y entrega
  * conexiones con el rol que pida cada prueba. Un solo contenedor por ejecución de pruebas.
  */
-final class LivDatabase {
+public final class LivDatabase {
 
   static final String OWNER = "liv_owner";
   static final String APP = "liv_app";
   static final String BFF = "liv_bff";
   static final String OWNER_PASSWORD = "owner-test-pw";
 
-  static final UUID ADMIN_A = UUID.fromString("10000000-0000-0000-0000-00000000000a");
-  static final UUID ADMIN_B = UUID.fromString("10000000-0000-0000-0000-00000000000b");
+  public static final UUID ADMIN_A = UUID.fromString("10000000-0000-0000-0000-00000000000a");
+  public static final UUID ADMIN_B = UUID.fromString("10000000-0000-0000-0000-00000000000b");
   static final UUID USER_A = UUID.fromString("20000000-0000-0000-0000-00000000000a");
   static final UUID USER_B = UUID.fromString("20000000-0000-0000-0000-00000000000b");
   static final String ISSUER = "https://idp.test/realms/liv";
@@ -65,7 +65,7 @@ final class LivDatabase {
     T apply(Connection connection) throws SQLException;
   }
 
-  static String jdbcUrl() {
+  public static String jdbcUrl() {
     return jdbcUrl("liv");
   }
 
@@ -148,6 +148,37 @@ final class LivDatabase {
         status,
         ISSUER,
         subject);
+  }
+
+  /** Password of {@code liv_app}, the only role the application connects with. */
+  public static String appPassword() {
+    return password(APP);
+  }
+
+  /**
+   * Registers a user of another issuer, as the owner and idempotently, for the tests of other
+   * packages (T12). The other roles stay private to this package.
+   */
+  public static void registerUser(
+      UUID administration, String issuer, String subject, String status) {
+    try {
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
+                                       identity_issuer, identity_subject)
+          VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
+          ON CONFLICT DO NOTHING
+          """,
+          UUID.randomUUID(),
+          administration,
+          status,
+          issuer,
+          subject);
+    } catch (SQLException e) {
+      throw new IllegalStateException("No se pudo registrar el usuario " + subject, e);
+    }
   }
 
   static void setContext(Connection connection, UUID administration) throws SQLException {

@@ -1,0 +1,26 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply flex flex-col gap-2;
+}
+
+.page-header__breadcrumb {
+  @apply text-body-sm text-text-muted;
+}
+
+.page-header__list {
+  @apply m-0 flex list-none flex-wrap items-center gap-1 p-0;
+}
+
+.page-header__part {
+  @apply flex items-center gap-1;
+}
+
+.page-header__title {
+  @apply m-0 text-heading-h1 text-text-primary;
+}
+
+.page-header__description {
+  /* 720 px: ancho máximo de la descripción en Figma. */
+  @apply m-0 line-clamp-2 max-w-[720px] text-body-md text-text-secondary;
+}

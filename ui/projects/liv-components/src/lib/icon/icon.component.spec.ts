@@ -42,12 +42,18 @@ describe('Icon', () => {
     }
   });
 
-  it('mide 24 px por defecto y admite 16 y 20', () => {
+  it('mide 24 px por defecto', () => {
     expect(render('house').svg.getAttribute('width')).toBe('24');
-    const small = render('house', { size: 16 }).svg;
-    expect([small.getAttribute('width'), small.getAttribute('height')]).toEqual(['16', '16']);
-    const medium = render('house', { size: 20 }).svg;
-    expect([medium.getAttribute('width'), medium.getAttribute('height')]).toEqual(['20', '20']);
+  });
+
+  // 28 px lo usa el círculo de ResultState en Figma (decisión del responsable, 2026-11-02).
+  it.each<[IconSize]>([[16], [20], [28]])('admite %i px', (size) => {
+    const { svg } = render('house', { size });
+    expect([svg.getAttribute('width'), svg.getAttribute('height')]).toEqual([`${size}`, `${size}`]);
+  });
+
+  it('a 28 px conserva el lienzo de 24 unidades: el trazo escala con el tamaño', () => {
+    expect(render('house', { size: 28 }).svg.getAttribute('viewBox')).toBe('0 0 24 24');
   });
 
   it('es decorativo si no tiene texto alternativo (aria-hidden)', () => {

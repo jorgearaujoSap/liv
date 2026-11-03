@@ -1,0 +1,21 @@
+<span class="result-state__tile"><liv-icon [name]="icon()" [size]="28" /></span>
+<div class="result-state__text">
+  @if (eyebrowText(); as text) {
+    <p class="result-state__eyebrow">{{ text }}</p>
+  }
+  @switch (headingLevel()) {
+    @case (1) {
+      <h1 class="result-state__title">{{ heading() }}</h1>
+    }
+    @case (3) {
+      <h3 class="result-state__title">{{ heading() }}</h3>
+    }
+    @default {
+      <h2 class="result-state__title">{{ heading() }}</h2>
+    }
+  }
+  @if (descriptionText(); as text) {
+    <p class="result-state__description">{{ text }}</p>
+  }
+</div>
+<div class="result-state__actions"><ng-content /></div>

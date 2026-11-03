@@ -1,0 +1,7 @@
+<nav class="side-nav__nav" [attr.aria-label]="accessibleName()">
+  <div class="side-nav__brand"><liv-logo /></div>
+  <div class="side-nav__menu"><ng-content /></div>
+  @if (footerText(); as text) {
+    <p class="side-nav__footer">{{ text }}</p>
+  }
+</nav>

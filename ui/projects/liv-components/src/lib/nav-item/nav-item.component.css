@@ -1,0 +1,76 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block;
+}
+
+.nav-item__control {
+  @apply m-0 box-border flex w-full cursor-pointer items-center gap-3 rounded-lg border-0 bg-transparent px-3 py-2 text-left font-sans text-body-md text-text-secondary no-underline outline-none;
+}
+
+.nav-item__icon,
+.nav-item__chevron {
+  @apply shrink-0 text-text-muted;
+}
+
+.nav-item__label {
+  @apply min-w-0 flex-1;
+}
+
+/*
+ * Los estados (:host([data-…])) usan `>` para pintar solo el control de este elemento: las subopciones de un
+ * grupo son instancias del mismo componente, con los mismos atributos de encapsulación, y sin el `>` el
+ * estado del grupo las pintaría también.
+ */
+
+/* Subitem: sin icono; 44 px = 12 de relleno + 20 del icono + 12 de separación, para alinearse con el texto del grupo. */
+
+:host([data-type='subitem']) > .nav-item__control {
+  @apply pl-[44px];
+}
+
+/* Group: texto de énfasis medio, como los títulos de módulo. */
+
+:host([data-type='group']) > .nav-item__control {
+  @apply text-label-md text-text-primary;
+}
+
+/* Hover: solo si no es la pantalla actual ni está deshabilitado. */
+
+:host(:not([data-active]):not([data-disabled])) > .nav-item__control:hover {
+  @apply bg-bg-subtle;
+}
+
+/* Active: la pantalla actual (o el grupo que la contiene). */
+
+:host([data-active]) > .nav-item__control {
+  @apply bg-action-primary-subtle text-body-md-strong text-action-primary;
+}
+
+:host([data-active]) > .nav-item__control .nav-item__icon,
+:host([data-active]) > .nav-item__control .nav-item__chevron {
+  @apply text-action-primary;
+}
+
+/* Disabled: aún no construida; no navega. */
+
+:host([data-disabled]) > .nav-item__control {
+  @apply cursor-not-allowed text-text-disabled;
+}
+
+:host([data-disabled]) > .nav-item__control .nav-item__icon {
+  @apply text-text-disabled;
+}
+
+.nav-item__children {
+  @apply mt-[2px] flex flex-col gap-[2px];
+}
+
+/*
+ * El anillo de foco va al final para ganar a cada estado. En alto contraste (forced-colors) las sombras
+ * desaparecen y `outline-hidden` deja un contorno visible.
+ */
+.nav-item__control:focus-visible {
+  /* z-10: el fondo de la opción siguiente (2 px más abajo) no debe tapar el anillo. */
+  @apply relative z-10 shadow-focus-ring outline-hidden;
+}

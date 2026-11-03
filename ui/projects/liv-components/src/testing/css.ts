@@ -133,3 +133,13 @@ function splitSelectorList(selectorList: string): string[] {
   selectors.push(current.trim());
   return selectors;
 }
+
+/**
+ * Si el valor calculado de un color usa exactamente la variable `token` (`--color-text-muted`), con o sin
+ * valor de reserva. Distingue `--color-action-primary` de `--color-action-primary-subtle`, que un simple
+ * `toContain('var(--color-action-primary')` confundiría.
+ */
+export function usesToken(computedValue: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`var\\(${escaped}[,)]`).test(computedValue);
+}

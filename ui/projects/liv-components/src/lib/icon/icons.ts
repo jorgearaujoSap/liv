@@ -287,7 +287,7 @@ const ICONS = {
 export type IconName = keyof typeof ICONS;
 
 /** Tamaños en píxeles que usa el diseño. */
-export type IconSize = 16 | 20 | 24;
+export type IconSize = 16 | 20 | 24 | 28;
 
 export const ICON_NAMES = Object.keys(ICONS) as readonly IconName[];
 
