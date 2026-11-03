@@ -88,7 +88,7 @@ La API es un servidor de recursos OAuth 2.0 sin estado (doc. 02 §3, plan de la 
 - Todo error es Problem Details con `code` y sin detalles internos (`ProblemDetailsHandler`). Los rechazos de seguridad llevan el código del criterio y `WWW-Authenticate: Bearer`; los errores técnicos, `SYS-<estado>` (404, 500 y 503 cuando la base o el proveedor no responden). Los fallos de los filtros también pasan por ahí (`ProblemFallbackFilter`). El detalle va al log, en una línea con el id de correlación.
 - `X-Correlation-Id` solo se acepta como UUID; si no lo es, se genera uno nuevo. Va en la respuesta y en cada línea de log.
 - Las credenciales se enmascaran en los mensajes y en las trazas de los logs (`logback-spring.xml`): JWT, `Bearer`, `X-User-Token`, `Authorization`, `client_secret` y los tokens de OAuth. El log estructurado (JSON) de Spring Boot no pasa por ese filtro, así que sigue apagado: `LogMaskingTest` falla si se enciende.
-- Las pruebas usan la configuración de producción contra `mock-oauth2-server` en un contenedor, que sirve el *discovery* y el JWKS (`platform/OidcTestProvider`).
+- Las pruebas usan la configuración de producción contra `mock-oauth2-server` en un contenedor, que sirve el *discovery* y el JWKS (`platform/OidcTestProvider`). `RealKeycloakTest` repite lo esencial contra Keycloak real, con el *realm* como código aplicado por keycloak-config-cli igual que `dev/compose.yaml`: el token de usuario del BFF (código y PKCE) y el de servicio pasan, y ninguno sirve en el lugar del otro. Tarda alrededor de un minuto.
 
 ## Estado
 
