@@ -295,7 +295,7 @@ pagina "$tmp/codigo.html" 'código del segundo factor: página del frame (001-07
   '>Verificación en dos pasos</h1>' 'Escribe el código de 6 dígitos que muestra tu aplicación de autenticación.' \
   '>Código de verificación</label>' 'El código cambia cada 30 segundos.' '"liv-button__label">Verificar<' \
   'login-actions/restart' '>Volver a iniciar sesión<'
-enviar_paso "$tmp/codigo.html" "$tmp/codigo-invalido.html" kc-otp-login-form totp=000000
+enviar_paso "$tmp/codigo.html" "$tmp/codigo-invalido.html" kc-otp-login-form otp=000000
 pagina "$tmp/codigo-invalido.html" 'código del segundo factor: código inválido, error en el campo (001-07)' login-otp \
   "$codigo_invalido" 'aria-invalid="true"'
 
