@@ -1,45 +1,64 @@
 #!/bin/sh
-# Prueba del tema liv y de la imagen de Keycloak (tarea T08 de la feature 001; criterios 001-03, 001-05 y 001-19).
-# Levanta un entorno propio y desechable con dev/compose.yaml (proyecto liv-identity-check y otros puertos, así que
-# no toca el entorno local), recorre la página de inicio de sesión con curl y lo borra al terminar.
+# Prueba del tema liv y de la imagen de Keycloak (tarea T08 de la feature 001; criterios 001-03, 001-04, 001-05 y
+# 001-19). Levanta un entorno propio y desechable con dev/compose.yaml (proyecto liv-identity-check, otros puertos y
+# otra etiqueta de imagen, así que no toca el entorno local), recorre las páginas con curl y lo borra al terminar.
 # La prueba visual contra los frames de Figma y la de accesibilidad con axe son de las e2e (tarea T23).
 # Uso, desde backend/ y en Windows desde Git Bash:  sh identity/theme/check.sh
 # Sale con 0 si todo está bien y con 1 si alguna verificación falla.
 set -u
 cd "$(dirname "$0")/../.."
 
+proyecto=liv-identity-check
 export POSTGRES_PORT=15433 KEYCLOAK_PORT=18180 KEYCLOAK_MANAGEMENT_PORT=19100
-compose() { docker compose -p liv-identity-check -f dev/compose.yaml --env-file dev/.env.example "$@"; }
+export LIV_IDENTITY_IMAGE=liv-identity-keycloak:check
+puerto_optimizado=18181
+optimizado="$proyecto-optimizado"
+compose() { docker compose -p "$proyecto" -f dev/compose.yaml --env-file dev/.env.example "$@"; }
 leer() { sed -n "s/^$1=//p" dev/.env.example | tr -d '\r' | tail -1; }
 
 fallas=0
 ok()    { printf '  ok         %s\n' "$1"; }
 falla() { printf '  FALLA      %s\n' "$1"; fallas=$((fallas + 1)); }
 
+# Dos corridas a la vez se borrarían el entorno una a otra; uno que quedó de una corrida interrumpida se borra a mano.
+if [ -n "$(compose ps -aq 2>/dev/null)" ] || docker container inspect "$optimizado" >/dev/null 2>&1; then
+  echo "Ya existe el entorno $proyecto (otra corrida, o una anterior que se interrumpió). Si no hay otra corrida:"
+  echo "  docker rm -f $optimizado; docker compose -p $proyecto -f dev/compose.yaml --env-file dev/.env.example down -v"
+  exit 1
+fi
+
 tmp=$(mktemp -d)
-limpiar() { compose down -v >/dev/null 2>&1; rm -rf "$tmp"; }
+limpiar() {
+  docker rm -f "$optimizado" >/dev/null 2>&1
+  compose down -v >/dev/null 2>&1
+  docker image rm "$LIV_IDENTITY_IMAGE" >/dev/null 2>&1
+  rm -rf "$tmp"
+}
 trap limpiar EXIT
 trap 'exit 1' INT TERM
 
-echo "Tema (fuentes)"
-estilos=identity/theme/liv/styles
-if [ -d "$estilos" ] && ! grep -rEnq '#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(' "$estilos"; then
-  ok "colores y sombras solo por tokens de liv-components"
+echo "Tema (fuentes, 001-19)"
+# Colores literales: hexadecimales, funciones de color y los nombres que usaría una hoja escrita a mano.
+color_literal='#[0-9a-fA-F]{3,8}\b|(rgba?|hsla?|oklch|oklab|lab|lch|hwb|color-mix)\(|:[[:space:]]*(white|black)\b'
+if [ -d identity/theme/liv ] && ! grep -rEq "$color_literal" identity/theme/liv/styles identity/theme/liv/login; then
+  ok "colores solo por tokens de liv-components (estilos, plantillas y scripts)"
 else
-  falla "colores y sombras solo por tokens de liv-components (sin hexadecimales, rgb ni hsl en $estilos)"
+  falla "colores solo por tokens de liv-components (sin colores literales en identity/theme/liv)"
 fi
-if [ -d identity/theme/liv/login ] && ! grep -rEq '[[:space:]]style=' identity/theme/liv/login --include='*.ftl'; then
-  ok "plantillas sin atributo style"
+if [ -d identity/theme/liv/login ] && ! grep -rEq '[[:space:]]style=|<style|\.style\b' identity/theme/liv/login; then
+  ok "sin estilos en línea en plantillas ni scripts"
 else
-  falla "plantillas sin atributo style"
+  falla "sin estilos en línea en plantillas ni scripts"
 fi
 
 echo "Entorno desechable (puede tardar unos minutos)"
-if compose up -d --build --wait postgres keycloak >"$tmp/up.log" 2>&1 \
-   && compose run --rm --no-deps keycloak-config >"$tmp/config.log" 2>&1; then
-  ok "Keycloak listo y realm aplicado"
+# El realm se aplica dos veces: reaplicar debe ser seguro (identity/README.md).
+if compose up -d --build --wait --wait-timeout 300 postgres keycloak >"$tmp/up.log" 2>&1 \
+   && compose run --rm --no-deps keycloak-config >"$tmp/config.log" 2>&1 \
+   && compose run --rm --no-deps keycloak-config >>"$tmp/config.log" 2>&1; then
+  ok "Keycloak listo y realm aplicado y reaplicado"
 else
-  falla "Keycloak listo y realm aplicado (ver docker compose -p liv-identity-check logs)"
+  falla "Keycloak listo y realm aplicado y reaplicado (ver docker compose -p $proyecto logs)"
   tail -20 "$tmp/up.log" "$tmp/config.log" 2>/dev/null
   echo "$fallas verificaciones fallaron."
   exit 1
@@ -52,9 +71,9 @@ redirect="$base_bff/login/oauth2/code/liv"
 # PKCE es obligatorio para liv-bff; el reto solo tiene que tener un formato válido, la prueba no canjea el código.
 reto=Ebq4c7fn9Ra0oX9cyb6pW3NtX0Kd3ZkhWjYxYHeaYM8
 
-# pagina_login COOKIES: abre el inicio de sesión de liv-bff y escribe el HTML en la salida.
+# pagina_login COOKIES [URL_BASE]: abre el inicio de sesión de liv-bff y escribe el HTML en la salida.
 pagina_login() {
-  curl -fsS -c "$1" -b "$1" -G "$kc/realms/liv/protocol/openid-connect/auth" \
+  curl -fsS -m 30 -c "$1" -b "$1" -G "${2:-$kc}/realms/liv/protocol/openid-connect/auth" \
     --data-urlencode client_id=liv-bff --data-urlencode response_type=code --data-urlencode scope=openid \
     --data-urlencode "redirect_uri=$redirect" --data-urlencode "code_challenge=$reto" \
     --data-urlencode code_challenge_method=S256 2>/dev/null
@@ -65,13 +84,21 @@ accion() { tr -d '\r\n' | sed -n 's/.*<form[^>]*id="kc-form-login"[^>]*action="\
 mensaje_alerta() {
   tr -d '\r\n' | sed -n 's/.*id="liv-alert-message"[^>]*>\([^<]*\)<.*/\1/p' | sed 's/^ *//; s/ *$//'
 }
-# intento USUARIO CONTRASEÑA: intenta iniciar sesión y escribe el mensaje que muestra la página.
+# compacto: el HTML en una línea y sin espacios alrededor de las etiquetas, para buscar el texto de un elemento.
+compacto() { tr -d '\r\n' | sed 's/>[[:space:]]*/>/g; s/[[:space:]]*</</g'; }
+# main_normalizado: el <main> de la página sin lo que cambia en cada petición (la URL del formulario) ni lo que
+# escribió el usuario (los valores de los campos). Debe ser idéntico en todos los fallos.
+main_normalizado() {
+  tr -d '\r\n' | sed -n 's/.*\(<main.*<\/main>\).*/\1/p' | sed 's/action="[^"]*"/action=""/g; s/value="[^"]*"/value=""/g'
+}
+# intento ARCHIVO USUARIO CONTRASEÑA: intenta iniciar sesión con cookies propias (sin la sesión de otro intento),
+# guarda la respuesta en ARCHIVO y escribe su código HTTP y, si redirige, su destino.
 intento() {
-  jar="$tmp/cookies-$1"
+  jar="$1.cookies"
   url=$(pagina_login "$jar" | accion)
-  [ -n "$url" ] || return 0
-  curl -sS -c "$jar" -b "$jar" --data-urlencode "username=$1" --data-urlencode "password=$2" "$url" 2>/dev/null \
-    | mensaje_alerta
+  [ -n "$url" ] || { : >"$1"; echo "sin-formulario"; return 0; }
+  curl -sS -m 30 -o "$1" -w '%{http_code} %{redirect_url}' -c "$jar" -b "$jar" \
+    --data-urlencode "username=$2" --data-urlencode "password=$3" "$url" 2>/dev/null
 }
 
 echo "Página de inicio de sesión (001-19)"
@@ -83,29 +110,99 @@ fi
 css=$(tr -d '\r\n' <"$tmp/login.html" | grep -o '/resources/[^"]*/login/liv/css/liv\.css' | head -1)
 if [ -n "$css" ]; then ok "usa el tema liv"; else falla "usa el tema liv (realm con loginTheme: liv e imagen con el tema)"; fi
 if grep -q '<html[^>]*lang="es"' "$tmp/login.html"; then ok "en español (lang=es)"; else falla "en español (lang=es)"; fi
-for texto in 'Inicia sesión' 'Usa tu usuario y contraseña de LIV.' '>Usuario<' '>Contraseña<' 'Ingresar' \
-             'Comunícate con el administrador de tu entidad.' 'Conexión cifrada'; do
-  if grep -qF "$texto" "$tmp/login.html"; then ok "texto: $texto"; else falla "texto: $texto"; fi
+for texto in '<title>Inicia sesión · LIV</title>' '>Inicia sesión</h1>' 'Usa tu usuario y contraseña de LIV.' \
+             '>Usuario</label>' '>Contraseña</label>' '"liv-button__label">Ingresar<' \
+             'Comunícate con el administrador de tu entidad.' 'Conexión cifrada · Los accesos quedan registrados'; do
+  if compacto <"$tmp/login.html" | grep -qF "$texto"; then
+    ok "texto: $texto"
+  else
+    falla "texto: $texto"
+  fi
 done
-if [ -n "$css" ] && curl -fsS "$kc$css" >"$tmp/liv.css" 2>/dev/null \
-   && grep -q -- '--color-action-primary:' "$tmp/liv.css" && ! grep -Eq -- '--color-(red|blue|slate|gray)-[0-9]' "$tmp/liv.css"; then
-  ok "hoja de estilos compilada con los tokens de liv-components y sin la paleta de Tailwind"
+# La hoja compilada solo define colores de los grupos de tokens de liv-components, nunca la paleta de Tailwind.
+if [ -n "$css" ] && curl -fsS -m 30 "$kc$css" >"$tmp/liv.css" 2>/dev/null && grep -q -- '--color-action-primary:' "$tmp/liv.css" \
+   && [ -z "$(grep -o -- '--color-[a-z0-9-]*:' "$tmp/liv.css" | grep -Ev -- '^--color-(text|bg|border|action|status)-')" ]; then
+  ok "hoja de estilos compilada solo con los colores de los tokens de liv-components"
 else
-  falla "hoja de estilos compilada con los tokens de liv-components y sin la paleta de Tailwind"
+  falla "hoja de estilos compilada solo con los colores de los tokens de liv-components"
 fi
 
 echo "Mensaje único de fallo (001-03, 001-04, 001-05)"
 esperado='Usuario o contraseña incorrectos. Tras varios intentos fallidos el acceso se bloquea por 15 minutos.'
 # Contraseña de los usuarios ficticios de dev/keycloak/liv-realm-dev.yaml.
 clave='Liv-Dev-2026!'
-# mensaje_unico USUARIO CONTRASEÑA CASO: el intento debe mostrar exactamente el mensaje esperado.
+
+# Control positivo: con la contraseña correcta un usuario activo sí entra (redirige al BFF con un código).
+respuesta=$(intento "$tmp/correcto.html" dev.liquidador "$clave")
+case "$respuesta" in
+  "302 $redirect?"*code=*) ok "usuario activo con la contraseña correcta: entra" ;;
+  *) falla "usuario activo con la contraseña correcta: entra (obtuvo: '$respuesta')" ;;
+esac
+
+# Cuenta bloqueada: 5 fallos seguidos, espaciados más de 1 s para no activar la protección contra intentos
+# automáticos (60 s), y luego la contraseña correcta.
+for n in 1 2 3 4 5; do
+  intento "$tmp/fallo-$n.html" dev.recaudo clave-equivocada >/dev/null
+  sleep 2
+done
+
+# mensaje_unico CASO USUARIO CONTRASEÑA DESCRIPCIÓN: el intento no entra (no redirige), responde con el mismo código
+# HTTP, muestra exactamente el mensaje esperado y la misma página que la contraseña incorrecta, salvo lo que escribió
+# el usuario. El primer caso debe ser "incorrecta".
+estado_incorrecta=
 mensaje_unico() {
-  obtenido=$(intento "$1" "$2")
-  if [ "$obtenido" = "$esperado" ]; then ok "$3: mensaje genérico"; else falla "$3: mensaje genérico (obtuvo: '$obtenido')"; fi
+  respuesta=$(intento "$tmp/$1.html" "$2" "$3")
+  obtenido=$(mensaje_alerta <"$tmp/$1.html")
+  [ "$1" = incorrecta ] && estado_incorrecta=${respuesta%% *}
+  if [ "${respuesta%% *}" = "$estado_incorrecta" ] && [ "${respuesta#3}" = "$respuesta" ] && [ "$obtenido" = "$esperado" ]; then
+    ok "$4: no entra y ve el mensaje genérico"
+  else
+    falla "$4: no entra y ve el mensaje genérico (obtuvo: '$respuesta' '$obtenido')"
+  fi
+  if [ "$1" != incorrecta ]; then
+    if [ -n "$(main_normalizado <"$tmp/$1.html")" ] \
+       && [ "$(main_normalizado <"$tmp/$1.html")" = "$(main_normalizado <"$tmp/incorrecta.html")" ]; then
+      ok "$4: página idéntica a la de contraseña incorrecta"
+    else
+      falla "$4: página idéntica a la de contraseña incorrecta"
+    fi
+  fi
 }
-mensaje_unico dev.liquidador clave-equivocada 'contraseña incorrecta'
-mensaje_unico dev.no.existe "$clave" 'usuario inexistente'
-mensaje_unico dev.desactivado "$clave" 'usuario desactivado con la contraseña correcta'
+mensaje_unico incorrecta dev.liquidador clave-equivocada 'contraseña incorrecta (001-03)'
+mensaje_unico inexistente dev.no.existe "$clave" 'usuario inexistente (001-03)'
+mensaje_unico bloqueado dev.recaudo "$clave" 'cuenta bloqueada con la contraseña correcta (001-04)'
+mensaje_unico desactivado dev.desactivado "$clave" 'usuario desactivado con la contraseña correcta (001-05)'
+
+echo "Página de error (001-19)"
+codigo=$(curl -sS -m 30 -o "$tmp/error.html" -w '%{http_code}' -G "$kc/realms/liv/protocol/openid-connect/auth" \
+  --data-urlencode client_id=cliente-inexistente --data-urlencode response_type=code 2>/dev/null)
+if [ "$codigo" = 400 ] && grep -q '<html[^>]*lang="es"' "$tmp/error.html" && grep -q '/login/liv/css/liv\.css' "$tmp/error.html" \
+   && compacto <"$tmp/error.html" | grep -qF '>No pudimos continuar</h1>'&& [ -n "$(mensaje_alerta <"$tmp/error.html")" ]; then
+  ok "cliente desconocido: página de error del tema, en español"
+else
+  falla "cliente desconocido: página de error del tema, en español (HTTP $codigo)"
+fi
+
+echo "Arranque de producción de la imagen (start --optimized)"
+# La misma imagen con su comando por defecto, sobre la base ya configurada y con caché local para no formar clúster
+# con el Keycloak de desarrollo.
+docker run -d --name "$optimizado" --network "${proyecto}_default" -p "127.0.0.1:$puerto_optimizado:8080" \
+  -e KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak -e KC_DB_USERNAME=keycloak \
+  -e "KC_DB_PASSWORD=$(leer KEYCLOAK_DB_PASSWORD)" -e "KC_HOSTNAME=http://localhost:$puerto_optimizado" \
+  -e KC_HTTP_ENABLED=true -e KC_CACHE=local "$LIV_IDENTITY_IMAGE" >/dev/null 2>&1
+listo=no
+for _ in $(seq 1 60); do
+  if curl -fsS -m 5 "http://127.0.0.1:$puerto_optimizado/realms/liv/.well-known/openid-configuration" >/dev/null 2>&1; then
+    listo=si; break
+  fi
+  sleep 3
+done
+if [ "$listo" = si ] && pagina_login "$tmp/cookies-optimizado" "http://127.0.0.1:$puerto_optimizado" \
+     | grep -q '/login/liv/css/liv\.css'; then
+  ok "start --optimized sirve la página con el tema liv"
+else
+  falla "start --optimized sirve la página con el tema liv (ver docker logs $optimizado)"
+fi
 
 if [ "$fallas" -eq 0 ]; then
   echo "Tema liv verificado."
