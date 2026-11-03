@@ -187,13 +187,15 @@ public final class LivDatabase {
    */
   public static void registerAdministration(UUID administration, String name) {
     try {
+      // Its own territorial entity, with a fictitious DANE code derived from the administration:
+      // a clash with another one fails here, not later as a foreign key.
       UUID territory = UUID.nameUUIDFromBytes(("territory-" + administration).getBytes());
       update(
           OWNER,
           null,
           """
           INSERT INTO core.territorial_entity (id, dane_code, name, entity_type)
-          VALUES (?, ?, ?, 'MUNICIPIO') ON CONFLICT DO NOTHING
+          VALUES (?, ?, ?, 'MUNICIPIO') ON CONFLICT (id) DO NOTHING
           """,
           territory,
           "T-" + administration.toString().substring(24),
@@ -203,7 +205,7 @@ public final class LivDatabase {
           null,
           """
           INSERT INTO core.tax_administration (id, territorial_entity_id, name)
-          VALUES (?, ?, ?) ON CONFLICT DO NOTHING
+          VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING
           """,
           administration,
           territory,

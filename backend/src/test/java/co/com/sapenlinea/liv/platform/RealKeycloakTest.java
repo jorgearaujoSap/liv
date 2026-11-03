@@ -4,14 +4,14 @@ import static co.com.sapenlinea.liv.platform.ApiAuthenticationTest.assertRejecte
 import static org.assertj.core.api.Assertions.assertThat;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.text.ParseException;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -27,9 +27,11 @@ import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * 001-20 with the real provider (plan › ajustes de T12): the tokens Keycloak issues with the realm
- * as code pass exactly the checks of the API, with its production configuration — the user token of
- * the BFF (audience {@code liv-api}, {@code azp = liv-bff}, flat claims, {@code typ: JWT}) and the
- * service token of {@code liv-bff-service} — and neither works in the place of the other.
+ * as code have the shape the API expects — the user token of the BFF (audience {@code liv-api},
+ * {@code azp = liv-bff}, flat claims, {@code typ: JWT}) and the service token of {@code
+ * liv-bff-service} — pass its checks with its production configuration, and neither works in the
+ * place of the other. Every rejected token belongs to a registered, active user, so only the token
+ * checks can reject it (plan, «Pruebas de 001-14 y 001-20»).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import({PlatformWebTest.ApiProbe.class, PlatformWebTest.InternalProbe.class})
@@ -42,6 +44,7 @@ class RealKeycloakTest {
   private static final HttpClient HTTP = HttpClient.newHttpClient();
 
   private static String userToken;
+  private static String userTokenOfB;
   private static String serviceToken;
 
   @LocalServerPort int port;
@@ -53,18 +56,40 @@ class RealKeycloakTest {
     registry.add("liv.security.issuer-uri", RealKeycloak::issuer);
   }
 
-  /** The Keycloak user, registered in LIV as T13 will do on its first session. */
+  /**
+   * The users of Keycloak, registered in LIV as T13 will do on their first session: the user of A
+   * in its administration, the user of B in A (its token says B), and the service account too.
+   */
   @BeforeAll
   static void tokensOfTheRealProvider() throws ParseException {
-    userToken = RealKeycloak.userToken();
+    userToken = RealKeycloak.userToken(RealKeycloak.USER);
+    userTokenOfB = RealKeycloak.userToken(RealKeycloak.USER_OF_B);
     serviceToken = RealKeycloak.serviceToken();
     UUID administration = UUID.fromString(RealKeycloak.ADMINISTRATION);
     LivDatabase.registerAdministration(administration, "Ipiales (prueba)");
-    LivDatabase.registerUser(
-        administration,
-        RealKeycloak.issuer(),
-        SignedJWT.parse(userToken).getJWTClaimsSet().getSubject(),
-        "ACTIVE");
+    for (String token : new String[] {userToken, userTokenOfB, serviceToken}) {
+      LivDatabase.registerUser(
+          administration, RealKeycloak.issuer(), claims(token).getSubject(), "ACTIVE");
+    }
+  }
+
+  @Test
+  @Tag("001-20")
+  @DisplayName("001-20 · El realm emite el token de usuario y el de servicio con la forma esperada")
+  void tokensHaveTheExpectedShape() throws ParseException {
+    SignedJWT user = SignedJWT.parse(userToken);
+    JWTClaimsSet userClaims = user.getJWTClaimsSet();
+    assertThat(user.getHeader().getType()).isEqualTo(JOSEObjectType.JWT);
+    assertThat(userClaims.getAudience()).contains("liv-api").doesNotContain("liv-internal");
+    assertThat(userClaims.getStringClaim("azp")).isEqualTo("liv-bff");
+    assertThat(userClaims.getStringListClaim("roles")).contains("CONSULTA");
+    assertThat(userClaims.getStringClaim("administration_id"))
+        .isEqualTo(RealKeycloak.ADMINISTRATION);
+    assertThat(userClaims.getClaims()).doesNotContainKey("realm_access");
+
+    JWTClaimsSet service = claims(serviceToken);
+    assertThat(service.getAudience()).contains("liv-internal").doesNotContain("liv-api");
+    assertThat(service.getStringClaim("azp")).isEqualTo("liv-bff-service");
   }
 
   @Test
@@ -74,7 +99,10 @@ class RealKeycloakTest {
     HttpResponse<String> response = get(PROBE, bearer(userToken));
 
     assertThat(response.statusCode()).isEqualTo(200);
-    assertThat(response.body()).contains(RealKeycloak.ADMINISTRATION);
+    assertThat(response.body())
+        .contains("\"administrationId\":\"" + RealKeycloak.ADMINISTRATION + "\"")
+        // The realm adds its default role too; LIV ignores roles outside its catalog (T14).
+        .containsPattern("\"roles\":\"[^\"]*CONSULTA");
   }
 
   @Test
@@ -82,6 +110,7 @@ class RealKeycloakTest {
   @DisplayName("001-20 · El token de servicio de Keycloak cierra una sesión en /internal")
   void realServiceTokenOnInternal() {
     assertThat(post(END, bearer(serviceToken)).statusCode()).isEqualTo(204);
+    assertRejected(post(END, Map.of()), ErrorCodes.NOT_AUTHENTICATED);
   }
 
   @Test
@@ -112,6 +141,24 @@ class RealKeycloakTest {
     assertRejected(post(END, bearer(userToken)), ErrorCodes.NOT_AUTHENTICATED);
   }
 
+  @Test
+  @Tag("001-17")
+  @DisplayName("001-17 · Un token real con otra administración que la registrada responde 401")
+  void realTokenOfAnotherAdministration() {
+    assertRejected(get(PROBE, bearer(userTokenOfB)), ErrorCodes.ADMINISTRATION_MISMATCH);
+  }
+
+  @Test
+  @Tag("001-20")
+  @DisplayName("001-20 · El realm exige PKCE: un código con otro verificador no se canjea")
+  void pkceIsEnforced() {
+    assertThat(RealKeycloak.exchangeWithAnotherVerifier(RealKeycloak.USER)).isEqualTo(400);
+  }
+
+  private static JWTClaimsSet claims(String token) throws ParseException {
+    return SignedJWT.parse(token).getJWTClaimsSet();
+  }
+
   private HttpResponse<String> get(String path, Map<String, String> headers) {
     return send(HttpRequest.newBuilder(uri(path)).GET(), headers);
   }
@@ -137,14 +184,6 @@ class RealKeycloakTest {
   private static HttpResponse<String> send(
       HttpRequest.Builder request, Map<String, String> headers) {
     headers.forEach(request::header);
-    try {
-      return HTTP.send(
-          request.timeout(Duration.ofSeconds(20)).build(), HttpResponse.BodyHandlers.ofString());
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException(e);
-    }
+    return RealKeycloak.send(HTTP, request);
   }
 }
