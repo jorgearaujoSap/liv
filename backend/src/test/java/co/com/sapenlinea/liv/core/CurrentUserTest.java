@@ -4,15 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
 import co.com.sapenlinea.liv.platform.OidcTestProvider;
+import co.com.sapenlinea.liv.platform.PermissionCatalog;
 import co.com.sapenlinea.liv.platform.PlatformWebTest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -41,6 +44,30 @@ class CurrentUserTest extends PlatformWebTest {
           "ledger.obligation.read",
           "portfolio.balance.read",
           "documents.document.read");
+
+  /** AUDITOR sees every option of the menu: all the permissions of the approved matrix. */
+  private static final List<String> AUDITOR =
+      List.of(
+          "core.administration.read",
+          "core.user.read",
+          "documents.legal-instrument.read",
+          "tax.fiscal-year.read",
+          "valuation.batch.read",
+          "tax.rate.read",
+          "jurisdiction.config.read",
+          "valuation.catalog.read",
+          "valuation.vehicle-reference.read",
+          "core.parameter.read",
+          "core.vehicle.read",
+          "tax.assessment.read",
+          "ledger.obligation.read",
+          "portfolio.balance.read",
+          "collection.case.read",
+          "enforcement.measure.read",
+          "documents.document.read",
+          "audit.event.read");
+
+  @Autowired PermissionCatalog catalog;
 
   @Test
   @Tag("001-13")
@@ -79,10 +106,9 @@ class CurrentUserTest extends PlatformWebTest {
     JsonNode me = JSON.readTree(get(ME, bearer(token)).body());
 
     assertThat(texts(me.get("roles"))).containsExactly("AUDITOR", "CONSULTA");
-    assertThat(texts(me.get("permissions")))
-        .containsAll(CONSULTA)
-        .contains("core.user.read", "audit.event.read", "jurisdiction.config.read")
-        .doesNotHaveDuplicates();
+    // CONSULTA is contained in AUDITOR: the union is AUDITOR's list, once each.
+    assertThat(AUDITOR).containsAll(CONSULTA);
+    assertThat(texts(me.get("permissions"))).containsExactlyInAnyOrderElementsOf(AUDITOR);
   }
 
   @Test
@@ -127,10 +153,19 @@ class CurrentUserTest extends PlatformWebTest {
     assertThat(ofB.get("administration").get("name").asString())
         .isEqualTo(administrationName(LivDatabase.ADMIN_B));
     assertThat(texts(ofB.get("roles"))).containsExactly("AUDITOR");
-    assertThat(texts(ofB.get("permissions"))).contains("audit.event.read");
+    assertThat(texts(ofB.get("permissions"))).containsExactlyInAnyOrderElementsOf(AUDITOR);
     assertThat(ofA.get("administration").get("id").asString())
         .isEqualTo(LivDatabase.ADMIN_A.toString());
     assertThat(texts(ofA.get("permissions"))).doesNotContain("audit.event.read");
+  }
+
+  @Test
+  @Tag("001-13")
+  @DisplayName("001-13 · El catálogo no da permisos por roles que no conoce")
+  void catalogIgnoresUnknownRoles() {
+    assertThat(catalog.permissionsOf(Set.of("INVENTADO"))).isEmpty();
+    assertThat(catalog.permissionsOf(Set.of("CONSULTA", "INVENTADO")))
+        .containsExactlyInAnyOrderElementsOf(CONSULTA);
   }
 
   private record Registered(UUID id, String fullName, String email) {}
