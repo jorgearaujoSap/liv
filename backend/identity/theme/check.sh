@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prueba del tema liv y de la imagen de Keycloak (tarea T08 de la feature 001; criterios 001-03, 001-04, 001-05 y
+# Prueba del tema liv y de la imagen de Keycloak (tarea T08 de la feature 001; criterios 001-03 a 001-07 y
 # 001-19). Levanta un entorno propio y desechable con dev/compose.yaml (proyecto liv-identity-check, otros puertos y
 # otra etiqueta de imagen, así que no toca el entorno local), recorre las páginas con curl y lo borra al terminar.
 # La prueba visual contra los frames de Figma y la de accesibilidad con axe son de las e2e (tarea T23).
@@ -207,6 +207,97 @@ if [ "$codigo" = 400 ] && grep -q '<html[^>]*lang="es"' "$tmp/error.html" && gre
 else
   falla "cliente desconocido: página de error del tema, en español (HTTP $codigo)"
 fi
+
+echo "Contraseña nueva y segundo factor (001-06, 001-07, 001-19)"
+# Con la API de administración del entorno desechable: dev.consulta debe cambiar su contraseña y un usuario de
+# prueba con rol de MFA ya tiene TOTP. Todo es ficticio y desaparece con el entorno.
+admin_token=$(curl -fsS -m 30 -d grant_type=password -d client_id=admin-cli -d "username=$(leer KEYCLOAK_ADMIN_USER)" \
+  -d "password=$(leer KEYCLOAK_ADMIN_PASSWORD)" "$kc/realms/master/protocol/openid-connect/token" 2>/dev/null \
+  | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+# admin MÉTODO RUTA [JSON]: llama a la API de administración del realm liv y escribe la respuesta.
+admin() {
+  if [ $# -ge 3 ]; then set -- "$1" "$2" --data "$3"; fi
+  metodo=$1 ruta=$2; shift 2
+  curl -fsS -m 30 -X "$metodo" -H "Authorization: Bearer $admin_token" -H 'Content-Type: application/json' \
+    "$@" "$kc/admin/realms/liv$ruta" 2>/dev/null
+}
+id_de() { admin GET "/users?exact=true&username=$1" | sed -n 's/^\[{"id":"\([^"]*\)".*/\1/p'; }
+admin PUT "/users/$(id_de dev.consulta)" '{"requiredActions":["UPDATE_PASSWORD"]}' >/dev/null
+admin POST /users '{"username":"dev.otp.prueba","enabled":true,"email":"dev.otp.prueba@example.test",
+  "firstName":"Otto","lastName":"Prueba","attributes":{"administration_id":["10000000-0000-0000-0000-000000052356"]},
+  "credentials":[{"type":"password","value":"'"$clave"'","temporary":false},
+  {"type":"otp","secretData":"{\"value\":\"secreto-de-prueba-liv\"}",
+   "credentialData":"{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"}]}' >/dev/null
+auditor=$(admin GET /roles/AUDITOR)
+admin POST "/users/$(id_de dev.otp.prueba)/role-mappings/realm" "[$auditor]" >/dev/null
+
+# siguiente_paso ARCHIVO USUARIO: inicia sesión con la contraseña correcta y guarda la página del paso siguiente. Sigue
+# las redirecciones: Keycloak lleva a las acciones requeridas (contraseña nueva, configurar TOTP) con una.
+siguiente_paso() {
+  jar="$1.cookies"
+  url=$(pagina_login "$jar" | accion)
+  curl -sS -m 30 -L -o "$1" -c "$jar" -b "$jar" --data-urlencode "username=$2" --data-urlencode "password=$clave" \
+    "$url" 2>/dev/null
+}
+# enviar_paso ARCHIVO_PREVIO ARCHIVO FORMULARIO CAMPO [CAMPO]: envía el formulario FORMULARIO de la página previa, con
+# sus cookies, y guarda la respuesta. Cada CAMPO es nombre=valor.
+enviar_paso() {
+  previo=$1 archivo=$2 formulario=$3; shift 3
+  url=$(tr -d '\r\n' <"$previo" | sed -n "s/.*<form[^>]*id=\"$formulario\"[^>]*action=\"\([^\"]*\)\".*/\1/p" | sed 's/&amp;/\&/g')
+  if [ $# -ge 2 ]; then set -- --data-urlencode "$1" --data-urlencode "$2"; else set -- --data-urlencode "$1"; fi
+  curl -sS -m 30 -o "$archivo" -c "$previo.cookies" -b "$previo.cookies" "$@" "$url" 2>/dev/null
+  cp "$previo.cookies" "$archivo.cookies"
+}
+# pagina ARCHIVO DESCRIPCIÓN PAGEID TEXTO…: la página es la de Keycloak indicada, con el tema y cada texto.
+pagina() {
+  archivo=$1 descripcion=$2 page_id=$3; shift 3
+  faltan=
+  grep -q "data-page-id=\"login-$page_id\"" "$archivo" || faltan="$faltan [página $page_id]"
+  grep -q '/login/liv/css/liv\.css' "$archivo" || faltan="$faltan [tema]"
+  for texto in "$@"; do compacto <"$archivo" | grep -qF -- "$texto" || faltan="$faltan [$texto]"; done
+  if [ -z "$faltan" ]; then ok "$descripcion"; else falla "$descripcion (falta:$faltan)"; fi
+}
+codigo_invalido='El código no es válido. Los intentos fallidos cuentan para el bloqueo de la cuenta.'
+
+siguiente_paso "$tmp/clave-nueva.html" dev.consulta
+pagina "$tmp/clave-nueva.html" 'actualizar contraseña: página del frame' login-update-password \
+  '>Crea una contraseña nueva</h1>' 'Es tu primer ingreso o tu contraseña venció. Crea una nueva para continuar.' \
+  '>Contraseña nueva</label>' '>Confirma la contraseña</label>' 'Debe cumplir la política de contraseñas de tu entidad.' \
+  '"liv-button__label">Guardar y continuar<' 'Conexión cifrada · Los accesos quedan registrados'
+if ! grep -q 'class="liv-alert' "$tmp/clave-nueva.html" && ! grep -q 'liv-attempted-user' "$tmp/clave-nueva.html"; then
+  ok "actualizar contraseña: sin aviso ni cuenta intentada (como el frame)"
+else
+  falla "actualizar contraseña: sin aviso ni cuenta intentada (como el frame)"
+fi
+enviar_paso "$tmp/clave-nueva.html" "$tmp/clave-distinta.html" kc-passwd-update-form \
+  'password-new=Clave-Nueva-2026!' 'password-confirm=Otra-Clave-2026!'
+pagina "$tmp/clave-distinta.html" 'actualizar contraseña: confirmación distinta, error en su campo' login-update-password \
+  'Las contraseñas no coinciden.'
+if tr -d '\r\n' <"$tmp/clave-distinta.html" | grep -q 'id="password-confirm"[^>]*aria-invalid="true"'; then
+  ok "actualizar contraseña: el campo de confirmación queda inválido"
+else
+  falla "actualizar contraseña: el campo de confirmación queda inválido"
+fi
+
+siguiente_paso "$tmp/configurar.html" dev.admin.sistema
+pagina "$tmp/configurar.html" 'configurar segundo factor: página del frame (001-06)' login-config-totp \
+  '>Activa la verificación en dos pasos</h1>' 'Tu rol exige un segundo factor. Solo lo configuras una vez.' \
+  '>Instala una aplicación de autenticación<' '>Escanea el código QR<' '>Escribe el código de 6 dígitos<' \
+  'src="data:image/png;base64,' 'Escribe esta clave en la aplicación:' 'id="kc-totp-secret-key"' \
+  '>Código de verificación</label>' 'inputmode="numeric"' 'autocomplete="one-time-code"' 'maxlength="6"' \
+  'Escribe los 6 dígitos sin espacios.' '"liv-button__label">Activar y continuar<'
+enviar_paso "$tmp/configurar.html" "$tmp/configurar-invalido.html" kc-totp-settings-form totp=000000
+pagina "$tmp/configurar-invalido.html" 'configurar segundo factor: código inválido, error en el campo' login-config-totp \
+  "$codigo_invalido" 'aria-invalid="true"'
+
+siguiente_paso "$tmp/codigo.html" dev.otp.prueba
+pagina "$tmp/codigo.html" 'código del segundo factor: página del frame (001-07)' login-otp \
+  '>Verificación en dos pasos</h1>' 'Escribe el código de 6 dígitos que muestra tu aplicación de autenticación.' \
+  '>Código de verificación</label>' 'El código cambia cada 30 segundos.' '"liv-button__label">Verificar<' \
+  'login-actions/restart' '>Volver a iniciar sesión<'
+enviar_paso "$tmp/codigo.html" "$tmp/codigo-invalido.html" kc-otp-login-form totp=000000
+pagina "$tmp/codigo-invalido.html" 'código del segundo factor: código inválido, error en el campo (001-07)' login-otp \
+  "$codigo_invalido" 'aria-invalid="true"'
 
 echo "Imagen"
 # MSYS_NO_PATHCONV: Git Bash convertiría la ruta del contenedor en una de Windows.
