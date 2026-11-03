@@ -3,3 +3,10 @@
 liv:
   security:
     allow-http-issuer: true
+
+# Pools pequeños: cada contexto de prueba cacheado tiene el suyo contra el mismo PostgreSQL.
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 0
+      maximum-pool-size: 4

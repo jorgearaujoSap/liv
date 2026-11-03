@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.platform;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
 import java.util.Set;
@@ -46,16 +47,47 @@ class TransactionContextTest {
   class SingleConnection {
 
     @Autowired RlsProbe probe;
+    @Autowired JdbcClient jdbc;
 
     @Test
     @Tag("001-17")
     @DisplayName("001-17 · La transacción de B, en la misma conexión, no ve el contexto de A")
     void requestOfAThenRequestOfB() {
+      int connectionOfA;
+      int connectionOfB;
       try (var a = AdministrationContext.open(LivDatabase.ADMIN_A)) {
         assertThat(probe.visibleAdministrations()).containsExactly(LivDatabase.ADMIN_A);
+        connectionOfA = probe.backendPid();
       }
       try (var b = AdministrationContext.open(LivDatabase.ADMIN_B)) {
         assertThat(probe.visibleAdministrations()).containsExactly(LivDatabase.ADMIN_B);
+        connectionOfB = probe.backendPid();
+      }
+      assertThat(connectionOfB).as("misma conexión física").isEqualTo(connectionOfA);
+    }
+
+    @Test
+    @Tag("001-17")
+    @DisplayName("001-17 · Un valor de sesión dejado en la conexión no se hereda sin contexto")
+    void sessionValueIsNotInherited() {
+      // Outside a transaction and with session scope: what a careless caller could leave behind.
+      jdbc.sql("SELECT set_config('app.administration_id', ?, false)")
+          .param(LivDatabase.ADMIN_A.toString())
+          .query(String.class)
+          .list();
+      try {
+        assertThat(probe.visibleAdministrations()).isEmpty();
+      } finally {
+        jdbc.sql("RESET app.administration_id").update();
+      }
+    }
+
+    @Test
+    @Tag("001-17")
+    @DisplayName("001-17 · Una transacción de escritura también recibe el contexto")
+    void readWriteTransaction() {
+      try (var a = AdministrationContext.open(LivDatabase.ADMIN_A)) {
+        assertThat(probe.touchVisibleUsers()).containsExactly(LivDatabase.ADMIN_A);
       }
     }
 
@@ -93,9 +125,22 @@ class TransactionContextTest {
 
     @Test
     @Tag("001-17")
+    @DisplayName("001-17 · Cambiar de administración dentro de una transacción abierta falla")
+    void switchingInsideATransactionFails() {
+      try (var a = AdministrationContext.open(LivDatabase.ADMIN_A)) {
+        assertThatThrownBy(() -> probe.openInside(LivDatabase.ADMIN_B))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      assertThatThrownBy(() -> probe.openInside(LivDatabase.ADMIN_A))
+          .as("una transacción que empezó sin contexto")
+          .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @Tag("001-17")
     @DisplayName("001-17 · Un oyente asíncrono usa la administración del evento, no la del hilo")
     void asynchronousListener() throws Exception {
-      try (var a = AdministrationContext.open(LivDatabase.ADMIN_B)) {
+      try (var a = AdministrationContext.open(LivDatabase.ADMIN_A)) {
         publisher.publish(new AdministrationEvent(LivDatabase.ADMIN_B));
       }
 
@@ -132,6 +177,27 @@ class TransactionContextTest {
     @Transactional(readOnly = true)
     public Set<UUID> visibleInANewTransaction() {
       return inner.visibleAdministrations();
+    }
+
+    @Transactional(readOnly = true)
+    public int backendPid() {
+      return jdbc.sql("SELECT pg_backend_pid()").query(Integer.class).single();
+    }
+
+    /** A read-write transaction: the update only reaches the rows the policy lets it see. */
+    @Transactional
+    public Set<UUID> touchVisibleUsers() {
+      return jdbc.sql(
+              "UPDATE core.admin_user SET last_login_at = last_login_at RETURNING administration_id")
+          .query(UUID.class)
+          .set();
+    }
+
+    @Transactional(readOnly = true)
+    public void openInside(UUID administrationId) {
+      try (var scope = AdministrationContext.open(administrationId)) {
+        administrations(jdbc);
+      }
     }
   }
 

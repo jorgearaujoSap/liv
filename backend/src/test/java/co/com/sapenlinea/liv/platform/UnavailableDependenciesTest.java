@@ -50,6 +50,12 @@ class UnavailableDependenciesTest {
 
       assertUnavailable(get(port, "/api/v1/me", Map.of("Authorization", "Bearer " + token)));
     }
+
+    @Test
+    @DisplayName("Doc. 03 · Sin base de datos la instancia no queda lista para recibir tráfico")
+    void notReadyWithoutDatabase() {
+      assertThat(get(port, "/actuator/health/readiness", Map.of()).statusCode()).isEqualTo(503);
+    }
   }
 
   @Nested
