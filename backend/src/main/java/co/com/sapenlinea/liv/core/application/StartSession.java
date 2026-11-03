@@ -59,10 +59,10 @@ public class StartSession {
 
   public StartedSession start(TokenUser token, String sid) {
     Attempt attempt = new Attempt(token, sid);
-    if (!token.sessionId().filter(sid::equals).isPresent()) {
-      throw attempt.unauthenticated(null);
-    }
     Optional<DirectoryUser> registered = directory.resolve(token.issuer(), token.subject());
+    if (!token.sessionId().filter(sid::equals).isPresent()) {
+      throw attempt.unauthenticated(registered.orElse(null));
+    }
     if (registered.isPresent()) {
       DirectoryUser user = registered.get();
       attempt.checkRegistered(user);
@@ -80,13 +80,18 @@ public class StartSession {
       throw attempt.refused(ErrorCodes.ADMINISTRATION_MISMATCH, null);
     }
     // Without an email the provider did not say who the user is; longer values do not fit.
-    String email = token.email().filter(value -> value.length() <= MAX_EMAIL).orElse(null);
+    String email = token.email().filter(value -> fits(value, MAX_EMAIL)).orElse(null);
     String fullName = token.fullName().orElse(email);
-    if (email == null || fullName.length() > MAX_FULL_NAME) {
+    if (email == null || !fits(fullName, MAX_FULL_NAME)) {
       throw attempt.unauthenticated(null);
     }
     return store.provisionAndStart(
         token.administrationId().get(), fullName, email, token, attempt.sid);
+  }
+
+  /** VARCHAR counts characters, not UTF-16 units. */
+  private static boolean fits(String value, int maxCharacters) {
+    return value.codePointCount(0, value.length()) <= maxCharacters;
   }
 
   /** One start: it knows how to refuse itself, publishing the refusal first. */

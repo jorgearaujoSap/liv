@@ -45,7 +45,10 @@ public interface SessionStore {
    */
   record StartOutcome(Result result, UUID userId) {}
 
-  /** The outcomes of a start; only the first two keep their changes. */
+  /**
+   * The outcomes of a start. Only {@code STARTED} keeps its changes: everything else rolls back, so
+   * a retry does not move the last login either.
+   */
   enum Result {
     /** A new session. */
     STARTED,
