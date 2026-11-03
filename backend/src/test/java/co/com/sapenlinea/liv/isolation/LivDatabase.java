@@ -169,7 +169,7 @@ public final class LivDatabase {
           INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
                                        identity_issuer, identity_subject)
           VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
-          ON CONFLICT DO NOTHING
+          ON CONFLICT (identity_issuer, identity_subject) DO NOTHING
           """,
           UUID.randomUUID(),
           administration,

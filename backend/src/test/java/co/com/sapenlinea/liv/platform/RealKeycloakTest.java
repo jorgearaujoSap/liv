@@ -67,6 +67,9 @@ class RealKeycloakTest {
     serviceToken = RealKeycloak.serviceToken();
     UUID administration = UUID.fromString(RealKeycloak.ADMINISTRATION);
     LivDatabase.registerAdministration(administration, "Ipiales (prueba)");
+    // B exists too: the 401 of its user can only come from the mismatch with its registration.
+    LivDatabase.registerAdministration(
+        UUID.fromString(RealKeycloak.ADMINISTRATION_OF_B), "Administración B (prueba)");
     for (String token : new String[] {userToken, userTokenOfB, serviceToken}) {
       LivDatabase.registerUser(
           administration, RealKeycloak.issuer(), claims(token).getSubject(), "ACTIVE");
@@ -150,9 +153,15 @@ class RealKeycloakTest {
 
   @Test
   @Tag("001-20")
-  @DisplayName("001-20 · El realm exige PKCE: un código con otro verificador no se canjea")
+  @DisplayName("001-20 · El realm exige PKCE: sin desafío no hay código y otro verificador falla")
   void pkceIsEnforced() {
-    assertThat(RealKeycloak.exchangeWithAnotherVerifier(RealKeycloak.USER)).isEqualTo(400);
+    assertThat(RealKeycloak.authorizeWithoutPkce())
+        .startsWith("http://localhost:4200/login/oauth2/code/liv")
+        .contains("error=invalid_request")
+        .doesNotContain("code=");
+    assertThat(RealKeycloak.exchangeWithAnotherVerifier(RealKeycloak.USER))
+        .contains("invalid_grant")
+        .containsIgnoringCase("PKCE");
   }
 
   private static JWTClaimsSet claims(String token) throws ParseException {

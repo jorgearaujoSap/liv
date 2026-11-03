@@ -48,6 +48,9 @@ final class RealKeycloak {
   /** {@code administration_id} of {@link #USER} in the development layer (Ipiales). */
   static final String ADMINISTRATION = "10000000-0000-0000-0000-000000052356";
 
+  /** {@code administration_id} of {@link #USER_OF_B} in the development layer. */
+  static final String ADMINISTRATION_OF_B = "10000000-0000-0000-0000-0000000b0001";
+
   private static final String KEYCLOAK_IMAGE =
       "quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332";
   private static final String CONFIG_CLI_IMAGE =
@@ -103,10 +106,27 @@ final class RealKeycloak {
     return response.accessToken();
   }
 
-  /** The status of exchanging a code with a verifier other than the challenged one. */
-  static int exchangeWithAnotherVerifier(String username) {
+  /** The error body of exchanging a code with a verifier other than the challenged one. */
+  static String exchangeWithAnotherVerifier(String username) {
     String code = login(username, challenge(randomVerifier()));
-    return exchange(code, randomVerifier()).status();
+    return exchange(code, randomVerifier()).body();
+  }
+
+  /** Where the realm sends a browser that asks for a code without PKCE. */
+  static String authorizeWithoutPkce() {
+    Map<String, String> query = new LinkedHashMap<>();
+    query.put("client_id", "liv-bff");
+    query.put("response_type", "code");
+    query.put("scope", "openid");
+    query.put("redirect_uri", REDIRECT_URI);
+    query.put("state", "estado-prueba");
+    HttpResponse<String> response =
+        send(
+            HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build(),
+            HttpRequest.newBuilder(
+                    URI.create(issuer() + "/protocol/openid-connect/auth?" + form(query)))
+                .GET());
+    return response.headers().firstValue("Location").orElse(response.body());
   }
 
   /** Logs in through the login form of the realm and returns the authorization code. */
@@ -186,9 +206,10 @@ final class RealKeycloak {
                 .header("Authorization", "Basic " + basic)
                 .POST(HttpRequest.BodyPublishers.ofString(form(parameters))));
     if (response.statusCode() != 200) {
-      return new Response(response.statusCode(), null);
+      return new Response(response.statusCode(), null, response.body());
     }
-    return new Response(200, JSON.readTree(response.body()).get("access_token").asString());
+    return new Response(
+        200, JSON.readTree(response.body()).get("access_token").asString(), response.body());
   }
 
   /** Name and value of each cookie the page sets, the last one by name, without deletions. */
@@ -302,5 +323,5 @@ final class RealKeycloak {
     }
   }
 
-  private record Response(int status, String accessToken) {}
+  private record Response(int status, String accessToken, String body) {}
 }
