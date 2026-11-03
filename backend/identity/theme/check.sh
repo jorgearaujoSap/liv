@@ -262,10 +262,12 @@ siguiente_paso() {
 }
 # enviar_paso ARCHIVO_PREVIO ARCHIVO FORMULARIO CAMPO [CAMPO]: envía el formulario FORMULARIO de la página previa, con
 # sus cookies, guarda la respuesta y escribe su código HTTP y, si redirige, su destino. Cada CAMPO es nombre=valor.
+# Como un navegador, envía también el campo oculto logout-sessions si la página lo tiene.
 enviar_paso() {
   previo=$1 archivo=$2 formulario=$3; shift 3
   url=$(tr -d '\r\n' <"$previo" | sed -n "s/.*<form[^>]*id=\"$formulario\"[^>]*action=\"\([^\"]*\)\".*/\1/p" | sed 's/&amp;/\&/g')
   if [ $# -ge 2 ]; then set -- --data-urlencode "$1" --data-urlencode "$2"; else set -- --data-urlencode "$1"; fi
+  if grep -q 'type="hidden" name="logout-sessions" value="on"' "$previo"; then set -- "$@" --data logout-sessions=on; fi
   cp "$previo.cookies" "$archivo.cookies"
   curl -sS -m 30 -o "$archivo" -w '%{http_code} %{redirect_url}' -c "$archivo.cookies" -b "$archivo.cookies" \
     "$@" "$url" 2>/dev/null
@@ -290,7 +292,7 @@ sin_aviso() {
 # error_en_campo ARCHIVO DESCRIPCIÓN CAMPO MENSAJE: el error está en la ayuda de ese campo, con su icono, el campo queda
 # aria-invalid y no hay alerta general que lo repita (State=Error de TextField y CodeInput).
 error_en_campo() {
-  if compacto <"$1" | grep -o "id=\"$3-help\"><svg.*" | grep -qF "<span>$4</span>" \
+  if compacto <"$1" | grep -o "id=\"$3-help\"><svg.*" | sed 's#</p>.*##' | grep -qF "<span>$4</span>" \
      && tr -d '\r\n' <"$1" | grep -q "id=\"$3\"[^>]*aria-invalid=\"true\"" && ! grep -q 'class="liv-alert' "$1"; then
     ok "$2"
   else
@@ -311,7 +313,7 @@ pagina "$tmp/clave-nueva.html" 'actualizar contraseña: página del frame, con l
   '>Crea una contraseña nueva</h1>' 'Antes de continuar, crea una contraseña nueva para tu cuenta.' \
   '>Contraseña nueva</label>' '>Confirma la contraseña</label>' 'Debe cumplir la política de contraseñas de tu entidad.' \
   '"liv-button__label">Guardar y continuar<' 'Conexión cifrada · Los accesos quedan registrados' \
-  'name="password-new"' 'name="password-confirm"' 'name="logout-sessions" value="on"'
+  'name="password-new"' 'name="password-confirm"' 'type="hidden" name="logout-sessions" value="on"'
 sin_aviso "$tmp/clave-nueva.html" 'actualizar contraseña'
 enviar_paso "$tmp/clave-nueva.html" "$tmp/clave-distinta.html" kc-passwd-update-form \
   'password-new=Clave-Nueva-Prueba-2026!' 'password-confirm=Otra-Clave-Prueba-2026!' >/dev/null
@@ -338,7 +340,7 @@ pagina "$tmp/configurar.html" 'configurar segundo factor: página del frame, con
   '>Escribe el código de 6 dígitos<' 'src="data:image/png;base64,' 'Escribe esta clave en la aplicación:' \
   'id="kc-totp-secret-key"' '>Código de verificación</label>' 'inputmode="numeric"' 'autocomplete="one-time-code"' \
   'maxlength="6"' 'Escribe los 6 dígitos sin espacios.' '"liv-button__label">Activar y continuar<' \
-  'name="totp"' 'name="totpSecret"' 'name="logout-sessions" value="on"'
+  'name="totp"' 'name="totpSecret"' 'type="hidden" name="logout-sessions" value="on"'
 sin_aviso "$tmp/configurar.html" 'configurar segundo factor'
 # Aquí el foco no salta los pasos ni el QR: el campo del código no tiene autofocus.
 if tr -d '\r\n' <"$tmp/configurar.html" | grep -q 'id="totp"[^>]*autofocus'; then
@@ -351,8 +353,15 @@ secreto=$(tr -d '\r\n' <"$tmp/configurar.html" | sed -n 's/.*name="totpSecret" v
 enviar_paso "$tmp/configurar.html" "$tmp/configurar-invalido.html" kc-totp-settings-form totp=000000 "totpSecret=$secreto" >/dev/null
 error_en_campo "$tmp/configurar-invalido.html" 'configurar segundo factor: código inválido, error en el campo y sin aviso de bloqueo' \
   totp 'El código no es válido. Escribe el que muestra ahora la aplicación.'
+# "Escribe el que muestra ahora la aplicación" supone que el secreto no cambia al volver a mostrar la página.
+secreto_nuevo=$(tr -d '\r\n' <"$tmp/configurar-invalido.html" | sed -n 's/.*name="totpSecret" value="\([^"]*\)".*/\1/p')
+if [ -n "$secreto_nuevo" ] && [ "$secreto_nuevo" = "$secreto" ]; then
+  ok "configurar segundo factor: tras un código inválido, el mismo secreto"
+else
+  falla "configurar segundo factor: tras un código inválido, el mismo secreto"
+fi
 entra "$(enviar_paso "$tmp/configurar-invalido.html" "$tmp/configurar-valido.html" kc-totp-settings-form \
-  "totp=$(totp "$secreto")" "totpSecret=$secreto")" 'configurar segundo factor: con el código correcto, entra (001-06)'
+  "totp=$(totp "$secreto_nuevo")" "totpSecret=$secreto_nuevo")" 'configurar segundo factor: con el código correcto, entra (001-06)'
 
 siguiente_paso "$tmp/codigo.html" dev.otp.prueba
 pagina "$tmp/codigo.html" 'código del segundo factor: página del frame, con el campo de Keycloak (001-07)' login-otp \
@@ -363,6 +372,7 @@ sin_aviso "$tmp/codigo.html" 'código del segundo factor'
 enviar_paso "$tmp/codigo.html" "$tmp/codigo-invalido.html" kc-otp-login-form otp=000000 >/dev/null
 error_en_campo "$tmp/codigo-invalido.html" 'código del segundo factor: código inválido, error en el campo (001-07)' \
   otp "$codigo_invalido"
+paso_usado=$(( $(date +%s) / 30 ))
 entra "$(enviar_paso "$tmp/codigo-invalido.html" "$tmp/codigo-valido.html" kc-otp-login-form "otp=$(totp "$secreto_otp")")" \
   'código del segundo factor: con el código correcto, entra (001-07)'
 
@@ -386,6 +396,9 @@ if [ "$bloqueada" = si ]; then
 else
   falla "código del segundo factor: 5 códigos inválidos bloquean la cuenta (001-07)"
 fi
+# Keycloak rechaza un código ya usado (otpPolicyCodeReusable: false): se espera la siguiente ventana de 30 s para que
+# el rechazo se deba al bloqueo y no a la reutilización.
+while [ $(( $(date +%s) / 30 )) -le "$paso_usado" ]; do sleep 1; done
 respuesta=$(enviar_paso "$previo" "$tmp/bloqueo-correcto.html" kc-otp-login-form "otp=$(totp "$secreto_otp")")
 if [ "${respuesta#3}" = "$respuesta" ] && compacto <"$tmp/bloqueo-correcto.html" | grep -qF "<span>$codigo_invalido</span>"; then
   ok "código del segundo factor: con la cuenta bloqueada, el código correcto no entra y ve el mismo mensaje (001-04)"
