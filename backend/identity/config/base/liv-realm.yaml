@@ -9,6 +9,8 @@ realm: liv
 enabled: true
 displayName: LIV
 sslRequired: all
+# Páginas de acceso con el tema liv (tarea T08). Solo existe en la imagen de identity/Dockerfile.
+loginTheme: liv
 
 # Idioma y opciones de la cuenta: sin registro, sin recuperación por correo ("Mi cuenta" es otra feature).
 internationalizationEnabled: true

@@ -1,0 +1,3 @@
+node_modules/
+# La genera Tailwind al construir la imagen (npm run build); no se versiona.
+liv/login/resources/css/liv.css

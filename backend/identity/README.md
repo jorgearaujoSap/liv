@@ -1,6 +1,20 @@
 # Identidad: Keycloak
 
-Configuración de Keycloak del backend (ADR 0024). Hoy contiene el *realm* `liv` como código (tarea T07 de la feature 001) y los resultados del *spike* (`spike/RESULTADOS.md`). El tema `liv` y la imagen propia de Keycloak llegan con la tarea T08.
+Configuración de Keycloak del backend (ADR 0024): el *realm* `liv` como código (tarea T07 de la feature 001), el tema `liv` de las páginas de acceso y la imagen de Keycloak que lo incluye (tarea T08), y los resultados del *spike* (`spike/RESULTADOS.md`).
+
+## Tema `liv` e imagen
+
+`theme/liv/login/` tiene las plantillas FreeMarker de las páginas de acceso, hechas a partir de los *frames* "001 · Acceso" de LIV‑Diseño. `theme/liv/styles/liv.css` es su hoja de estilos: Tailwind con los *tokens* del paquete `liv-components`, con versión exacta en `theme/package.json`. Por la excepción del ADR 0024, el tema reproduce los componentes de la librería (Logo, Alert, TextField, IconButton, Button y Spinner) y `Keycloak/BrandPanel`, que solo existe en el tema. Los colores, las tipografías y las sombras salen solo de los *tokens*.
+
+`Dockerfile` compila la hoja y construye Keycloak 26.8.1 con el tema y optimizado para PostgreSQL. El *realm* lo activa con `loginTheme: liv`, y el entorno local (`dev/compose.yaml`) usa esta imagen.
+
+Desde `backend/`, en Windows desde Git Bash:
+
+```bash
+sh identity/theme/check.sh
+```
+
+La prueba levanta un entorno desechable, con proyecto y puertos propios, y lo borra al terminar. Comprueba que la página de inicio de sesión use el tema, esté en español y solo use *tokens* (001-19). Comprueba también que la contraseña incorrecta, el usuario inexistente y el usuario desactivado vean el mismo mensaje genérico (001-03, 001-04, 001-05). La prueba visual contra los *frames* y la de accesibilidad con axe van en las e2e (tarea T23).
 
 ## *Realm* como código
 

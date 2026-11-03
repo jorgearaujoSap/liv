@@ -1,0 +1,17 @@
+{
+  "name": "liv-identity-theme",
+  "version": "0.0.0",
+  "description": "Hoja de estilos del tema liv de Keycloak, compilada con los tokens de liv-components (ADR 0024).",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss --input liv/styles/liv.css --output liv/login/resources/css/liv.css --minify"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "liv-components": "0.2.0",
+    "tailwindcss": "4.3.3"
+  }
+}
