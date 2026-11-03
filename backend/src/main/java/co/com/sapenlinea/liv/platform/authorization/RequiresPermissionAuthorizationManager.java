@@ -75,18 +75,19 @@ final class RequiresPermissionAuthorizationManager
       LOG.warn("Use case refused outside a request, without a user: {}", name(method));
       return DENIED;
     }
-    return permissionsOf(user.get()).contains(required.value()) ? GRANTED : DENIED;
+    return permissionsForRequest(user.get()).contains(required.value()) ? GRANTED : DENIED;
   }
 
   /** The permissions of the user, cached in the request it belongs to. */
-  private Set<String> permissionsOf(CurrentUser user) {
+  private Set<String> permissionsForRequest(CurrentUser user) {
     RequestAttributes request = RequestContextHolder.currentRequestAttributes();
     if (request.getAttribute(PERMISSIONS, RequestAttributes.SCOPE_REQUEST)
-        instanceof Granted granted) {
-      return granted.permissions();
+        instanceof CachedPermissions cached) {
+      return cached.permissions();
     }
     Set<String> permissions = catalog.getObject().permissionsOf(user.roles());
-    request.setAttribute(PERMISSIONS, new Granted(permissions), RequestAttributes.SCOPE_REQUEST);
+    request.setAttribute(
+        PERMISSIONS, new CachedPermissions(permissions), RequestAttributes.SCOPE_REQUEST);
     return permissions;
   }
 
@@ -102,5 +103,6 @@ final class RequiresPermissionAuthorizationManager
     return method.getDeclaringClass().getName() + "." + method.getName();
   }
 
-  private record Granted(Set<String> permissions) {}
+  /** The permissions of the user, kept only for the request they belong to. */
+  private record CachedPermissions(Set<String> permissions) {}
 }

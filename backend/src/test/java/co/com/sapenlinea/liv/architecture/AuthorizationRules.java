@@ -38,6 +38,8 @@ import org.springframework.stereotype.Service;
 final class AuthorizationRules {
 
   /** Where the use cases of the modules live. */
+  // Same criterion as UseCasePointcut, which applies the check at runtime with a regular
+  // expression: co.com.sapenlinea.liv.<module>.application and its subpackages.
   static final String USE_CASES = "..liv.*.application..";
 
   /**
@@ -119,7 +121,8 @@ final class AuthorizationRules {
         .and()
         .areDeclaredInClassesThat()
         .areMetaAnnotatedWith(Component.class)
-        .should(haveExactlyOneMarkAndBeInterceptable())
+        .should(haveExactlyOneMark())
+        .andShould(beInterceptable())
         .because("a hidden option is still reachable by URL; the use case checks (001-16)");
   }
 
@@ -256,34 +259,46 @@ final class AuthorizationRules {
       @Override
       public void check(JavaMethod method, ConditionEvents events) {
         boolean detached = DETACHED_METHODS.stream().anyMatch(method::isMetaAnnotatedWith);
-        boolean refusedAlways = detached && method.isAnnotatedWith(RequiresPermission.class);
+        boolean violated = detached && method.isAnnotatedWith(RequiresPermission.class);
         events.add(
             new SimpleConditionEvent(
                 method,
-                !refusedAlways,
+                !violated,
                 method.getFullName()
                     + " runs without a request and would always be refused: use @OpenUseCase"));
       }
     };
   }
 
-  private static ArchCondition<JavaMethod> haveExactlyOneMarkAndBeInterceptable() {
+  private static ArchCondition<JavaMethod> haveExactlyOneMark() {
     return new ArchCondition<>("have exactly one of @RequiresPermission or @OpenUseCase") {
       @Override
       public void check(JavaMethod method, ConditionEvents events) {
-        boolean guarded = method.isAnnotatedWith(RequiresPermission.class);
-        boolean open = method.isAnnotatedWith(OpenUseCase.class);
+        int marks =
+            (method.isAnnotatedWith(RequiresPermission.class) ? 1 : 0)
+                + (method.isAnnotatedWith(OpenUseCase.class) ? 1 : 0);
+        events.add(
+            new SimpleConditionEvent(
+                method,
+                marks == 1,
+                method.getFullName()
+                    + " needs exactly one of @RequiresPermission or @OpenUseCase"));
+      }
+    };
+  }
+
+  private static ArchCondition<JavaMethod> beInterceptable() {
+    return new ArchCondition<>("be neither static nor final") {
+      @Override
+      public void check(JavaMethod method, ConditionEvents events) {
         Set<JavaModifier> modifiers = method.getModifiers();
         boolean interceptable =
             !modifiers.contains(JavaModifier.STATIC) && !modifiers.contains(JavaModifier.FINAL);
         events.add(
             new SimpleConditionEvent(
                 method,
-                guarded != open && interceptable,
-                method.getFullName()
-                    + (interceptable
-                        ? " needs exactly one of @RequiresPermission or @OpenUseCase"
-                        : " is static or final: the proxy cannot check it")));
+                interceptable,
+                method.getFullName() + " is static or final: the proxy cannot check it"));
       }
     };
   }

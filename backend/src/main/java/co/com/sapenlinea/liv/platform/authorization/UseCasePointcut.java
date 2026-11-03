@@ -17,6 +17,7 @@ import org.springframework.util.ReflectionUtils;
  */
 final class UseCasePointcut extends StaticMethodMatcherPointcut {
 
+  /** co.com.sapenlinea.liv.<module>.application and its subpackages, as the architecture tests. */
   private static final Pattern USE_CASES =
       Pattern.compile("co\\.com\\.sapenlinea\\.liv\\.[a-z]+\\.application(\\..+)?");
 
