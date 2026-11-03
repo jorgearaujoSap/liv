@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-02
+> **Última actualización:** 2026-11-03
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -111,7 +111,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 3. Siguientes entregables: F0‑07 (GitHub Actions por proyecto), F0‑06 (Docker Compose), F0‑08 (base de datos, RLS y primera migración), F0‑10 y F0‑11; en la feature 001 (plan aprobado H2, `tasks.md` con 23 tareas), integrar el PR de documentación (T01) y hacer F0‑07 (T02), que es requisito previo; luego `tasks.md` y la implementación (primero F0‑07, porque las pruebas de seguridad del backend deben correr en CI).
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 5. `liv-components`, en este orden:
-   - **T05:** integrar el PR #43 y publicar la 0.2.0 (un humano, desde `main`); después, en otro PR, `frontend/` adopta la versión. Antes, decidir lo abierto de T05 (bitácora del 2026-11-02): estilo de texto de la etiqueta de sección, recorte de textos y opciones deshabilitadas del menú.
+   - **T05:** integrada (PR #43) y la 0.2.0 publicada el 2026-11-03; falta que `frontend/` adopte la versión en otro PR (T20). Antes, decidir lo abierto de T05 (bitácora del 2026-11-02): estilo de texto de la etiqueta de sección, recorte de textos y opciones deshabilitadas del menú.
    - **Backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
 
 ---
@@ -119,6 +119,19 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-03
+
+- Feature 001, T14 (PR #55): autorización de los casos de uso y menú de capacidades en el backend.
+  - **Autorización:** se niega por defecto.
+    - Cada método público de un servicio de `application` lleva `@RequiresPermission` o `@OpenUseCase`; sin marca se niega a todos.
+    - Sin el permiso, 403 `001-16` y el caso de uso no corre. Si no se pueden leer los permisos, 503.
+    - ArchUnit cierra las vías alrededor del *proxy*.
+  - **Menú:** `GET /api/v1/me/capabilities` con el catálogo `platform/menu-catalog.yaml` (Doc. 01 §3 hasta las hojas de 1.5 y 1.6, todo en `COMING_SOON`), comparado con la matriz aprobada rol por rol y permiso por permiso.
+  - **Decisiones del responsable**, registradas en el plan (ajustes de T14): profundidad del catálogo, estados, reparto de 1.5, `@OpenUseCase` por método y negar por defecto.
+  - `./mvnw verify` termina con 294 pruebas en verde. Dos rondas de revisión adversarial de nivel alto (en la segunda, un revisor aprobó y el hallazgo medio del otro quedó corregido y verificado) y las cuatro lentes.
+  - 001-15 y 001-16 quedan probados en el backend; faltan el frontend y el e2e.
+- `liv-components` 0.2.0 publicada en npm por el responsable. Destraba T08 y la adopción en el frontend (T20).
 
 ### 2026-11-02
 

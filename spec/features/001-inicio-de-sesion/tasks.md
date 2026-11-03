@@ -234,7 +234,15 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - primer ingreso concurrente;
     - `EndSession` idempotente y verificado contra el `sid`;
     - un *token* de usuario que pidió todos los alcances recibe 401 en `/internal`.
-- [ ] **T14** · Autorización y capacidades: `@RequiresPermission`, catálogo de menú, `GetCapabilities` y la matriz de permisos.
+- [x] **T14** · Autorización y capacidades: `@RequiresPermission`, catálogo de menú, `GetCapabilities` y la matriz de permisos. — Hecha: PR #55, con las decisiones del responsable (plan › Decisiones, ajustes de T14).
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista:
+      - `platform/RequiresPermission.java` y `platform/OpenUseCase.java`, en el paquete raíz porque los usan los demás módulos;
+      - `platform/api/CapabilitiesController.java`, porque los modelos generados solo se usan en la capa `api`;
+      - `@OpenUseCase` en `core/application/{GetCurrentUser,StartSession,EndSession}.java`;
+      - `README.md` y `CHANGELOG.md`;
+    - unas 2.300 líneas, la mayoría pruebas: dos rondas de revisión adversarial de nivel alto y las cuatro lentes;
+    - el contrato `platform.yaml` no declara 503 para `/me/capabilities`, aunque la API lo devuelve si la base no responde. Agregarlo es un cambio de contrato que queda para decisión humana.
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/platform/{authorization,navigation}/**`, `backend/src/main/resources/platform/menu-catalog.yaml`, `backend/src/test/**`.
   - Prueba primero:
     - 001-15: matriz rol → opciones visibles contra una tabla esperada escrita aparte;

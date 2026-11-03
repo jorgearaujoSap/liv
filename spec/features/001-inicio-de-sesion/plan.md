@@ -404,6 +404,21 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T14 (aprobados por el responsable el 2026-11-03, PR #55).** Salieron al escribir el catálogo del menú y de la revisión adversarial:
+  - **catálogo del menú** (`backend/src/main/resources/platform/menu-catalog.yaml`):
+    - árbol completo de Doc. 01 §3, hasta las hojas de 1.5 y 1.6. Los módulos 2 a 9 son hojas hasta que tengan matriz por opción; el frontend decide cuántos niveles pinta;
+    - todas las opciones en `COMING_SOON` hasta que exista su feature. Una rama no tiene permiso ni estado: se ve si se ve alguno de sus hijos, y está disponible si alguno de sus hijos visibles lo está;
+    - 1.5.1–1.5.4 con `valuation.batch.read`, 1.5.5–1.5.8 con `tax.rate.read`, 1.5.9 con `jurisdiction.config.read` y todo 1.6 con `valuation.catalog.read`;
+  - **negar por defecto:** todo método público de un servicio de `application` pasa por la comprobación. Uno sin marca se niega a todos, también si es heredado; la comprobación va antes que cualquier otro *advice*, también la transacción;
+  - **`@OpenUseCase("motivo")`**, por método, para lo que no exige permiso de usuario: los datos y el menú propios, los casos internos de sesión y lo que llamen oyentes y trabajos (T15 y siguientes). Corre también sin petición. La lista es cerrada y la fija una prueba de arquitectura; hoy son `GetCurrentUser.get`, `StartSession.start` y `EndSession.end`;
+  - **reglas de ArchUnit** que cierran las vías alrededor del *proxy*:
+    - casos de uso solo como `@Service` (ni `@Component` ni `@Bean`), no `final` y sin superclase;
+    - métodos públicos o privados, con una sola marca los públicos, sin `static` ni `final`;
+    - ninguna llamada ni referencia con `this` a un método protegido;
+    - controladores que usan `application` solo por sus casos de uso;
+    - ningún `@RequiresPermission` en métodos asíncronos u oyentes;
+    - ningún `@PreAuthorize`, `@Secured` ni `@RolesAllowed`;
+  - el diseño del menú en Figma y `capabilityGuard` (T21 y T22) deben contemplar el tercer nivel (1.5.x y 1.6.x).
 - **Ajustes de T13 (aprobados por el responsable el 2026-11-02, PR #51).** Salieron de la revisión de la parte 1:
   - en el primer ingreso, sin correo o con nombre o correo más largos que el registro (150 y 200 caracteres), se rechaza con 401 `001-14` y se audita; los límites del *realm* se alinearán con los del registro en una tarea de `identity`;
   - una sesión cerrada no se reabre con su `sid`: 401 `001-14`, auditado. El 200 queda solo para el reintento sobre la sesión abierta;
