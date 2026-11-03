@@ -210,27 +210,48 @@ fi
 
 echo "Contraseña nueva y segundo factor (001-06, 001-07, 001-19)"
 # Con la API de administración del entorno desechable: dev.consulta debe cambiar su contraseña y un usuario de
-# prueba con rol de MFA ya tiene TOTP. Todo es ficticio y desaparece con el entorno.
+# prueba con rol de MFA ya tiene TOTP con un secreto conocido. Todo es ficticio y desaparece con el entorno.
 admin_token=$(curl -fsS -m 30 -d grant_type=password -d client_id=admin-cli -d "username=$(leer KEYCLOAK_ADMIN_USER)" \
   -d "password=$(leer KEYCLOAK_ADMIN_PASSWORD)" "$kc/realms/master/protocol/openid-connect/token" 2>/dev/null \
   | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
-# admin MÉTODO RUTA [JSON]: llama a la API de administración del realm liv y escribe la respuesta.
+# admin MÉTODO RUTA [JSON]: llama a la API de administración del realm liv y escribe la respuesta; falla si la API falla.
 admin() {
   if [ $# -ge 3 ]; then set -- "$1" "$2" --data "$3"; fi
   metodo=$1 ruta=$2; shift 2
   curl -fsS -m 30 -X "$metodo" -H "Authorization: Bearer $admin_token" -H 'Content-Type: application/json' \
     "$@" "$kc/admin/realms/liv$ruta" 2>/dev/null
 }
-id_de() { admin GET "/users?exact=true&username=$1" | sed -n 's/^\[{"id":"\([^"]*\)".*/\1/p'; }
-admin PUT "/users/$(id_de dev.consulta)" '{"requiredActions":["UPDATE_PASSWORD"]}' >/dev/null
-admin POST /users '{"username":"dev.otp.prueba","enabled":true,"email":"dev.otp.prueba@example.test",
-  "firstName":"Otto","lastName":"Prueba","attributes":{"administration_id":["10000000-0000-0000-0000-000000052356"]},
-  "credentials":[{"type":"password","value":"'"$clave"'","temporary":false},
-  {"type":"otp","secretData":"{\"value\":\"secreto-de-prueba-liv\"}",
-   "credentialData":"{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"}]}' >/dev/null
-auditor=$(admin GET /roles/AUDITOR)
-admin POST "/users/$(id_de dev.otp.prueba)/role-mappings/realm" "[$auditor]" >/dev/null
+id_de() { admin GET "/users?exact=true&username=$1" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4; }
+secreto_otp=secreto-de-prueba-liv
+if [ -n "$admin_token" ] && [ -n "$(id_de dev.consulta)" ] \
+   && admin PUT "/users/$(id_de dev.consulta)" '{"requiredActions":["UPDATE_PASSWORD"]}' >/dev/null \
+   && admin POST /users '{"username":"dev.otp.prueba","enabled":true,"email":"dev.otp.prueba@example.test",
+        "firstName":"Otto","lastName":"Prueba","attributes":{"administration_id":["10000000-0000-0000-0000-000000052356"]},
+        "credentials":[{"type":"password","value":"'"$clave"'","temporary":false},
+        {"type":"otp","secretData":"{\"value\":\"'"$secreto_otp"'\"}",
+         "credentialData":"{\"subType\":\"totp\",\"digits\":6,\"counter\":0,\"period\":30,\"algorithm\":\"HmacSHA1\"}"}]}' >/dev/null \
+   && id_otp=$(id_de dev.otp.prueba) && [ -n "$id_otp" ] \
+   && admin POST "/users/$id_otp/role-mappings/realm" "[$(admin GET /roles/AUDITOR)]" >/dev/null; then
+  ok "preparación con la API de administración (acción requerida y usuario con TOTP)"
+else
+  falla "preparación con la API de administración (acción requerida y usuario con TOTP)"
+fi
 
+# totp SECRETO: código TOTP de ahora (RFC 6238 con la política del realm: SHA-1, 6 dígitos, 30 s). La clave HMAC son
+# los bytes del texto del secreto; el contador va en 8 bytes, escritos en octal para printf.
+totp() {
+  contador=$(printf '%016x' $(( $(date +%s) / 30 )))
+  binario= i=1
+  while [ $i -le 16 ]; do
+    binario="$binario$(printf '\\%03o' $(( 0x$(printf '%s' "$contador" | cut -c$i-$((i + 1))) )))"
+    i=$((i + 2))
+  done
+  clave_hex=$(printf '%s' "$1" | od -An -tx1 | tr -d ' \n')
+  mac=$(printf "$binario" | openssl dgst -sha1 -mac HMAC -macopt "hexkey:$clave_hex" | sed 's/.*= //')
+  desplazamiento=$(( 0x$(printf '%s' "$mac" | cut -c40) ))
+  parte=$(printf '%s' "$mac" | cut -c$((desplazamiento * 2 + 1))-$((desplazamiento * 2 + 8)))
+  printf '%06d' $(( (0x$parte & 0x7fffffff) % 1000000 ))
+}
 # siguiente_paso ARCHIVO USUARIO: inicia sesión con la contraseña correcta y guarda la página del paso siguiente. Sigue
 # las redirecciones: Keycloak lleva a las acciones requeridas (contraseña nueva, configurar TOTP) con una.
 siguiente_paso() {
@@ -240,15 +261,16 @@ siguiente_paso() {
     "$url" 2>/dev/null
 }
 # enviar_paso ARCHIVO_PREVIO ARCHIVO FORMULARIO CAMPO [CAMPO]: envía el formulario FORMULARIO de la página previa, con
-# sus cookies, y guarda la respuesta. Cada CAMPO es nombre=valor.
+# sus cookies, guarda la respuesta y escribe su código HTTP y, si redirige, su destino. Cada CAMPO es nombre=valor.
 enviar_paso() {
   previo=$1 archivo=$2 formulario=$3; shift 3
   url=$(tr -d '\r\n' <"$previo" | sed -n "s/.*<form[^>]*id=\"$formulario\"[^>]*action=\"\([^\"]*\)\".*/\1/p" | sed 's/&amp;/\&/g')
   if [ $# -ge 2 ]; then set -- --data-urlencode "$1" --data-urlencode "$2"; else set -- --data-urlencode "$1"; fi
-  curl -sS -m 30 -o "$archivo" -c "$previo.cookies" -b "$previo.cookies" "$@" "$url" 2>/dev/null
   cp "$previo.cookies" "$archivo.cookies"
+  curl -sS -m 30 -o "$archivo" -w '%{http_code} %{redirect_url}' -c "$archivo.cookies" -b "$archivo.cookies" \
+    "$@" "$url" 2>/dev/null
 }
-# pagina ARCHIVO DESCRIPCIÓN PAGEID TEXTO…: la página es la de Keycloak indicada, con el tema y cada texto.
+# pagina ARCHIVO DESCRIPCIÓN PAGEID TEXTO…: la página es la de Keycloak indicada, con el tema y cada texto (o atributo).
 pagina() {
   archivo=$1 descripcion=$2 page_id=$3; shift 3
   faltan=
@@ -257,49 +279,109 @@ pagina() {
   for texto in "$@"; do compacto <"$archivo" | grep -qF -- "$texto" || faltan="$faltan [$texto]"; done
   if [ -z "$faltan" ]; then ok "$descripcion"; else falla "$descripcion (falta:$faltan)"; fi
 }
+# sin_aviso ARCHIVO DESCRIPCIÓN: ni alerta general ni cuenta intentada, como en los frames.
+sin_aviso() {
+  if [ -s "$1" ] && ! grep -q 'class="liv-alert' "$1" && ! grep -q 'liv-attempted-user' "$1"; then
+    ok "$2: sin alerta general ni cuenta intentada"
+  else
+    falla "$2: sin alerta general ni cuenta intentada"
+  fi
+}
+# error_en_campo ARCHIVO DESCRIPCIÓN CAMPO MENSAJE: el error está en la ayuda de ese campo, con su icono, el campo queda
+# aria-invalid y no hay alerta general que lo repita (State=Error de TextField y CodeInput).
+error_en_campo() {
+  if compacto <"$1" | grep -o "id=\"$3-help\"><svg.*" | grep -qF "<span>$4</span>" \
+     && tr -d '\r\n' <"$1" | grep -q "id=\"$3\"[^>]*aria-invalid=\"true\"" && ! grep -q 'class="liv-alert' "$1"; then
+    ok "$2"
+  else
+    falla "$2"
+  fi
+}
+# entra RESPUESTA DESCRIPCIÓN: la respuesta de enviar_paso redirige al BFF con un código (el paso terminó bien).
+entra() {
+  case "$1" in
+    "302 $redirect?"*code=*) ok "$2" ;;
+    *) falla "$2 (obtuvo: '$1')" ;;
+  esac
+}
 codigo_invalido='El código no es válido. Los intentos fallidos cuentan para el bloqueo de la cuenta.'
 
 siguiente_paso "$tmp/clave-nueva.html" dev.consulta
-pagina "$tmp/clave-nueva.html" 'actualizar contraseña: página del frame' login-update-password \
-  '>Crea una contraseña nueva</h1>' 'Es tu primer ingreso o tu contraseña venció. Crea una nueva para continuar.' \
+pagina "$tmp/clave-nueva.html" 'actualizar contraseña: página del frame, con los campos de Keycloak' login-update-password \
+  '>Crea una contraseña nueva</h1>' 'Antes de continuar, crea una contraseña nueva para tu cuenta.' \
   '>Contraseña nueva</label>' '>Confirma la contraseña</label>' 'Debe cumplir la política de contraseñas de tu entidad.' \
-  '"liv-button__label">Guardar y continuar<' 'Conexión cifrada · Los accesos quedan registrados'
-if ! grep -q 'class="liv-alert' "$tmp/clave-nueva.html" && ! grep -q 'liv-attempted-user' "$tmp/clave-nueva.html"; then
-  ok "actualizar contraseña: sin aviso ni cuenta intentada (como el frame)"
-else
-  falla "actualizar contraseña: sin aviso ni cuenta intentada (como el frame)"
-fi
+  '"liv-button__label">Guardar y continuar<' 'Conexión cifrada · Los accesos quedan registrados' \
+  'name="password-new"' 'name="password-confirm"' 'name="logout-sessions" value="on"'
+sin_aviso "$tmp/clave-nueva.html" 'actualizar contraseña'
 enviar_paso "$tmp/clave-nueva.html" "$tmp/clave-distinta.html" kc-passwd-update-form \
-  'password-new=Clave-Nueva-2026!' 'password-confirm=Otra-Clave-2026!'
-pagina "$tmp/clave-distinta.html" 'actualizar contraseña: confirmación distinta, error en su campo' login-update-password \
-  'Las contraseñas no coinciden.'
-if tr -d '\r\n' <"$tmp/clave-distinta.html" | grep -q 'id="password-confirm"[^>]*aria-invalid="true"'; then
-  ok "actualizar contraseña: el campo de confirmación queda inválido"
+  'password-new=Clave-Nueva-Prueba-2026!' 'password-confirm=Otra-Clave-Prueba-2026!' >/dev/null
+error_en_campo "$tmp/clave-distinta.html" 'actualizar contraseña: confirmación distinta, error en su campo' \
+  password-confirm 'Las contraseñas no coinciden.'
+# Keycloak manda los errores de la política como mensaje general: la alerta lo explica y marca el campo nuevo.
+enviar_paso "$tmp/clave-distinta.html" "$tmp/clave-corta.html" kc-passwd-update-form \
+  'password-new=Corta-1!' 'password-confirm=Corta-1!' >/dev/null
+if mensaje_alerta <"$tmp/clave-corta.html" | grep -qF 'longitud mínima 12' \
+   && tr -d '\r\n' <"$tmp/clave-corta.html" \
+      | grep -q 'id="password-new"[^>]*aria-invalid="true"[^>]*aria-describedby="liv-alert-message"'; then
+  ok "actualizar contraseña: política no cumplida, en la alerta y con el campo marcado"
 else
-  falla "actualizar contraseña: el campo de confirmación queda inválido"
+  falla "actualizar contraseña: política no cumplida, en la alerta y con el campo marcado"
 fi
+entra "$(enviar_paso "$tmp/clave-corta.html" "$tmp/clave-valida.html" kc-passwd-update-form \
+  'password-new=Clave-Nueva-Prueba-2026!' 'password-confirm=Clave-Nueva-Prueba-2026!')" \
+  'actualizar contraseña: con una contraseña válida, entra'
 
 siguiente_paso "$tmp/configurar.html" dev.admin.sistema
-pagina "$tmp/configurar.html" 'configurar segundo factor: página del frame (001-06)' login-config-totp \
+pagina "$tmp/configurar.html" 'configurar segundo factor: página del frame, con los campos de Keycloak (001-06)' login-config-totp \
   '>Activa la verificación en dos pasos</h1>' 'Tu rol exige un segundo factor. Solo lo configuras una vez.' \
-  '>Instala una aplicación de autenticación<' '>Escanea el código QR<' '>Escribe el código de 6 dígitos<' \
-  'src="data:image/png;base64,' 'Escribe esta clave en la aplicación:' 'id="kc-totp-secret-key"' \
-  '>Código de verificación</label>' 'inputmode="numeric"' 'autocomplete="one-time-code"' 'maxlength="6"' \
-  'Escribe los 6 dígitos sin espacios.' '"liv-button__label">Activar y continuar<'
-# Keycloak recibe el secreto en un campo oculto junto con el código.
+  '<ol class="liv-steps" role="list">' '>Instala una aplicación de autenticación<' '>Escanea el código QR<' \
+  '>Escribe el código de 6 dígitos<' 'src="data:image/png;base64,' 'Escribe esta clave en la aplicación:' \
+  'id="kc-totp-secret-key"' '>Código de verificación</label>' 'inputmode="numeric"' 'autocomplete="one-time-code"' \
+  'maxlength="6"' 'Escribe los 6 dígitos sin espacios.' '"liv-button__label">Activar y continuar<' \
+  'name="totp"' 'name="totpSecret"' 'name="logout-sessions" value="on"'
+sin_aviso "$tmp/configurar.html" 'configurar segundo factor'
+# Aquí el foco no salta los pasos ni el QR: el campo del código no tiene autofocus.
+if tr -d '\r\n' <"$tmp/configurar.html" | grep -q 'id="totp"[^>]*autofocus'; then
+  falla "configurar segundo factor: el código sin autofocus"
+else
+  ok "configurar segundo factor: el código sin autofocus"
+fi
+# Keycloak recibe el secreto en un campo oculto junto con el código; en esta página el fallo no cuenta para el bloqueo.
 secreto=$(tr -d '\r\n' <"$tmp/configurar.html" | sed -n 's/.*name="totpSecret" value="\([^"]*\)".*/\1/p')
-enviar_paso "$tmp/configurar.html" "$tmp/configurar-invalido.html" kc-totp-settings-form totp=000000 "totpSecret=$secreto"
-pagina "$tmp/configurar-invalido.html" 'configurar segundo factor: código inválido, error en el campo' login-config-totp \
-  "$codigo_invalido" 'aria-invalid="true"'
+enviar_paso "$tmp/configurar.html" "$tmp/configurar-invalido.html" kc-totp-settings-form totp=000000 "totpSecret=$secreto" >/dev/null
+error_en_campo "$tmp/configurar-invalido.html" 'configurar segundo factor: código inválido, error en el campo y sin aviso de bloqueo' \
+  totp 'El código no es válido. Escribe el que muestra ahora la aplicación.'
+entra "$(enviar_paso "$tmp/configurar-invalido.html" "$tmp/configurar-valido.html" kc-totp-settings-form \
+  "totp=$(totp "$secreto")" "totpSecret=$secreto")" 'configurar segundo factor: con el código correcto, entra (001-06)'
 
 siguiente_paso "$tmp/codigo.html" dev.otp.prueba
-pagina "$tmp/codigo.html" 'código del segundo factor: página del frame (001-07)' login-otp \
+pagina "$tmp/codigo.html" 'código del segundo factor: página del frame, con el campo de Keycloak (001-07)' login-otp \
   '>Verificación en dos pasos</h1>' 'Escribe el código de 6 dígitos que muestra tu aplicación de autenticación.' \
   '>Código de verificación</label>' 'El código cambia cada 30 segundos.' '"liv-button__label">Verificar<' \
-  'login-actions/restart' '>Volver a iniciar sesión<'
-enviar_paso "$tmp/codigo.html" "$tmp/codigo-invalido.html" kc-otp-login-form otp=000000
-pagina "$tmp/codigo-invalido.html" 'código del segundo factor: código inválido, error en el campo (001-07)' login-otp \
-  "$codigo_invalido" 'aria-invalid="true"'
+  'login-actions/restart' '>Volver a iniciar sesión<' 'name="otp"'
+sin_aviso "$tmp/codigo.html" 'código del segundo factor'
+enviar_paso "$tmp/codigo.html" "$tmp/codigo-invalido.html" kc-otp-login-form otp=000000 >/dev/null
+error_en_campo "$tmp/codigo-invalido.html" 'código del segundo factor: código inválido, error en el campo (001-07)' \
+  otp "$codigo_invalido"
+entra "$(enviar_paso "$tmp/codigo-invalido.html" "$tmp/codigo-valido.html" kc-otp-login-form "otp=$(totp "$secreto_otp")")" \
+  'código del segundo factor: con el código correcto, entra (001-07)'
+
+# Cuenta como intento fallido (001-07): 5 códigos inválidos seguidos, espaciados más de 1 s, bloquean la cuenta; con
+# el código correcto sigue el mismo mensaje.
+siguiente_paso "$tmp/bloqueo-0.html" dev.otp.prueba
+previo="$tmp/bloqueo-0.html"
+for n in 1 2 3 4 5; do
+  enviar_paso "$previo" "$tmp/bloqueo-$n.html" kc-otp-login-form otp=000000 >/dev/null
+  previo="$tmp/bloqueo-$n.html"
+  sleep 2
+done
+enviar_paso "$previo" "$tmp/bloqueo-correcto.html" kc-otp-login-form "otp=$(totp "$secreto_otp")" >/dev/null
+if admin GET "/attack-detection/brute-force/users/$id_otp" | grep -q '"disabled":true' \
+   && compacto <"$tmp/bloqueo-correcto.html" | grep -qF "<span>$codigo_invalido</span>"; then
+  ok "código del segundo factor: 5 códigos inválidos bloquean la cuenta, con el mismo mensaje (001-04, 001-07)"
+else
+  falla "código del segundo factor: 5 códigos inválidos bloquean la cuenta, con el mismo mensaje (001-04, 001-07)"
+fi
 
 echo "Imagen"
 # MSYS_NO_PATHCONV: Git Bash convertiría la ruta del contenedor en una de Windows.
