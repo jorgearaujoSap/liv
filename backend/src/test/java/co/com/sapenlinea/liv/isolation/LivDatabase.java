@@ -186,8 +186,9 @@ public final class LivDatabase {
   }
 
   /**
-   * Inserts a user in a transaction of the owner that stays open while {@code during} runs, and
-   * then commits it: a concurrent insert of the same identity waits on the unique key meanwhile.
+   * Inserts a user in a transaction of the owner that stays open while {@code during} runs, waits
+   * until the application is blocked on a lock (the unique key of that identity), and then commits:
+   * the concurrent insert of the application is forced to conflict with this one.
    */
   public static void insertUserUncommittedDuring(
       UUID administration, String issuer, String subject, String status, Runnable during) {
@@ -206,10 +207,38 @@ public final class LivDatabase {
           issuer,
           subject);
       during.run();
+      awaitApplicationWaitingOnALock();
       connection.commit();
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private static void awaitApplicationWaitingOnALock() throws SQLException {
+    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
+    try (Connection superuser =
+        DriverManager.getConnection(jdbcUrl(), "postgres", "postgres-test-pw")) {
+      while (System.nanoTime() < deadline) {
+        long waiting =
+            ((Number)
+                    rows(
+                            superuser,
+                            "SELECT count(*) FROM pg_stat_activity"
+                                + " WHERE usename = 'liv_app' AND wait_event_type = 'Lock'")
+                        .getFirst()[0])
+                .longValue();
+        if (waiting > 0) {
+          return;
+        }
+        try {
+          Thread.sleep(50);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        }
+      }
+    }
+    throw new IllegalStateException("La aplicación no llegó a esperar el bloqueo de la otra alta");
   }
 
   /** Password of {@code liv_app}, the only role the application connects with. */

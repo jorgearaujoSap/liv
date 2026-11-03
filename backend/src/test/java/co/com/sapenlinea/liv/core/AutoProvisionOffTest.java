@@ -11,6 +11,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
 /**
@@ -19,8 +21,11 @@ import org.springframework.test.context.TestPropertySource;
  * relinked explicitly instead of becoming new users.
  */
 @TestPropertySource(properties = "liv.sessions.auto-provision=false")
+@Import(SessionEventsRecorder.class)
 @DisplayName("Alta automática apagada (T13)")
 class AutoProvisionOffTest extends PlatformWebTest {
+
+  @Autowired SessionEventsRecorder.Recorded events;
 
   @Test
   @Tag("001-17")
@@ -40,6 +45,18 @@ class AutoProvisionOffTest extends PlatformWebTest {
 
     assertThat(response.statusCode()).isEqualTo(403);
     assertThat(response.body()).contains("\"code\":\"001-17\"");
+    String sid = OidcTestProvider.sessionIdOf(token);
+    assertThat(events.of(SessionDenied.class))
+        .filteredOn(e -> sid.equals(e.sid()))
+        .containsExactly(
+            new SessionDenied(
+                "001-17",
+                OidcTestProvider.issuer(),
+                subject,
+                sid,
+                null,
+                null,
+                LivDatabase.ADMIN_A));
     assertThat(
             LivDatabase.readAsOwner(
                 "SELECT id FROM core.admin_user WHERE identity_subject = ?", subject))

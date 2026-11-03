@@ -113,12 +113,13 @@ class InternalSessionsTest extends PlatformWebTest {
   void sidOfTheBodyMustBeTheTokens() {
     String token = OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_A);
 
-    assertProblem(start(token, "otro-sid-" + UUID.randomUUID()), 401, ErrorCodes.NOT_AUTHENTICATED);
+    String requested = "otro-sid-" + UUID.randomUUID();
+    assertProblem(start(token, requested), 401, ErrorCodes.NOT_AUTHENTICATED);
 
     assertThat(sessionsOf(sid(token))).isEmpty();
-    assertThat(deniedFor(sid(token))).isEmpty();
-    assertThat(events.of(SessionDenied.class))
-        .anyMatch(e -> e.code().equals(ErrorCodes.NOT_AUTHENTICATED) && ACTIVE.equals(e.subject()));
+    assertThat(deniedFor(requested))
+        .containsExactly(
+            denied(ErrorCodes.NOT_AUTHENTICATED, ACTIVE, requested, true, LivDatabase.ADMIN_A));
   }
 
   @Test
@@ -131,8 +132,13 @@ class InternalSessionsTest extends PlatformWebTest {
     String second =
         OidcTestProvider.userToken(
             other, LivDatabase.ADMIN_A, claims -> claims.claim("sid", sid(first)));
+    int provisioned = events.of(UserProvisioned.class).size();
 
     assertProblem(start(second), 401, ErrorCodes.NOT_AUTHENTICATED);
+
+    assertThat(events.of(UserProvisioned.class))
+        .as("el alta revertida no publica")
+        .hasSize(provisioned);
 
     assertThat(usersWith(other)).as("el alta se revierte").isEmpty();
     List<Object[]> session = sessionsOf(sid(first));
@@ -162,8 +168,8 @@ class InternalSessionsTest extends PlatformWebTest {
 
     assertThat(sessionsOf(sid(token)).getFirst()[2]).isEqualTo("LOGOUT");
     assertThat(deniedFor(sid(token)))
-        .extracting(SessionDenied::code)
-        .containsExactly(ErrorCodes.NOT_AUTHENTICATED);
+        .containsExactly(
+            denied(ErrorCodes.NOT_AUTHENTICATED, ACTIVE, sid(token), true, LivDatabase.ADMIN_A));
   }
 
   @Test
@@ -250,16 +256,31 @@ class InternalSessionsTest extends PlatformWebTest {
     LivDatabase.setAdministrationActive(administration, false);
     String newcomer = newSubject();
 
-    assertProblem(
-        start(OidcTestProvider.userToken(newcomer, administration)),
-        403,
-        ErrorCodes.ADMINISTRATION_MISMATCH);
-    assertProblem(
-        start(OidcTestProvider.userToken(registered, administration)),
-        403,
-        ErrorCodes.ADMINISTRATION_MISMATCH);
+    String ofNewcomer = OidcTestProvider.userToken(newcomer, administration);
+    String ofRegistered = OidcTestProvider.userToken(registered, administration);
+    assertProblem(start(ofNewcomer), 403, ErrorCodes.ADMINISTRATION_MISMATCH);
+    assertProblem(start(ofRegistered), 403, ErrorCodes.ADMINISTRATION_MISMATCH);
 
     assertThat(usersWith(newcomer)).isEmpty();
+    assertThat(sessionsOf(sid(ofRegistered))).isEmpty();
+    assertThat(deniedFor(sid(ofNewcomer)))
+        .containsExactly(
+            new SessionDenied(
+                ErrorCodes.ADMINISTRATION_MISMATCH,
+                OidcTestProvider.issuer(),
+                newcomer,
+                sid(ofNewcomer),
+                null,
+                null,
+                administration));
+    assertThat(deniedFor(sid(ofRegistered)))
+        .containsExactly(
+            denied(
+                ErrorCodes.ADMINISTRATION_MISMATCH,
+                registered,
+                sid(ofRegistered),
+                true,
+                administration));
   }
 
   @Test
@@ -295,9 +316,34 @@ class InternalSessionsTest extends PlatformWebTest {
     assertThat(usersWith(withoutEmail)).isEmpty();
     assertThat(usersWith(longName)).isEmpty();
     assertThat(usersWith(longEmail)).isEmpty();
-    assertThat(events.of(SessionDenied.class))
-        .filteredOn(e -> List.of(withoutEmail, longName, longEmail).contains(e.subject()))
-        .hasSize(3);
+    for (String subject : List.of(withoutEmail, longName, longEmail)) {
+      assertThat(events.of(SessionDenied.class))
+          .filteredOn(e -> subject.equals(e.subject()))
+          .singleElement()
+          .satisfies(e -> {
+            assertThat(e.code()).isEqualTo(ErrorCodes.NOT_AUTHENTICATED);
+            assertThat(e.userId()).isNull();
+            assertThat(e.registeredAdministrationId()).isNull();
+            assertThat(e.claimedAdministrationId()).isEqualTo(LivDatabase.ADMIN_A);
+          });
+    }
+  }
+
+  @Test
+  @Tag("001-21")
+  @DisplayName("001-21 · Un nombre de 150 y un correo de 200 caracteres sí caben en el registro")
+  void identityDataAtTheLimitIsAccepted() {
+    String subject = newSubject();
+    String email = "e".repeat(187) + "@test.invalid";
+    assertThat(email).hasSize(200);
+    String token =
+        OidcTestProvider.userToken(
+            subject,
+            LivDatabase.ADMIN_A,
+            claims -> claims.claim("name", "n".repeat(150)).claim("email", email));
+
+    assertThat(start(token).statusCode()).isEqualTo(201);
+    assertThat(usersWith(subject)).hasSize(1);
   }
 
   @Test
@@ -314,11 +360,7 @@ class InternalSessionsTest extends PlatformWebTest {
         OidcTestProvider.issuer(),
         subject,
         "ACTIVE",
-        () -> {
-          response.completeAsync(() -> start(token));
-          pause();
-          assertThat(response).as("espera la clave única de la otra alta").isNotDone();
-        });
+        () -> response.completeAsync(() -> start(token)));
 
     HttpResponse<String> started = response.get(20, TimeUnit.SECONDS);
     assertThat(started.statusCode()).isEqualTo(201);
@@ -341,13 +383,52 @@ class InternalSessionsTest extends PlatformWebTest {
         OidcTestProvider.issuer(),
         subject,
         "ACTIVE",
-        () -> {
-          response.completeAsync(() -> start(token));
-          pause();
-        });
+        () -> response.completeAsync(() -> start(token)));
 
     assertProblem(response.get(20, TimeUnit.SECONDS), 403, ErrorCodes.ADMINISTRATION_MISMATCH);
     assertThat(sessionsOf(sid(token))).isEmpty();
+    UUID registered = (UUID) usersWith(subject).getFirst()[0];
+    assertThat(deniedFor(sid(token)))
+        .containsExactly(
+            new SessionDenied(
+                ErrorCodes.ADMINISTRATION_MISMATCH,
+                OidcTestProvider.issuer(),
+                subject,
+                sid(token),
+                registered,
+                LivDatabase.ADMIN_B,
+                LivDatabase.ADMIN_A));
+  }
+
+  @Test
+  @Tag("001-05")
+  @DisplayName(
+      "001-05 · Si a la vez lo registran desactivado, el ingreso se rechaza en la transacción")
+  void concurrentRegistrationAsInactiveIsDenied() throws Exception {
+    String subject = newSubject();
+    String token = OidcTestProvider.userToken(subject, LivDatabase.ADMIN_A);
+    CompletableFuture<HttpResponse<String>> response = new CompletableFuture<>();
+
+    LivDatabase.insertUserUncommittedDuring(
+        LivDatabase.ADMIN_A,
+        OidcTestProvider.issuer(),
+        subject,
+        "INACTIVE",
+        () -> response.completeAsync(() -> start(token)));
+
+    assertProblem(response.get(20, TimeUnit.SECONDS), 403, ErrorCodes.USER_INACTIVE);
+    assertThat(sessionsOf(sid(token))).isEmpty();
+    UUID registered = (UUID) usersWith(subject).getFirst()[0];
+    assertThat(deniedFor(sid(token)))
+        .containsExactly(
+            new SessionDenied(
+                ErrorCodes.USER_INACTIVE,
+                OidcTestProvider.issuer(),
+                subject,
+                sid(token),
+                registered,
+                LivDatabase.ADMIN_A,
+                LivDatabase.ADMIN_A));
   }
 
   @Test
@@ -455,6 +536,20 @@ class InternalSessionsTest extends PlatformWebTest {
             .formatted(OidcTestProvider.issuer(), subject, reason));
   }
 
+  /** A refusal of a registered user (or not), the token claiming {@code claimed}. */
+  private static SessionDenied denied(
+      String code, String subject, String sid, boolean registered, UUID claimed) {
+    Object[] user = registered ? usersWith(subject).getFirst() : null;
+    return new SessionDenied(
+        code,
+        OidcTestProvider.issuer(),
+        subject,
+        sid,
+        user == null ? null : (UUID) user[0],
+        user == null ? null : (UUID) user[2],
+        claimed);
+  }
+
   private List<SessionDenied> deniedFor(String sid) {
     return events.of(SessionDenied.class).stream().filter(e -> sid.equals(e.sid())).toList();
   }
@@ -501,15 +596,6 @@ class InternalSessionsTest extends PlatformWebTest {
     JsonNode body = JSON.readTree(response.body());
     assertThat(body.get("code").asString()).isEqualTo(code);
     assertThat(body.has("detail")).isFalse();
-  }
-
-  /** Long enough for the request to reach the insert that waits on the other transaction. */
-  private static void pause() {
-    try {
-      Thread.sleep(1500);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
   }
 
   private static void await(CountDownLatch gate) {
