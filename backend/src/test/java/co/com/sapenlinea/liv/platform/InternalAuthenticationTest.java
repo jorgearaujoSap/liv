@@ -147,6 +147,18 @@ class InternalAuthenticationTest extends PlatformWebTest {
 
   @Test
   @Tag("001-14")
+  @DisplayName("001-14 · Un X-User-Token emitido para otro cliente (azp) responde 401")
+  void userTokenOfAnotherClient() {
+    String other =
+        OidcTestProvider.userToken(
+            ACTIVE, LivDatabase.ADMIN_A, claims -> claims.claim("azp", "account-console"));
+    assertRejected(
+        post(START, withUser(OidcTestProvider.serviceToken(), other)),
+        ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token de servicio no sirve como X-User-Token")
   void serviceTokenAsUserToken() {
     String service = OidcTestProvider.serviceToken();

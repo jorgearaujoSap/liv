@@ -1,0 +1,12 @@
+# Configuración común de las pruebas (se suma a application.yml): los proveedores OIDC de prueba
+# (contenedor y puertos cerrados) son http, que fuera de dev y test no se permite (plan, ajustes de T12).
+liv:
+  security:
+    allow-http-issuer: true
+
+# Pools pequeños: cada contexto de prueba cacheado tiene el suyo contra el mismo PostgreSQL.
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 0
+      maximum-pool-size: 4

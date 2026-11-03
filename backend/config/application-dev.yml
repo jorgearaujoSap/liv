@@ -20,3 +20,5 @@ spring:
 liv:
   security:
     issuer-uri: ${LIV_OIDC_ISSUER_URI:http://localhost:8180/realms/liv}
+    # El Keycloak local no tiene TLS; fuera de dev y test el emisor debe ser https.
+    allow-http-issuer: true

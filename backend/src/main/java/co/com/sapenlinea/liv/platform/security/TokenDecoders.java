@@ -22,7 +22,8 @@ import org.springframework.web.client.RestTemplate;
  * keys (signature, issuer, expiry and audience):
  *
  * <ul>
- *   <li>user tokens, with the audience of the API;
+ *   <li>user tokens, with the audience of the API and the BFF as {@code azp}: users log in only
+ *       through the BFF (plan › Decisiones, T12);
  *   <li>the service token of the BFF, with the internal audience and its client as {@code azp}. A
  *       user token never meets both, even if the user asks for more scopes (plan, step 8).
  * </ul>
@@ -38,22 +39,25 @@ final class TokenDecoders {
   private TokenDecoders() {}
 
   static JwtDecoder userTokens(LivSecurityProperties properties) {
-    return decoder(properties.issuerUri(), List.of(audience(properties.userAudience())));
+    return decoder(
+        properties,
+        List.of(audience(properties.userAudience()), authorizedParty(properties.userClientId())));
   }
 
   static JwtDecoder serviceTokens(LivSecurityProperties properties) {
     return decoder(
-        properties.issuerUri(),
+        properties,
         List.of(
-            audience(properties.serviceAudience()),
-            new JwtClaimValidator<String>(
-                IdTokenClaimNames.AZP, properties.serviceClientId()::equals)));
+            audience(properties.serviceAudience()), authorizedParty(properties.serviceClientId())));
   }
 
-  private static JwtDecoder decoder(String issuer, List<OAuth2TokenValidator<Jwt>> extra) {
+  private static JwtDecoder decoder(
+      LivSecurityProperties properties, List<OAuth2TokenValidator<Jwt>> extra) {
+    String issuer = properties.issuerUri();
+    RestTemplate restTemplate = provider(properties.allowHttpIssuer());
     return new SupplierJwtDecoder(() -> {
       NimbusJwtDecoder decoder =
-          NimbusJwtDecoder.withIssuerLocation(issuer).restOperations(provider()).build();
+          NimbusJwtDecoder.withIssuerLocation(issuer).restOperations(restTemplate).build();
       List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>(extra);
       validators.add(new JwtIssuerValidator(issuer));
       validators.add(timestamps());
@@ -72,15 +76,37 @@ final class TokenDecoders {
     return timestamps;
   }
 
+  /** The client the token was issued to ({@code azp}, OIDC). */
+  private static OAuth2TokenValidator<Jwt> authorizedParty(String clientId) {
+    return new JwtClaimValidator<String>(IdTokenClaimNames.AZP, clientId::equals);
+  }
+
   private static OAuth2TokenValidator<Jwt> audience(String audience) {
     return new JwtClaimValidator<List<String>>(
         JwtClaimNames.AUD, audiences -> audiences != null && audiences.contains(audience));
   }
 
-  private static RestTemplate provider() {
+  /**
+   * Discovery and JWKS calls, with timeouts. The keys come from the {@code jwks_uri} the provider
+   * publishes, not from the issuer text, so without the explicit permission every call must be
+   * https: a provider behind a misconfigured proxy cannot hand out its keys in clear (doc. 02 §3).
+   */
+  static RestTemplate provider(boolean allowHttp) {
     SimpleClientHttpRequestFactory requests = new SimpleClientHttpRequestFactory();
     requests.setConnectTimeout(PROVIDER_TIMEOUT);
     requests.setReadTimeout(PROVIDER_TIMEOUT);
-    return new RestTemplate(requests);
+    RestTemplate restTemplate = new RestTemplate(requests);
+    if (!allowHttp) {
+      restTemplate
+          .getInterceptors()
+          .add((request, body, execution) -> {
+            if (!"https".equals(request.getURI().getScheme())) {
+              throw new IllegalStateException(
+                  "The identity provider must be called over https: " + request.getURI());
+            }
+            return execution.execute(request, body);
+          });
+    }
+    return restTemplate;
   }
 }

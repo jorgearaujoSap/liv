@@ -2,6 +2,8 @@ package co.com.sapenlinea.liv.platform.security;
 
 import co.com.sapenlinea.liv.platform.UserDirectory;
 import jakarta.servlet.DispatcherType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -31,9 +33,14 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @EnableConfigurationProperties(LivSecurityProperties.class)
 class SecurityConfiguration {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SecurityConfiguration.class);
+
   @Bean
   @Primary
   JwtDecoder userTokenDecoder(LivSecurityProperties properties) {
+    if (properties.allowHttpIssuer()) {
+      LOG.warn("liv.security.allow-http-issuer is on: only for dev and tests (doc. 02 §3)");
+    }
     return TokenDecoders.userTokens(properties);
   }
 
