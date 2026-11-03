@@ -375,12 +375,22 @@ for n in 1 2 3 4 5; do
   previo="$tmp/bloqueo-$n.html"
   sleep 2
 done
-enviar_paso "$previo" "$tmp/bloqueo-correcto.html" kc-otp-login-form "otp=$(totp "$secreto_otp")" >/dev/null
-if admin GET "/attack-detection/brute-force/users/$id_otp" | grep -q '"disabled":true' \
-   && compacto <"$tmp/bloqueo-correcto.html" | grep -qF "<span>$codigo_invalido</span>"; then
-  ok "código del segundo factor: 5 códigos inválidos bloquean la cuenta, con el mismo mensaje (001-04, 001-07)"
+# Keycloak puede registrar el último fallo un instante después de responder: se espera a que confirme el bloqueo.
+bloqueada=no
+for _ in $(seq 1 10); do
+  if admin GET "/attack-detection/brute-force/users/$id_otp" | grep -q '"disabled":true'; then bloqueada=si; break; fi
+  sleep 1
+done
+if [ "$bloqueada" = si ]; then
+  ok "código del segundo factor: 5 códigos inválidos bloquean la cuenta (001-07)"
 else
-  falla "código del segundo factor: 5 códigos inválidos bloquean la cuenta, con el mismo mensaje (001-04, 001-07)"
+  falla "código del segundo factor: 5 códigos inválidos bloquean la cuenta (001-07)"
+fi
+respuesta=$(enviar_paso "$previo" "$tmp/bloqueo-correcto.html" kc-otp-login-form "otp=$(totp "$secreto_otp")")
+if [ "${respuesta#3}" = "$respuesta" ] && compacto <"$tmp/bloqueo-correcto.html" | grep -qF "<span>$codigo_invalido</span>"; then
+  ok "código del segundo factor: con la cuenta bloqueada, el código correcto no entra y ve el mismo mensaje (001-04)"
+else
+  falla "código del segundo factor: con la cuenta bloqueada, el código correcto no entra y ve el mismo mensaje (001-04) (obtuvo: '$respuesta')"
 fi
 
 echo "Imagen"
