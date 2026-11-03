@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -60,6 +62,10 @@ class LivAppConnectionTest {
       assertRefusedWhile("ALTER ROLE liv_app BYPASSRLS", "ALTER ROLE liv_app NOBYPASSRLS");
       assertRefusedWhile("ALTER ROLE liv_app SUPERUSER", "ALTER ROLE liv_app NOSUPERUSER");
       assertRefusedWhile("GRANT liv_owner TO liv_app", "REVOKE liv_owner FROM liv_app");
+      // The owner of a table with ENABLE (not FORCE) row level security skips its policies.
+      assertRefusedWhile(
+          "ALTER TABLE core.admin_user OWNER TO liv_app",
+          "ALTER TABLE core.admin_user OWNER TO liv_owner");
       assertThat(freshConnectionFailure()).as("liv_app restaurado").isNull();
     }
 
@@ -73,6 +79,15 @@ class LivAppConnectionTest {
       assertRefusedWhile(
           "ALTER ROLE liv_app SET app.platform_job = 'on'",
           "ALTER ROLE liv_app RESET app.platform_job");
+      assertRefusedWhile(
+          "ALTER DATABASE liv SET app.administration_id = '" + LivDatabase.ADMIN_A + "'",
+          "ALTER DATABASE liv RESET app.administration_id");
+      assertRefusedWhile(
+          "ALTER ROLE liv_app IN DATABASE liv SET app.administration_id = '"
+              + LivDatabase.ADMIN_A
+              + "'",
+          "ALTER ROLE liv_app IN DATABASE liv RESET app.administration_id");
+      assertThat(freshConnectionFailure()).as("liv_app restaurado").isNull();
     }
 
     @Test
@@ -131,6 +146,7 @@ class LivAppConnectionTest {
   class AsAnotherRole {
 
     @Autowired DataSource dataSource;
+    @Autowired HealthEndpoint health;
 
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
@@ -146,6 +162,13 @@ class LivAppConnectionTest {
       Throwable failure = catchThrowable(() -> dataSource.getConnection().close());
 
       assertThat(failure).hasStackTraceContaining(REFUSED + ", no como liv_owner");
+    }
+
+    @Test
+    @Tag("001-17")
+    @DisplayName("001-17 · Con el rol equivocado la instancia no queda lista para recibir tráfico")
+    void notReady() {
+      assertThat(health.healthForPath("readiness").getStatus()).isEqualTo(Status.DOWN);
     }
   }
 }

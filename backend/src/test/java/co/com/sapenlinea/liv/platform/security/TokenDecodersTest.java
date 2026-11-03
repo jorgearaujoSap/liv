@@ -23,6 +23,25 @@ class TokenDecodersTest {
   }
 
   @Test
+  @DisplayName("Doc. 02 §3 · Los decodificadores no llaman por http sin el permiso configurado")
+  void decodersFollowTheConfiguredPermission() {
+    LivSecurityProperties withoutPermission =
+        new LivSecurityProperties(
+            "http://localhost:1/realms/liv",
+            false,
+            "liv-api",
+            "liv-bff",
+            "liv-internal",
+            "liv-bff-service",
+            new LivSecurityProperties.Claims("administration_id", "roles"));
+
+    assertThatThrownBy(() -> TokenDecoders.userTokens(withoutPermission).decode("token"))
+        .hasStackTraceContaining("must be called over https");
+    assertThatThrownBy(() -> TokenDecoders.serviceTokens(withoutPermission).decode("token"))
+        .hasStackTraceContaining("must be called over https");
+  }
+
+  @Test
   @DisplayName("Doc. 02 §3 · Con el permiso (dev y pruebas), http llega al proveedor")
   void allowsPlainHttpWithThePermission() {
     assertThatThrownBy(() ->
