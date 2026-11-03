@@ -18,10 +18,16 @@ La prueba levanta un entorno desechable, con proyecto, puertos y etiqueta de ima
 
 - que la página de inicio de sesión y la de error usen el tema, estén en español y solo usen colores de los *tokens* (001-19);
 - que la contraseña incorrecta, el usuario inexistente, la cuenta bloqueada tras 5 fallos y el usuario desactivado, estos dos con la contraseña correcta, no entren y reciban **la misma página**, no solo el mismo mensaje (001-03, 001-04, 001-05); como control, que un usuario activo sí entre;
-- que las páginas de contraseña nueva, configurar el segundo factor (001-06) y pedir su código (001-07) sean las de los *frames*, y que sus errores queden en el campo; lo prepara con la API de administración del entorno desechable (una acción requerida y un usuario de prueba con TOTP);
+- en las páginas de contraseña nueva, configurar el segundo factor (001-06) y pedir su código (001-07), preparadas con la API de administración del entorno desechable (una acción requerida y un usuario de prueba con TOTP):
+  - que sean las de los *frames* y envíen los campos que lee Keycloak;
+  - que los errores queden en su campo, salvo los de la política de contraseñas, que Keycloak manda como mensaje general: esos van en la alerta y marcan el campo;
+  - que con datos correctos se entre, con el código TOTP calculado en la prueba;
+  - que 5 códigos inválidos bloqueen la cuenta con el mismo mensaje;
 - que el *realm* se pueda reaplicar y que la imagen arranque con `start --optimized` y sirva el tema.
 
 La prueba visual contra los *frames* y la de accesibilidad con axe van en las e2e (tarea T23).
+
+`messages_es.properties` redefine mensajes de Keycloak que valen para todas sus páginas, no solo las del tema: el mensaje único de fallo, el de código inválido (que avisa del bloqueo, cierto mientras el *realm* tenga `bruteForceProtected`) y los nombres de los campos de contraseña. Al cambiar la contraseña o activar el segundo factor, los formularios piden cerrar las demás sesiones del usuario (`logout-sessions`), por decisión del responsable.
 
 ## *Realm* como código
 

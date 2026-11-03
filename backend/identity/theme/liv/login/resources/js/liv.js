@@ -32,7 +32,9 @@ for (const button of document.querySelectorAll('[data-liv-password-toggle]')) {
 // CodeInput (data-liv-code): solo dígitos, y el código pegado con espacios o guiones ("123 456") entra completo
 // aunque el campo tenga maxlength.
 for (const input of document.querySelectorAll('input[data-liv-code]')) {
-  const digits = (text) => text.replace(/\D/g, '').slice(0, input.maxLength);
+  // Respaldo por si una plantilla omite maxlength: los 6 dígitos de la política TOTP del realm.
+  const max = input.maxLength > 0 ? input.maxLength : 6;
+  const digits = (text) => text.replace(/\D/g, '').slice(0, max);
   input.addEventListener('paste', (event) => {
     event.preventDefault();
     input.value = digits(event.clipboardData.getData('text'));
@@ -53,6 +55,10 @@ for (const form of busyForms) {
     }
     if (button.getAttribute('aria-disabled') === 'true') {
       event.preventDefault();
+      return;
+    }
+    // Otro botón del formulario (Cancelar, cancel-aia) envía sin pasar el principal a Loading.
+    if (event.submitter && event.submitter !== button) {
       return;
     }
     const label = button.querySelector('.liv-button__label');

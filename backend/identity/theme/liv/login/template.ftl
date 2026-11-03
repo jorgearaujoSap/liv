@@ -37,7 +37,7 @@
         <p class="liv-brand__headline">${msg("livBrandHeadline")}</p>
         <p class="liv-brand__lead">${msg("livBrandLead")}</p>
       </div>
-      <ul class="liv-brand__features">
+      <ul class="liv-brand__features" role="list">
         <@brandFeature icon="shield-check" title=msg("livFeatureSecureTitle") text=msg("livFeatureSecureText")/>
         <@brandFeature icon="calculator" title=msg("livFeatureRulesTitle") text=msg("livFeatureRulesText")/>
         <@brandFeature icon="history" title=msg("livFeatureTraceTitle") text=msg("livFeatureTraceText")/>

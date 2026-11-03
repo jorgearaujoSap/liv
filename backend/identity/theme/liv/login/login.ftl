@@ -35,7 +35,7 @@
       <div class="liv-fields">
         <#if !usernameHidden??>
           <@c.textField id="username" label=msg("username") icon="user" value=(login.username!'') autocomplete="username"
-            invalid=hayError describedBy=idDelError extra='autocapitalize="none" spellcheck="false" autofocus'/>
+            invalid=hayError describedBy=idDelError plainText=true autofocus=true/>
         </#if>
         <@c.textField id="password" label=msg("password") icon="lock" type="password" autocomplete="current-password"
           placeholder=msg("livPasswordPlaceholder") invalid=hayError describedBy=idDelError/>

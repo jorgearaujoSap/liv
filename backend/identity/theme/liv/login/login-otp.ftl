@@ -26,7 +26,7 @@
           </#list>
         </fieldset>
       </#if>
-      <@c.codeInput id="otp" label=msg("livCodeLabel") help=msg("livCodeHelp") error=messagesPerField.get('totp')/>
+      <@c.codeInput id="otp" label=msg("livCodeLabel") help=msg("livCodeHelp") error=messagesPerField.get('totp') autofocus=true/>
       <@c.submitButton id="kc-login" name="login" label=msg("livVerifySubmit") busyLabel=msg("livVerifying")/>
       <a class="liv-button liv-button--ghost" id="reset-login" href="${url.loginRestartFlowUrl}">${msg("livBackToLogin")}</a>
     </form>
