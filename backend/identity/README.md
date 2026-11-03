@@ -27,7 +27,9 @@ La prueba levanta un entorno desechable, con proyecto, puertos y etiqueta de ima
 
 La prueba visual contra los *frames* y la de accesibilidad con axe van en las e2e (tarea T23).
 
-`messages_es.properties` redefine mensajes de Keycloak que valen para todas sus páginas, no solo las del tema: el mensaje único de fallo, el de código inválido (que avisa del bloqueo, cierto mientras el *realm* tenga `bruteForceProtected`) y los nombres de los campos de contraseña. Al cambiar la contraseña o activar el segundo factor, los formularios piden cerrar las demás sesiones del usuario (`logout-sessions`), por decisión del responsable.
+`messages_es.properties` redefine mensajes de Keycloak que valen para todas sus páginas, no solo las del tema: el mensaje único de fallo, el de código inválido (que avisa del bloqueo, cierto mientras el *realm* tenga `bruteForceProtected`) y los nombres de los campos de contraseña. Al cambiar la contraseña o activar el segundo factor, los formularios piden cerrar las demás sesiones del usuario (`logout-sessions`), por decisión del responsable. Keycloak 26.8.1 las cierra antes de validar la contraseña nueva: si la política la rechaza, las demás sesiones ya quedaron cerradas.
+
+El tema supone la política TOTP del *realm*: 6 dígitos y 30 segundos. La página de configurar toma los dígitos de la política, pero la de pedir el código y los textos ("código de 6 dígitos", "cambia cada 30 segundos") los dan por hechos. Si cambia la política, hay que cambiarlos también.
 
 ## *Realm* como código
 
