@@ -105,8 +105,8 @@ Entre corchetes, el proyecto y su PR (IN‑07).
      2. responde **401** si no existe (no hay sesión iniciada: `001-14`, ajuste de T11), si está inactivo (`001-05`) o si el `administration_id` del *token* difiere del registrado (`001-17`);
      3. guarda la administración **registrada** (no la del *claim*) en un `AdministrationContext` de la petición. El filtro **no toca la base de datos**.
    - **Contexto RLS por transacción** (doc. 02 §5.1). El gestor de transacciones de `platform` (`JpaTransactionManager` extendido) ejecuta `set_config('app.administration_id', ?, true)` al iniciar **cada** transacción, también las `REQUIRES_NEW`, con el valor del `AdministrationContext`. Como el alcance es local, al terminar la transacción no queda nada en la conexión del *pool*.
-     - Los oyentes asíncronos y el importador fijan el `AdministrationContext` con la administración del evento antes de abrir su transacción.
-     - Sin contexto no se fija nada, así que las políticas no devuelven filas.
+     - Los oyentes asíncronos y el importador fijan el `AdministrationContext` con la administración del evento antes de abrir su transacción. Abrir otra administración dentro de una transacción abierta falla (ajuste de T12).
+     - Sin contexto se fija vacío (y `app.platform_job` vacío), así que las políticas no devuelven filas aunque la conexión, el rol o la base tuvieran otro valor (ajuste de T12).
      - **Prueba con un *pool* de una sola conexión:** la petición de A y luego la de B, comprobando que B no ve el contexto de A. Otra prueba cubre `REQUIRES_NEW` y los oyentes.
    - **Autorización.** `@RequiresPermission` va en los **métodos públicos de los servicios de `application`**, y se aplica con `@EnableMethodSecurity` y un `AuthorizationManager` propio (sin AspectJ).
      - ArchUnit exige la anotación en esa capa.
@@ -408,7 +408,9 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - el token de usuario (en `/api` y en `X-User-Token`) exige, además de la audiencia `liv-api`, `azp` igual al cliente `liv-bff`, configurable;
   - solo se aceptan tokens con `typ: JWT` (no `at+jwt`);
   - el emisor debe ser `https://` fuera de los perfiles `dev` y `test`;
-  - la prueba de la API contra Keycloak real (Testcontainers) va en la parte 2 de T12;
+  - la prueba de la API contra Keycloak real (Testcontainers) va en la parte 3 de T12, un PR aparte justo después de la parte 2 (segunda decisión del responsable, revisión de la parte 2);
+  - el gestor de transacciones fija **siempre** el contexto, vacío si no hay administración, en lugar de no fijar nada (revisión de la parte 2);
+  - la comprobación de `liv_app` se hace al crear cada conexión, impuesta en código, y la sonda de *readiness* incluye la base, en lugar de comprobarlo al arrancar: la API sigue arrancando sin la base (revisión de la parte 2);
   - los errores técnicos sin criterio usan el código `SYS-<estado>` (404, 500, y 503 solo cuando la base o el proveedor no responden);
   - el enmascarado de datos personales y el log estructurado en JSON van en F0‑09; hasta entonces el JSON sigue apagado y solo se registran identificadores técnicos.
 - **Ajustes de T11 (aprobados por el responsable el 2026-11-02, PR #40).** Salieron de la revisión adversarial de los contratos:
