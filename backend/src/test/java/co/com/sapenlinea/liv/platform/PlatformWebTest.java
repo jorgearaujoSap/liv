@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.platform;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
+import co.com.sapenlinea.liv.platform.application.PermissionProbe;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -10,14 +11,12 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.MDC;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * tests of other modules (core) that need the same API.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import({PlatformWebTest.ApiProbe.class, PlatformWebTest.PermissionProbe.class})
+@Import(PlatformWebTest.ApiProbe.class)
 public abstract class PlatformWebTest {
 
   protected static final String ACTIVE = "api-activo";
@@ -101,24 +100,6 @@ public abstract class PlatformWebTest {
     LivDatabase.registerUser(LivDatabase.ADMIN_A, issuer, INACTIVE, "INACTIVE");
   }
 
-  /** A use case that exists only in the tests, guarded like the real ones (001-16). */
-  @Service
-  public static class PermissionProbe {
-
-    private final AtomicInteger runs = new AtomicInteger();
-
-    @RequiresPermission("core.user.read")
-    public String run() {
-      runs.incrementAndGet();
-      return "ejecutado";
-    }
-
-    /** How many times {@link #run} got past the permission check. */
-    public int runs() {
-      return runs.get();
-    }
-  }
-
   /** What a controller of /api/** sees after the filters. */
   @RestController
   static class ApiProbe {
@@ -132,6 +113,16 @@ public abstract class PlatformWebTest {
     @GetMapping("/api/v1/probe/permission")
     Map<String, String> permission() {
       return Map.of("result", permissionProbe.run());
+    }
+
+    @GetMapping("/api/v1/probe/unmarked")
+    Map<String, String> unmarked() {
+      return Map.of("result", permissionProbe.unmarked());
+    }
+
+    @GetMapping("/api/v1/probe/inherited")
+    Map<String, String> inherited() {
+      return Map.of("result", permissionProbe.inherited());
     }
 
     @GetMapping("/api/v1/probe")

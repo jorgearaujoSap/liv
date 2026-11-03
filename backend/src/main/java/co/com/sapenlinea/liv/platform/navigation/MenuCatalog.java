@@ -68,6 +68,11 @@ public final class MenuCatalog {
     return new MenuCatalog(items);
   }
 
+  /** The permissions the leaves of the menu name. */
+  Set<String> permissions() {
+    throw new UnsupportedOperationException("T14, segunda ronda");
+  }
+
   /** The options the holder of {@code permissions} sees, in the order of the menu. */
   List<Capability> visibleTo(Set<String> permissions) {
     return visible(items, permissions);

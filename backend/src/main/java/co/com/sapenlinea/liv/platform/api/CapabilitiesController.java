@@ -34,7 +34,7 @@ class CapabilitiesController implements CapabilitiesApi {
 
   // Two types share the name Capability: the generated model (imported) and the one of
   // platform.navigation (written in full), which the controller maps to the model.
-  private static List<Capability> toContractList(
+  static List<Capability> toContractList(
       List<co.com.sapenlinea.liv.platform.navigation.Capability> capabilities) {
     return capabilities.stream().map(CapabilitiesController::toContract).toList();
   }

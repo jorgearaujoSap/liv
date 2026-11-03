@@ -117,6 +117,18 @@ class CapabilitiesTest extends PlatformWebTest {
 
   @Test
   @Tag("001-15")
+  @DisplayName("001-15 · Un menú filtrado conserva el orden de Doc. 01 §3")
+  void filteredMenuKeepsTheOrder() {
+    JsonNode items = capabilitiesOf(List.of("JURIDICO", "CARGADOR_TABLAS"));
+
+    assertThat(codes(items)).containsExactly("1", "5", "6", "7", "8");
+    JsonNode administracion = items.get(0).get("children");
+    assertThat(codes(administracion)).containsExactly("1.3", "1.4", "1.5", "1.6", "1.7");
+    assertThat(codes(administracion.get(2).get("children")).getLast()).isEqualTo("1.5.9");
+  }
+
+  @Test
+  @Tag("001-15")
   @DisplayName("001-15 · Las opciones aún no construidas vienen como COMING_SOON")
   void optionsNotBuiltYetComeAsComingSoon() {
     List<String> statuses = new ArrayList<>();
@@ -155,15 +167,14 @@ class CapabilitiesTest extends PlatformWebTest {
   }
 
   /**
-   * Every child numbered under its parent (1.5 → 1.5.9). A branch without visible children would
-   * come as a leaf, so the comparison of leaves already rejects it.
+   * Every child hangs right under its parent (1.5 → 1.5.9, never 1 → 1.5.9). A branch without
+   * visible children would come as a leaf, so the comparison of leaves already rejects it.
    */
   private static void assertWellFormed(JsonNode items, String parent) {
     for (JsonNode node : items) {
       String code = node.get("code").asString();
-      if (parent != null) {
-        assertThat(code).startsWith(parent + ".");
-      }
+      String parentOfCode = code.contains(".") ? code.substring(0, code.lastIndexOf('.')) : null;
+      assertThat(parentOfCode).as("padre de %s", code).isEqualTo(parent);
       assertWellFormed(node.get("children"), code);
     }
   }
