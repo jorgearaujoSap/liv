@@ -5,7 +5,7 @@ _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` 
 **Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
 
-**Ajustes posteriores:** T07 y T11, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
+**Ajustes posteriores:** T07, T11 y T12, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
 
 ## Enfoque
 
@@ -404,6 +404,13 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T12 (aprobados por el responsable el 2026-11-02, PR #45).** Salieron de la revisión de la parte 1:
+  - el token de usuario (en `/api` y en `X-User-Token`) exige, además de la audiencia `liv-api`, `azp` igual al cliente `liv-bff`, configurable;
+  - solo se aceptan tokens con `typ: JWT` (no `at+jwt`);
+  - el emisor debe ser `https://` fuera de los perfiles `dev` y `test`;
+  - la prueba de la API contra Keycloak real (Testcontainers) va en la parte 2 de T12;
+  - los errores técnicos sin criterio usan el código `SYS-<estado>` (404, 500, y 503 solo cuando la base o el proveedor no responden);
+  - el enmascarado de datos personales y el log estructurado en JSON van en F0‑09; hasta entonces el JSON sigue apagado y solo se registran identificadores técnicos.
 - **Ajustes de T11 (aprobados por el responsable el 2026-11-02, PR #40).** Salieron de la revisión adversarial de los contratos:
   - `StartSession` devuelve solo `userId`: se quita `sessionAuditId`, que no tenía origen (la sesión se identifica por su `sid`);
   - el `sid` del cuerpo debe ser el del *token* del usuario (401 con `001-14` si no) y un reintento es idempotente (200);
