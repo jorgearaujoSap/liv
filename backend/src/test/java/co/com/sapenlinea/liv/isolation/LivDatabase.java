@@ -181,6 +181,38 @@ public final class LivDatabase {
     }
   }
 
+  /**
+   * Registers an administration (and its territorial entity), as the owner and idempotently, for
+   * the tests of other packages whose provider issues tokens of another administration (T12).
+   */
+  public static void registerAdministration(UUID administration, String name) {
+    try {
+      UUID territory = UUID.nameUUIDFromBytes(("territory-" + administration).getBytes());
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO core.territorial_entity (id, dane_code, name, entity_type)
+          VALUES (?, ?, ?, 'MUNICIPIO') ON CONFLICT DO NOTHING
+          """,
+          territory,
+          "T-" + administration.toString().substring(24),
+          name);
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO core.tax_administration (id, territorial_entity_id, name)
+          VALUES (?, ?, ?) ON CONFLICT DO NOTHING
+          """,
+          administration,
+          territory,
+          name);
+    } catch (SQLException e) {
+      throw new IllegalStateException("No se pudo registrar la administración " + name, e);
+    }
+  }
+
   static void setContext(Connection connection, UUID administration) throws SQLException {
     update(
         connection,
