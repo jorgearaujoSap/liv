@@ -108,6 +108,10 @@ El BFF inicia y cierra la sesión de LIV de cada usuario por `core-internal.yaml
 - **Cierre** (`POST /internal/v1/sessions/{sid}/end`): cierra una sola vez la sesión abierta de ese emisor y `sub`, y siempre responde 204.
 - **Transacciones:** cada operación abre la administración y después su transacción. Un inicio que no inicia se revierte entero.
 - **Eventos:** `SessionStarted`, `UserProvisioned` y `SessionEnded` se publican en la misma transacción. Todo rechazo publica `SessionDenied` en una transacción aparte. La auditoría los escuchará en T15.
+- **`GET /api/v1/me` (001-13):**
+  - el usuario y su administración salen del registro de LIV, bajo RLS con la administración registrada;
+  - los roles son los del token que están en el catálogo de LIV (`platform.app_role`), y los permisos, la unión de los suyos (`PermissionCatalog`);
+  - sin roles conocidos, las listas van vacías: el usuario solo llega a Inicio.
 
 ## Estado
 
