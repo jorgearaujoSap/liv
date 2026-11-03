@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.core.application;
 
+import co.com.sapenlinea.liv.platform.OpenUseCase;
 import co.com.sapenlinea.liv.platform.UserDirectory;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ public class EndSession {
     this.store = store;
   }
 
+  @OpenUseCase("Lo llama el BFF con su token de servicio: lo protege el alcance de /internal")
   public void end(String sid, String issuer, String subject, String reason) {
     directory
         .resolve(issuer, subject)

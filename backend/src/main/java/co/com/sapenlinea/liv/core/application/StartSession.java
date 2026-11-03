@@ -5,6 +5,7 @@ import co.com.sapenlinea.liv.core.application.SessionStore.StartOutcome;
 import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
 import co.com.sapenlinea.liv.platform.DirectoryUser;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
+import co.com.sapenlinea.liv.platform.OpenUseCase;
 import co.com.sapenlinea.liv.platform.RequestRefusedException;
 import co.com.sapenlinea.liv.platform.TokenUser;
 import co.com.sapenlinea.liv.platform.UserDirectory;
@@ -57,6 +58,7 @@ public class StartSession {
    */
   public record StartedSession(UUID userId, boolean created) {}
 
+  @OpenUseCase("Lo llama el BFF con su token de servicio: lo protege el alcance de /internal")
   public StartedSession start(TokenUser token, String sid) {
     Attempt attempt = new Attempt(token, sid);
     Optional<DirectoryUser> registered = directory.resolve(token.issuer(), token.subject());

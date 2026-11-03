@@ -57,3 +57,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - mensaje único y misma página para todo fallo de inicio de sesión, también con la cuenta bloqueada o desactivada (001-03, 001-04, 001-05);
   - el *realm* activa el tema (`loginTheme: liv`) y `dev/compose.yaml` construye la imagen;
   - `identity/theme/check.sh` lo prueba en un entorno desechable, incluido el arranque con `start --optimized`.
+- Autorización y menú (feature 001, T14):
+  - cada método público de un servicio de `application` lleva `@RequiresPermission` o `@OpenUseCase`, y se comprueba con `@EnableMethodSecurity` y un `AuthorizationManager` propio, sin AspectJ, antes que cualquier otro *advice* (también la transacción);
+  - se niega por defecto: sin el permiso, el caso de uso no se ejecuta y la respuesta es 403 `001-16`. Un método sin marca (también uno heredado) se niega a todos, y uno protegido se niega fuera de una petición. Los permisos se leen una vez por petición; si no se pueden leer, 503 `SYS-503`;
+  - `@OpenUseCase` (decisión del responsable) marca los métodos sin permiso de usuario, por ejemplo los que llamen oyentes y trabajos. Hoy son `GetCurrentUser.get`, `StartSession.start` y `EndSession.end`, y una prueba fija la lista cerrada;
+  - ArchUnit exige además servicios interceptables (`@Service`, no `final`, sin superclase), métodos marcados que no sean `static` ni `final`, ningún otro método que no sea privado, ninguna llamada ni referencia con `this` a un método protegido, ningún caso de uso creado con `@Bean`, controladores que usan solo casos de uso (no sus puertos), ningún `@RequiresPermission` en métodos asíncronos u oyentes y ningún `@PreAuthorize`, `@Secured` ni `@RolesAllowed`;
+  - `GET /api/v1/me/capabilities` (`platform.yaml`) devuelve el árbol del menú que permiten los permisos del usuario (001-15). Las opciones salen de `platform/menu-catalog.yaml`, con el mapa de Doc. 01 §3 hasta las hojas de 1.5 y 1.6, todas en `COMING_SOON`; un catálogo mal escrito impide arrancar;
+  - las pruebas comparan cada uno de los 11 roles con la matriz aprobada, escrita aparte.

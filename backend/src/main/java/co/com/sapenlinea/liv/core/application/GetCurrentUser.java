@@ -4,6 +4,7 @@ import co.com.sapenlinea.liv.core.application.UserProfiles.Profile;
 import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
 import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
+import co.com.sapenlinea.liv.platform.OpenUseCase;
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
 import java.util.Set;
 import java.util.UUID;
@@ -53,6 +54,7 @@ public class GetCurrentUser {
     }
   }
 
+  @OpenUseCase("Cada usuario con sesión consulta sus propios datos (001-13)")
   public Me get(CurrentUser user) {
     Set<String> roles = catalog.knownRoles(user.roles());
     Set<String> granted = catalog.permissionsOf(roles);

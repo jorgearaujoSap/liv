@@ -46,8 +46,8 @@ _Cada criterio se comprueba con sí/no. No hay reglas funcionales con código pa
 
 - [x] **001-13** — Dado un usuario con sesión, cuando la aplicación consulta quién es, entonces el backend responde su identificador, nombre, administración, roles y permisos, tomados del servidor y nunca de datos enviados por el navegador. _Prueba:_ `CurrentUserTest` (backend; PR #53)
 - [ ] **001-14** — Dada una petición a la API sin *token* válido (ausente, vencido, de otra audiencia o con firma inválida), entonces responde 401 sin datos. _Prueba:_ pendiente
-- [ ] **001-15** — Dado un usuario con sesión, cuando se carga la aplicación, entonces el menú muestra solo las opciones que permiten sus permisos en su administración (recurso de capacidades); las opciones aún no construidas aparecen deshabilitadas. _Prueba:_ pendiente
-- [ ] **001-16** — Dado un usuario sin un permiso, cuando intenta abrir esa opción por URL o llamar a su API, entonces recibe "sin permiso" (403) aunque la opción esté oculta en el menú. _Prueba:_ pendiente
+- [ ] **001-15** — Dado un usuario con sesión, cuando se carga la aplicación, entonces el menú muestra solo las opciones que permiten sus permisos en su administración (recurso de capacidades); las opciones aún no construidas aparecen deshabilitadas. _Prueba:_ backend, `CapabilitiesTest` y `MenuCatalogTest` (PR #55); faltan el menú del frontend (T22) y el e2e (T23)
+- [ ] **001-16** — Dado un usuario sin un permiso, cuando intenta abrir esa opción por URL o llamar a su API, entonces recibe "sin permiso" (403) aunque la opción esté oculta en el menú. _Prueba:_ backend, `RequiresPermissionTest` y `AuthorizationRulesTest` (PR #55); faltan el frontend por URL (T21–T22) y el e2e (T23)
 - [ ] **001-17** — Dados dos usuarios de administraciones distintas, entonces cada uno solo obtiene el contexto, las capacidades y los datos de la suya, y la administración activa nunca se toma de un parámetro enviado por el navegador. _Prueba:_ pendiente
 
 **Auditoría, idioma y accesibilidad**
