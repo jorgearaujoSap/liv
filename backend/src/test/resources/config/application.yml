@@ -1,0 +1,5 @@
+# Configuración común de las pruebas (se suma a application.yml): los proveedores OIDC de prueba
+# (contenedor y puertos cerrados) son http, que fuera de dev y test no se permite (plan, ajustes de T12).
+liv:
+  security:
+    allow-http-issuer: true

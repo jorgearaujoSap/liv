@@ -112,6 +112,16 @@ class ApiAuthenticationTest extends PlatformWebTest {
 
   @Test
   @Tag("001-14")
+  @DisplayName("001-14 · Un token de usuario emitido para otro cliente (azp) responde 401")
+  void userTokenOfAnotherClient() {
+    String token =
+        OidcTestProvider.userToken(
+            ACTIVE, LivDatabase.ADMIN_A, claims -> claims.claim("azp", "account-console"));
+    assertRejected(get(PROBE, bearer(token)), ErrorCodes.NOT_AUTHENTICATED);
+  }
+
+  @Test
+  @Tag("001-14")
   @DisplayName("001-14 · Un token sin vencimiento (sin exp) responde 401")
   void tokenWithoutExpiry() {
     String token =

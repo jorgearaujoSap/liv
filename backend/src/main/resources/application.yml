@@ -34,6 +34,8 @@ liv:
   security:
     issuer-uri: ${LIV_OIDC_ISSUER_URI}
     user-audience: liv-api
+    # Los usuarios solo inician sesión por el BFF (plan, ajustes de T12).
+    user-client-id: liv-bff
     service-audience: liv-internal
     service-client-id: liv-bff-service
     claims:
