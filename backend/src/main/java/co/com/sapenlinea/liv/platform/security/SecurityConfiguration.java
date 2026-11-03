@@ -61,6 +61,7 @@ class SecurityConfiguration {
       HttpSecurity http,
       @Qualifier("serviceTokenDecoder") JwtDecoder serviceTokens,
       @Qualifier("userTokenDecoder") JwtDecoder userTokens,
+      LivSecurityProperties properties,
       ProblemResponses problems) {
     stateless(http.securityMatcher("/internal/**"), problems);
     http.authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
@@ -73,7 +74,8 @@ class SecurityConfiguration {
             new UserTokenFilter(
                 PathPatternRequestMatcher.withDefaults()
                     .matcher(HttpMethod.POST, "/internal/v1/sessions"),
-                userTokens),
+                userTokens,
+                new ClaimsAdapter(properties.claims())),
             AuthorizationFilter.class);
     return http.build();
   }

@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.platform.web;
 
 import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
+import co.com.sapenlinea.liv.platform.RequestRefusedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -48,6 +49,14 @@ class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
         .body(problem(HttpStatus.UNAUTHORIZED, "No autenticado", code));
+  }
+
+  /** A refusal with the code of its criterion, such as a session start (001-05, 001-17). */
+  @ExceptionHandler(RequestRefusedException.class)
+  ResponseEntity<ProblemDetail> refused(RequestRefusedException exception) {
+    LOG.warn("Request refused with {}: {}", exception.code(), exception.getMessage());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(problem(HttpStatus.FORBIDDEN, "Rechazado", exception.code()));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

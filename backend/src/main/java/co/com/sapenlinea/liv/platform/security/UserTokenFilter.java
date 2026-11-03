@@ -29,10 +29,12 @@ final class UserTokenFilter extends OncePerRequestFilter {
 
   private final RequestMatcher sessionStart;
   private final JwtDecoder userTokens;
+  private final ClaimsAdapter claims;
 
-  UserTokenFilter(RequestMatcher sessionStart, JwtDecoder userTokens) {
+  UserTokenFilter(RequestMatcher sessionStart, JwtDecoder userTokens, ClaimsAdapter claims) {
     this.sessionStart = sessionStart;
     this.userTokens = userTokens;
+    this.claims = claims;
   }
 
   @Override
@@ -53,7 +55,7 @@ final class UserTokenFilter extends OncePerRequestFilter {
           ErrorCodes.NOT_AUTHENTICATED, "User token over " + MAX_LENGTH + " characters");
     }
     try {
-      request.setAttribute(VerifiedUserToken.ATTRIBUTE, userTokens.decode(token));
+      request.setAttribute(VerifiedUserToken.ATTRIBUTE, claims.userOf(userTokens.decode(token)));
     } catch (BadJwtException e) {
       throw new AuthenticationRejectedException(
           ErrorCodes.NOT_AUTHENTICATED, "Invalid user token: " + e.getMessage());

@@ -244,8 +244,9 @@ class InternalSessionsTest extends PlatformWebTest {
         post("/internal/v1/sessions/sid-1/end", headers, "{\"subject\":\"x\"}");
 
     assertThat(response.statusCode()).isEqualTo(400);
+    // Problem Details are JSON: application/problem+json satisfies a client that accepts JSON.
     assertThat(response.headers().firstValue("Content-Type"))
-        .hasValueSatisfying(type -> assertThat(type).startsWith("application/json"));
+        .hasValueSatisfying(type -> assertThat(type).matches("application/(problem[+])?json.*"));
     assertThat(JSON.readTree(response.body()).has("code")).isTrue();
   }
 
