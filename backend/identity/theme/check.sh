@@ -20,9 +20,17 @@ fallas=0
 ok()    { printf '  ok         %s\n' "$1"; }
 falla() { printf '  FALLA      %s\n' "$1"; fallas=$((fallas + 1)); }
 
-# Dos corridas a la vez se borrarían el entorno una a otra; uno que quedó de una corrida interrumpida se borra a mano.
+# Dos corridas a la vez se borrarían el entorno una a otra: un candado atómico (mkdir) deja pasar solo una. Lo que
+# quede de una corrida que se cortó sin limpiar (candado o contenedores) se borra a mano.
+candado="${TMPDIR:-/tmp}/$proyecto.lock"
+if ! mkdir "$candado" 2>/dev/null; then
+  echo "Hay otra corrida de esta prueba. Si no la hay (una anterior se cortó sin limpiar), borra el candado:"
+  echo "  rmdir $candado"
+  exit 1
+fi
 if [ -n "$(compose ps -aq 2>/dev/null)" ] || docker container inspect "$optimizado" >/dev/null 2>&1; then
-  echo "Ya existe el entorno $proyecto (otra corrida, o una anterior que se interrumpió). Si no hay otra corrida:"
+  rmdir "$candado"
+  echo "Quedó el entorno $proyecto de una corrida que se cortó sin limpiar. Bórralo con:"
   echo "  docker rm -f $optimizado; docker compose -p $proyecto -f dev/compose.yaml --env-file dev/.env.example down -v"
   exit 1
 fi
@@ -33,6 +41,7 @@ limpiar() {
   compose down -v >/dev/null 2>&1
   docker image rm "$LIV_IDENTITY_IMAGE" >/dev/null 2>&1
   rm -rf "$tmp"
+  rmdir "$candado" 2>/dev/null
 }
 trap limpiar EXIT
 trap 'exit 1' INT TERM
@@ -86,10 +95,13 @@ mensaje_alerta() {
 }
 # compacto: el HTML en una línea y sin espacios alrededor de las etiquetas, para buscar el texto de un elemento.
 compacto() { tr -d '\r\n' | sed 's/>[[:space:]]*/>/g; s/[[:space:]]*</</g'; }
-# main_normalizado: el <main> de la página sin lo que cambia en cada petición (la URL del formulario) ni lo que
-# escribió el usuario (los valores de los campos). Debe ser idéntico en todos los fallos.
+# main_normalizado USUARIO: el <main> de la página sin lo que cambia en cada petición (los parámetros de sesión de la
+# URL del formulario) y con el usuario escrito reemplazado por USUARIO. Lo demás, campos ocultos incluidos, debe ser
+# idéntico en todos los fallos; si Keycloak devolviera el usuario en un caso y no en otro, también se notaría.
 main_normalizado() {
-  tr -d '\r\n' | sed -n 's/.*\(<main.*<\/main>\).*/\1/p' | sed 's/action="[^"]*"/action=""/g; s/value="[^"]*"/value=""/g'
+  tr -d '\r\n' | sed -n 's/.*\(<main.*<\/main>\).*/\1/p' \
+    | sed 's/session_code=[^&"]*/session_code=/g; s/tab_id=[^&"]*/tab_id=/g; s/client_data=[^&"]*/client_data=/g' \
+    | sed "s/value=\"$1\"/value=\"USUARIO\"/g"
 }
 # intento ARCHIVO USUARIO CONTRASEÑA: intenta iniciar sesión con cookies propias (sin la sesión de otro intento),
 # guarda la respuesta en ARCHIVO y escribe su código HTTP y, si redirige, su destino.
@@ -119,6 +131,18 @@ for texto in '<title>Inicia sesión · LIV</title>' '>Inicia sesión</h1>' 'Usa 
     falla "texto: $texto"
   fi
 done
+# liv.js importa authChecker.js de la plantilla base (parent=base): si dejara de existir o de exportar sus funciones,
+# el módulo del tema no se cargaría.
+js=$(tr -d '\r\n' <"$tmp/login.html" | grep -o '/resources/[^"]*/login/liv/js/liv\.js' | head -1)
+auth_checker="${js%liv.js}authChecker.js"
+if [ -n "$js" ] && curl -fsS -m 30 "$kc$js" >/dev/null 2>&1 \
+   && curl -fsS -m 30 "$kc$auth_checker" >"$tmp/authChecker.js" 2>/dev/null \
+   && grep -q 'export function startSessionPolling' "$tmp/authChecker.js" \
+   && grep -q 'export function checkAuthSession' "$tmp/authChecker.js"; then
+  ok "sirve liv.js y el authChecker.js de la plantilla base con sus dos funciones"
+else
+  falla "sirve liv.js y el authChecker.js de la plantilla base con sus dos funciones"
+fi
 # La hoja compilada solo define colores de los grupos de tokens de liv-components, nunca la paleta de Tailwind.
 if [ -n "$css" ] && curl -fsS -m 30 "$kc$css" >"$tmp/liv.css" 2>/dev/null && grep -q -- '--color-action-primary:' "$tmp/liv.css" \
    && [ -z "$(grep -o -- '--color-[a-z0-9-]*:' "$tmp/liv.css" | grep -Ev -- '^--color-(text|bg|border|action|status)-')" ]; then
@@ -150,18 +174,19 @@ done
 # HTTP, muestra exactamente el mensaje esperado y la misma página que la contraseña incorrecta, salvo lo que escribió
 # el usuario. El primer caso debe ser "incorrecta".
 estado_incorrecta=
+usuario_incorrecta=
 mensaje_unico() {
   respuesta=$(intento "$tmp/$1.html" "$2" "$3")
   obtenido=$(mensaje_alerta <"$tmp/$1.html")
-  [ "$1" = incorrecta ] && estado_incorrecta=${respuesta%% *}
+  if [ "$1" = incorrecta ]; then estado_incorrecta=${respuesta%% *}; usuario_incorrecta=$2; fi
   if [ "${respuesta%% *}" = "$estado_incorrecta" ] && [ "${respuesta#3}" = "$respuesta" ] && [ "$obtenido" = "$esperado" ]; then
     ok "$4: no entra y ve el mensaje genérico"
   else
     falla "$4: no entra y ve el mensaje genérico (obtuvo: '$respuesta' '$obtenido')"
   fi
   if [ "$1" != incorrecta ]; then
-    if [ -n "$(main_normalizado <"$tmp/$1.html")" ] \
-       && [ "$(main_normalizado <"$tmp/$1.html")" = "$(main_normalizado <"$tmp/incorrecta.html")" ]; then
+    if [ -n "$(main_normalizado "$2" <"$tmp/$1.html")" ] \
+       && [ "$(main_normalizado "$2" <"$tmp/$1.html")" = "$(main_normalizado "$usuario_incorrecta" <"$tmp/incorrecta.html")" ]; then
       ok "$4: página idéntica a la de contraseña incorrecta"
     else
       falla "$4: página idéntica a la de contraseña incorrecta"
@@ -181,6 +206,15 @@ if [ "$codigo" = 400 ] && grep -q '<html[^>]*lang="es"' "$tmp/error.html" && gre
   ok "cliente desconocido: página de error del tema, en español"
 else
   falla "cliente desconocido: página de error del tema, en español (HTTP $codigo)"
+fi
+
+echo "Imagen"
+# MSYS_NO_PATHCONV: Git Bash convertiría la ruta del contenedor en una de Windows.
+if MSYS_NO_PATHCONV=1 docker run --rm --entrypoint cat "$LIV_IDENTITY_IMAGE" /opt/keycloak/themes/liv/THIRD_PARTY_NOTICES.md \
+     2>/dev/null | grep -q 'ISC License'; then
+  ok "incluye los avisos de licencia de los iconos (THIRD_PARTY_NOTICES.md)"
+else
+  falla "incluye los avisos de licencia de los iconos (THIRD_PARTY_NOTICES.md)"
 fi
 
 echo "Arranque de producción de la imagen (start --optimized)"
