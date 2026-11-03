@@ -47,3 +47,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - eventos `SessionStarted`, `UserProvisioned` y `SessionEnded`;
   - `liv.sessions.auto-provision`;
   - en `platform`, `VerifiedUserToken` entrega `TokenUser` y `RequestRefusedException` responde 403 con el código del criterio.
+- `GET /api/v1/me` (feature 001, T13 parte 2):
+  - el usuario y su administración salen del registro de LIV, bajo RLS (puerto `UserProfiles`);
+  - roles del token filtrados por el catálogo de LIV y la unión de sus permisos (`PermissionCatalog`, en `platform`);
+  - las pruebas comparan con la matriz aprobada, escrita aparte.
