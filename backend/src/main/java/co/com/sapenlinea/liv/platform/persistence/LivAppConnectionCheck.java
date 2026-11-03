@@ -5,11 +5,14 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
 /**
- * Every new connection of the application checks that it can never read past RLS (doc. 02 §5.2, T10
- * › T12): the session user and the role are {@code liv_app}, which is not a superuser, has no
- * {@code BYPASSRLS} and no memberships (being a member of the owner would make it the owner of the
- * tables), and the role or the database do not preset an RLS context. Otherwise the connection
- * fails with the reason, so a deployment that changes the user gets no connection at all.
+ * Every new connection of the application checks, when it is created, that it cannot read past RLS
+ * (doc. 02 §5.2, T10 › T12): the session user and the role are {@code liv_app}, which is not a
+ * superuser, has no {@code BYPASSRLS}, no memberships (a member of the owner acts as the owner) and
+ * owns no table or schema (the owner of a table with {@code ENABLE}, not {@code FORCE}, skips its
+ * policies), and the role or the database do not preset an RLS context. Otherwise the connection
+ * fails with the reason, so a deployment that changes the user gets no connection at all and the
+ * readiness probe stays down. A privilege granted later reaches the connections already in the pool
+ * until they are renewed ({@code maxLifetime}).
  *
  * <p>It is imposed after the properties are bound, so no {@code spring.datasource.hikari.*}
  * property replaces it; a pool other than Hikari is refused.
@@ -23,6 +26,8 @@ class LivAppConnectionCheck implements BeanPostProcessor {
         WHEN session_user = 'liv_app' AND current_user = 'liv_app'
           AND NOT r.rolsuper AND NOT r.rolbypassrls
           AND NOT EXISTS (SELECT 1 FROM pg_auth_members m WHERE m.member = r.oid)
+          AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.relowner = r.oid)
+          AND NOT EXISTS (SELECT 1 FROM pg_namespace n WHERE n.nspowner = r.oid)
           AND coalesce(current_setting('app.administration_id', true), '') = ''
           AND coalesce(current_setting('app.platform_job', true), '') = ''
         THEN true

@@ -62,10 +62,11 @@ class LivAppConnectionTest {
       assertRefusedWhile("ALTER ROLE liv_app BYPASSRLS", "ALTER ROLE liv_app NOBYPASSRLS");
       assertRefusedWhile("ALTER ROLE liv_app SUPERUSER", "ALTER ROLE liv_app NOSUPERUSER");
       assertRefusedWhile("GRANT liv_owner TO liv_app", "REVOKE liv_owner FROM liv_app");
-      // The owner of a table with ENABLE (not FORCE) row level security skips its policies.
+      // The owner of a table with ENABLE (not FORCE) row level security skips its policies. A
+      // table of its own for the test: changing the owner of a real one loses liv_app's grants.
       assertRefusedWhile(
-          "ALTER TABLE core.admin_user OWNER TO liv_app",
-          "ALTER TABLE core.admin_user OWNER TO liv_owner");
+          "CREATE TABLE public.t12_owned (id int); ALTER TABLE public.t12_owned OWNER TO liv_app",
+          "DROP TABLE public.t12_owned");
       assertThat(freshConnectionFailure()).as("liv_app restaurado").isNull();
     }
 

@@ -14,7 +14,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * <p>It belongs to the thread: the security filter opens it for each request, and asynchronous
  * listeners and jobs open it with the administration of their event before their transaction.
  * Opening another administration inside an open transaction fails: the database would keep
- * filtering by the one the transaction started with.
+ * filtering by the one the transaction started with. So a listener is not transactional itself: it
+ * opens the administration of its event and then calls a {@code @Transactional} service.
+ * {@code @ApplicationModuleListener} and synchronous {@code @TransactionalEventListener} methods
+ * run inside a transaction (or its completion) and cannot open another administration.
  *
  * <p>It does not travel to other threads: asynchronous controllers and {@code @Async} methods run
  * without it until a propagator exists. Only {@code platform} and infrastructure adapters may open
