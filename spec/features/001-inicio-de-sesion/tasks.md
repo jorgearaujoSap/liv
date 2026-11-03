@@ -163,7 +163,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - dependencias (ADR 0023): `spring-boot-starter-flyway`, `flyway-database-postgresql`, `postgresql` y `testcontainers-postgresql`; `testcontainers-junit-jupiter` y `spring-boot-testcontainers` no hicieron falta;
     - ajustes de diseño y decisiones pendientes: ver `plan.md` › Decisiones (ajustes de T10).
   - **Pasa a otras tareas:**
-    - T12: `spring.modulith.events.jdbc.schema=platform` al agregar el *starter* JDBC; comprobar al arrancar que el rol conectado es `liv_app` (una variable `SPRING_DATASOURCE_USERNAME` sobrescribiría el `yml`);
+    - T12: `spring.modulith.events.jdbc.schema=platform` al agregar el *starter* JDBC (pasa a T13 o T15); comprobar que el rol conectado es `liv_app` (hecho en T12 parte 2: en cada conexión nueva);
     - T13: alta con `INSERT … ON CONFLICT ON CONSTRAINT admin_user_identity_key DO NOTHING` y relectura con la función; `EndSession` con `UPDATE … WHERE ended_at IS NULL`, `SessionEnded` según las filas cambiadas y `ended_at` con la hora de la base; los errores `23505` con datos de otra administración se traducen a un error genérico;
     - T15: filas de plataforma con `INSERT … ON CONFLICT DO NOTHING` sin objetivo ni `RETURNING`; `id` y `occurred_at` de la aplicación; la marca `app.platform_job` con alcance de transacción y una prueba con un *pool* de una conexión; el `import_cursor` con `WHERE last_event_at <= :nuevo`; la función de rechazos recibe el `occurred_at` original.
   - Prueba primero (Testcontainers con `liv_app`):
@@ -179,11 +179,16 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - la publicación de los contratos en CI pasa a una tarea aparte de F0‑07 (ver T02);
     - la segunda ronda de revisión trajo un alto, corregido con TDD; el responsable decidió no hacer tercera ronda.
   - Prueba primero: una regla de ArchUnit que exige que los controladores implementen las interfaces generadas, y una validación del OpenAPI en el *build*.
-- [ ] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details. — **Parte 1 hecha** (PR #45): servidor de recursos, filtros, Problem Details, correlación y enmascarado. **Parte 2 pendiente**, en otro PR:
-    - el gestor de transacciones que fija `app.administration_id`, con las pruebas de RLS, `REQUIRES_NEW` y oyentes;
-    - la comprobación al arrancar de que el rol conectado es `liv_app` (alto de la lente de riesgo, diferido);
-    - `spring.modulith.events.jdbc.schema=platform` (de T10);
-    - decisiones del responsable (plan › Decisiones, ajustes de T12): `azp = liv-bff` en el token de usuario, `https://` para el emisor fuera de `dev` y `test`, y la prueba contra Keycloak real.
+- [ ] **T12** · Seguridad de `platform`: servidor de recursos, `ClaimsAdapter`, `CurrentUserFilter`, `AdministrationContext` y el gestor de transacciones que fija el contexto, correlación y Problem Details. — **Parte 1 hecha** (PR #45): servidor de recursos, filtros, Problem Details, correlación y enmascarado. **Parte 2 hecha** (PR #47):
+    - contexto RLS fijado siempre al empezar cada transacción, y abrir otra administración dentro de una transacción falla;
+    - comprobación de `liv_app` al crear cada conexión, impuesta en código, con la base en la sonda de *readiness*;
+    - `azp = liv-bff` y `https://` (plan › Decisiones, ajustes de T12).
+
+  **Parte 3 pendiente** (PR aparte, por decisión del responsable): la prueba de la API contra Keycloak real con el *realm* como código.
+  - **Desviaciones de la parte 2:**
+    - archivos fuera de la lista: `pom.xml` (`spring-boot-starter-data-jpa`, ADR 0023), `config/application-dev.yml`, `src/test/resources/config/application.yml`, `isolation/LivAppConnectionTest.java`, `README.md` y `CHANGELOG.md`;
+    - `spring.modulith.events.jdbc.schema=platform` (de T10) queda para la tarea que agregue el *starter* JDBC del *outbox* (T13 o T15): sin él no tiene efecto;
+    - un oyente con `@ApplicationModuleListener` no puede abrir otra administración. El ayudante para esos oyentes va en T13 o T15.
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/platform/**`, `application.yml`, `backend/src/test/**/platform/**`, `ArchitectureRulesTest` (sin `org.keycloak`).
   - **Desviaciones de la parte 1:**
     - archivos fuera de la lista:

@@ -122,6 +122,19 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-02
 
+- Feature 001, T12 parte 2 (PR #47): contexto RLS por transacción y rol `liv_app` en el backend.
+  - **Qué hace:**
+    - un `JpaTransactionManager` extendido fija siempre, con alcance local, `app.administration_id` (o vacío) y vacía `app.platform_job` al empezar cada transacción;
+    - abrir otra administración dentro de una transacción abierta falla;
+    - cada conexión nueva exige `liv_app` sin superusuario, `BYPASSRLS`, membresías, tablas propias ni contexto fijado, y la *readiness* incluye la base;
+    - el token de usuario exige `azp = liv-bff`, y el emisor y el JWKS van por `https` salvo en `dev` y pruebas.
+  - **Pruebas:** con un *pool* de una conexión (A y luego B, misma conexión física), con escritura, con `REQUIRES_NEW` y con un oyente asíncrono, y con cada forma de saltarse la RLS. `./mvnw verify` termina con 191 pruebas en verde.
+  - **Revisión, dos rondas:** dos adversariales de nivel alto y las cuatro lentes. En la segunda ronda, 0 críticos y 0 altos.
+  - **Decisiones del responsable**, registradas en `plan.md`:
+    - fijar siempre el contexto;
+    - comprobar el rol por conexión, más *readiness*, en lugar de al arrancar;
+    - la prueba contra Keycloak real, en un PR aparte (T12 parte 3).
+
 - Feature 001, T12 parte 1 (PR #45): seguridad de `platform` en el backend.
   - **Qué hace:**
     - servidor de recursos con solo OIDC estándar (001-20) y tres cadenas: `/api` (token de usuario y `CurrentUserFilter`, con 401 `001-14`, `001-05` o `001-17`), `/internal` (token de servicio de `liv-bff-service` y `X-User-Token`) y el resto (solo salud);
