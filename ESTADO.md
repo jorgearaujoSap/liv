@@ -134,7 +134,10 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
   - **Revisión, dos rondas:** dos adversariales de nivel alto y las cuatro lentes. En la segunda ronda, 0 críticos y 0 altos.
   - **Pendientes:**
     - el alto de la lente de riesgo (comprobar al arrancar el rol `liv_app`) queda para la parte 2, con el gestor de transacciones;
-    - seis decisiones para el responsable, registradas en `tasks.md`.
+    - **decisiones del responsable** sobre lo que salió de la revisión, registradas en `plan.md`:
+      - van a la parte 2: exigir `azp = liv-bff` en el token de usuario, `https://` para el emisor fuera de `dev` y `test`, y la prueba contra Keycloak real;
+      - se queda como está: solo `typ: JWT` y los códigos `SYS-<estado>`;
+      - pasan a F0‑09: el enmascarado de datos personales y el log en JSON.
   - En paralelo, en otra sesión, T05 (PR #43 y #44).
 
 - Decisión del responsable: en un cambio crítico, solo la revisión adversarial y la lente de riesgo usan el nivel alto. Resiliencia y confiabilidad usan el estándar, y legibilidad el económico. `AGENTS.md` §10.1, regla 2, se alinea con su tabla y con `liv-revision-4r`, que ya lo decían. La contradicción la encontró la revisión del registro de T11.
