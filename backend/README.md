@@ -90,6 +90,25 @@ La API es un servidor de recursos OAuth 2.0 sin estado (doc. 02 §3, plan de la 
 - Las credenciales se enmascaran en los mensajes y en las trazas de los logs (`logback-spring.xml`): JWT, `Bearer`, `X-User-Token`, `Authorization`, `client_secret` y los tokens de OAuth. El log estructurado (JSON) de Spring Boot no pasa por ese filtro, así que sigue apagado: `LogMaskingTest` falla si se enciende.
 - Las pruebas usan la configuración de producción contra `mock-oauth2-server` en un contenedor, que sirve el *discovery* y el JWKS (`platform/OidcTestProvider`). `RealKeycloakTest` repite lo esencial contra Keycloak real, con el *realm* como código aplicado por keycloak-config-cli igual que `dev/compose.yaml`: el token de usuario del BFF (código y PKCE) y el de servicio pasan, y ninguno sirve en el lugar del otro. Tarda alrededor de un minuto.
 
+## Sesiones de LIV
+
+El BFF inicia y cierra la sesión de LIV de cada usuario por `core-internal.yaml` (ADR 0025). Lo implementan `core.application.StartSession` y `EndSession`, sobre `JdbcSessionStore`, que trabaja con SQL bajo RLS.
+
+- **Inicio** (`POST /internal/v1/sessions`). Los datos salen del token del usuario ya validado (`VerifiedUserToken`) y el registro de LIV decide:
+
+  | Caso | Respuesta |
+  |---|---|
+  | Sesión nueva | 201 |
+  | Reintento sobre la misma sesión abierta | 200 |
+  | `sid` distinto del token, de otro usuario o de una sesión cerrada | 401 `001-14` |
+  | Usuario desactivado | 403 `001-05` |
+  | Otra administración, o una inexistente o inactiva | 403 `001-17` |
+
+- **Primer ingreso:** el usuario se registra en la administración que dice el token, con identificador propio de LIV vinculado a (emisor, `sub`) (001-21). Si falta el correo, o el nombre o el correo no caben en el registro, la respuesta es 401 `001-14`. `liv.sessions.auto-provision=false` apaga el alta automática, por ejemplo durante un cambio de proveedor.
+- **Cierre** (`POST /internal/v1/sessions/{sid}/end`): cierra una sola vez la sesión abierta de ese emisor y `sub`, y siempre responde 204.
+- **Transacciones:** cada operación abre la administración y después su transacción. Un inicio que no inicia se revierte entero.
+- **Eventos:** `SessionStarted`, `UserProvisioned` y `SessionEnded` se publican en la misma transacción. Todo rechazo publica `SessionDenied` en una transacción aparte. La auditoría los escuchará en T15.
+
 ## Estado
 
 Esqueleto de la Fase 0 (entregable F0‑04): módulos vacíos y guardias de arquitectura activas. Sin funcionalidad de negocio todavía. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
