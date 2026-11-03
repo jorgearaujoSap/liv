@@ -5,7 +5,7 @@ _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` 
 **Estado:** aprobado (H2) — 2026-11-01, arquitecto y responsable funcional (versión 4, con los ajustes del *spike* de Keycloak: ver `backend/identity/spike/RESULTADOS.md`)
 _(borrador → aprobado (H2))_
 
-**Ajustes posteriores:** T07, T11 y T12, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
+**Ajustes posteriores:** T07, T11, T12 y T13, aprobados por el responsable el 2026-11-02, y T10, con decisiones pendientes de aprobación (ver «Decisiones»).
 
 ## Enfoque
 
@@ -128,7 +128,7 @@ Entre corchetes, el proyecto y su PR (IN‑07).
        - alta con `INSERT … ON CONFLICT DO NOTHING` y relectura **con la función**;
        - el usuario está activo (`001-05`) y su administración coincide con la registrada (`001-17`).
      - **Si pasa:** actualiza `last_login_at`, crea el registro `core.user_session` (`sid`, usuario, emisor, `sub`, inicio) y publica `SessionStarted` (y `UserProvisioned` si es nuevo), en la misma transacción.
-     - **Si se rechaza:** publica `SessionDenied` (motivo y código) en una transacción aparte (`REQUIRES_NEW`), para que el rechazo quede auditado, y responde 403.
+     - **Si se rechaza:** publica `SessionDenied` (motivo y código) en una transacción aparte (`REQUIRES_NEW`), para que el rechazo quede auditado, y responde 403 (`001-05`, `001-17`) o 401 (`001-14`, ajustes de T13). Un inicio rechazado no deja cambios: tampoco el alta del usuario.
    - **`POST /internal/v1/sessions/{sid}/end` (`EndSession`).** Solo con el *token* de servicio. El cuerpo trae emisor, `sub` y motivo (`LOGOUT`, `IDLE`, `ABSOLUTE`, `PROVIDER`).
      - Si el `sid` existe en `core.user_session`, pertenece a ese emisor y ese `sub` y la sesión sigue abierta, guarda el fin y el motivo y publica `SessionEnded`.
      - **Siempre responde 204** (ajuste de T11): si la sesión ya terminó, si el `sid` no existe o si es de otro emisor o `sub`, no hace nada. Así es idempotente (un cierre del usuario seguido del cierre por canal trasero produce un solo `SessionEnded`) y no revela si un `sid` existe.
@@ -404,6 +404,11 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T13 (aprobados por el responsable el 2026-11-02, PR #51).** Salieron de la revisión de la parte 1:
+  - en el primer ingreso, sin correo o con nombre o correo más largos que el registro (150 y 200 caracteres), se rechaza con 401 `001-14` y se audita; los límites del *realm* se alinearán con los del registro en una tarea de `identity`;
+  - una sesión cerrada no se reabre con su `sid`: 401 `001-14`, auditado. El 200 queda solo para el reintento sobre la sesión abierta;
+  - todos los rechazos del inicio publican `SessionDenied`, también los 401 por `sid`; el evento lleva el `sid` y separa la administración registrada de la que dice el *token*;
+  - el alta automática se puede apagar con `liv.sessions.auto-provision` (por ejemplo, durante un cambio de proveedor): un desconocido recibe 403 `001-17` y el vínculo se rehace de forma explícita.
 - **Ajustes de T12 (aprobados por el responsable el 2026-11-02, PR #45).** Salieron de la revisión de la parte 1:
   - el token de usuario (en `/api` y en `X-User-Token`) exige, además de la audiencia `liv-api`, `azp` igual al cliente `liv-bff`, configurable;
   - solo se aceptan tokens con `typ: JWT` (no `at+jwt`);

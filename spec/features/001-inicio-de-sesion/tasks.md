@@ -220,8 +220,12 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el contexto en `REQUIRES_NEW` y en los oyentes;
     - correlación solo como UUID;
     - 001-20, parte de la API.
-- [ ] **T13** · `core`: `UserDirectoryAdapter`, `StartSession`, `EndSession`, `GET /me`, `core.user_session` y los eventos.
+- [ ] **T13** · `core`: `UserDirectoryAdapter`, `StartSession`, `EndSession`, `GET /me`, `core.user_session` y los eventos. — **Parte 1 hecha** (PR #51): `StartSession`, `EndSession`, `JdbcSessionStore` y los eventos, con las decisiones del responsable (plan › Decisiones, ajustes de T13). **Parte 2 pendiente:** `GET /me` con roles y permisos.
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/core/**`, `backend/src/test/**/core/**`.
+  - **Desviaciones de la parte 1:**
+    - archivos fuera de la lista: en `platform`, `TokenUser`, `VerifiedUserToken`, `RequestRefusedException`, `ClaimsAdapter`, `UserTokenFilter`, `SecurityConfiguration` y `ProblemDetailsHandler`; `contracts/openapi/core-internal.yaml` (solo descripciones); `application.yml`; pruebas de `platform/**` e `isolation/LivDatabase.java`; `README.md` y `CHANGELOG.md`;
+    - unas 1.600 líneas, la mayoría pruebas;
+    - los eventos no se persisten hasta T15 (*outbox* JDBC y oyentes de auditoría): no desplegar sin T15.
   - **De T11:** los controladores implementan `CurrentUserApi` e `InternalSessionsApi`. `StartSession` exige que el `sid` del cuerpo sea el del *token* (401 con `001-14`) y es idempotente (200 con la sesión ya creada). `EndSession` responde siempre 204. Prueba de `EndSession` con `Accept: application/json`.
   - Prueba primero:
     - 001-13: `/me` con datos del servidor;
