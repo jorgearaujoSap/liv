@@ -16,27 +16,24 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The API with its production configuration, without replacing beans (plan, 001-14 and 001-20): a
  * real PostgreSQL with the {@code liv_app} role and a generic OIDC provider. The probe controllers
- * exist only here, to observe what the security filters leave for the controllers.
+ * exist only here, to observe what the security filters leave for the controllers. Public for the
+ * tests of other modules (core) that need the same API.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import({PlatformWebTest.ApiProbe.class, PlatformWebTest.InternalProbe.class})
-abstract class PlatformWebTest {
+@Import(PlatformWebTest.ApiProbe.class)
+public abstract class PlatformWebTest {
 
-  static final String ACTIVE = "api-activo";
-  static final String INACTIVE = "api-inactivo";
-  static final String UNREGISTERED = "api-sin-registro";
+  protected static final String ACTIVE = "api-activo";
+  protected static final String INACTIVE = "api-inactivo";
+  protected static final String UNREGISTERED = "api-sin-registro";
 
   private static final Duration TIMEOUT = Duration.ofSeconds(20);
 
@@ -46,7 +43,7 @@ abstract class PlatformWebTest {
     seedUsers();
   }
 
-  @LocalServerPort int port;
+  @LocalServerPort protected int port;
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
@@ -55,19 +52,23 @@ abstract class PlatformWebTest {
     registry.add("liv.security.issuer-uri", OidcTestProvider::issuer);
   }
 
-  HttpResponse<String> get(String path, Map<String, String> headers) {
+  protected HttpResponse<String> get(String path, Map<String, String> headers) {
     return send(HttpRequest.newBuilder(uri(path)).GET(), headers);
   }
 
-  HttpResponse<String> post(String path, Map<String, String> headers) {
+  protected HttpResponse<String> post(String path, Map<String, String> headers) {
+    return post(path, headers, "{}");
+  }
+
+  protected HttpResponse<String> post(String path, Map<String, String> headers, String body) {
     return send(
         HttpRequest.newBuilder(uri(path))
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString("{}")),
+            .POST(HttpRequest.BodyPublishers.ofString(body)),
         headers);
   }
 
-  static Map<String, String> bearer(String token) {
+  protected static Map<String, String> bearer(String token) {
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put("Authorization", "Bearer " + token);
     return headers;
@@ -126,21 +127,6 @@ abstract class PlatformWebTest {
     @GetMapping("/api/v1/probe/unavailable")
     Map<String, String> unavailable() {
       throw new DataAccessResourceFailureException("base de datos caída");
-    }
-  }
-
-  /** The internal routes of the BFF, with the user token the filter validated. */
-  @RestController
-  static class InternalProbe {
-    @PostMapping("/internal/v1/sessions")
-    ResponseEntity<Map<String, String>> start() {
-      return ResponseEntity.status(HttpStatus.CREATED)
-          .body(Map.of("subject", VerifiedUserToken.current().orElseThrow().getSubject()));
-    }
-
-    @PostMapping("/internal/v1/sessions/{sid}/end")
-    ResponseEntity<Void> end(@PathVariable String sid) {
-      return ResponseEntity.noContent().build();
     }
   }
 }

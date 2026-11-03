@@ -40,3 +40,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - Comprueba la forma real de los tokens: `typ`, audiencias, `azp`, roles planos y `administration_id`.
   - El token de usuario del BFF (código con PKCE) entra en `/api` y como `X-User-Token`; el de servicio cierra sesiones en `/internal`.
   - Ninguno sirve en el lugar del otro, un token de otra administración da 401 con `001-17`, y el *realm* exige PKCE.
+- Inicio y fin de sesión de LIV (feature 001, T13 parte 1):
+  - `StartSession` y `EndSession` en `core`, con el controlador de `core-internal.yaml` y `JdbcSessionStore` (SQL bajo RLS);
+  - en el primer ingreso, el usuario se registra con su identificador de LIV (001-21);
+  - rechazos con 401 `001-14`, 403 `001-05` o 403 `001-17`, todos publicados como `SessionDenied`;
+  - eventos `SessionStarted`, `UserProvisioned` y `SessionEnded`;
+  - `liv.sessions.auto-provision`;
+  - en `platform`, `VerifiedUserToken` entrega `TokenUser` y `RequestRefusedException` responde 403 con el código del criterio.

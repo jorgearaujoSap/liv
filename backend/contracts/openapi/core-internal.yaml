@@ -22,8 +22,10 @@ paths:
         Exige el token de client credentials de liv-bff-service (audiencia liv-internal) en
         Authorization y el token del usuario en X-User-Token. Emisor, sub, administración, nombre y
         correo salen del token del usuario, y el sid del cuerpo debe ser el del claim sid de ese
-        token. Es idempotente: repetir la llamada con el mismo sid y el mismo usuario devuelve 200
-        con la sesión ya creada. Un rechazo queda auditado (evento SessionDenied).
+        token. Es idempotente: repetir la llamada con el mismo sid y el mismo usuario, con la sesión
+        abierta, devuelve 200; una sesión cerrada no se reabre. En el primer ingreso registra al
+        usuario en la administración del token, con su identificador de LIV (001-21), salvo que el
+        alta automática esté apagada. Todo rechazo queda auditado (evento SessionDenied).
       parameters:
         - name: X-User-Token
           in: header
@@ -49,7 +51,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/StartSessionResponse'
         '200':
-          description: La sesión ya existía con ese sid y ese usuario (reintento del BFF).
+          description: >-
+            La sesión abierta ya existía con ese sid y ese usuario (reintento del BFF).
           content:
             application/json:
               schema:
@@ -119,8 +122,10 @@ components:
             $ref: '#/components/schemas/Problem'
     Unauthorized:
       description: >-
-        Token de servicio o del usuario ausente o inválido, o el sid del cuerpo no es el del token
-        del usuario (code 001-14).
+        Token de servicio o del usuario ausente o inválido; el sid del cuerpo no es el del token
+        del usuario, es de la sesión de otro usuario o de una sesión cerrada; o, en el primer
+        ingreso, el token no trae correo o el nombre o el correo no caben en el registro (code
+        001-14).
       content:
         application/problem+json:
           schema:
@@ -131,7 +136,8 @@ components:
     SessionRejected:
       description: >-
         Sesión rechazada. code: 001-05 (usuario desactivado) o 001-17 (administración inexistente,
-        inactiva o distinta de la registrada).
+        inactiva o distinta de la registrada, o usuario desconocido con el alta automática
+        apagada).
       content:
         application/problem+json:
           schema:

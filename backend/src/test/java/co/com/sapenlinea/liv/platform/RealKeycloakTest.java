@@ -34,7 +34,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * checks can reject it (plan, «Pruebas de 001-14 y 001-20»).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import({PlatformWebTest.ApiProbe.class, PlatformWebTest.InternalProbe.class})
+@Import(PlatformWebTest.ApiProbe.class)
 @DisplayName("Autenticación con Keycloak real y el realm como código (T12)")
 class RealKeycloakTest {
 
@@ -46,6 +46,8 @@ class RealKeycloakTest {
   private static String userToken;
   private static String userTokenOfB;
   private static String serviceToken;
+  private static String subjectOfUser;
+  private static String sessionIdOfUser;
 
   @LocalServerPort int port;
 
@@ -65,6 +67,8 @@ class RealKeycloakTest {
     userToken = RealKeycloak.userToken(RealKeycloak.USER);
     userTokenOfB = RealKeycloak.userToken(RealKeycloak.USER_OF_B);
     serviceToken = RealKeycloak.serviceToken();
+    subjectOfUser = claims(userToken).getSubject();
+    sessionIdOfUser = claims(userToken).getStringClaim("sid");
     UUID administration = UUID.fromString(RealKeycloak.ADMINISTRATION);
     LivDatabase.registerAdministration(administration, "Ipiales (prueba)");
     // B exists too: the 401 of its user can only come from the mismatch with its registration.
@@ -112,7 +116,10 @@ class RealKeycloakTest {
   @Tag("001-20")
   @DisplayName("001-20 · El token de servicio de Keycloak cierra una sesión en /internal")
   void realServiceTokenOnInternal() {
-    assertThat(post(END, bearer(serviceToken)).statusCode()).isEqualTo(204);
+    String end =
+        "{\"issuer\":\"%s\",\"subject\":\"%s\",\"reason\":\"LOGOUT\"}"
+            .formatted(RealKeycloak.issuer(), subjectOfUser);
+    assertThat(post(END, bearer(serviceToken), end).statusCode()).isEqualTo(204);
     assertRejected(post(END, Map.of()), ErrorCodes.NOT_AUTHENTICATED);
   }
 
@@ -123,7 +130,8 @@ class RealKeycloakTest {
     Map<String, String> headers = bearer(serviceToken);
     headers.put("X-User-Token", userToken);
 
-    assertThat(post(START, headers).statusCode()).isEqualTo(201);
+    String start = "{\"sid\":\"" + sessionIdOfUser + "\"}";
+    assertThat(post(START, headers, start).statusCode()).isEqualTo(201);
   }
 
   @Test
@@ -173,10 +181,14 @@ class RealKeycloakTest {
   }
 
   private HttpResponse<String> post(String path, Map<String, String> headers) {
+    return post(path, headers, "{}");
+  }
+
+  private HttpResponse<String> post(String path, Map<String, String> headers, String body) {
     return send(
         HttpRequest.newBuilder(uri(path))
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString("{}")),
+            .POST(HttpRequest.BodyPublishers.ofString(body)),
         headers);
   }
 

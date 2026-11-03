@@ -28,7 +28,7 @@ import org.testcontainers.utility.DockerImageName;
  * (001-20). The signing key is created here and handed to the provider, so each test can sign the
  * exact token it needs: valid, expired, for another audience or issuer, or with another key.
  */
-final class OidcTestProvider {
+public final class OidcTestProvider {
 
   static final String USER_AUDIENCE = "liv-api";
   static final String SERVICE_AUDIENCE = "liv-internal";
@@ -47,26 +47,35 @@ final class OidcTestProvider {
 
   private OidcTestProvider() {}
 
-  static String issuer() {
+  /** The {@code sid} claim of a token this provider signed. */
+  public static String sessionIdOf(String token) {
+    try {
+      return SignedJWT.parse(token).getJWTClaimsSet().getStringClaim("sid");
+    } catch (java.text.ParseException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  public static String issuer() {
     return "http://%s:%d/%s".formatted(SERVER.getHost(), SERVER.getMappedPort(PORT), ISSUER_ID);
   }
 
   /** A valid user access token, as the realm issues it for the BFF (claims at the top level). */
-  static String userToken(String subject, UUID administrationId) {
+  public static String userToken(String subject, UUID administrationId) {
     return sign(user(subject, administrationId).build(), KEY);
   }
 
-  static String userToken(
+  public static String userToken(
       String subject, UUID administrationId, UnaryOperator<JWTClaimsSet.Builder> change) {
     return sign(change.apply(user(subject, administrationId)).build(), KEY);
   }
 
   /** A valid client credentials token of the BFF service client. */
-  static String serviceToken() {
+  public static String serviceToken() {
     return sign(service().build(), KEY);
   }
 
-  static String serviceToken(UnaryOperator<JWTClaimsSet.Builder> change) {
+  public static String serviceToken(UnaryOperator<JWTClaimsSet.Builder> change) {
     return sign(change.apply(service()).build(), KEY);
   }
 
@@ -94,6 +103,8 @@ final class OidcTestProvider {
         .audience(USER_AUDIENCE)
         .claim("azp", USER_CLIENT)
         .claim("sid", UUID.randomUUID().toString())
+        .claim("name", "Usuario de prueba " + subject)
+        .claim("email", subject + "@test.invalid")
         .claim("administration_id", administrationId.toString())
         .claim("roles", List.of("CONSULTA"));
   }

@@ -150,6 +150,97 @@ public final class LivDatabase {
         subject);
   }
 
+  /**
+   * Reads as the owner, past RLS, to check what the application wrote (tests of other packages).
+   * Only for SELECT: the writes of a test go through the application or the helpers above.
+   */
+  public static List<Object[]> readAsOwner(String select, Object... args) {
+    if (!select.strip().regionMatches(true, 0, "SELECT", 0, 6)) {
+      throw new IllegalArgumentException("Solo lectura: " + select);
+    }
+    try (Connection connection = connect(OWNER)) {
+      connection.setReadOnly(true);
+      connection.setAutoCommit(false);
+      try {
+        return rows(connection, select, args);
+      } finally {
+        connection.rollback();
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** Marks an administration inactive (or active again), as its owner. */
+  public static void setAdministrationActive(UUID administration, boolean active) {
+    try {
+      update(
+          OWNER,
+          null,
+          "UPDATE core.tax_administration SET active = ? WHERE id = ?",
+          active,
+          administration);
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Inserts a user in a transaction of the owner that stays open while {@code during} runs, waits
+   * until the application is blocked on a lock (the unique key of that identity), and then commits:
+   * the concurrent insert of the application is forced to conflict with this one.
+   */
+  public static void insertUserUncommittedDuring(
+      UUID administration, String issuer, String subject, String status, Runnable during) {
+    try (Connection connection = connect(OWNER)) {
+      connection.setAutoCommit(false);
+      update(
+          connection,
+          """
+          INSERT INTO core.admin_user (id, administration_id, full_name, email, status,
+                                       identity_issuer, identity_subject)
+          VALUES (?, ?, 'Usuario de prueba', 'prueba@test.invalid', ?, ?, ?)
+          """,
+          UUID.randomUUID(),
+          administration,
+          status,
+          issuer,
+          subject);
+      during.run();
+      awaitApplicationWaitingOnALock();
+      connection.commit();
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static void awaitApplicationWaitingOnALock() throws SQLException {
+    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
+    try (Connection superuser =
+        DriverManager.getConnection(jdbcUrl(), "postgres", "postgres-test-pw")) {
+      while (System.nanoTime() < deadline) {
+        long waiting =
+            ((Number)
+                    rows(
+                            superuser,
+                            "SELECT count(*) FROM pg_stat_activity"
+                                + " WHERE usename = 'liv_app' AND wait_event_type = 'Lock'")
+                        .getFirst()[0])
+                .longValue();
+        if (waiting > 0) {
+          return;
+        }
+        try {
+          Thread.sleep(50);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        }
+      }
+    }
+    throw new IllegalStateException("La aplicación no llegó a esperar el bloqueo de la otra alta");
+  }
+
   /** Password of {@code liv_app}, the only role the application connects with. */
   public static String appPassword() {
     return password(APP);

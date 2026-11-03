@@ -41,7 +41,10 @@ class UserTokenFilterTest {
   }
 
   private static UserTokenFilter filter(JwtDecoder decoder) {
-    return new UserTokenFilter(request -> true, decoder);
+    return new UserTokenFilter(
+        request -> true,
+        decoder,
+        new ClaimsAdapter(new LivSecurityProperties.Claims("administration_id", "roles")));
   }
 
   private static void run(UserTokenFilter filter) throws Exception {
