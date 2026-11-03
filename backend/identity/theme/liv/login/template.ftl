@@ -5,12 +5,14 @@
   Parámetros propios, además de los de la plantilla base:
     pageTitle     título de la pestaña (por defecto, el nombre del producto);
     alertTitle    título de la alerta cuando el mensaje es un error;
-    securityNote  muestra "Conexión cifrada · Los accesos quedan registrados" al pie del formulario.
+    securityNote  muestra "Conexión cifrada · Los accesos quedan registrados" al pie del formulario;
+    headingIcon   icono del recuadro sobre el título (pasos posteriores al inicio de sesión);
+    showAttemptedUser  muestra la cuenta intentada, como la base; las páginas con frame propio no la muestran.
   Secciones propias: "subtitle", debajo del título.
 -->
 <#import "components.ftl" as c>
 <#import "icons.ftl" as i>
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false pageTitle="" alertTitle="" securityNote=false>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false pageTitle="" alertTitle="" securityNote=false headingIcon="" showAttemptedUser=true>
 <!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -35,7 +37,7 @@
         <p class="liv-brand__headline">${msg("livBrandHeadline")}</p>
         <p class="liv-brand__lead">${msg("livBrandLead")}</p>
       </div>
-      <ul class="liv-brand__features">
+      <ul class="liv-brand__features" role="list">
         <@brandFeature icon="shield-check" title=msg("livFeatureSecureTitle") text=msg("livFeatureSecureText")/>
         <@brandFeature icon="calculator" title=msg("livFeatureRulesTitle") text=msg("livFeatureRulesText")/>
         <@brandFeature icon="history" title=msg("livFeatureTraceTitle") text=msg("livFeatureTraceText")/>
@@ -46,12 +48,13 @@
   <main class="liv-main">
     <div class="liv-form">
       <div class="liv-form__logo"><@c.logo/></div>
-      <header class="liv-heading">
+      <header class="liv-heading<#if headingIcon?has_content> liv-heading--with-icon</#if>">
+        <#if headingIcon?has_content><span class="liv-icon-tile"><@i.icon name=headingIcon size=24/></span></#if>
         <h1 class="liv-heading__title" id="kc-page-title"><#nested "header"></h1>
         <#nested "subtitle">
       </header>
       <#-- Como en la base: después del primer paso, la cuenta con la que se entra y el enlace para cambiarla. -->
-      <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
+      <#if showAttemptedUser && auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
         <#nested "show-username">
         <p class="liv-attempted-user">
           <@i.icon name="user" size=16/>
