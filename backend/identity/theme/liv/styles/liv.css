@@ -1,0 +1,408 @@
+/*
+ * Tema liv de Keycloak (ADR 0024, tarea T08 de la feature 001). Reproduce los componentes de liv-components
+ * (Logo, Alert, TextField, IconButton, Button, Spinner) y los de solo el tema (Keycloak/BrandPanel), con los
+ * frames de "001 · Acceso" en LIV-Diseño. Colores, tipografías y sombras solo por los tokens del paquete
+ * liv-components, con versión exacta (package.json); check.sh falla si aparece un color literal.
+ * source(none): no se generan utilidades a partir de las plantillas; todo el estilo está en este archivo.
+ */
+@import 'tailwindcss' source(none);
+@import 'liv-components/styles/theme.css';
+
+/* Página */
+
+body {
+  @apply min-h-screen bg-bg-surface font-sans text-body-md text-text-primary antialiased;
+}
+
+.liv-page {
+  @apply flex min-h-screen;
+}
+
+/* Keycloak/BrandPanel: solo en escritorio (≥ 1024 px). */
+
+.liv-brand {
+  @apply relative hidden w-[560px] shrink-0 flex-col justify-between gap-12 overflow-hidden bg-bg-inverse p-12;
+
+  @variant lg {
+    @apply flex;
+  }
+}
+
+.liv-brand::before,
+.liv-brand::after {
+  @apply absolute rounded-full content-[''];
+}
+
+.liv-brand::before {
+  @apply -top-[120px] -right-[140px] size-[280px] bg-bg-inverse-subtle;
+}
+
+.liv-brand::after {
+  @apply -bottom-[180px] left-[300px] size-[520px] bg-action-primary opacity-35;
+}
+
+.liv-brand > * {
+  @apply relative;
+}
+
+.liv-brand__message {
+  @apply flex flex-col gap-8;
+}
+
+.liv-brand__headline {
+  @apply m-0 text-heading-display text-text-inverse;
+}
+
+.liv-brand__lead {
+  @apply m-0 mt-3 text-body-lg text-text-inverse-secondary;
+}
+
+.liv-brand__features {
+  @apply m-0 flex list-none flex-col gap-5 p-0;
+}
+
+.liv-brand__feature {
+  @apply flex items-start gap-4;
+}
+
+.liv-brand__feature-icon {
+  @apply flex size-10 shrink-0 items-center justify-center rounded-lg bg-bg-inverse-subtle text-text-inverse;
+}
+
+.liv-brand__feature-text {
+  @apply flex flex-col gap-[2px];
+}
+
+.liv-brand__feature-title {
+  @apply text-body-md-strong text-text-inverse;
+}
+
+.liv-brand__feature-description,
+.liv-brand__footer {
+  @apply m-0 text-body-sm text-text-inverse-secondary;
+}
+
+/* Área del formulario */
+
+.liv-main {
+  @apply flex flex-1 flex-col items-stretch px-5 py-8;
+
+  @variant lg {
+    @apply items-center justify-center p-12;
+  }
+}
+
+.liv-form {
+  @apply flex w-full flex-col gap-6;
+
+  @variant lg {
+    @apply w-[400px];
+  }
+}
+
+.liv-form__logo {
+  @variant lg {
+    @apply hidden;
+  }
+}
+
+.liv-heading {
+  @apply flex flex-col gap-2;
+}
+
+.liv-heading__title {
+  @apply m-0 text-heading-h1 text-text-primary;
+}
+
+.liv-heading__subtitle {
+  @apply m-0 text-body-md text-text-secondary;
+}
+
+.liv-attempted-user {
+  @apply m-0 flex flex-wrap items-center gap-2 text-body-md text-text-secondary;
+}
+
+.liv-form__body,
+.liv-fields {
+  @apply flex flex-col;
+}
+
+.liv-form__body {
+  @apply gap-6;
+}
+
+.liv-fields {
+  @apply gap-4;
+}
+
+/* Logo */
+
+.liv-logo {
+  @apply inline-flex items-center gap-[10px];
+}
+
+.liv-logo__mark {
+  @apply shrink-0;
+}
+
+.liv-logo__wordmark {
+  @apply flex flex-col;
+}
+
+.liv-logo__name {
+  @apply text-heading-h3;
+}
+
+.liv-logo__tagline {
+  @apply text-body-sm;
+}
+
+.liv-logo--default .liv-logo__tile,
+.liv-logo--inverse .liv-logo__dot {
+  @apply fill-action-primary;
+}
+
+.liv-logo--default .liv-logo__dot,
+.liv-logo--inverse .liv-logo__tile {
+  @apply fill-text-inverse;
+}
+
+.liv-logo--default .liv-logo__letter {
+  @apply stroke-text-inverse;
+}
+
+.liv-logo--inverse .liv-logo__letter {
+  @apply stroke-action-primary;
+}
+
+.liv-logo--default .liv-logo__name {
+  @apply text-text-primary;
+}
+
+.liv-logo--default .liv-logo__tagline {
+  @apply text-text-secondary;
+}
+
+.liv-logo--inverse .liv-logo__name {
+  @apply text-text-inverse;
+}
+
+.liv-logo--inverse .liv-logo__tagline {
+  @apply text-text-inverse-secondary;
+}
+
+/* Alert */
+
+.liv-alert {
+  @apply flex items-start gap-3 rounded-lg px-4 py-3;
+}
+
+.liv-alert__icon {
+  @apply shrink-0;
+}
+
+.liv-alert__body {
+  @apply flex min-w-0 flex-1 flex-col gap-1;
+}
+
+.liv-alert__title {
+  @apply m-0 text-body-md-strong text-text-primary;
+}
+
+.liv-alert__message {
+  @apply m-0 text-body-md text-text-secondary;
+}
+
+.liv-alert--error {
+  @apply bg-status-danger-subtle;
+
+  & .liv-alert__icon {
+    @apply text-status-danger;
+  }
+}
+
+.liv-alert--warning {
+  @apply bg-status-warning-subtle;
+
+  & .liv-alert__icon {
+    @apply text-status-warning;
+  }
+}
+
+.liv-alert--info {
+  @apply bg-status-info-subtle;
+
+  & .liv-alert__icon {
+    @apply text-status-info;
+  }
+}
+
+.liv-alert--success {
+  @apply bg-status-success-subtle;
+
+  & .liv-alert__icon {
+    @apply text-status-success;
+  }
+}
+
+/* TextField. Las clases liv-input y liv-label sirven a las páginas de Keycloak que el tema no redefine. */
+
+.liv-text-field,
+.liv-form-group {
+  @apply flex flex-col gap-2;
+}
+
+.liv-text-field__label,
+.liv-label {
+  @apply text-label-md text-text-primary;
+}
+
+.liv-text-field__control {
+  @apply box-border flex h-[44px] items-center gap-2 rounded-lg border border-solid border-border-strong bg-bg-surface pr-1 pl-3;
+}
+
+/*
+ * El borde de Focus mide 1,5 px en Figma: 1 px de borde más 0,5 px de anillo interior. El foco se marca solo cuando
+ * lo tiene el input, no la acción final, que muestra su propio anillo.
+ */
+.liv-text-field__control:has(.liv-text-field__input:focus) {
+  @apply border-border-focus shadow-focus-ring outline-hidden inset-ring-[0.5px] inset-ring-border-focus;
+}
+
+.liv-text-field__icon {
+  @apply shrink-0 text-text-muted;
+}
+
+.liv-text-field__input {
+  @apply m-0 h-full min-w-0 flex-1 border-0 bg-transparent p-0 font-sans text-body-md text-text-primary outline-none;
+}
+
+.liv-text-field__input::placeholder,
+.liv-input::placeholder {
+  @apply text-text-muted opacity-100;
+}
+
+.liv-input {
+  @apply box-border h-[44px] rounded-lg border border-solid border-border-strong bg-bg-surface px-3 font-sans text-body-md text-text-primary;
+}
+
+.liv-input:focus {
+  @apply border-border-focus shadow-focus-ring outline-hidden;
+}
+
+/* IconButton Ghost, tamaño Sm (32 px), con área táctil de 44 px en pantallas táctiles. */
+
+.liv-icon-button {
+  @apply relative m-0 box-border inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 text-text-secondary outline-none;
+}
+
+.liv-icon-button:hover {
+  @apply bg-bg-subtle;
+}
+
+.liv-icon-button:focus-visible {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+@media (pointer: coarse) {
+  .liv-icon-button::before {
+    @apply absolute top-1/2 left-1/2 size-[44px] -translate-x-1/2 -translate-y-1/2 content-[''];
+  }
+}
+
+.liv-icon-button[data-visible] .liv-icon-button__show,
+.liv-icon-button:not([data-visible]) .liv-icon-button__hide {
+  @apply hidden;
+}
+
+/* Button Primary, tamaño Lg (48 px). Loading usa el fondo de Hover, como en Figma. */
+
+.liv-button {
+  @apply m-0 box-border inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-5 font-sans text-button-md whitespace-nowrap outline-none;
+}
+
+.liv-button--primary {
+  @apply bg-action-primary text-text-inverse shadow-elevation-sm;
+}
+
+.liv-button--primary:hover,
+.liv-button--primary[aria-disabled='true'] {
+  @apply bg-action-primary-hover;
+}
+
+.liv-button--secondary {
+  @apply border border-solid border-border-strong bg-bg-surface text-text-primary shadow-elevation-sm;
+}
+
+.liv-button--secondary:hover {
+  @apply bg-bg-subtle;
+}
+
+.liv-button[aria-disabled='true'] {
+  @apply cursor-progress;
+}
+
+.liv-button:focus-visible {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+.liv-button__spinner,
+.liv-button[aria-disabled='true'] .liv-button__trailing-icon {
+  @apply hidden;
+}
+
+.liv-button[aria-disabled='true'] .liv-button__spinner {
+  @apply inline-flex;
+}
+
+/* Spinner Inverse */
+
+.liv-spinner {
+  animation: liv-spinner-rotate 0.8s linear infinite;
+}
+
+.liv-spinner__track {
+  @apply stroke-action-primary-hover;
+}
+
+.liv-spinner__arc {
+  @apply stroke-text-inverse;
+}
+
+@keyframes liv-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liv-spinner {
+    animation: none;
+  }
+}
+
+/* Ayuda, enlaces y nota de seguridad */
+
+.liv-help {
+  @apply m-0 flex items-start gap-2 text-body-sm text-text-secondary;
+}
+
+.liv-help .liv-icon {
+  @apply shrink-0;
+}
+
+.liv-link {
+  @apply rounded-sm text-body-md text-text-link underline outline-none;
+}
+
+.liv-link:focus-visible {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+.liv-security-note {
+  @apply m-0 flex items-center justify-center gap-2 border-t border-solid border-border-default pt-4 text-body-sm text-text-muted;
+}
+
+.liv-sr-only {
+  @apply sr-only;
+}

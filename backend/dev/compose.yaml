@@ -28,8 +28,13 @@ services:
       retries: 30
 
   keycloak:
-    # Keycloak 26.8.1, fijado por digest. Base de datos propia (doc. 03 §5).
-    image: quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332
+    # Imagen de LIV: Keycloak 26.8.1 con el tema liv (identity/Dockerfile, tarea T08); se construye aquí, nunca se
+    # descarga. Base de datos propia (doc. 03 §5). Después de cambiar el tema:
+    #   docker compose -f dev/compose.yaml --env-file dev/.env up -d --build keycloak
+    # La etiqueta cambia con LIV_IDENTITY_IMAGE, para que identity/theme/check.sh no reemplace la del entorno local.
+    build: ../identity
+    image: ${LIV_IDENTITY_IMAGE:-liv-identity-keycloak:dev}
+    pull_policy: build
     command: ["start-dev"]
     environment:
       KC_DB: postgres

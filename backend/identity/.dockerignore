@@ -1,0 +1,8 @@
+# La imagen solo necesita el tema: el realm (config/) lo aplica keycloak-config-cli aparte.
+*
+!THIRD_PARTY_NOTICES.md
+!theme/package.json
+!theme/package-lock.json
+!theme/.npmrc
+!theme/liv/
+theme/liv/login/resources/css/liv.css

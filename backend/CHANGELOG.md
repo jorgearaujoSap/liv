@@ -51,6 +51,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - el usuario y su administración salen del registro de LIV, bajo RLS (puerto `UserProfiles`);
   - roles del token filtrados por el catálogo de LIV y la unión de sus permisos (`PermissionCatalog`, en `platform`);
   - las pruebas comparan con la matriz aprobada, escrita aparte.
+- Tema `liv` de Keycloak e imagen propia (feature 001, T08 parte a; ADR 0024):
+  - `identity/Dockerfile`: Keycloak 26.8.1 con el tema, optimizado para PostgreSQL; la hoja se compila con Tailwind 4.3.3 y los *tokens* de `liv-components` 0.2.0, con versión exacta;
+  - plantilla común con `Keycloak/BrandPanel`, inicio de sesión (escritorio, móvil, Ingresando y credenciales incorrectas) y página de error, desde los *frames* "001 · Acceso" de LIV-Diseño;
+  - mensaje único y misma página para todo fallo de inicio de sesión, también con la cuenta bloqueada o desactivada (001-03, 001-04, 001-05);
+  - el *realm* activa el tema (`loginTheme: liv`) y `dev/compose.yaml` construye la imagen;
+  - `identity/theme/check.sh` lo prueba en un entorno desechable, incluido el arranque con `start --optimized`.
 - Autorización y menú (feature 001, T14):
   - cada método público de un servicio de `application` lleva `@RequiresPermission` o `@OpenUseCase`, y se comprueba con `@EnableMethodSecurity` y un `AuthorizationManager` propio, sin AspectJ, antes que cualquier otro *advice* (también la transacción);
   - se niega por defecto: sin el permiso, el caso de uso no se ejecuta y la respuesta es 403 `001-16`. Un método sin marca (también uno heredado) se niega a todos, y uno protegido se niega fuera de una petición. Los permisos se leen una vez por petición; si no se pueden leer, 503 `SYS-503`;
