@@ -27,6 +27,21 @@ class CurrentUserTest extends PlatformWebTest {
   private static final String ME = "/api/v1/me";
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
+  /** The permissions of CONSULTA in the matrix approved at H2 (plan, «Permisos»), written apart. */
+  private static final List<String> CONSULTA =
+      List.of(
+          "documents.legal-instrument.read",
+          "tax.fiscal-year.read",
+          "valuation.batch.read",
+          "tax.rate.read",
+          "valuation.catalog.read",
+          "valuation.vehicle-reference.read",
+          "core.vehicle.read",
+          "tax.assessment.read",
+          "ledger.obligation.read",
+          "portfolio.balance.read",
+          "documents.document.read");
+
   @Test
   @Tag("001-13")
   @DisplayName("001-13 · Responde identificador, nombre, correo, administración, roles y permisos")
@@ -36,18 +51,17 @@ class CurrentUserTest extends PlatformWebTest {
 
     assertThat(response.statusCode()).isEqualTo(200);
     JsonNode me = JSON.readTree(response.body());
-    Object[] registered = registered(ACTIVE);
-    assertThat(me.get("id").asString()).isEqualTo(registered[0].toString());
+    Registered registered = registered(ACTIVE);
+    assertThat(me.get("id").asString()).isEqualTo(registered.id().toString());
     // The registry, not the token: the token says "Usuario de prueba api-activo".
-    assertThat(me.get("fullName").asString()).isEqualTo(registered[1]);
-    assertThat(me.get("email").asString()).isEqualTo(registered[2]);
+    assertThat(me.get("fullName").asString()).isEqualTo(registered.fullName());
+    assertThat(me.get("email").asString()).isEqualTo(registered.email());
     assertThat(me.get("administration").get("id").asString())
         .isEqualTo(LivDatabase.ADMIN_A.toString());
-    assertThat(me.get("administration").get("name").asString()).isEqualTo("Admin A");
+    assertThat(me.get("administration").get("name").asString())
+        .isEqualTo(administrationName(LivDatabase.ADMIN_A));
     assertThat(texts(me.get("roles"))).containsExactly("CONSULTA");
-    assertThat(texts(me.get("permissions")))
-        .containsExactlyInAnyOrderElementsOf(permissionsOf("CONSULTA"))
-        .isNotEmpty();
+    assertThat(texts(me.get("permissions"))).containsExactlyInAnyOrderElementsOf(CONSULTA);
   }
 
   @Test
@@ -64,46 +78,79 @@ class CurrentUserTest extends PlatformWebTest {
 
     JsonNode me = JSON.readTree(get(ME, bearer(token)).body());
 
-    assertThat(texts(me.get("roles"))).containsExactlyInAnyOrder("CONSULTA", "AUDITOR");
-    List<String> expected = new ArrayList<>(permissionsOf("CONSULTA"));
-    permissionsOf("AUDITOR").stream().filter(p -> !expected.contains(p)).forEach(expected::add);
-    assertThat(texts(me.get("permissions"))).containsExactlyInAnyOrderElementsOf(expected);
+    assertThat(texts(me.get("roles"))).containsExactly("AUDITOR", "CONSULTA");
+    assertThat(texts(me.get("permissions")))
+        .containsAll(CONSULTA)
+        .contains("core.user.read", "audit.event.read", "jurisdiction.config.read")
+        .doesNotHaveDuplicates();
+  }
+
+  @Test
+  @Tag("001-13")
+  @DisplayName("001-13 · Sin roles conocidos entra a Inicio, sin roles ni permisos")
+  void withoutKnownRoles() {
+    for (List<String> roles : List.of(List.<String>of(), List.of("INVENTADO", "consulta"))) {
+      String token =
+          OidcTestProvider.userToken(
+              ACTIVE, LivDatabase.ADMIN_A, claims -> claims.claim("roles", roles));
+
+      HttpResponse<String> response = get(ME, bearer(token));
+
+      assertThat(response.statusCode()).isEqualTo(200);
+      JsonNode me = JSON.readTree(response.body());
+      assertThat(texts(me.get("roles"))).as("roles de %s", roles).isEmpty();
+      assertThat(texts(me.get("permissions"))).as("permisos de %s", roles).isEmpty();
+    }
   }
 
   @Test
   @Tag("001-17")
-  @DisplayName("001-17 · Cada usuario ve su administración; lo que mande el navegador no cuenta")
+  @DisplayName("001-17 · Cada usuario ve su administración y sus roles; lo del navegador no cuenta")
   void eachUserSeesItsOwnAdministration() {
     String subjectOfB = "me-b-" + UUID.randomUUID();
     LivDatabase.registerUser(LivDatabase.ADMIN_B, OidcTestProvider.issuer(), subjectOfB, "ACTIVE");
-    Map<String, String> headers =
-        bearer(OidcTestProvider.userToken(subjectOfB, LivDatabase.ADMIN_B));
+    String tokenOfB =
+        OidcTestProvider.userToken(
+            subjectOfB, LivDatabase.ADMIN_B, claims -> claims.claim("roles", List.of("AUDITOR")));
+    Map<String, String> headers = bearer(tokenOfB);
     headers.put("X-Administration-Id", LivDatabase.ADMIN_A.toString());
 
-    JsonNode me =
+    JsonNode ofB =
         JSON.readTree(get(ME + "?administrationId=" + LivDatabase.ADMIN_A, headers).body());
+    JsonNode ofA =
+        JSON.readTree(
+            get(ME, bearer(OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_A))).body());
 
-    assertThat(me.get("id").asString()).isEqualTo(registered(subjectOfB)[0].toString());
-    assertThat(me.get("administration").get("id").asString())
+    assertThat(ofB.get("id").asString()).isEqualTo(registered(subjectOfB).id().toString());
+    assertThat(ofB.get("administration").get("id").asString())
         .isEqualTo(LivDatabase.ADMIN_B.toString());
-    assertThat(me.get("administration").get("name").asString()).isEqualTo("Admin B");
+    assertThat(ofB.get("administration").get("name").asString())
+        .isEqualTo(administrationName(LivDatabase.ADMIN_B));
+    assertThat(texts(ofB.get("roles"))).containsExactly("AUDITOR");
+    assertThat(texts(ofB.get("permissions"))).contains("audit.event.read");
+    assertThat(ofA.get("administration").get("id").asString())
+        .isEqualTo(LivDatabase.ADMIN_A.toString());
+    assertThat(texts(ofA.get("permissions"))).doesNotContain("audit.event.read");
   }
 
-  private static Object[] registered(String subject) {
-    return LivDatabase.readAsOwner(
-            "SELECT id, full_name, email FROM core.admin_user"
-                + " WHERE identity_subject = ? AND identity_issuer = ?",
-            subject,
-            OidcTestProvider.issuer())
-        .getFirst();
+  private record Registered(UUID id, String fullName, String email) {}
+
+  private static Registered registered(String subject) {
+    Object[] row =
+        LivDatabase.readAsOwner(
+                "SELECT id, full_name, email FROM core.admin_user"
+                    + " WHERE identity_subject = ? AND identity_issuer = ?",
+                subject,
+                OidcTestProvider.issuer())
+            .getFirst();
+    return new Registered((UUID) row[0], (String) row[1], (String) row[2]);
   }
 
-  private static List<String> permissionsOf(String role) {
-    return LivDatabase.readAsOwner(
-            "SELECT permission_code FROM platform.role_permission WHERE role_code = ?", role)
-        .stream()
-        .map(row -> (String) row[0])
-        .toList();
+  private static String administrationName(UUID administration) {
+    return (String)
+        LivDatabase.readAsOwner(
+                "SELECT name FROM core.tax_administration WHERE id = ?", administration)
+            .getFirst()[0];
   }
 
   private static List<String> texts(JsonNode array) {
