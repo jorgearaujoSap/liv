@@ -302,35 +302,49 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 - [ ] **T16** · *Spike* de Spring Cloud Gateway con Spring Boot 4.1 y esqueleto del proyecto: Maven, Spotless, ArchUnit, Flyway del esquema `bff` y `README.md`/`AGENTS.md` del BFF.
   - Archivos: `backend/bff/**`.
   - Prueba primero: la regla de ArchUnit sin `org.keycloak` y la carga del contexto. **Si no hay versión compatible, se detiene y se lleva el plan B al responsable.**
+> **Alcance del BFF (decisión del responsable, 2026-11-03).** Primero un BFF mínimo, que basta para validar con usuarios: T17 y T18. El endurecimiento de T19 se hace **antes de producción**. Ver plan › Decisiones, «Alcance del BFF».
+
 - [ ] **T17** · Inicio y cierre de sesión.
   - Contenido:
     - cliente OIDC con `prompt=login` y `returnTo` validado;
     - cambio de id de sesión;
     - `StartSession` con los dos *tokens*; un 200 es un reintento con la sesión ya creada (T11);
     - Spring Session JDBC con *tokens* cifrados;
-    - `/bff/logout` con revocación y la ruta de LIV;
-    - cierre por canal trasero en `/bff/backchannel-logout`: fijar el puerto del BFF en `LIV_BFF_BACKCHANNEL_URL` de `backend/dev/.env.example` (hoy apunta a `host.docker.internal:4200`, el proxy del frontend);
+    - `/bff/logout` con revocación, `EndSession` y la ruta de LIV;
     - rechazo con revocación y vuelta a `/bff/login`, sin parámetro de motivo.
-  - Archivos: `backend/bff/src/main/**` (paquetes de login y logout), `backend/bff/src/test/**`.
+  - Archivos: `backend/bff/src/main/**` (paquetes de login y logout), `backend/bff/src/main/resources/db/migration/**` (tablas de Spring Session), `backend/bff/src/test/**`.
   - Prueba primero:
     - 001-01 (`returnTo` y redirección abierta);
-    - 001-09;
+    - 001-09 (salir termina la sesión en LIV y en el proveedor);
     - 001-11: ninguna respuesta contiene un JWT, cookie `HttpOnly`, `Secure`, `SameSite=Strict`;
     - 001-20: flujo completo contra `mock-oauth2-server`.
-- [ ] **T18** · Ciclo de vida de la sesión: `SessionTerminator` con repositorio decorado, límite absoluto, barrido con ShedLock, `keepalive`, `/bff/session` sin extender, cierre por canal trasero con `bff.oidc_session` y fallo de renovación.
-  - Archivos: `backend/bff/src/main/**` (paquete de sesión), `backend/bff/src/main/resources/db/migration/**`, `backend/bff/src/test/**`.
+- [ ] **T18** · Reenvío a la API y sesión mínima.
+  - Contenido:
+    - enrutamiento de `/api/**` con *TokenRelay* y bloqueo de `/internal/**`;
+    - CSRF y `Cache-Control: no-store`;
+    - inactividad de 15 minutos (expiración de Spring Session) y límite absoluto de 8 horas, comprobado en cada petición;
+    - `keepalive`, y `/bff/session` sin extender la sesión;
+    - fallo de renovación (`invalid_grant`) lleva a 401;
+    - contrato `bff/contracts/openapi/bff.yaml`, que el frontend necesita en T20.
+  - Archivos: `backend/bff/src/main/**` (paquetes web y de sesión), `backend/bff/contracts/**`, `backend/bff/src/test/**`.
   - Prueba primero:
-    - 001-10 (inactividad y absoluto, el usuario vuelve tarde y queda auditado y revocado);
-    - 001-22 (`keepalive` renueva siempre);
-    - `/bff/session` no extiende la sesión;
-    - canal trasero con dos instancias;
-    - `invalid_grant` lleva a 401.
-- [ ] **T19** · Seguridad de borde y contrato.
-  - Contenido: CSRF, cabeceras, `no-store`, limitación de tasa por usuario e IP, enrutamiento de `/api/**` con *TokenRelay*, bloqueo de `/internal/**` y `bff/contracts/openapi/bff.yaml`.
-  - Archivos: `backend/bff/src/main/**` (paquete web), `backend/bff/contracts/**`, `backend/bff/src/test/**`.
-  - Prueba primero:
+    - 001-10, en la petición del usuario (inactividad y límite absoluto);
     - 001-12: mutación sin el *token* CSRF es rechazada;
+    - 001-22: `keepalive` renueva siempre;
+    - `/bff/session` no extiende la sesión;
     - `/internal/**` responde 404 desde el BFF;
+    - `invalid_grant` lleva a 401.
+- [ ] **T19** · Endurecimiento del BFF. **Antes de producción**, no antes de validar con usuarios.
+  - Contenido:
+    - `SessionTerminator` con repositorio decorado: una sesión vencida que nadie vuelve a leer se revoca en el proveedor y se avisa a LIV (`EndSession` con `IDLE` o `ABSOLUTE`), para que la expiración quede auditada (001-18);
+    - barrido programado con ShedLock;
+    - cierre por canal trasero en `/bff/backchannel-logout` con `bff.oidc_session`. Hay que fijar el puerto del BFF en `LIV_BFF_BACKCHANNEL_URL` de `backend/dev/.env.example`, que hoy apunta a `host.docker.internal:4200`, el proxy del frontend;
+    - limitación de tasa por usuario e IP;
+    - cabeceras de doc. 02 §8.
+  - Archivos: `backend/bff/src/main/**` (paquetes de sesión y web), `backend/bff/src/main/resources/db/migration/**`, `backend/bff/src/test/**`, `backend/dev/.env.example`.
+  - Prueba primero:
+    - 001-10, sin que el usuario vuelva: la sesión vencida queda auditada y revocada;
+    - canal trasero con dos instancias;
     - 429 al superar el límite;
     - cabeceras de doc. 02 §8.
 
@@ -375,16 +389,16 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 | Criterio | Tareas | Criterio | Tareas |
 |---|---|---|---|
-| 001-01 | T17, T21, T23 | 001-12 | T19, T23 |
+| 001-01 | T17, T21, T23 | 001-12 | T18, T23 |
 | 001-02 | T13, T22, T23 | 001-13 | T13 |
 | 001-03 | T08, T23 | 001-14 | T12 |
 | 001-04 | T06, T07, T08, T23 | 001-15 | T05, T14, T22 |
 | 001-05 | T08, T13, T23 | 001-16 | T14, T21, T23 |
 | 001-06 | T07, T23 | 001-17 | T10, T12, T13 |
-| 001-07 | T07, T23 | 001-18 | T15 |
+| 001-07 | T07, T23 | 001-18 | T15, T19 |
 | 001-08 | T07, T23 | 001-19 | T08, T22, T23 |
 | 001-09 | T17, T21, T23 | 001-20 | T12, T16, T17 |
-| 001-10 | T07, T18, T23 | 001-21 | T13 |
+| 001-10 | T07, T18, T19, T23 | 001-21 | T13 |
 | 001-11 | T17, T23 | 001-22 | T18, T21, T23 |
 
 ## Cierre
