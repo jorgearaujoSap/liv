@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.platform.web;
 
+import co.com.sapenlinea.liv.platform.Correlation;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,7 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 final class CorrelationIdFilter extends OncePerRequestFilter {
 
   static final String HEADER = "X-Correlation-Id";
-  static final String MDC_KEY = "correlation_id";
+  static final String MDC_KEY = Correlation.MDC_KEY;
 
   private static final Pattern CANONICAL_UUID =
       Pattern.compile(

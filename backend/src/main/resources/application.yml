@@ -4,6 +4,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  # force: Spring Boot crea su ejecutor aunque exista otro (el auditExecutor de los oyentes de auditoría, que lo
+  # piden por nombre), y ese ejecutor de Spring Boot sigue siendo el de cualquier otro @Async.
+  task:
+    execution:
+      mode: force
   # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
   # llegan por variables de entorno y no tienen valor por defecto (sin LIV_DB_URL no arranca; sin la contraseña no
   # se autentica). Si el despliegue cambia el usuario, ninguna conexión pasa la comprobación de liv_app (abajo) y la
@@ -47,6 +52,36 @@ liv:
   # identidad: un usuario desconocido recibe 403 (001-17) y se vincula de forma explícita (decisión de T13).
   sessions:
     auto-provision: true
+  # Reentrega de los eventos del outbox cuyo oyente falló o no terminó: cada 5 minutos, los de más de 5 minutos
+  # (los más recientes pueden estar en curso), una réplica a la vez (ShedLock).
+  outbox:
+    resubmission-interval: PT5M
+    resubmit-older-than: PT5M
+  # Auditoría (001-18, T15). La clave del HMAC enmascara el usuario intentado y el autor de los cambios del
+  # proveedor; no tiene valor por defecto. El importador copia los eventos del proveedor con el cliente
+  # liv-audit-importer (client credentials) cada minuto, uno a la vez entre réplicas (ShedLock).
+  audit:
+    hmac-key: ${LIV_AUDIT_HMAC_KEY:}
+    # Oyentes de los eventos de LIV: pocos a la vez, para no quitar conexiones a las peticiones (pool de 10).
+    listener-threads: 4
+    listener-queue: 10000
+    importer:
+      enabled: true
+      # API de administración del realm, por ejemplo en la red interna; vacío: la del emisor (/admin/realms/...).
+      admin-base-uri: ${LIV_IDP_ADMIN_BASE_URI:}
+      client-id: liv-audit-importer
+      client-secret: ${LIV_AUDIT_IMPORTER_SECRET:}
+      interval: PT1M
+      initial-delay: PT1M
+      # La consulta se superpone con la anterior (eventos que el proveedor guarda tarde) y se alerta si la marca
+      # de agua se atrasa más de un día: Keycloak los borra a los 30 días (eventsExpiration).
+      overlap: PT5M
+      max-lag: P1D
+      # Un día antes de que Keycloak los borre (30 días): leer en el borde correría los desplazamientos si borra
+      # entre dos páginas.
+      retention: P29D
+      page-size: 100
+      max-pages: 20
   security:
     issuer-uri: ${LIV_OIDC_ISSUER_URI}
     user-audience: liv-api
@@ -57,6 +92,26 @@ liv:
     claims:
       administration-id: administration_id
       roles: roles
+
+# Outbox de Spring Modulith en JDBC (T15): la tabla platform.event_publication la crea Flyway, no Modulith. Los
+# eventos sin completar no se reentregan al arrancar (eso exige la base para arrancar, ajustes de T12): los
+# reentrega un trabajo programado de platform (liv.outbox).
+spring.modulith.events:
+  jdbc:
+    schema: platform
+    schema-initialization:
+      enabled: false
+  republish-outstanding-events-on-restart: false
+  # Cada entrega completada se borra (decisión del responsable, T15; migración V202611031000): la tabla no guarda
+  # los eventos para siempre.
+  completion-mode: delete
+  # Una entrega que se quedó en curso (la instancia cayó con el oyente a medias) pasa a fallida y la reentrega
+  # programada la toma.
+  staleness:
+    published: PT10M
+    processing: PT10M
+    resubmitted: PT10M
+    check-interval: PT1M
 
 # Cada línea de log lleva el id de correlación de la petición (doc. 02 §9, CorrelationIdFilter).
 logging:

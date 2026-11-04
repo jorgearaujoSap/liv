@@ -6,9 +6,11 @@ import co.com.sapenlinea.liv.core.SessionStarted;
 import co.com.sapenlinea.liv.core.UserProvisioned;
 import co.com.sapenlinea.liv.core.application.SessionStore;
 import co.com.sapenlinea.liv.platform.AdministrationContext;
+import co.com.sapenlinea.liv.platform.Correlation;
 import co.com.sapenlinea.liv.platform.DirectoryUser;
 import co.com.sapenlinea.liv.platform.TokenUser;
 import co.com.sapenlinea.liv.platform.UserDirectory;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,15 +35,18 @@ class JdbcSessionStore implements SessionStore {
   private final ApplicationEventPublisher events;
   private final TransactionTemplate administrationTransaction;
   private final TransactionTemplate newTransaction;
+  private final Clock clock;
 
   JdbcSessionStore(
       JdbcClient jdbc,
       UserDirectory directory,
       ApplicationEventPublisher events,
-      PlatformTransactionManager transactions) {
+      PlatformTransactionManager transactions,
+      Clock clock) {
     this.jdbc = jdbc;
     this.directory = directory;
     this.events = events;
+    this.clock = clock;
     this.administrationTransaction = new TransactionTemplate(transactions);
     this.newTransaction = new TransactionTemplate(transactions);
     newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -60,7 +65,13 @@ class JdbcSessionStore implements SessionStore {
         () -> {
           Optional<UUID> created = insertUser(administrationId, fullName, email, token);
           if (created.isPresent()) {
-            events.publishEvent(new UserProvisioned(created.get(), administrationId));
+            events.publishEvent(
+                new UserProvisioned(
+                    created.get(),
+                    administrationId,
+                    clock.instant(),
+                    UUID.randomUUID(),
+                    Correlation.current().orElse(null)));
             return startSession(
                 new DirectoryUser(created.get(), administrationId, true), token, sid);
           }
@@ -93,7 +104,13 @@ class JdbcSessionStore implements SessionStore {
             endedAt.ifPresent(at ->
                 events.publishEvent(
                     new SessionEnded(
-                        sid, user.id(), user.administrationId(), reason, at.toInstant())));
+                        sid,
+                        user.id(),
+                        user.administrationId(),
+                        reason,
+                        at.toInstant(),
+                        UUID.randomUUID(),
+                        Correlation.current().orElse(null))));
             return endedAt.isPresent();
           }));
     }
@@ -174,7 +191,13 @@ class JdbcSessionStore implements SessionStore {
             .optional();
     if (startedAt.isPresent()) {
       events.publishEvent(
-          new SessionStarted(sid, user.id(), user.administrationId(), startedAt.get().toInstant()));
+          new SessionStarted(
+              sid,
+              user.id(),
+              user.administrationId(),
+              startedAt.get().toInstant(),
+              UUID.randomUUID(),
+              Correlation.current().orElse(null)));
       return new StartOutcome(Result.STARTED, user.id());
     }
     // Under RLS a session of another administration is not even visible: it is not this user's.

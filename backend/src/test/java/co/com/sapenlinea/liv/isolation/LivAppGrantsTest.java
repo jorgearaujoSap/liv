@@ -27,7 +27,8 @@ class LivAppGrantsTest {
           Map.entry("core.tax_administration", "SELECT"),
           Map.entry("core.admin_user", "INSERT,SELECT"),
           Map.entry("core.user_session", "INSERT,SELECT"),
-          Map.entry("platform.event_publication", "INSERT,SELECT"),
+          // DELETE to purge the completed deliveries (T15, migration V202611031000).
+          Map.entry("platform.event_publication", "DELETE,INSERT,SELECT"),
           Map.entry("platform.app_role", "SELECT"),
           Map.entry("platform.app_permission", "SELECT"),
           Map.entry("platform.role_permission", "SELECT"),
@@ -44,7 +45,7 @@ class LivAppGrantsTest {
 
   @Test
   @DisplayName(
-      "001-17 · Las tablas concedidas a liv_app son exactamente las esperadas, sin UPDATE, DELETE ni TRUNCATE de tabla")
+      "001-17 · Las tablas concedidas a liv_app son exactamente las esperadas, sin UPDATE ni TRUNCATE de tabla y con DELETE solo en el outbox")
   void tableGrantsAreExactlyTheExpectedOnes() throws SQLException {
     assertThat(grants("'liv_app'::regrole::oid")).containsExactlyInAnyOrderEntriesOf(TABLE_GRANTS);
   }

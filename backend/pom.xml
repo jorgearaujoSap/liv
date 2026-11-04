@@ -24,6 +24,7 @@
     <spotless.version>3.10.4</spotless.version>
     <google-java-format.version>2.0.0</google-java-format.version>
     <openapi-generator.version>7.26.0</openapi-generator.version>
+    <shedlock.version>7.10.1</shedlock.version>
   </properties>
 
   <dependencyManagement>
@@ -69,6 +70,28 @@
       <groupId>org.springframework.modulith</groupId>
       <artifactId>spring-modulith-actuator</artifactId>
       <scope>runtime</scope>
+    </dependency>
+    <!-- Outbox de eventos en JDBC (ADR 0023): los eventos de core llegan a la auditoría aunque la
+         instancia se caiga después del commit (tabla platform.event_publication). -->
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-jdbc</artifactId>
+    </dependency>
+    <!-- Importador de eventos del proveedor (ADR 0023): client credentials de liv-audit-importer y un
+         solo importador a la vez entre réplicas (tabla platform.shedlock). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-spring</artifactId>
+      <version>${shedlock.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-provider-jdbc-template</artifactId>
+      <version>${shedlock.version}</version>
     </dependency>
 
     <!-- Migraciones (ADR 0023): Flyway solo corre en los perfiles dev y test; la aplicación usa liv_app. -->

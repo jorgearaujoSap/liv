@@ -12,6 +12,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -166,6 +169,58 @@ public final class LivDatabase {
       } finally {
         connection.rollback();
       }
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Sets the watermark of the importer of the identity provider, as its owner, with no ids seen
+   * (T15); {@code null} removes it, as before the first import.
+   */
+  public static void setImportCursor(Instant lastEventAt) {
+    try {
+      update(OWNER, null, "DELETE FROM audit.import_cursor");
+      if (lastEventAt != null) {
+        update(
+            OWNER,
+            null,
+            "INSERT INTO audit.import_cursor (source, last_event_at) VALUES ('IDENTITY_PROVIDER', ?)",
+            Timestamp.from(lastEventAt));
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Takes the ShedLock lock {@code name} as another replica would, for {@code duration}, with the
+   * clock of the database in UTC as ShedLock uses it (T15).
+   */
+  public static void holdLock(String name, Duration duration) {
+    try {
+      update(
+          OWNER,
+          null,
+          """
+          INSERT INTO platform.shedlock (name, lock_until, locked_at, locked_by)
+          VALUES (?, timezone('utc', now()) + make_interval(secs => ?), timezone('utc', now()),
+                  'otra-replica')
+          ON CONFLICT (name) DO UPDATE
+            SET lock_until = EXCLUDED.lock_until, locked_at = EXCLUDED.locked_at,
+                locked_by = EXCLUDED.locked_by
+          """,
+          name,
+          (double) duration.toSeconds());
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** Releases the ShedLock lock {@code name}, whoever holds it. */
+  public static void releaseLock(String name) {
+    try {
+      update(OWNER, null, "DELETE FROM platform.shedlock WHERE name = ?", name);
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
