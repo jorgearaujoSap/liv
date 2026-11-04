@@ -1,0 +1,96 @@
+# Compuerta Q08 del backend (doc. 04 §8): los contratos OpenAPI no tienen cambios incompatibles sin aprobar
+# (doc. 01 §10, ADR 0027). Solo orquesta los scripts de contracts/scripts/ de cada proyecto, desde su carpeta
+# (IN‑08): la API (backend/) y el BFF (backend/bff/), que tiene su propia copia desde T18; mientras no la tenga,
+# su trabajo no hace nada.
+# Va aparte de backend-pr para que poner o quitar la etiqueta contrato-incompatible vuelva a correr solo esta
+# comprobación y no el verify completo. La etiqueta es la aprobación del responsable; la pone una persona con
+# permiso de escritura, nunca un agente.
+name: backend-contracts-pr
+
+on:
+  pull_request:
+    branches: [main]
+    # edited: si el PR cambia de rama base, se vuelve a comparar.
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    paths:
+      - 'backend/contracts/**'
+      - 'backend/pom.xml'
+      - 'backend/bff/contracts/**'
+      - 'backend/bff/pom.xml'
+      - '.github/workflows/backend-contracts-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-contracts-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: ${{ matrix.project }} · contratos (Q08)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # Leer las etiquetas del PR en vivo, no las del evento: volver a correr una ejecución vieja no recupera una
+      # etiqueta que ya se quitó.
+      issues: read
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [backend, backend/bff]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      # El checkout es el merge del PR con main; con fetch-depth 2 trae también su primer padre, la punta de main
+      # contra la que se compara.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: ¿Tiene comparador el proyecto?
+        id: project
+        working-directory: .
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          if [ -f "$PROJECT/contracts/scripts/compare.sh" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$PROJECT aún no tiene contracts/scripts/compare.sh: no hay contratos que comparar."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Java para el Maven del proyecto, que corre openapi-diff.
+      - if: steps.project.outputs.enabled == 'true'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ${{ matrix.project }}/pom.xml
+
+      - name: Pruebas del comparador
+        if: steps.project.outputs.enabled == 'true'
+        run: sh contracts/scripts/test/run.sh
+
+      - name: Etiqueta contrato-incompatible
+        id: label
+        if: steps.project.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          approved=$(gh api "repos/$GH_REPO/issues/$PR_NUMBER/labels" --jq 'any(.[]; .name == "contrato-incompatible")')
+          echo "approved=$approved" >> "$GITHUB_OUTPUT"
+
+      - name: Contratos del PR contra main
+        if: steps.project.outputs.enabled == 'true'
+        env:
+          LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
+        run: sh contracts/scripts/compare.sh HEAD^1

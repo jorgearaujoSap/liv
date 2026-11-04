@@ -1,0 +1,99 @@
+# Publicación del backend al integrar en main (doc. 04 §9). Por ahora solo los contratos OpenAPI, como releases
+# versionadas que descarga el frontend (plan de la feature 001, paso 6; ADR 0027), de la API (backend/) y del BFF
+# (backend/bff/, desde que tenga su copia de los scripts en T18). La imagen, el SBOM, la firma y el despliegue a
+# staging se agregan con sus tareas (T16 y el resto de F0‑07).
+name: backend-main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/contracts/**'
+      - 'backend/bff/contracts/**'
+      - '.github/workflows/backend-main.yml'
+  # Para reintentar una publicación que falló, solo desde main.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Las publicaciones van en fila, sin cancelarse. GitHub deja una sola en espera: con tres integraciones seguidas,
+# la del medio se cancela y su versión, si la había, se publica con «Re-run» de esa ejecución.
+concurrency:
+  group: backend-main
+  cancel-in-progress: false
+
+jobs:
+  contracts:
+    name: ${{ matrix.project }} · publicar contratos
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      # Crear las releases y sus etiquetas.
+      contents: write
+      # Leer las etiquetas del PR integrado.
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      # Uno a la vez, para no competir por la misma fila de publicación.
+      max-parallel: 1
+      matrix:
+        project: [backend, backend/bff]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      # Con fetch-depth 2 trae el commit anterior de main (squash e historia lineal) contra el que se compara.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: ¿Tiene contratos que publicar el proyecto?
+        id: project
+        working-directory: .
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          if [ -f "$PROJECT/contracts/scripts/publish.sh" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$PROJECT aún no tiene contracts/scripts/publish.sh: no hay contratos que publicar."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Java para el Maven del proyecto, que corre openapi-diff.
+      - if: steps.project.outputs.enabled == 'true'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ${{ matrix.project }}/pom.xml
+
+      # Q08 no es todavía un check obligatorio: se repite aquí para no publicar lo que no la cumple, también si dos
+      # PR subieron la misma versión. La aprobación es la etiqueta del PR que se integró en este commit.
+      - name: Etiqueta contrato-incompatible del PR integrado
+        id: label
+        if: steps.project.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          approved=$(gh api "repos/$GH_REPO/commits/$GITHUB_SHA/pulls" \
+            --jq 'any(.[]; .merged_at != null and any(.labels[]; .name == "contrato-incompatible"))')
+          echo "approved=$approved" >> "$GITHUB_OUTPUT"
+
+      - name: Contratos contra el commit anterior
+        if: steps.project.outputs.enabled == 'true'
+        env:
+          LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
+        run: sh contracts/scripts/compare.sh HEAD^1
+
+      - name: Publicar los contratos
+        if: steps.project.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: sh contracts/scripts/publish.sh
