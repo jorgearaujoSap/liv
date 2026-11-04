@@ -1,11 +1,11 @@
 -- Esquema del BFF (001 T16; plan, paso 10; doc. 02 §5.2). Corre como liv_bff_owner, dueño del esquema bff, con el
 -- historial de Flyway en bff.flyway_schema_history. Los roles, la base y el esquema los crea la infraestructura
 -- (README, "Base de datos"): aquí se comprueba que estén como se necesitan y se fijan los permisos que le
--- corresponden al dueño del esquema. Las tablas (Spring Session, bff.oidc_session y ShedLock) llegan con las
--- tareas que las usan (T17 y T18).
+-- corresponden al dueño del esquema. Las tablas llegan con las tareas que las usan.
 
 -- Contrato de los roles: si la infraestructura no lo cumple, la migración se detiene con un mensaje claro.
--- Requiere PostgreSQL 16 o superior (opciones INHERIT y SET de las membresías).
+-- Requiere PostgreSQL 16 o superior: desde esa versión, quien crea un rol con CREATEROLE queda como miembro de él
+-- (ver abajo).
 DO $$
 BEGIN
   IF current_setting('server_version_num')::int < 160000 THEN
@@ -32,13 +32,14 @@ BEGIN
     RAISE EXCEPTION 'liv_bff_owner y liv_bff no pueden ser miembros de otros roles';
   END IF;
   -- Quien crea los roles en RDS (con CREATEROLE) queda como miembro, y para crear el esquema a nombre de
-  -- liv_bff_owner debe poder asumirlo. Cualquier otro rol que los herede o los asuma (liv_app, por ejemplo) vería
-  -- el esquema bff.
-  IF EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member
-              WHERE m.roleid IN ('liv_bff_owner'::regrole, 'liv_bff'::regrole)
-                AND (m.inherit_option OR m.set_option)
-                AND NOT (r.rolsuper OR r.rolcreaterole)) THEN
-    RAISE EXCEPTION 'Solo un administrador (CREATEROLE) puede ser miembro de liv_bff_owner o de liv_bff';
+  -- liv_bff_owner debe poder asumirlo. Cualquier otro miembro, directo o a través de otro rol y con cualquier
+  -- opción (heredar, asumir o conceder), podría llegar al esquema bff. Ningún rol de LIV (liv_*) es administrador.
+  IF EXISTS (SELECT 1 FROM pg_roles r, (VALUES ('liv_bff_owner'), ('liv_bff')) AS bff_role(name)
+              WHERE r.rolname <> bff_role.name
+                AND NOT r.rolsuper
+                AND pg_has_role(r.oid, bff_role.name, 'MEMBER')
+                AND NOT (r.rolcreaterole AND r.rolname NOT LIKE 'liv\_%')) THEN
+    RAISE EXCEPTION 'Solo un administrador ajeno a LIV (CREATEROLE) puede ser miembro de liv_bff_owner o de liv_bff';
   END IF;
 END
 $$;

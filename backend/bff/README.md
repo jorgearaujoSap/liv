@@ -2,7 +2,7 @@
 
 *Backend for frontend* del sistema de liquidación y recaudo del impuesto vehicular (LIV), según el ADR 0010. Hace el inicio de sesión OIDC (código con PKCE) y guarda la sesión en el servidor, así que el navegador nunca recibe un *token*. También es la única puerta de entrada del navegador a la API. Usa Java 21 LTS, Spring Boot 4.1 y Spring Cloud Gateway Server MVC.
 
-> Proyecto **autónomo**: vive en `backend/bff/` y no depende de ningún archivo fuera de esta carpeta (doc. 01 §14.1). Con la API (`liv-api`) solo se comunica por HTTP; con el frontend, por su contrato OpenAPI, que llegará con T19.
+> Proyecto **autónomo**: vive en `backend/bff/` y no depende de ningún archivo fuera de esta carpeta (doc. 01 §14.1). Con la API (`liv-api`) solo se comunica por HTTP; con el frontend, por su contrato OpenAPI (`contracts/openapi/bff.yaml`), que llegará con las tareas siguientes.
 
 ## Requisitos
 
@@ -54,12 +54,13 @@ El BFF usa su propio esquema, `bff`, en la base de LIV, con dos roles (doc. 02 �
 - **Lo que debe entregar la infraestructura** (en local, el entorno de desarrollo del backend; en AWS, la infraestructura como código):
   - los roles `liv_bff_owner` y `liv_bff`, con inicio de sesión y sin atributos de privilegio ni membresías;
   - en la base, `REVOKE ALL ON DATABASE … FROM PUBLIC` y `REVOKE ALL ON SCHEMA public FROM PUBLIC`, más `CONNECT` para los dos roles. `liv_bff_owner` no es dueño de la base y no puede revocarlos por su cuenta;
+  - en las demás bases del servidor (en RDS, `postgres`), `REVOKE ALL … FROM PUBLIC`: la migración solo ve la base en la que corre;
   - el esquema: `CREATE SCHEMA bff AUTHORIZATION liv_bff_owner`. Flyway no lo crea: el historial queda dentro de él, en `bff.flyway_schema_history`.
 - **La primera migración** (`V202611032100__bff_schema_roles.sql`, PostgreSQL 16 o superior) comprueba ese contrato y se detiene con un mensaje claro si no se cumple. La reversión deja la base como estaba, y la migración se puede repetir al corregir. Comprueba que:
   - corre como `liv_bff_owner` y que ese rol es el dueño del esquema;
   - ninguno de los dos roles es superusuario ni tiene `BYPASSRLS`, `CREATEROLE`, `CREATEDB` o `REPLICATION`;
   - ninguno de los dos es miembro de otros roles. En RDS el poder llega por membresía (`rds_superuser`, `pg_read_all_data`…);
-  - solo un administrador (con `CREATEROLE`) es miembro de ellos. Quien los crea en RDS queda como miembro;
+  - ningún rol es miembro de ellos, ni directo ni a través de otro, salvo un administrador ajeno a LIV (con `CREATEROLE` y sin el prefijo `liv_`). Quien los crea en RDS queda como miembro;
   - solo los dos roles del BFF tienen permisos sobre `bff` (`liv_app` no), y los permisos por defecto del dueño solo dan DML en `bff` a `liv_bff`;
   - ninguno de los dos ve otros esquemas (ni los de LIV ni `public`), crea objetos fuera de `bff` ni crea esquemas en la base. `liv_bff` tampoco crea objetos en `bff` ni tiene `TEMP`.
 
@@ -79,4 +80,4 @@ Al subir Spring Boot de versión menor, hay que confirmar en la tabla de compati
 
 ## Estado
 
-Esqueleto (feature 001, T16): proyecto, guardias y esquema `bff` sin tablas, todavía sin endpoints. Siguen el inicio y el cierre de sesión (T17), el ciclo de vida de la sesión (T18) y la seguridad de borde con el contrato `bff.yaml` (T19). Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
+Esqueleto (feature 001, T16): proyecto, guardias y esquema `bff` sin tablas, todavía sin endpoints. El inicio de sesión, la sesión y la seguridad de borde llegan con las tareas siguientes de la feature 001 (`tasks.md`). Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
