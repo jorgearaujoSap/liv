@@ -3,6 +3,7 @@ package co.com.sapenlinea.liv.identityconfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import co.com.sapenlinea.liv.platform.RealKeycloak;
+import java.net.http.HttpResponse;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -21,7 +22,8 @@ class RealmProfileLimitsTest {
   @Tag("001-14")
   @DisplayName("001-14 · Keycloak acepta los largos exactos del registro de LIV")
   void exactLimitsAreAccepted() {
-    assertThat(create("N".repeat(74), "A".repeat(75), email(200))).isEqualTo(201);
+    assertThat(create("Nombre", "Apellido", email(80)).statusCode()).as("control").isEqualTo(201);
+    assertThat(create("N".repeat(74), "A".repeat(75), email(200)).statusCode()).isEqualTo(201);
   }
 
   @Test
@@ -29,27 +31,33 @@ class RealmProfileLimitsTest {
   @DisplayName(
       "001-14 · Keycloak rechaza un nombre, un apellido o un correo más largos que el registro")
   void longerValuesAreRefused() {
-    assertThat(create("N".repeat(75), "Apellido", email(80))).as("nombre").isEqualTo(400);
-    assertThat(create("Nombre", "A".repeat(76), email(80))).as("apellido").isEqualTo(400);
-    assertThat(create("Nombre", "Apellido", email(201))).as("correo").isEqualTo(400);
+    assertRefused(create("N".repeat(75), "Apellido", email(80)), "firstName");
+    assertRefused(create("Nombre", "A".repeat(76), email(80)), "lastName");
+    assertRefused(create("Nombre", "Apellido", email(201)), "email");
   }
 
   @Test
   @Tag("001-14")
   @DisplayName("001-14 · Keycloak rechaza un usuario sin nombre o sin apellido")
   void nameIsRequired() {
-    assertThat(create(null, "Apellido", email(80))).as("sin nombre").isEqualTo(400);
-    assertThat(create("Nombre", null, email(80))).as("sin apellido").isEqualTo(400);
+    assertRefused(create(null, "Apellido", email(80)), "firstName");
+    assertRefused(create("Nombre", null, email(80)), "lastName");
   }
 
   @Test
   @Tag("001-14")
   @DisplayName("001-14 · Los espacios alrededor no hacen pasar un nombre más largo que el registro")
   void surroundingSpacesDoNotStretchTheLimit() {
-    assertThat(create("  " + "N".repeat(74) + "  ", "Apellido", email(80))).isEqualTo(400);
+    assertRefused(create("  " + "N".repeat(74) + "  ", "Apellido", email(80)), "firstName");
   }
 
-  private static int create(String firstName, String lastName, String email) {
+  /** Refused because of {@code field}, not for any other reason of the request. */
+  private static void assertRefused(HttpResponse<String> answer, String field) {
+    assertThat(answer.statusCode()).as("estado por %s", field).isEqualTo(400);
+    assertThat(answer.body()).as("motivo").contains("\"field\":\"" + field + "\"");
+  }
+
+  private static HttpResponse<String> create(String firstName, String lastName, String email) {
     StringBuilder json =
         new StringBuilder("{\"username\":\"perfil-")
             .append(UUID.randomUUID())
@@ -62,7 +70,7 @@ class RealmProfileLimitsTest {
     if (lastName != null) {
       json.append(",\"lastName\":\"").append(lastName).append('"');
     }
-    return RealKeycloak.createUserStatus(json.append('}').toString());
+    return RealKeycloak.createUserAnswer(json.append('}').toString());
   }
 
   /**

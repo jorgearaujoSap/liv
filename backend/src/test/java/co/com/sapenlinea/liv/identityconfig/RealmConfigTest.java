@@ -389,7 +389,9 @@ class RealmConfigTest {
           .as(attribute)
           .isEqualTo(List.of("admin", "user"));
     }
-    // Every user the realm declares, service accounts included, has them, or it would not import.
+    // Every user the realm declares has them: keycloak-config-cli writes those users through the
+    // administration API, which applies the profile. Service accounts Keycloak creates by itself,
+    // like the BFF's, are not declared here and are not validated until someone edits them.
     List<Map<String, Object>> users = new ArrayList<>(list(realm.get("users")));
     users.addAll(list(dev.get("users")));
     for (Map<String, Object> user : users) {

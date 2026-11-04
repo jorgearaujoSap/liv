@@ -327,6 +327,13 @@ clients:
     enabled: false
 
 users:
+  # Nombre y apellido son obligatorios en el perfil: la cuenta de servicio del BFF se declara con ellos para
+  # que un administrador pueda editarla desde la consola.
+  - username: service-account-liv-bff-service
+    enabled: true
+    serviceAccountClientId: liv-bff-service
+    firstName: LIV
+    lastName: BFF
   - username: service-account-liv-audit-importer
     enabled: true
     # Nombre y apellido son obligatorios en el perfil, también para una cuenta de servicio.

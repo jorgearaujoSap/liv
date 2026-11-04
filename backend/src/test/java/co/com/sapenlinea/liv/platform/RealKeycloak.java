@@ -158,15 +158,14 @@ public final class RealKeycloak {
   }
 
   /**
-   * The status of creating a user with this JSON representation through the administration API, as
+   * The answer to creating a user with this JSON representation through the administration API, as
    * a console would, whatever it is: the profile of the realm may refuse it.
    */
-  public static int createUserStatus(String representation) {
+  public static HttpResponse<String> createUserAnswer(String representation) {
     return adminAnswer(
-            HttpRequest.newBuilder(URI.create(adminBase() + "/users"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(representation)))
-        .statusCode();
+        HttpRequest.newBuilder(URI.create(adminBase() + "/users"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(representation)));
   }
 
   /** Grants a realm role to a user with the administration API, as an administrator would. */
