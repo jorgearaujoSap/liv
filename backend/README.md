@@ -27,6 +27,7 @@ backend/
 ├── pom.xml                         ← un solo artefacto: liv-api
 ├── mvnw, mvnw.cmd, .mvn/           ← Maven wrapper
 ├── contracts/openapi/              ← contratos OpenAPI, uno por módulo (contract-first)
+├── contracts/scripts/              ← comparador de cambios incompatibles y publicación de los contratos
 └── src/
     ├── main/java/co/com/sapenlinea/liv/
     │   ├── LivApplication.java
@@ -60,6 +61,11 @@ La API es *contract-first* (ADR 0005, doc. 01 §10): primero se escribe el OpenA
 
 - `./mvnw` genera las interfaces de servidor y sus modelos con `openapi-generator-maven-plugin` en `target/generated-sources/openapi/`, dentro del paquete `<modulo>.api.contract`. **No se editan ni se suben al repositorio.**
 - La generación valida cada contrato: un OpenAPI inválido detiene el *build*.
+- **Versión y compatibilidad (Q08, ADR 0027).** Cada contrato lleva su versión en `info.version` (`X.Y.Z`), y si el contrato cambia, la versión sube. Un cambio incompatible, o quitar un contrato, exige la etiqueta `contrato-incompatible` en el PR (es la aprobación explícita) y subir la versión mayor. El *workflow* `backend-contracts-pr` lo comprueba con `openapi-diff`; antes de abrir el PR, también en local (en Windows, desde Git Bash):
+  - `sh contracts/scripts/compare.sh origin/main` compara los contratos con `main` (con la rama al día);
+  - `sh contracts/scripts/test/run.sh` prueba el comparador.
+- **Publicación.** Al integrar en `main`, el *workflow* `backend-main` publica cada versión nueva como *release* `contract-<nombre>-vX.Y.Z`, con `<nombre>.yaml` y su SHA-256 (`contracts/scripts/publish.sh`). El frontend la descarga de `https://github.com/jorgearaujoSap/liv/releases/download/contract-<nombre>-vX.Y.Z/<nombre>.yaml` y fija la versión y el SHA-256 en su `api-spec/versions.json`. Una versión publicada no cambia.
+- El nombre del archivo identifica al contrato y es único, también entre `contracts/openapi/` y `bff/contracts/openapi/` (el BFF).
 - Todo controlador implementa su interfaz generada y no declara rutas propias; nadie escribe a mano en los paquetes `api.contract`. `ContractRulesTest` lo verifica.
 - Los errores se responden con `ProblemDetail` de Spring (RFC 9457) y el código de la regla en `code`.
 
