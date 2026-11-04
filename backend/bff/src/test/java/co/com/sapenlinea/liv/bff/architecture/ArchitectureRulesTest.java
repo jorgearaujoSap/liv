@@ -31,9 +31,14 @@ class ArchitectureRulesTest {
   /**
    * The rule above only sees the code of the BFF: a Keycloak adapter that arrived through the
    * pom.xml and configured itself would pass it. No Keycloak class may be on the classpath at all.
+   * The test classpath counts too: if a test ever needs testcontainers-keycloak, this check must be
+   * narrowed to the runtime dependencies.
    */
   @ArchTest
   static void noIdentityProviderLibrariesOnTheClasspath(JavaClasses bffClasses) {
+    assertThat(new ClassFileImporter().importPackages("org.springframework.boot"))
+        .as("el importador lee el classpath")
+        .isNotEmpty();
     assertThat(new ClassFileImporter().importPackages("org.keycloak"))
         .as("clases de Keycloak en el classpath (001-20)")
         .isEmpty();

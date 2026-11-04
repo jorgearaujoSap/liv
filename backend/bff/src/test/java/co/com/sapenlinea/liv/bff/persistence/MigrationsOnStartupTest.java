@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,8 @@ import org.springframework.test.context.DynamicPropertySource;
 class MigrationsOnStartupTest {
 
   @Autowired private DataSource dataSource;
+
+  @Autowired private Flyway flyway;
 
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) {
@@ -54,6 +57,16 @@ class MigrationsOnStartupTest {
                     + " WHERE tablename = 'flyway_schema_history' AND schemaname <> 'bff'"))
         .as("historial fuera del esquema bff")
         .isEqualTo("0");
+  }
+
+  @Test
+  @DisplayName("La configuración de Flyway es la misma que usan las pruebas del contrato")
+  void flywayConfigurationMatchesTheContractTests() {
+    var configuration = flyway.getConfiguration();
+    assertThat(configuration.getSchemas()).containsExactly("bff");
+    assertThat(configuration.getDefaultSchema()).isEqualTo("bff");
+    assertThat(configuration.isCreateSchemas()).isFalse();
+    assertThat(configuration.getTable()).isEqualTo("flyway_schema_history");
   }
 
   private String value(String select) throws SQLException {

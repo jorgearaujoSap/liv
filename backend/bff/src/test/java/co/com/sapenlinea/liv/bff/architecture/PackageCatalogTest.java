@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * All the code of the BFF lives under {@code co.com.sapenlinea.liv.bff}, in the packages that the
- * feature 001 tasks declare (tasks.md, T17 to T19). A new package is a design change: it is
- * reviewed and added to this catalog in the same pull request.
+ * feature 001 tasks declare (tasks.md). A new package is a design change: it is reviewed and added
+ * to this catalog in the same pull request.
  */
 class PackageCatalogTest {
 

@@ -67,6 +67,8 @@ class BffSchemaContractTest {
 
     execute(database.url(), APP, "INSERT INTO bff.probe (value) VALUES ('a')");
     assertThat(queryValue(database.url(), APP, "SELECT value FROM bff.probe")).isEqualTo("a");
+    assertThat(queryValue(database.url(), APP, "SELECT last_value FROM bff.probe_id_seq"))
+        .isEqualTo("1");
     execute(database.url(), APP, "UPDATE bff.probe SET value = 'b'");
     execute(database.url(), APP, "DELETE FROM bff.probe");
     assertThatThrownBy(() -> execute(database.url(), APP, "DROP TABLE bff.probe"))
@@ -117,6 +119,26 @@ class BffSchemaContractTest {
   }
 
   @Test
+  @DisplayName(
+      "Un administrador de la infraestructura (CREATEROLE) puede ser miembro de los roles del BFF,"
+          + " como quien los crea en RDS")
+  void infrastructureAdministratorMayBeAMember() throws SQLException {
+    Database database = newDatabase();
+    try {
+      asSuperuser(
+          "postgres",
+          """
+          CREATE ROLE bff_test_admin CREATEROLE;
+          GRANT liv_bff_owner TO bff_test_admin WITH ADMIN TRUE, INHERIT FALSE, SET TRUE;
+          GRANT liv_bff TO bff_test_admin WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+          """);
+      migrate(database.url());
+    } finally {
+      asSuperuser("postgres", "DROP ROLE bff_test_admin");
+    }
+  }
+
+  @Test
   @DisplayName("Si otro rol corre las migraciones, se detienen aunque sea el dueño del esquema")
   void onlyTheSchemaOwnerRoleMigrates() throws SQLException {
     Database database = newDatabase();
@@ -158,6 +180,12 @@ class BffSchemaContractTest {
    * Cada caso: escenario, cambio en la base nueva ({@code %s} es su nombre), cambio de un rol con
    * cómo deshacerlo (los roles son de todo el servidor) y el mensaje esperado.
    */
+  private static final String MEMBERSHIP =
+      "Solo un administrador ajeno a LIV (CREATEROLE) puede ser miembro de liv_bff_owner o de liv_bff";
+
+  private static final String DEFAULTS =
+      "Los permisos por defecto de liv_bff_owner solo pueden dar DML en bff a liv_bff";
+
   static Stream<Arguments> brokenContracts() {
     return Stream.of(
         broken(
@@ -183,7 +211,33 @@ class BffSchemaContractTest {
             "liv_app es miembro de liv_bff",
             "GRANT liv_bff TO liv_app",
             "REVOKE liv_bff FROM liv_app",
-            "Solo un administrador (CREATEROLE) puede ser miembro de liv_bff_owner o de liv_bff"),
+            MEMBERSHIP),
+        brokenRole(
+            "liv_app es miembro de liv_bff_owner",
+            "GRANT liv_bff_owner TO liv_app",
+            "REVOKE liv_bff_owner FROM liv_app",
+            MEMBERSHIP),
+        brokenRole(
+            "liv_app puede asumir liv_bff sin heredarlo",
+            "GRANT liv_bff TO liv_app WITH INHERIT FALSE, SET TRUE",
+            "REVOKE liv_bff FROM liv_app",
+            MEMBERSHIP),
+        brokenRole(
+            "liv_app solo puede conceder liv_bff",
+            "GRANT liv_bff TO liv_app WITH ADMIN TRUE, INHERIT FALSE, SET FALSE",
+            "REVOKE liv_bff FROM liv_app",
+            MEMBERSHIP),
+        brokenRole(
+            "liv_app tiene CREATEROLE y es miembro de liv_bff",
+            "ALTER ROLE liv_app CREATEROLE; GRANT liv_bff TO liv_app",
+            "REVOKE liv_bff FROM liv_app; ALTER ROLE liv_app NOCREATEROLE",
+            MEMBERSHIP),
+        brokenRole(
+            "un rol sin privilegios hereda liv_bff_owner a través de un administrador",
+            "CREATE ROLE bff_test_admin CREATEROLE; CREATE ROLE bff_test_helper;"
+                + " GRANT liv_bff_owner TO bff_test_admin; GRANT bff_test_admin TO bff_test_helper",
+            "DROP ROLE bff_test_helper; DROP ROLE bff_test_admin",
+            MEMBERSHIP),
         broken(
             "liv_app tiene acceso al esquema bff",
             "GRANT USAGE ON SCHEMA bff TO liv_app",
@@ -192,11 +246,24 @@ class BffSchemaContractTest {
             "hay un permiso por defecto de más para liv_bff",
             "ALTER DEFAULT PRIVILEGES FOR ROLE liv_bff_owner IN SCHEMA bff"
                 + " GRANT TRUNCATE ON TABLES TO liv_bff",
-            "Los permisos por defecto de liv_bff_owner solo pueden dar DML en bff a liv_bff"),
+            DEFAULTS),
+        broken(
+            "liv_bff ejecutaría por defecto las funciones del dueño",
+            "ALTER DEFAULT PRIVILEGES FOR ROLE liv_bff_owner GRANT EXECUTE ON FUNCTIONS TO liv_bff",
+            DEFAULTS),
+        broken(
+            "liv_bff tendría DML por defecto fuera de bff",
+            "ALTER DEFAULT PRIVILEGES FOR ROLE liv_bff_owner GRANT SELECT ON TABLES TO liv_bff",
+            DEFAULTS),
+        broken(
+            "liv_bff podría cambiar por defecto las secuencias",
+            "ALTER DEFAULT PRIVILEGES FOR ROLE liv_bff_owner IN SCHEMA bff"
+                + " GRANT UPDATE ON SEQUENCES TO liv_bff",
+            DEFAULTS),
         broken(
             "hay un permiso por defecto para liv_app",
             "ALTER DEFAULT PRIVILEGES FOR ROLE liv_bff_owner GRANT SELECT ON TABLES TO liv_app",
-            "Los permisos por defecto de liv_bff_owner solo pueden dar DML en bff a liv_bff"),
+            DEFAULTS),
         broken(
             "liv_bff tiene acceso a un esquema de LIV",
             "CREATE SCHEMA core; GRANT USAGE ON SCHEMA core TO liv_bff",
@@ -212,6 +279,10 @@ class BffSchemaContractTest {
         broken(
             "liv_bff puede crear objetos en public",
             "GRANT CREATE ON SCHEMA public TO liv_bff",
+            "no pueden crear objetos fuera de bff"),
+        broken(
+            "liv_bff_owner puede crear objetos en public",
+            "GRANT CREATE ON SCHEMA public TO liv_bff_owner",
             "no pueden crear objetos fuera de bff"),
         broken(
             "liv_bff puede crear esquemas en la base",

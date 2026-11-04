@@ -22,7 +22,7 @@ import org.springframework.test.context.DynamicPropertySource;
 /**
  * Spike T16: Spring Cloud Gateway Server MVC funciona con Spring Boot 4.1. El BFF arranca sin base
  * de datos (la conexión es perezosa) y enruta una ruta de prueba hacia un servidor de juguete. Las
- * rutas reales (/api/** con TokenRelay) llegan con T19.
+ * rutas reales (/api/** con TokenRelay) llegan con las tareas siguientes.
  */
 @SpringBootTest(
     webEnvironment = WebEnvironment.RANDOM_PORT,
