@@ -127,6 +127,12 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-03
 
+- Feature 001, límites del perfil del *realm* (PR #62): cierra el pendiente de los ajustes de T13.
+  - **Qué cambia:** nombre de hasta 74 caracteres, apellido de hasta 75 y correo de hasta 200. Nombre y apellido son obligatorios y los espacios cuentan al medir.
+  - **Efecto:** Keycloak rechaza al crear o editar un usuario lo que no cabe en el registro de LIV, en lugar de que el primer ingreso falle con 401 `001-14`.
+  - **Pruebas:** se comprueba contra Keycloak real.
+  - **Revisión:** dos revisores adversariales de nivel alto, que aprobaron en la segunda ronda.
+
 - Feature 001, T15 (PR #60): auditoría en el backend. 001-18 queda marcado.
   - **Eventos de LIV:** inicio, fin, rechazo y primer ingreso llegan por el *outbox* JDBC de Spring Modulith a oyentes asíncronos, cada uno en su administración. Los rechazos sin administración válida quedan como fila de plataforma, sin actor.
   - **Eventos de Keycloak:**
