@@ -202,6 +202,9 @@ requiredActions:
 
 # 001-17: perfil de usuario declarativo. administration_id solo lo ve y lo edita un administrador del
 # proveedor; el usuario no puede cambiarlo. Sin atributos no declarados.
+# 001-21: los largos caben en el registro de LIV (core.admin_user): el claim name es "firstName lastName"
+# y cabe en full_name (74 + 1 + 75 = 150), y el correo en email (200). Un nombre más largo lo rechaza aquí
+# el proveedor, y no LIV en el primer ingreso (plan, ajustes de T13).
 components:
   org.keycloak.userprofile.UserProfileProvider:
     - providerId: declarative-user-profile
@@ -210,9 +213,9 @@ components:
           - >-
             {"attributes":[
             {"name":"username","displayName":"${username}","validations":{"length":{"min":3,"max":255},"username-prohibited-characters":{},"up-username-not-idn-homograph":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
-            {"name":"email","displayName":"${email}","validations":{"email":{},"length":{"max":255}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
-            {"name":"firstName","displayName":"${firstName}","validations":{"length":{"max":255},"person-name-prohibited-characters":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
-            {"name":"lastName","displayName":"${lastName}","validations":{"length":{"max":255},"person-name-prohibited-characters":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"email","displayName":"${email}","validations":{"email":{},"length":{"max":200}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"firstName","displayName":"${firstName}","validations":{"length":{"max":74},"person-name-prohibited-characters":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
+            {"name":"lastName","displayName":"${lastName}","validations":{"length":{"max":75},"person-name-prohibited-characters":{}},"permissions":{"view":["admin","user"],"edit":["admin"]},"multivalued":false},
             {"name":"administration_id","displayName":"Administración (UUID)","validations":{"pattern":{"pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$","error-message":"Debe ser un UUID de administración"}},"permissions":{"view":["admin"],"edit":["admin"]},"multivalued":false}
             ],"groups":[]}
 
