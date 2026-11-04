@@ -3,7 +3,10 @@
 # (backend/) y el BFF (backend/bff/), que tiene su propia copia desde T18; mientras no la tenga, su trabajo no
 # hace nada.
 # Juzga el comparador de la base (la punta de main, con su pom.xml), no el del PR: un PR no puede cambiar la regla
-# con la que se juzga. Los scripts del PR solo se prueban con su test/run.sh, y rigen desde que se integran.
+# con la que se juzga. Los scripts del PR solo se prueban, en otro trabajo, con su test/run.sh, y rigen desde que
+# se integran. El trabajo que juzga no ejecuta nada del PR ni restaura la caché de Maven, que el PR podría haber
+# escrito. Límite: un pull_request corre este workflow tal como está en el PR, así que un mismo PR no puede cambiar
+# a la vez este workflow y un contrato.
 # Va aparte de backend-pr para que poner o quitar la etiqueta contrato-incompatible vuelva a correr solo esta
 # comprobación y no el verify completo. La etiqueta es la aprobación del responsable; la pone una persona con
 # permiso de escritura, nunca un agente.
@@ -20,6 +23,7 @@ on:
       - 'backend/bff/contracts/**'
       - 'backend/bff/pom.xml'
       - '.github/workflows/backend-contracts-pr.yml'
+      - '.github/workflows/backend-main.yml'
 
 permissions:
   contents: read
@@ -29,6 +33,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Pruebas de los scripts tal como quedan en el PR. Van aparte del juez para que nada de lo que ejecutan llegue
+  # al trabajo que compara.
+  test:
+    name: ${{ matrix.project }} · pruebas del comparador
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [backend, backend/bff]
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # Sin pruebas solo si el proyecto nunca las tuvo: quitarlas no apaga la compuerta en silencio.
+      - name: ¿Tiene pruebas el comparador del proyecto?
+        id: project
+        working-directory: .
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          if [ -f "$PROJECT/contracts/scripts/test/run.sh" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          elif git cat-file -e "HEAD^1:$PROJECT/contracts/scripts/test/run.sh" 2> /dev/null; then
+            echo "::error::El PR quita $PROJECT/contracts/scripts/test/run.sh: las pruebas del comparador no se quitan."
+            exit 1
+          else
+            echo "$PROJECT no tiene comparador: no hay pruebas que correr."
+          fi
+
+      # Java para el Maven del proyecto, que corre openapi-diff.
+      - if: steps.project.outputs.enabled == 'true'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ${{ matrix.project }}/pom.xml
+
+      - name: Pruebas de los scripts del PR
+        if: steps.project.outputs.enabled == 'true'
+        run: sh contracts/scripts/test/run.sh
+
   compare:
     name: ${{ matrix.project }} · contratos (Q08)
     runs-on: ubuntu-24.04
@@ -54,8 +106,18 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
+      - name: El PR no cambia a la vez los workflows de contratos y los contratos
+        working-directory: .
+        run: |
+          cambios=$(git diff --name-only HEAD^1 HEAD)
+          if printf '%s\n' "$cambios" | grep -Eq '^\.github/workflows/backend-(contracts-pr|main)\.yml$' &&
+             printf '%s\n' "$cambios" | grep -Eq '^backend/(bff/)?contracts/'; then
+            echo "::error::Un PR que cambia los workflows de contratos no cambia también los contratos ni sus scripts: van en PR separados."
+            exit 1
+          fi
+
       # Juez: el comparador de la base, en un worktree aparte. Si la base aún no lo tiene (el PR que lo agrega),
-      # juzga el del PR; si ninguno lo tiene, el proyecto no tiene contratos que comparar.
+      # juzga el del PR. Si ninguno lo tiene pero hay contratos, falla: quitar los scripts no apaga la compuerta.
       - name: Comparador que juzga
         id: judge
         working-directory: .
@@ -68,24 +130,22 @@ jobs:
           elif [ -f "$PROJECT/contracts/scripts/compare.sh" ]; then
             echo "La base aún no tiene comparador: juzga el del PR, que lo agrega."
             echo "dir=$GITHUB_WORKSPACE/$PROJECT" >> "$GITHUB_OUTPUT"
+          elif git cat-file -e "HEAD:$PROJECT/contracts/openapi" 2> /dev/null; then
+            echo "::error::$PROJECT tiene contratos pero no contracts/scripts/compare.sh."
+            exit 1
           else
-            echo "$PROJECT no tiene contracts/scripts/compare.sh: no hay contratos que comparar."
+            echo "$PROJECT no tiene contratos que comparar."
             exit 0
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
 
-      # Java para el Maven del proyecto, que corre openapi-diff.
+      # Java para el Maven de la base, que corre openapi-diff. Sin caché: el trabajo de pruebas del PR podría haberla
+      # escrito.
       - if: steps.judge.outputs.enabled == 'true'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '21'
-          cache: maven
-          cache-dependency-path: ${{ matrix.project }}/pom.xml
-
-      - name: Pruebas de los scripts del PR
-        if: steps.judge.outputs.enabled == 'true' && hashFiles(format('{0}/contracts/scripts/test/run.sh', matrix.project)) != ''
-        run: sh contracts/scripts/test/run.sh
 
       - name: Etiqueta contrato-incompatible
         id: label

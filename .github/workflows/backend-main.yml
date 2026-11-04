@@ -2,6 +2,8 @@
 # versionadas que descarga el frontend (plan de la feature 001, paso 6; ADR 0027), de la API (backend/) y del BFF
 # (backend/bff/, desde que tenga su copia de los scripts en T18). La imagen, el SBOM, la firma y el despliegue a
 # staging se agregan con sus tareas (T16 y el resto de F0‑07).
+# publish.sh juzga cada versión nueva contra la release publicada más alta de su contrato antes de publicarla:
+# como Q08 todavía no es un check obligatorio, así no se publica lo que no la cumple frente a lo ya publicado.
 name: backend-main
 
 on:
@@ -11,15 +13,15 @@ on:
       - 'backend/contracts/**'
       - 'backend/bff/contracts/**'
       - '.github/workflows/backend-main.yml'
-  # Para reintentar una publicación que falló, solo desde main.
+  # Para volver a intentar la publicación de la punta de main, solo desde main. Como cada versión se juzga contra
+  # lo publicado, también publica una versión que quedó pendiente de una integración anterior.
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # Las publicaciones van en fila, sin cancelarse. GitHub deja una sola en espera: con tres integraciones seguidas,
-# la del medio se cancela. Si traía una versión nueva, la siguiente no la publica sin haberla juzgado
-# (UNPUBLISHED_EARLIER, en publish.sh): se publica con «Re-run» de la ejecución cancelada.
+# la del medio se cancela, y la siguiente publica la versión que quede en el árbol.
 concurrency:
   group: backend-main
   cancel-in-progress: false
@@ -45,14 +47,14 @@ jobs:
       run:
         working-directory: ${{ matrix.project }}
     steps:
-      # Con fetch-depth 2 trae el commit anterior de main (squash e historia lineal) contra el que se compara.
+      # Con fetch-depth 2 trae el commit anterior de main (squash e historia lineal), del que salen los scripts.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
 
-      # Juez y publicador: los scripts del commit anterior, como en backend-contracts-pr. Si aún no los tiene (la
-      # integración que los agrega), los de este commit.
+      # Los scripts que juzgan y publican son los del commit anterior, como en backend-contracts-pr. Si aún no los
+      # tiene (la integración que los agrega), los de este commit. Si hay contratos y no hay scripts, falla.
       - name: Scripts que juzgan y publican
         id: judge
         working-directory: .
@@ -65,8 +67,11 @@ jobs:
           elif [ -f "$PROJECT/contracts/scripts/publish.sh" ]; then
             echo "El commit anterior aún no tiene los scripts: se usan los de este commit, que los agrega."
             echo "dir=$GITHUB_WORKSPACE/$PROJECT" >> "$GITHUB_OUTPUT"
+          elif git cat-file -e "HEAD:$PROJECT/contracts/openapi" 2> /dev/null; then
+            echo "::error::$PROJECT tiene contratos pero no contracts/scripts/publish.sh."
+            exit 1
           else
-            echo "$PROJECT no tiene contracts/scripts/publish.sh: no hay contratos que publicar."
+            echo "$PROJECT no tiene contratos que publicar."
             exit 0
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -80,8 +85,7 @@ jobs:
           cache: maven
           cache-dependency-path: ${{ matrix.project }}/pom.xml
 
-      # Q08 no es todavía un check obligatorio: se repite aquí para no publicar lo que no la cumple, también si dos
-      # PR subieron la misma versión. La aprobación es la etiqueta del PR que se integró en este commit.
+      # La aprobación de un cambio incompatible es la etiqueta del PR que se integró en este commit.
       - name: Etiqueta contrato-incompatible del PR integrado
         id: label
         if: steps.judge.outputs.enabled == 'true'
@@ -93,20 +97,12 @@ jobs:
             --jq 'any(.[]; .merged_at != null and any(.labels[]; .name == "contrato-incompatible"))')
           echo "approved=$approved" >> "$GITHUB_OUTPUT"
 
-      - name: Contratos contra el commit anterior
+      - name: Juzgar contra lo publicado y publicar
         if: steps.judge.outputs.enabled == 'true'
         env:
           JUDGE: ${{ steps.judge.outputs.dir }}
           LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
-        run: sh "$JUDGE/contracts/scripts/compare.sh" HEAD^1
-
-      # Publica solo la versión que introduce este commit, o la de un contrato que nunca se publicó.
-      - name: Publicar los contratos
-        if: steps.judge.outputs.enabled == 'true'
-        env:
-          JUDGE: ${{ steps.judge.outputs.dir }}
-          LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: sh "$JUDGE/contracts/scripts/publish.sh" HEAD^1
+        run: sh "$JUDGE/contracts/scripts/publish.sh"
