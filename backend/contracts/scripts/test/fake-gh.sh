@@ -1,11 +1,12 @@
 #!/bin/sh
 # gh falso para probar publish.sh sin GitHub (lo carga run.sh con LIV_GH). Imita solo lo que usa publish.sh, con
 # los mismos mensajes de error que gh 2.x, y exige las opciones de las que depende la publicación: si publish.sh
-# deja de pasar --draft, --clobber, --latest=false o --target, la prueba falla. Guarda las releases en carpetas
-# de $FAKE_GH_STORE:
+# deja de pasar --draft, --clobber, --latest=false, --target o --notes, la prueba falla. Guarda las releases en
+# carpetas de $FAKE_GH_STORE:
 #   releases/<etiqueta>/estado   draft o published
 #   releases/<etiqueta>/assets/  los archivos de la release
-#   tags/<etiqueta>              la etiqueta existe en el repositorio
+#   tags/<etiqueta>              la etiqueta existe en el repositorio (como en GitHub, solo la de una release
+#                                publicada o una creada a mano)
 #   llamadas                     cada llamada recibida, una por línea
 # Interruptores (archivos vacíos en $FAKE_GH_STORE) para simular fallos:
 #   view-falla       «release view» falla como un error de red
@@ -32,14 +33,6 @@ case "$1 ${2:-}" in
     if [ -e "$almacen/view-falla" ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1; fi
     [ -d "$almacen/releases/$3" ] || { echo 'release not found' >&2; exit 1; }
     if [ "$(cat "$almacen/releases/$3/estado")" = draft ]; then echo true; else echo false; fi
-    ;;
-  'release list')
-    # Solo las publicadas: publish.sh pide --exclude-drafts.
-    exigir --exclude-drafts "$@"
-    for estado in "$almacen"/releases/*/estado; do
-      [ -f "$estado" ] && [ "$(cat "$estado")" = published ] && basename "$(dirname "$estado")"
-    done
-    exit 0
     ;;
   'release create')
     etiqueta=$3
@@ -80,15 +73,29 @@ case "$1 ${2:-}" in
     exigir --draft=false "$@"
     exigir --latest=false "$@"
     exigir --target "$@"
+    exigir --notes "$@"
     echo published > "$almacen/releases/$etiqueta/estado"
     mkdir -p "$almacen/tags"
     touch "$almacen/tags/$etiqueta"
     ;;
   api\ *)
     if [ -e "$almacen/api-falla" ]; then echo 'gh: Bad Gateway (HTTP 502)' >&2; exit 1; fi
-    etiqueta=${2##*/}
-    [ -e "$almacen/tags/$etiqueta" ] || { echo 'gh: Not Found (HTTP 404)' >&2; exit 1; }
-    echo '{}'
+    case "$2" in
+      */git/matching-refs/tags/*)
+        # Las etiquetas que empiezan por el prefijo, como las da --jq '.[].ref'.
+        prefijo=${2##*/git/matching-refs/tags/}
+        for etiqueta in "$almacen"/tags/"$prefijo"*; do
+          [ -e "$etiqueta" ] && printf 'refs/tags/%s\n' "$(basename "$etiqueta")"
+        done
+        exit 0
+        ;;
+      */git/ref/tags/*)
+        etiqueta=${2##*/}
+        [ -e "$almacen/tags/$etiqueta" ] || { echo 'gh: Not Found (HTTP 404)' >&2; exit 1; }
+        echo '{}'
+        ;;
+      *) rechazar "ruta de la API no imitada: $2" ;;
+    esac
     ;;
   *)
     rechazar "orden no imitada: $*"

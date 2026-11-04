@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=si
+base=muestra
+head=archivo
+motivo=EXTERNAL_REF
+nota=el valor del $ref en la línea siguiente, más indentado, es YAML válido
