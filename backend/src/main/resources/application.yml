@@ -4,6 +4,10 @@ spring:
   threads:
     virtual:
       enabled: true
+  # El ejecutor de Spring Boot sigue siendo el de @Async por omisión aunque la auditoría tenga el suyo (T15).
+  task:
+    execution:
+      mode: force
   # La aplicación se conecta siempre como liv_app (sujeto a RLS; nunca como liv_owner). La URL y la contraseña
   # llegan por variables de entorno y no tienen valor por defecto (sin LIV_DB_URL no arranca; sin la contraseña no
   # se autentica). Si el despliegue cambia el usuario, ninguna conexión pasa la comprobación de liv_app (abajo) y la
@@ -57,8 +61,13 @@ liv:
   # liv-audit-importer (client credentials) cada minuto, uno a la vez entre réplicas (ShedLock).
   audit:
     hmac-key: ${LIV_AUDIT_HMAC_KEY:}
+    # Oyentes de los eventos de LIV: pocos a la vez, para no quitar conexiones a las peticiones (pool de 10).
+    listener-threads: 4
+    listener-queue: 10000
     importer:
       enabled: true
+      # API de administración del realm, por ejemplo en la red interna; vacío: la del emisor (/admin/realms/...).
+      admin-base-uri: ${LIV_IDP_ADMIN_BASE_URI:}
       client-id: liv-audit-importer
       client-secret: ${LIV_AUDIT_IMPORTER_SECRET:}
       interval: PT1M
@@ -90,6 +99,16 @@ spring.modulith.events:
     schema-initialization:
       enabled: false
   republish-outstanding-events-on-restart: false
+  # Cada entrega completada se borra (decisión del responsable, T15; migración V202611031000): la tabla no guarda
+  # los eventos para siempre.
+  completion-mode: delete
+  # Una entrega que se quedó en curso (la instancia cayó con el oyente a medias) pasa a fallida y la reentrega
+  # programada la toma.
+  staleness:
+    published: PT10M
+    processing: PT10M
+    resubmitted: PT10M
+    check-interval: PT1M
 
 # Cada línea de log lleva el id de correlación de la petición (doc. 02 §9, CorrelationIdFilter).
 logging:

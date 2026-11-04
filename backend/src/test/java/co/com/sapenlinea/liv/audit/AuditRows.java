@@ -91,6 +91,16 @@ final class AuditRows {
     return count;
   }
 
+  /** Waits until {@code select} (a count) is zero and returns it. */
+  static long awaitZero(String select, Object... args) {
+    Instant deadline = Instant.now().plus(TIMEOUT);
+    long count;
+    do {
+      count = ((Number) LivDatabase.readAsOwner(select, args).getFirst()[0]).longValue();
+    } while (count != 0 && pause(deadline));
+    return count;
+  }
+
   /** The LIV id of the user registered with this subject. */
   static UUID userId(String subject) {
     return (UUID)

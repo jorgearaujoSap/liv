@@ -49,17 +49,7 @@ class AutoProvisionOffTest extends PlatformWebTest {
     assertThat(events.of(SessionDenied.class))
         .filteredOn(e -> sid.equals(e.sid()))
         .containsExactly(
-            new SessionDenied(
-                "001-17",
-                OidcTestProvider.issuer(),
-                subject,
-                sid,
-                null,
-                null,
-                LivDatabase.ADMIN_A,
-                null,
-                null,
-                null));
+            new SessionDenied("001-17", sid, null, null, LivDatabase.ADMIN_A, null, null, null));
     assertThat(
             LivDatabase.readAsOwner(
                 "SELECT id FROM core.admin_user WHERE identity_subject = ?", subject))

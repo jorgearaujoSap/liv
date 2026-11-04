@@ -12,17 +12,24 @@ import java.util.List;
  */
 public interface IdentityProviderEvents {
 
-  /**
-   * Up to {@code limit} events of users (failed logins, lockouts) from {@code from} on, oldest
-   * first.
-   */
-  List<ProviderEvent> userEvents(Instant from, int limit);
+  /** Up to {@code limit} events of users (failed logins, lockouts) from {@code from} on. */
+  EventsPage userEvents(Instant from, int limit);
+
+  /** Up to {@code limit} changes of administrators to users, from {@code from} on. */
+  EventsPage adminEvents(Instant from, int limit);
 
   /**
-   * Up to {@code limit} changes of administrators to users (roles, attributes, state), oldest
-   * first.
+   * Events in the order they happened, oldest first.
+   *
+   * @param events the events read
+   * @param more whether the provider has more after the last one: the next read must not skip them
    */
-  List<ProviderEvent> adminEvents(Instant from, int limit);
+  record EventsPage(List<ProviderEvent> events, boolean more) {
+
+    public EventsPage {
+      events = List.copyOf(events);
+    }
+  }
 
   /**
    * An event of the provider.
@@ -37,8 +44,6 @@ public interface IdentityProviderEvents {
    * @param error the provider's error code of a failed event, for example {@code
    *     invalid_user_credentials}
    * @param authorSubject the provider's id of the administrator who made a change
-   * @param roles the names of the roles granted or removed by a change of roles
-   * @param enabled the state of the user after a change of the user, if the change says it
    */
   record ProviderEvent(
       String id,
@@ -49,14 +54,7 @@ public interface IdentityProviderEvents {
       String attemptedUsername,
       String ipAddress,
       String error,
-      String authorSubject,
-      List<String> roles,
-      Boolean enabled) {
-
-    public ProviderEvent {
-      roles = roles == null ? List.of() : List.copyOf(roles);
-    }
-  }
+      String authorSubject) {}
 
   /** Who originated the event. */
   enum Kind {

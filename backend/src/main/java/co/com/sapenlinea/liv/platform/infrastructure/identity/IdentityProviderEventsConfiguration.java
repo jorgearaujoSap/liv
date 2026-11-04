@@ -19,8 +19,11 @@ class IdentityProviderEventsConfiguration {
   IdentityProviderEvents identityProviderEvents(
       @Value("${liv.security.issuer-uri}") String issuer,
       @Value("${liv.security.allow-http-issuer:false}") boolean allowHttp,
+      @Value("${liv.audit.importer.admin-base-uri:}") String adminBase,
       @Value("${liv.audit.importer.client-id}") String clientId,
-      @Value("${liv.audit.importer.client-secret:}") String clientSecret) {
-    return KeycloakIdentityProviderEvents.forProvider(issuer, clientId, clientSecret, allowHttp);
+      @Value("${liv.audit.importer.client-secret:}") String clientSecret,
+      @Value("${liv.audit.importer.page-size}") int pageSize) {
+    return KeycloakIdentityProviderEvents.forProvider(
+        issuer, adminBase, clientId, clientSecret, allowHttp, pageSize);
   }
 }

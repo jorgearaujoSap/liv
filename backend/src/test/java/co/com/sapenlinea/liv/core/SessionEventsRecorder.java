@@ -62,8 +62,6 @@ class SessionEventsRecorder {
           events.add(
               new SessionDenied(
                   event.code(),
-                  event.issuer(),
-                  event.subject(),
                   event.sid(),
                   event.userId(),
                   event.registeredAdministrationId(),

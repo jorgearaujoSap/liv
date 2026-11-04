@@ -152,8 +152,6 @@ public class StartSession {
       store.denied(
           new SessionDenied(
               code,
-              token.issuer(),
-              token.subject(),
               sid,
               user == null ? null : user.id(),
               user == null ? null : user.administrationId(),

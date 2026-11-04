@@ -148,8 +148,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.NOT_AUTHENTICATED,
-                OidcTestProvider.issuer(),
-                other,
                 sid(first),
                 null,
                 null,
@@ -189,8 +187,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.USER_INACTIVE,
-                OidcTestProvider.issuer(),
-                INACTIVE,
                 sid(token),
                 userId,
                 LivDatabase.ADMIN_A,
@@ -214,8 +210,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.ADMINISTRATION_MISMATCH,
-                OidcTestProvider.issuer(),
-                ACTIVE,
                 sid(token),
                 userId,
                 LivDatabase.ADMIN_A,
@@ -245,8 +239,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.ADMINISTRATION_MISMATCH,
-                OidcTestProvider.issuer(),
-                subject,
                 sid(withUnknown),
                 null,
                 null,
@@ -279,8 +271,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.ADMINISTRATION_MISMATCH,
-                OidcTestProvider.issuer(),
-                newcomer,
                 sid(ofNewcomer),
                 null,
                 null,
@@ -306,34 +296,26 @@ class InternalSessionsTest extends PlatformWebTest {
     String withoutEmail = newSubject();
     String longName = newSubject();
     String longEmail = newSubject();
-
-    assertProblem(
-        start(
+    List<String> tokens =
+        List.of(
             OidcTestProvider.userToken(
-                withoutEmail, LivDatabase.ADMIN_A, claims -> claims.claim("email", null))),
-        401,
-        ErrorCodes.NOT_AUTHENTICATED);
-    assertProblem(
-        start(
+                withoutEmail, LivDatabase.ADMIN_A, claims -> claims.claim("email", null)),
             OidcTestProvider.userToken(
-                longName, LivDatabase.ADMIN_A, claims -> claims.claim("name", "n".repeat(151)))),
-        401,
-        ErrorCodes.NOT_AUTHENTICATED);
-    assertProblem(
-        start(
+                longName, LivDatabase.ADMIN_A, claims -> claims.claim("name", "n".repeat(151))),
             OidcTestProvider.userToken(
                 longEmail,
                 LivDatabase.ADMIN_A,
-                claims -> claims.claim("email", "e".repeat(190) + "@test.invalid"))),
-        401,
-        ErrorCodes.NOT_AUTHENTICATED);
+                claims -> claims.claim("email", "e".repeat(190) + "@test.invalid")));
+
+    for (String token : tokens) {
+      assertProblem(start(token), 401, ErrorCodes.NOT_AUTHENTICATED);
+    }
 
     assertThat(usersWith(withoutEmail)).isEmpty();
     assertThat(usersWith(longName)).isEmpty();
     assertThat(usersWith(longEmail)).isEmpty();
-    for (String subject : List.of(withoutEmail, longName, longEmail)) {
-      assertThat(events.of(SessionDenied.class))
-          .filteredOn(e -> subject.equals(e.subject()))
+    for (String token : tokens) {
+      assertThat(deniedFor(sid(token)))
           .singleElement()
           .satisfies(e -> {
             assertThat(e.code()).isEqualTo(ErrorCodes.NOT_AUTHENTICATED);
@@ -407,8 +389,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.ADMINISTRATION_MISMATCH,
-                OidcTestProvider.issuer(),
-                subject,
                 sid(token),
                 registered,
                 LivDatabase.ADMIN_B,
@@ -441,8 +421,6 @@ class InternalSessionsTest extends PlatformWebTest {
         .containsExactly(
             new SessionDenied(
                 ErrorCodes.USER_INACTIVE,
-                OidcTestProvider.issuer(),
-                subject,
                 sid(token),
                 registered,
                 LivDatabase.ADMIN_A,
@@ -563,8 +541,6 @@ class InternalSessionsTest extends PlatformWebTest {
     Object[] user = registered ? usersWith(subject).getFirst() : null;
     return new SessionDenied(
         code,
-        OidcTestProvider.issuer(),
-        subject,
         sid,
         user == null ? null : (UUID) user[0],
         user == null ? null : (UUID) user[2],

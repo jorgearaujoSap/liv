@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,7 @@ import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.Impo
 import co.com.sapenlinea.liv.audit.infrastructure.IdentityProviderEventsJob;
 import co.com.sapenlinea.liv.isolation.LivDatabase;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents;
+import co.com.sapenlinea.liv.platform.IdentityProviderEvents.EventsPage;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents.Kind;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents.ProviderEvent;
 import co.com.sapenlinea.liv.platform.PlatformWebTest;
@@ -65,8 +67,11 @@ class IdentityProviderImportTest extends PlatformWebTest {
   @Autowired AuditProperties properties;
 
   @BeforeEach
-  void freshCursor() {
+  void freshCursorAndQuietProvider() {
     LivDatabase.setImportCursor(Instant.now().minus(Duration.ofHours(1)));
+    LivDatabase.releaseLock(IdentityProviderEventsJob.LOCK_NAME);
+    userEvents();
+    adminEvents();
   }
 
   @Test
@@ -130,8 +135,6 @@ class IdentityProviderImportTest extends PlatformWebTest {
             null,
             null,
             null,
-            null,
-            null,
             null));
 
     importer.importNew();
@@ -144,13 +147,12 @@ class IdentityProviderImportTest extends PlatformWebTest {
   @Test
   @Tag("001-18")
   @DisplayName(
-      "001-18 · Un cambio de rol o de estado en la consola guarda solo la lista blanca y el autor opaco")
+      "001-18 · Un cambio de rol en la consola queda con su usuario, el autor opaco y solo la lista blanca")
   void administratorChangesKeepOnlyTheWhitelist() {
-    String roles = UUID.randomUUID().toString();
-    String state = UUID.randomUUID().toString();
+    String id = UUID.randomUUID().toString();
     adminEvents(
         new ProviderEvent(
-            roles,
+            id,
             Kind.ADMIN,
             "REALM_ROLE_MAPPING_CREATE",
             recent(),
@@ -158,41 +160,18 @@ class IdentityProviderImportTest extends PlatformWebTest {
             null,
             "198.51.100.20",
             null,
-            "administrador-del-proveedor",
-            List.of("AUDITOR"),
-            null),
-        new ProviderEvent(
-            state,
-            Kind.ADMIN,
-            "USER_UPDATE",
-            recent(),
-            ACTIVE,
-            null,
-            null,
-            null,
-            "administrador-del-proveedor",
-            null,
-            false));
+            "administrador-del-proveedor"));
 
     importer.importNew();
 
-    AuditRows.Row grant = only(AuditRows.ofProviderEvent("admin:" + roles));
+    AuditRows.Row grant = only(AuditRows.ofProviderEvent("admin:" + id));
     assertThat(grant.operation()).isEqualTo("REALM_ROLE_MAPPING_CREATE");
     assertThat(grant.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
     assertThat(grant.userId()).isEqualTo(AuditRows.userId(ACTIVE));
     assertThat(grant.newValues())
-        .isEqualTo(
-            Map.of(
-                "result",
-                "SUCCESS",
-                "roles",
-                List.of("AUDITOR"),
-                "truncated_ip",
-                "198.51.100.0/24"));
+        .isEqualTo(Map.of("result", "SUCCESS", "truncated_ip", "198.51.100.0/24"));
     assertThat(grant.actorRef()).isEqualTo(hmac("administrador-del-proveedor"));
     assertThat(grant.text()).doesNotContain("administrador-del-proveedor");
-    AuditRows.Row disabled = only(AuditRows.ofProviderEvent("admin:" + state));
-    assertThat(disabled.newValues()).isEqualTo(Map.of("result", "SUCCESS", "enabled", false));
   }
 
   @Test
@@ -246,13 +225,20 @@ class IdentityProviderImportTest extends PlatformWebTest {
   void importerReportsWhenBehind() {
     LivDatabase.setImportCursor(Instant.now().minus(Duration.ofDays(2)));
     Instant stuck = Instant.now().minus(Duration.ofDays(2)).truncatedTo(ChronoUnit.MILLIS);
-    // A full page at one instant: the importer cannot move past it in this run.
-    userEvents(
-        IntStream.range(0, properties.importer().pageSize())
-            .mapToObj(i -> failedLogin(UUID.randomUUID().toString(), stuck, null, "u" + i, null))
-            .toArray(ProviderEvent[]::new));
+    // The provider has more than a run reads, all two days old: the watermark stays there.
+    when(provider.userEvents(any(), anyInt()))
+        .thenReturn(
+            new EventsPage(
+                IntStream.range(0, properties.importer().pageSize())
+                    .mapToObj(
+                        i -> failedLogin(UUID.randomUUID().toString(), stuck, null, "u" + i, null))
+                    .toList(),
+                true));
 
-    assertThat(importer.importNew().behind()).isTrue();
+    ImportResult result = importer.importNew();
+
+    assertThat(result.behind()).isTrue();
+    assertThat(result.cursor()).isCloseTo(stuck, within(1, ChronoUnit.MILLIS));
   }
 
   @Test
@@ -266,22 +252,49 @@ class IdentityProviderImportTest extends PlatformWebTest {
 
   @Test
   @Tag("001-18")
+  @DisplayName("001-18 · El reloj adelantado del proveedor no adelanta la marca de agua")
+  void providerClockAheadDoesNotMoveTheWatermarkPastNow() {
+    Instant ahead = Instant.now().plus(Duration.ofHours(1));
+    userEvents(failedLogin(UUID.randomUUID().toString(), ahead, null, "futuro", "203.0.113.4"));
+
+    ImportResult result = importer.importNew();
+
+    assertThat(result.cursor()).isBefore(ahead).isBeforeOrEqualTo(Instant.now());
+  }
+
+  @Test
+  @Tag("001-18")
   @DisplayName("001-18 · El trabajo programado toma el candado de ShedLock antes de importar")
   void jobTakesTheLock() {
     job.run();
 
     assertThat(
             LivDatabase.readAsOwner(
-                "SELECT name FROM platform.shedlock WHERE name = 'identity-provider-events'"))
+                "SELECT name FROM platform.shedlock WHERE name = ? AND lock_until > locked_at",
+                IdentityProviderEventsJob.LOCK_NAME))
         .hasSize(1);
+    verify(provider, atLeastOnce()).userEvents(any(), anyInt());
   }
 
+  @Test
+  @Tag("001-18")
+  @DisplayName("001-18 · Con el candado tomado por otra réplica, el trabajo no importa")
+  void jobDoesNotRunWhileAnotherReplicaHoldsTheLock() {
+    LivDatabase.holdLock(IdentityProviderEventsJob.LOCK_NAME, Duration.ofMinutes(5));
+
+    job.run();
+
+    verify(provider, never()).userEvents(any(), anyInt());
+    verify(provider, never()).adminEvents(any(), anyInt());
+  }
+
+  /** Everything the provider has: no more after these. */
   private void userEvents(ProviderEvent... events) {
-    when(provider.userEvents(any(), anyInt())).thenReturn(List.of(events));
+    when(provider.userEvents(any(), anyInt())).thenReturn(new EventsPage(List.of(events), false));
   }
 
   private void adminEvents(ProviderEvent... events) {
-    when(provider.adminEvents(any(), anyInt())).thenReturn(List.of(events));
+    when(provider.adminEvents(any(), anyInt())).thenReturn(new EventsPage(List.of(events), false));
   }
 
   private static ProviderEvent failedLogin(
@@ -295,8 +308,6 @@ class IdentityProviderImportTest extends PlatformWebTest {
         username,
         ip,
         "invalid_user_credentials",
-        null,
-        null,
         null);
   }
 

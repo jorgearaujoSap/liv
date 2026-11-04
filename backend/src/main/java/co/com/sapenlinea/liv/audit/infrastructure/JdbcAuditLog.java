@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -62,7 +63,7 @@ class JdbcAuditLog implements AuditLog {
   @Override
   public void appendSessionDenied(Entry entry) {
     if (entry.administrationId() == null) {
-      transaction.executeWithoutResult(status -> recordPlatformDenied(entry));
+      ownTransaction(() -> recordPlatformDenied(entry));
       return;
     }
     // A claimed administration may not exist: then the row cannot belong to it.
@@ -155,7 +156,7 @@ class JdbcAuditLog implements AuditLog {
 
   private void inAdministration(UUID administrationId, Runnable work) {
     try (var scope = AdministrationContext.open(administrationId)) {
-      transaction.executeWithoutResult(status -> work.run());
+      ownTransaction(work);
     }
   }
 
@@ -164,12 +165,30 @@ class JdbcAuditLog implements AuditLog {
    * stays on a pooled connection.
    */
   private <T> T inPlatformJob(Supplier<T> work) {
+    requireNoTransaction();
     return transaction.execute(status -> {
       jdbc.sql("SELECT set_config('app.platform_job', 'on', true)")
           .query((row, number) -> number)
           .list();
       return work.get();
     });
+  }
+
+  /** A transaction of its own: the audit is never written inside another one. */
+  private void ownTransaction(Runnable work) {
+    requireNoTransaction();
+    transaction.executeWithoutResult(status -> work.run());
+  }
+
+  /**
+   * The audit runs from listeners and jobs, outside any transaction. Inside one it would join it:
+   * the mark of a platform job would reach the rest of that transaction, and a row would roll back
+   * with it.
+   */
+  private static void requireNoTransaction() {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException("The audit log runs outside any transaction");
+    }
   }
 
   private void runInPlatformJob(Runnable work) {

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 
 /**
  * 001-18 for the events of LIV: every session start, refusal and end, and every first login, ends
@@ -34,6 +35,7 @@ class SessionAuditTest extends PlatformWebTest {
   private static final String SESSIONS = "/internal/v1/sessions";
 
   @Autowired RecordSessionEvents record;
+  @Autowired ApplicationContext context;
 
   @Test
   @Tag("001-18")
@@ -175,8 +177,6 @@ class SessionAuditTest extends PlatformWebTest {
     SessionDenied denied =
         new SessionDenied(
             "001-17",
-            OidcTestProvider.issuer(),
-            "repetido",
             "sid-negado-" + UUID.randomUUID(),
             null,
             null,
@@ -197,8 +197,9 @@ class SessionAuditTest extends PlatformWebTest {
 
   @Test
   @Tag("001-18")
-  @DisplayName("001-18 · El outbox marca como completada la entrega a la auditoría")
-  void outboxCompletesThePublication() {
+  @DisplayName(
+      "001-18 · El outbox borra la entrega una vez auditada: no guarda los eventos para siempre")
+  void outboxDeletesTheCompletedDelivery() {
     String correlation = UUID.randomUUID().toString();
     String token = OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_A);
 
@@ -206,11 +207,17 @@ class SessionAuditTest extends PlatformWebTest {
     AuditRows.await("SESSION_STARTED", correlation);
 
     assertThat(
-            AuditRows.awaitCount(
-                "SELECT count(*) FROM platform.event_publication"
-                    + " WHERE serialized_event LIKE ? AND completion_date IS NOT NULL",
+            AuditRows.awaitZero(
+                "SELECT count(*) FROM platform.event_publication WHERE serialized_event LIKE ?",
                 "%" + correlation + "%"))
-        .isPositive();
+        .isZero();
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName("001-18 · El outbox trabaja con PostgreSQL sin consultar la base al arrancar")
+  void outboxDatabaseTypeIsFixed() {
+    assertThat(context.getBean("databaseType")).hasToString("POSTGRES");
   }
 
   private HttpResponse<String> start(String userToken, String correlation) {

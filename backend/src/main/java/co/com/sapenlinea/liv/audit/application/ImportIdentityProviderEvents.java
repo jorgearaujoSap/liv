@@ -4,6 +4,7 @@ import co.com.sapenlinea.liv.audit.application.AuditLog.Cursor;
 import co.com.sapenlinea.liv.audit.application.AuditLog.Entry;
 import co.com.sapenlinea.liv.platform.DirectoryUser;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents;
+import co.com.sapenlinea.liv.platform.IdentityProviderEvents.EventsPage;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents.Kind;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents.ProviderEvent;
 import co.com.sapenlinea.liv.platform.OpenUseCase;
@@ -15,13 +16,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -29,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.dao.NonTransientDataAccessException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -39,11 +39,14 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li><b>Where each event goes:</b> to the administration of the user if LIV knows it, otherwise
  *       to a platform row.
- *   <li><b>What it keeps:</b> the facts of a whitelist, with the attempted username as an HMAC and
- *       its length, the address truncated and the author as an opaque reference ({@link
- *       AuditMasking}).
+ *   <li><b>What it keeps:</b> {@code result}, {@code reason}, {@code truncated_ip} and {@code
+ *       masked_attempted_username} (plan, «Datos, API y seguridad»; decision of the project lead,
+ *       2026-11-03), and the author as an opaque reference ({@link AuditMasking}).
  *   <li><b>Once:</b> by (source, event id), and the watermark skips the events already seen in the
  *       overlap window that each run reads again.
+ *   <li><b>Nothing skipped:</b> if the provider has more events than a run reads, the watermark
+ *       stays at the last one read; an event the audit rejects is kept as a minimal row instead of
+ *       stopping the importer.
  * </ul>
  */
 @Service
@@ -106,8 +109,9 @@ public class ImportIdentityProviderEvents {
             : cursor.lastEventAt().minus(settings.overlap());
     Set<String> seen = cursor == null ? Set.of() : cursor.seenEventIds();
 
-    StreamRead users = read(provider::userEvents, from);
-    StreamRead admins = read(provider::adminEvents, from);
+    int limit = settings.pageSize() * settings.maxPages();
+    EventsPage users = provider.userEvents(from, limit);
+    EventsPage admins = provider.adminEvents(from, limit);
     List<ProviderEvent> events = new ArrayList<>(users.events());
     events.addAll(admins.events());
     events.sort(Comparator.comparing(ProviderEvent::time));
@@ -115,7 +119,7 @@ public class ImportIdentityProviderEvents {
     int imported = 0;
     for (ProviderEvent event : events) {
       if (!seen.contains(sourceEventId(event))) {
-        log.append(entry(event));
+        append(event);
         imported++;
       }
     }
@@ -140,52 +144,65 @@ public class ImportIdentityProviderEvents {
     return new ImportResult(imported, watermark, behind);
   }
 
-  /** The events of one stream since {@code from}, page by page, up to the pages of a run. */
-  private StreamRead read(BiFunction<Instant, Integer, List<ProviderEvent>> stream, Instant from) {
-    List<ProviderEvent> paged = new ArrayList<>();
-    Set<String> ids = new HashSet<>();
-    Instant next = from;
-    for (int page = 0; page < settings.maxPages(); page++) {
-      List<ProviderEvent> got = stream.apply(next, settings.pageSize());
-      for (ProviderEvent event : got) {
-        if (ids.add(sourceEventId(event))) {
-          paged.add(event);
-        }
-      }
-      if (got.size() < settings.pageSize()) {
-        return new StreamRead(paged, null);
-      }
-      Instant last = got.getLast().time();
-      if (!last.isAfter(next)) {
-        // A full page at a single instant: it cannot move on. The next run reads it again.
-        LOG.warn("Identity provider events: a full page at {}; continuing next run", last);
-        return new StreamRead(paged, last);
-      }
-      next = last;
+  /**
+   * Appends one event. If the audit rejects it as it is (a constraint), it keeps the event with its
+   * result only, so a single event cannot stop the import; a database that does not respond stops
+   * the run, which the next one repeats.
+   */
+  private void append(ProviderEvent event) {
+    Entry entry = entry(event);
+    try {
+      log.append(entry);
+    } catch (NonTransientDataAccessException e) {
+      LOG.warn(
+          "Identity provider event {} rejected by the audit; kept without its details",
+          entry.sourceEventId(),
+          e);
+      log.append(
+          new Entry(
+              entry.source(),
+              entry.sourceEventId(),
+              entry.administrationId(),
+              entry.userId(),
+              entry.entityName(),
+              null,
+              entry.operation(),
+              entry.occurredAt(),
+              null,
+              entry.actorRef(),
+              Map.of("result", entry.newValues().get("result"))));
     }
-    return new StreamRead(paged, next);
   }
 
   /**
-   * The new watermark, which never goes back:
+   * The new watermark, which never goes back and never goes past now (a provider's clock ahead
+   * would hide the events up to its time):
    *
    * <ul>
-   *   <li>if a stream stopped with events left, where it stopped;
+   *   <li>if a stream had more events than this run read, the last event it read;
    *   <li>otherwise the newest event read, and at least now minus the overlap: with everything
    *       read, a quiet provider does not make the importer look behind, and the next run still
    *       reads the overlap again for events stored late.
    * </ul>
    */
   private Instant watermark(
-      Cursor cursor, List<ProviderEvent> events, StreamRead users, StreamRead admins, Instant now) {
+      Cursor cursor, List<ProviderEvent> events, EventsPage users, EventsPage admins, Instant now) {
     Instant previous = cursor == null ? null : cursor.lastEventAt();
-    Instant stoppedAt = earliest(users.stoppedAt(), admins.stoppedAt());
+    Instant stoppedAt = earliest(lastOf(users), lastOf(admins));
     if (stoppedAt != null) {
-      return latest(previous, stoppedAt);
+      return latest(previous, earliest(stoppedAt, now));
     }
     Instant newestEvent = events.isEmpty() ? null : events.getLast().time();
     Instant caughtUp = now.minus(settings.overlap());
-    return latest(previous, latest(newestEvent, caughtUp));
+    return latest(previous, earliest(latest(newestEvent, caughtUp), now));
+  }
+
+  /** Where a stream with more events stopped; null if it read them all. */
+  private static Instant lastOf(EventsPage page) {
+    if (!page.more()) {
+      return null;
+    }
+    return page.events().isEmpty() ? Instant.EPOCH : page.events().getLast().time();
   }
 
   private Entry entry(ProviderEvent event) {
@@ -205,7 +222,7 @@ public class ImportIdentityProviderEvents {
         values(event));
   }
 
-  /** The whitelist of facts of an event: nothing of the provider is copied as it comes. */
+  /** The whitelist of the plan: nothing of the provider is copied as it comes. */
   private Map<String, Object> values(ProviderEvent event) {
     Map<String, Object> values = new LinkedHashMap<>();
     values.put("result", result(event));
@@ -219,12 +236,6 @@ public class ImportIdentityProviderEvents {
     Map<String, Object> username = masking.maskUsername(event.attemptedUsername());
     if (username != null) {
       values.put("masked_attempted_username", username);
-    }
-    if (!event.roles().isEmpty()) {
-      values.put("roles", event.roles());
-    }
-    if (event.enabled() != null) {
-      values.put("enabled", event.enabled());
     }
     return values;
   }
@@ -276,11 +287,4 @@ public class ImportIdentityProviderEvents {
     }
     return b == null || a.isAfter(b) ? a : b;
   }
-
-  /**
-   * The events read from one stream.
-   *
-   * @param stoppedAt where the stream stopped with events left, or null if it read them all
-   */
-  private record StreamRead(List<ProviderEvent> events, Instant stoppedAt) {}
 }

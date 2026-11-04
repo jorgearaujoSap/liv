@@ -11,8 +11,8 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>Spring Modulith asks the database for its type when it creates its repository. LIV only runs
  * on PostgreSQL, so the bean of that type is given here instead of asked. The type of Spring
- * Modulith is not public: it is looked up by name, and if a version renames it the application
- * fails at startup, in every test, not later.
+ * Modulith is not public: it is looked up by name, and if a version renames it or its bean, the
+ * application fails at startup, in every test, not later.
  */
 @Configuration(proxyBeanMethods = false)
 class OutboxConfiguration {
@@ -24,11 +24,14 @@ class OutboxConfiguration {
   @Bean
   static BeanFactoryPostProcessor postgresOutbox() {
     return beanFactory -> {
-      if (beanFactory.containsBeanDefinition(DATABASE_TYPE_BEAN)
-          && beanFactory.getBeanDefinition(DATABASE_TYPE_BEAN)
-              instanceof AbstractBeanDefinition definition) {
-        definition.setInstanceSupplier(OutboxConfiguration::postgres);
+      if (!beanFactory.containsBeanDefinition(DATABASE_TYPE_BEAN)
+          || !(beanFactory.getBeanDefinition(DATABASE_TYPE_BEAN)
+              instanceof AbstractBeanDefinition definition)) {
+        // A version of Spring Modulith that renamed its bean would read the database at startup.
+        throw new IllegalStateException(
+            "Spring Modulith changed: no bean '" + DATABASE_TYPE_BEAN + "' to set to PostgreSQL");
       }
+      definition.setInstanceSupplier(OutboxConfiguration::postgres);
     };
   }
 

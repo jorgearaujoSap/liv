@@ -2,40 +2,37 @@ package co.com.sapenlinea.liv.platform.infrastructure.identity;
 
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents;
 import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Function;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.ClientCredentialsOAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.endpoint.RestClientClientCredentialsTokenResponseClient;
+import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.client.OAuth2ClientHttpRequestInterceptor;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The events of Keycloak for the audit (plan step 9; doc. 04 §3.1: the only class that knows its
  * API). It reads {@code /admin/realms/{realm}/events} and {@code /admin-events} with the service
- * account of {@code liv-audit-importer} (client credentials, roles {@code view-events} and {@code
- * view-users}) and returns them in the neutral form of {@link IdentityProviderEvents}, with only
- * the fields of a whitelist: a role mapping gives the names of its roles; a change of a user, its
- * state; nothing else of the representations.
+ * account of {@code liv-audit-importer} (client credentials) and returns them in the neutral form
+ * of {@link IdentityProviderEvents}, with only the fields of a whitelist: nothing of the
+ * representations of the changes is read.
  *
- * <p>Keycloak filters by day: each read asks from the day of {@code from} and drops the earlier
- * events itself.
+ * <p>Keycloak 26 filters from an instant ({@code dateFrom} in epoch milliseconds) and returns the
+ * oldest first ({@code direction=asc}); the pages go by offset. Every call to Keycloak, the token
+ * included, has a timeout.
  */
 public final class KeycloakIdentityProviderEvents implements IdentityProviderEvents {
 
@@ -54,70 +51,53 @@ public final class KeycloakIdentityProviderEvents implements IdentityProviderEve
   private static final String REGISTRATION = "liv-audit-importer";
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-  /**
-   * Requests per read: Keycloak filters by day, so the events of the same day before {@code from}
-   * come first and are skipped; this bounds that walk.
-   */
-  private static final int MAX_PAGES_PER_READ = 50;
-
-  private static final JsonMapper JSON = JsonMapper.builder().build();
-
   private final RestClient rest;
   private final String adminBase;
+  private final int pageSize;
 
-  private KeycloakIdentityProviderEvents(RestClient rest, String adminBase) {
+  private KeycloakIdentityProviderEvents(RestClient rest, String adminBase, int pageSize) {
     this.rest = rest;
     this.adminBase = adminBase;
+    this.pageSize = pageSize;
   }
 
   /**
    * The adapter for the realm of {@code issuer} ({@code https://host/realms/liv}).
    *
+   * @param adminBase the administration API of the realm, for example on the internal network; null
+   *     or blank to derive it from the issuer ({@code https://host/admin/realms/liv})
    * @param allowHttp whether an {@code http://} issuer is accepted: only in development and tests
    *     (plan, ajustes de T12)
+   * @param pageSize events per request to Keycloak
    */
   public static IdentityProviderEvents forProvider(
-      String issuer, String clientId, String clientSecret, boolean allowHttp) {
-    if (!allowHttp && !issuer.startsWith("https://")) {
-      throw new IllegalStateException("The identity provider must be https: " + issuer);
+      String issuer,
+      String adminBase,
+      String clientId,
+      String clientSecret,
+      boolean allowHttp,
+      int pageSize) {
+    String admin = adminBase == null || adminBase.isBlank() ? adminBaseOf(issuer) : adminBase;
+    for (String url : List.of(issuer, admin)) {
+      if (!allowHttp && !url.startsWith("https://")) {
+        throw new IllegalStateException("The identity provider must be https: " + url);
+      }
     }
     if (clientSecret == null || clientSecret.isBlank()) {
       throw new IllegalStateException(
           "The secret of " + clientId + " is missing (LIV_AUDIT_IMPORTER_SECRET)");
     }
-    ClientRegistration registration =
-        ClientRegistration.withRegistrationId(REGISTRATION)
-            .clientId(clientId)
-            .clientSecret(clientSecret)
-            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-            .tokenUri(issuer + "/protocol/openid-connect/token")
-            .build();
-    var registrations = new InMemoryClientRegistrationRepository(registration);
-    var manager =
-        new AuthorizedClientServiceOAuth2AuthorizedClientManager(
-            registrations, new InMemoryOAuth2AuthorizedClientService(registrations));
-    manager.setAuthorizedClientProvider(
-        OAuth2AuthorizedClientProviderBuilder.builder().clientCredentials().build());
-    var interceptor = new OAuth2ClientHttpRequestInterceptor(manager);
-    interceptor.setClientRegistrationIdResolver(request -> REGISTRATION);
-    var requestFactory =
-        new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(TIMEOUT).build());
-    requestFactory.setReadTimeout(TIMEOUT);
+    JdkClientHttpRequestFactory requests = requestsWithTimeouts();
     RestClient rest =
-        RestClient.builder().requestFactory(requestFactory).requestInterceptor(interceptor).build();
-    return new KeycloakIdentityProviderEvents(rest, adminBaseOf(issuer));
-  }
-
-  /**
-   * The administration API of the realm: {@code https://host/realms/liv} → {@code
-   * /admin/realms/liv}.
-   */
-  private static String adminBaseOf(String issuer) {
-    return issuer.replace("/realms/", "/admin/realms/");
+        RestClient.builder()
+            .requestFactory(requests)
+            .requestInterceptor(tokens(issuer, clientId, clientSecret, requests))
+            .build();
+    return new KeycloakIdentityProviderEvents(rest, admin, pageSize);
   }
 
   @Override
-  public List<ProviderEvent> userEvents(Instant from, int limit) {
+  public EventsPage userEvents(Instant from, int limit) {
     return read(
         "/events",
         uri -> uri.queryParam("type", USER_TYPES.toArray()),
@@ -127,7 +107,7 @@ public final class KeycloakIdentityProviderEvents implements IdentityProviderEve
   }
 
   @Override
-  public List<ProviderEvent> adminEvents(Instant from, int limit) {
+  public EventsPage adminEvents(Instant from, int limit) {
     return read(
         "/admin-events",
         uri -> uri.queryParam("resourceTypes", RESOURCE_TYPES.toArray()),
@@ -136,50 +116,41 @@ public final class KeycloakIdentityProviderEvents implements IdentityProviderEve
         KeycloakIdentityProviderEvents::adminEvent);
   }
 
-  /**
-   * Up to {@code limit} events from {@code from} on, oldest first, in pages of {@code limit}.
-   * Keycloak filters only by day, and in the time zone of its server: the read starts the day
-   * before, in UTC, and drops the earlier events itself.
-   */
-  private List<ProviderEvent> read(
+  /** Up to {@code limit} events from {@code from} on, oldest first, page by page. */
+  private EventsPage read(
       String path,
       Function<UriBuilder, UriBuilder> filter,
       Instant from,
       int limit,
       Function<JsonNode, ProviderEvent> map) {
-    String day = from.atOffset(ZoneOffset.UTC).toLocalDate().minusDays(1).toString();
     List<ProviderEvent> events = new ArrayList<>();
-    for (int page = 0; page < MAX_PAGES_PER_READ && events.size() < limit; page++) {
-      int first = page * limit;
-      JsonNode got =
+    while (events.size() < limit) {
+      int first = events.size();
+      int max = Math.min(pageSize, limit - events.size());
+      JsonNode page =
           rest.get()
               .uri(
                   adminBase + path,
                   uri ->
                       filter
                           .apply(uri)
-                          .queryParam("dateFrom", day)
+                          .queryParam("dateFrom", from.toEpochMilli())
                           .queryParam("direction", "asc")
                           .queryParam("first", first)
-                          .queryParam("max", limit)
+                          .queryParam("max", max)
                           .build())
               .retrieve()
               .body(JsonNode.class);
-      if (got == null || got.isEmpty()) {
-        break;
+      int received = page == null ? 0 : page.size();
+      if (page != null) {
+        page.forEach(node -> events.add(map.apply(node)));
       }
-      for (JsonNode node : got) {
-        ProviderEvent event = map.apply(node);
-        if (!event.time().isBefore(from)) {
-          events.add(event);
-        }
-      }
-      if (got.size() < limit) {
-        break;
+      if (received < max) {
+        return new EventsPage(events, false);
       }
     }
-    events.sort(Comparator.comparing(ProviderEvent::time));
-    return events.size() > limit ? List.copyOf(events.subList(0, limit)) : events;
+    // A full last page: Keycloak may have more, which the next read takes.
+    return new EventsPage(events, true);
   }
 
   private static ProviderEvent userEvent(JsonNode node) {
@@ -192,28 +163,20 @@ public final class KeycloakIdentityProviderEvents implements IdentityProviderEve
         text(node.path("details"), "username"),
         text(node, "ipAddress"),
         text(node, "error"),
-        null,
-        null,
         null);
   }
 
   private static ProviderEvent adminEvent(JsonNode node) {
-    String resourceType = text(node, "resourceType");
-    JsonNode representation = representation(node);
-    boolean roleMapping = resourceType != null && resourceType.endsWith("ROLE_MAPPING");
-    boolean userChange = "USER".equals(resourceType) && representation.has("enabled");
     return new ProviderEvent(
         id(node),
         Kind.ADMIN,
-        resourceType + "_" + text(node, "operationType"),
+        text(node, "resourceType") + "_" + text(node, "operationType"),
         Instant.ofEpochMilli(node.path("time").asLong()),
         userOf(text(node, "resourcePath")),
         null,
         text(node.path("authDetails"), "ipAddress"),
         text(node, "error"),
-        text(node.path("authDetails"), "userId"),
-        roleMapping ? roles(representation) : null,
-        userChange ? representation.get("enabled").asBoolean() : null);
+        text(node.path("authDetails"), "userId"));
   }
 
   /** The user of {@code users/{id}} or {@code users/{id}/role-mappings/...}; null for others. */
@@ -226,50 +189,62 @@ public final class KeycloakIdentityProviderEvents implements IdentityProviderEve
     return slash < 0 ? afterPrefix : afterPrefix.substring(0, slash);
   }
 
-  /** The names of the roles of a role mapping; nothing else of it. */
-  private static List<String> roles(JsonNode representation) {
-    List<String> names = new ArrayList<>();
-    if (representation.isArray()) {
-      representation.forEach(role -> {
-        if (role.hasNonNull("name")) {
-          names.add(role.get("name").asString());
-        }
-      });
-    }
-    return names;
-  }
-
-  /** The representation comes as JSON inside a string, only with the details enabled. */
-  private static JsonNode representation(JsonNode node) {
-    String text = text(node, "representation");
-    if (text == null) {
-      return JSON.createObjectNode();
-    }
-    try {
-      return JSON.readTree(text);
-    } catch (RuntimeException e) {
-      return JSON.createObjectNode();
-    }
-  }
-
-  /** The id of the event, or the SHA-256 of the event if this version of Keycloak gives none. */
+  /** Keycloak 26 gives every event its id; without one, it could not be stored once. */
   private static String id(JsonNode node) {
     String id = text(node, "id");
-    if (id != null) {
-      return id;
+    if (id == null) {
+      throw new IllegalStateException("An event of Keycloak came without its id");
     }
-    try {
-      return HexFormat.of()
-          .formatHex(
-              MessageDigest.getInstance("SHA-256")
-                  .digest(node.toString().getBytes(StandardCharsets.UTF_8)));
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 is not available", e);
-    }
+    return id;
   }
 
   private static String text(JsonNode node, String field) {
     JsonNode value = node.get(field);
     return value == null || value.isNull() ? null : value.asString();
+  }
+
+  /** The administration API of the realm: {@code /realms/liv} → {@code /admin/realms/liv}. */
+  private static String adminBaseOf(String issuer) {
+    int realms = issuer.lastIndexOf("/realms/");
+    return issuer.substring(0, realms) + "/admin" + issuer.substring(realms);
+  }
+
+  private static JdkClientHttpRequestFactory requestsWithTimeouts() {
+    JdkClientHttpRequestFactory requests =
+        new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(TIMEOUT).build());
+    requests.setReadTimeout(TIMEOUT);
+    return requests;
+  }
+
+  /** The token of the service account, by client credentials, with the same timeouts. */
+  private static OAuth2ClientHttpRequestInterceptor tokens(
+      String issuer, String clientId, String clientSecret, JdkClientHttpRequestFactory requests) {
+    ClientRegistration registration =
+        ClientRegistration.withRegistrationId(REGISTRATION)
+            .clientId(clientId)
+            .clientSecret(clientSecret)
+            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+            .tokenUri(issuer + "/protocol/openid-connect/token")
+            .build();
+    var tokenClient = new RestClientClientCredentialsTokenResponseClient();
+    tokenClient.setRestClient(
+        RestClient.builder()
+            .requestFactory(requests)
+            .messageConverters(converters -> {
+              converters.addFirst(new FormHttpMessageConverter());
+              converters.addFirst(new OAuth2AccessTokenResponseHttpMessageConverter());
+            })
+            .defaultStatusHandler(new OAuth2ErrorResponseErrorHandler())
+            .build());
+    var provider = new ClientCredentialsOAuth2AuthorizedClientProvider();
+    provider.setAccessTokenResponseClient(tokenClient);
+    var registrations = new InMemoryClientRegistrationRepository(registration);
+    var manager =
+        new AuthorizedClientServiceOAuth2AuthorizedClientManager(
+            registrations, new InMemoryOAuth2AuthorizedClientService(registrations));
+    manager.setAuthorizedClientProvider(provider);
+    var interceptor = new OAuth2ClientHttpRequestInterceptor(manager);
+    interceptor.setClientRegistrationIdResolver(request -> REGISTRATION);
+    return interceptor;
   }
 }

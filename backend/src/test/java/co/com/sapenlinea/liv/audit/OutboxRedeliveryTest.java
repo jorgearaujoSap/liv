@@ -1,7 +1,7 @@
 package co.com.sapenlinea.liv.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 
 import co.com.sapenlinea.liv.audit.application.AuditLog;
@@ -35,11 +35,12 @@ class OutboxRedeliveryTest extends PlatformWebTest {
   @Tag("001-18")
   @DisplayName("001-18 · Un evento que no se pudo auditar se audita en la reentrega")
   void failedDeliveryIsRedelivered() {
+    String correlation = UUID.randomUUID().toString();
+    // Only the event of this test fails, once: others still in flight are left alone.
     doThrow(new DataAccessResourceFailureException("base de datos caída"))
         .doCallRealMethod()
         .when(log)
-        .append(any());
-    String correlation = UUID.randomUUID().toString();
+        .append(argThat(entry -> correlation.equals(entry.correlationId())));
     Map<String, String> headers = bearer(OidcTestProvider.serviceToken());
     String token = OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_A);
     headers.put("X-User-Token", token);
@@ -50,10 +51,12 @@ class OutboxRedeliveryTest extends PlatformWebTest {
         headers,
         "{\"sid\":\"" + OidcTestProvider.sessionIdOf(token) + "\"}");
     // The first delivery fails: the event waits in the outbox, not in the audit.
-    AuditRows.awaitCount(
-        "SELECT count(*) FROM platform.event_publication"
-            + " WHERE serialized_event LIKE ? AND completion_date IS NULL AND status = 'FAILED'",
-        "%" + correlation + "%");
+    assertThat(
+            AuditRows.awaitCount(
+                "SELECT count(*) FROM platform.event_publication"
+                    + " WHERE serialized_event LIKE ? AND status = 'FAILED'",
+                "%" + correlation + "%"))
+        .isPositive();
     assertThat(AuditRows.byCorrelationNow(correlation)).isEmpty();
 
     redelivery.run();
