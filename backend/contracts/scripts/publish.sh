@@ -79,8 +79,16 @@ latest_published() { # latest_published NOMBRE
 # como «no lo cambia»: así no se aprueba nada por error.
 changed_in_commit() { # changed_in_commit NOMBRE
   git rev-parse -q --verify "$GITHUB_SHA^1^{commit}" > /dev/null || return 0
+  # git diff --quiet sale con 1 si hay cambios, con 0 si no y con otro código si falla.
   git diff --quiet "$GITHUB_SHA^1" "$GITHUB_SHA" -- "$CONTRACT_DIR/$1.yaml"
-  [ $? -eq 1 ]
+  estado_diff=$?
+  [ "$estado_diff" -eq 1 ]
+}
+
+# Descarga la release publicada como base del juicio y comprueba que su YAML coincide con su propio .sha256.
+download_base() { # download_base ETIQUETA NOMBRE CARPETA
+  gh release download "$1" --pattern "$2.yaml.sha256" --dir "$3" --clobber 2> "$error" || return 1
+  published_matches "$1" "$2" "$(cut -d ' ' -f 1 "$3/$2.yaml.sha256")"
 }
 
 # Juzga el contrato con compare.sh contra la release publicada más alta, o como contrato nuevo si no tiene. La
@@ -96,10 +104,7 @@ judge_against_release() { # judge_against_release ARCHIVO NOMBRE
   fi
   if [ -n "$publicada" ]; then
     etiqueta_base="contract-$2-v$publicada"
-    # La release de la base también se verifica: su YAML debe coincidir con su .sha256.
-    gh release download "$etiqueta_base" --pattern "$2.yaml.sha256" --dir "$juicio" --clobber 2> "$error" &&
-      published_matches "$etiqueta_base" "$2" "$(cut -d ' ' -f 1 "$juicio/$2.yaml.sha256")"
-    if [ $? -ne 0 ]; then
+    if ! download_base "$etiqueta_base" "$2" "$juicio"; then
       falla PUBLISH_ERROR "$2" "no se pudo leer, o no coincide con su SHA-256, la release publicada $etiqueta_base: $(cat "$error")"
       return 1
     fi

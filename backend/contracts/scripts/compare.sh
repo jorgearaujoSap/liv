@@ -45,6 +45,8 @@ prepare_workdir "${LIV_CONTRACTS_WORK:-$proyecto/target/contracts-compare}" "${L
 cd "${LIV_CONTRACTS_ROOT:-$proyecto}" || exit 2
 
 # Resultado de openapi-diff: incompatible, compatible, equivalent o error. Deja el reporte en $trabajo.
+# El resultado sale de las frases del reporte de consola de openapi-diff 2.1.7. Si sube su versión en pom.xml y
+# cambian, las pruebas (test/run.sh) fallan.
 diff_result() { # diff_result BASE HEAD NOMBRE
   reporte="$trabajo/$3.txt"
   rm -f "$reporte"
@@ -52,8 +54,6 @@ diff_result() { # diff_result BASE HEAD NOMBRE
       -DoldSpec="$(java_path "$1")" -DnewSpec="$(java_path "$2")" -DconsoleOutputFileName="$(java_path "$reporte")") \
       > "$trabajo/$3.log" 2>&1 || [ ! -f "$reporte" ]; then
     echo error
-  # Frases del reporte de consola de openapi-diff 2.1.7. Si sube su versión en pom.xml y cambian, las pruebas
-  # (test/run.sh) fallan.
   elif grep -q 'API changes broke backward compatibility' "$reporte"; then
     echo incompatible
   elif grep -q 'API changes are backward compatible' "$reporte"; then
