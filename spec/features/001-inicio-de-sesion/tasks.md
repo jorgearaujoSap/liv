@@ -36,7 +36,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - en todo PR: título en Conventional Commits (Q13) y búsqueda de secretos con gitleaks;
     - acciones fijadas por SHA, permisos mínimos y `concurrency`.
   - Prueba primero: los comandos de cada *workflow* ejecutados en local; los *workflows* corren sobre su propio PR. La expresión del título se probó con casos válidos e inválidos.
-  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T16 y T21; la de los contratos del backend y su comparador de cambios incompatibles, en una tarea aparte de F0‑07 antes de T20 (decisión del responsable, 2026-11-02); verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
+  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T16 y T21 (la de T08, que incluye construir la imagen de identidad y correr `check.sh`, quedó como pendiente aparte con aprobación del responsable, 2026-11-03); la de los contratos del backend y su comparador de cambios incompatibles, en una tarea aparte de F0‑07 antes de T20 (decisión del responsable, 2026-11-02); verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
 
 ## `ui/` — `liv-components` 0.2.0
 
@@ -143,9 +143,31 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - eventos activados;
     - consola de cuenta desactivada;
     - ningún secreto de `config/dev` en `config/base`.
-- [ ] **T08** · Tema `liv` y la imagen de Keycloak.
+- [x] **T08** · Tema `liv` y la imagen de Keycloak. — Hecha en dos PR, porque no cabía en ~400 líneas: PR #57 (imagen, plantilla común con `Keycloak/BrandPanel`, inicio de sesión en escritorio y móvil con sus estados, y página de error) y PR #58 (contraseña nueva, configurar el segundo factor y pedir su código). Usa `liv-components` 0.2.0 con versión exacta y solo sus *tokens*.
   - Archivos: `backend/identity/theme/liv/**`, `backend/identity/theme/package.json` (Tailwind y `liv-components`), `backend/identity/Dockerfile`.
-  - Prueba primero: con Playwright contra Keycloak en contenedor, una prueba visual de las 8 páginas contra los *frames* aprobados, más axe (001-19). También comprueba que el mensaje de credenciales incorrectas y el de cuenta desactivada sean el mismo texto genérico (001-03, 001-05).
+  - Prueba primero: `backend/identity/theme/check.sh`, en rojo antes de cada parte. Usa Docker y `curl`, levanta un entorno desechable y no agrega dependencias. Comprueba:
+    - en el inicio de sesión y la página de error: el tema, el español y que solo se usen colores de los *tokens*;
+    - que contraseña incorrecta, usuario inexistente, cuenta bloqueada y usuario desactivado reciban la **misma página** (001-03, 001-04, 001-05);
+    - en contraseña nueva, configurar el segundo factor y pedir su código: los campos que lee Keycloak y los errores en su campo;
+    - que con datos correctos se entre (001-06, 001-07);
+    - que 5 códigos inválidos bloqueen la cuenta (001-07);
+    - que la imagen arranque con `start --optimized`.
+  - **Decisiones del responsable (2026-11-03):**
+    - la prueba visual contra los *frames* y axe pasan a T23, porque el ADR 0023 no aprueba Playwright ni axe en `backend/identity/`;
+    - el tema se activa con `loginTheme: liv` en el *realm* base, y `dev/compose.yaml` construye la imagen;
+    - fuente del sistema, sin archivos de Inter;
+    - al guardar la contraseña nueva o activar el segundo factor se cierran las demás sesiones del usuario (`logout-sessions`);
+    - subtítulo neutro en «Actualizar contraseña», también en Figma, porque las contraseñas no vencen (D-001-7);
+    - al configurar el segundo factor, el código inválido no avisa de un bloqueo que en esa acción no ocurre;
+    - la latencia del bloqueo de Keycloak queda como riesgo aceptado (plan, «Riesgos»).
+  - **Desviaciones declaradas:**
+    - se tocaron `backend/identity/config/base/liv-realm.yaml` (una línea, `loginTheme`) y `backend/dev/compose.yaml` (servicio `keycloak` con `build`, etiqueta `LIV_IDENTITY_IMAGE` y `pull_policy: build`);
+    - archivos de soporte: `theme/check.sh`, `theme/package-lock.json`, `theme/.npmrc` (sin instalar Angular, *peer* de `liv-components`), `theme/.gitignore`, `identity/.dockerignore`, `identity/THIRD_PARTY_NOTICES.md` (licencias de los iconos), `identity/README.md` y `backend/CHANGELOG.md`;
+    - la prueba no es Playwright sino `check.sh`, por la primera decisión.
+  - **Revisión:** adversarial con dos revisores ciegos y lente de riesgo a nivel alto en cada parte; resiliencia y confiabilidad a nivel estándar; legibilidad antes de cada commit. Dos rondas en cada PR:
+    - **PR #57:** un alto confirmado por los tres revisores de nivel alto. La cuenta desactivada se distinguía por el marcado (Keycloak manda ese error sin campo); se corrigió con prueba en rojo. Segunda ronda sin críticos ni altos.
+    - **PR #58:** dos altos. La prueba no verificaba los nombres de campo ni los caminos de éxito, y no se cerraban las demás sesiones. Se corrigieron; segunda ronda sin críticos ni altos.
+  - **Pendiente, fuera de T08** (cambia CI y requiere aprobación del responsable): un trabajo de CI que construya `backend/identity/Dockerfile`, ejecute `check.sh`, revise la imagen con Trivy y la publique. Va con las demás publicaciones de F0‑07.
 
 ## `backend/dev/`
 
@@ -325,7 +347,10 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - la URL de cierre sin *tokens*;
     - el botón "atrás" tras salir;
     - el TOTP obligatorio y el código incorrecto;
-    - el bloqueo.
+    - el bloqueo;
+    - **desde T08** (decisión del responsable, 2026-11-03): la prueba visual de las 8 páginas de acceso contra los *frames* aprobados, con capturas de referencia aprobadas por el responsable, y axe en esas páginas (001-19). Debe cubrir también:
+      - el contraste del texto del panel de marca sobre los círculos decorativos, que axe no calcula;
+      - el comportamiento de `liv.js`: mostrar la contraseña, «Ingresando…», pegar el código y volver con «atrás».
 
 ## Trazabilidad criterio → tareas
 
