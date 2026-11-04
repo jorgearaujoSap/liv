@@ -1,0 +1,43 @@
+# CI de PR del BFF (doc. 04 §9, IN‑08): solo orquesta los comandos del proyecto, desde su carpeta.
+# `backend/bff/` es un proyecto Maven aparte (`liv-bff`), que el `verify` de `backend/` no compila.
+# Compuertas cubiertas hoy: Q01 (compilación y formato), Q02 (pruebas) y Q03 (arquitectura). La
+# publicación de su imagen queda para cuando se decida (plan de la feature 001, «Ajustes de T16»).
+name: bff-pr
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/bff/**'
+      - '.github/workflows/bff-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bff-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: bff · verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend/bff
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/bff/pom.xml
+
+      # Las pruebas de la migración usan Testcontainers con el Docker del ejecutor.
+      - name: Compilación, formato, arquitectura y pruebas (Q01–Q03)
+        run: ./mvnw -B -ntp verify

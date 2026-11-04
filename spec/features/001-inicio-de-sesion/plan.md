@@ -427,7 +427,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - la primera migración del BFF (`V202611032100`, PostgreSQL 16 o superior) solo comprueba ese contrato y fija los permisos del dueño;
     - el contrato: migra `liv_bff_owner`; los dos roles sin atributos de privilegio (también `REPLICATION`) ni membresías; nadie es miembro de ellos, directo o indirecto, salvo un administrador ajeno a LIV (con `CREATEROLE`, como el creador en RDS); solo ellos tienen permisos sobre `bff`, y los permisos por defecto solo dan DML a `liv_bff`; nada fuera de `bff`;
   - **pendientes de decisión humana** (listados en el PR #66):
-    - el trabajo de CI del BFF (Q01–Q03) y la publicación de su imagen, que T02 asignaba a T16: requieren aprobación (`AGENTS.md` §4.5);
+    - el trabajo de CI del BFF (Q01–Q03) y la publicación de su imagen, que T02 asignaba a T16: requieren aprobación (`AGENTS.md` §4.5). **El trabajo de CI se aprobó el 2026-11-04** (`bff-pr`, con `bff · verify`); la publicación de la imagen sigue pendiente;
     - Spring Boot 4.1.2, que ya usa `liv-api`, tiene menos de dos semanas de publicado;
     - las dependencias de prueba y de *build* del BFF, iguales a las de `backend/`, que la fila del BFF del ADR 0023 no nombra;
     - la etiqueta de versiones del BFF (`bff-vX.Y.Z`), que `AGENTS.md` §4.6 no define;
