@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=no
+base=muestra
+head=archivo
+motivo=INVALID_VERSION
+nota=dentro de las comillas el # no es comentario: la versión es «1.1.0 # x»

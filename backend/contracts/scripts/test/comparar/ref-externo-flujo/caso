@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=si
+base=muestra
+head=archivo
+motivo=EXTERNAL_REF
+nota=$ref en estilo de flujo, entre llaves

@@ -3,8 +3,9 @@
 # ADR 0027). Tres grupos:
 #   comparar  cada carpeta de comparar/ es un escenario: muestra.yaml (la versión de main) contra head.yaml (la del
 #             PR), con un archivo caso;
-#   git       compare.sh con una referencia de Git, sobre repositorios temporales (lo que corre en CI);
-#   publicar  publish.sh con un gh falso (fake-gh.sh), sin tocar GitHub.
+#   git       compare.sh con una referencia de Git, sobre repositorios temporales con el proyecto en una
+#             subcarpeta (como corre en CI);
+#   publicar  publish.sh con un gh falso (fake-gh.sh) sobre repositorios temporales, sin tocar GitHub.
 # El archivo caso de cada escenario de comparar/ dice:
 #   esperado=pasa|falla
 #   aprobado=si|no                si el PR tiene la etiqueta contrato-incompatible
@@ -86,25 +87,26 @@ for caso in "$pruebas"/comparar/*/caso; do
 done
 
 echo "Comparar con una referencia de Git:"
-# Repositorio temporal con muestra.yaml en contracts/openapi/ y un primer commit; autocrlf apagado para que el
-# commit guarde LF y la prueba de CRLF sea real.
+# Repositorio temporal con el proyecto en una subcarpeta, como backend/ en el repositorio real, y un primer commit
+# con muestra.yaml. autocrlf apagado para que el commit guarde LF y la prueba de CRLF sea real.
 repo_nuevo() { # repo_nuevo NOMBRE [sin-contratos]
   repo="$trabajo/git/$1"
-  mkdir -p "$repo/contracts/openapi"
+  proyecto="$repo/proyecto"
+  mkdir -p "$proyecto/contracts/openapi"
   git -C "$repo" init -q
   git -C "$repo" config core.autocrlf false
   git -C "$repo" config user.name prueba
   git -C "$repo" config user.email prueba@example.invalid
   if [ "${2:-}" = sin-contratos ]; then
-    echo prueba > "$repo/README.md"
+    echo prueba > "$proyecto/README.md"
   else
-    tr -d '\r' < "$pruebas/muestra.yaml" > "$repo/contracts/openapi/muestra.yaml"
+    tr -d '\r' < "$pruebas/muestra.yaml" > "$proyecto/contracts/openapi/muestra.yaml"
   fi
   git -C "$repo" add -A
   git -C "$repo" commit -q -m inicial
 }
-caso_git() { # caso_git NOMBRE ESPERADO MOTIVO SALIDA REFERENCIA
-  resultado=$(correr "$repo.txt" env LIV_CONTRACTS_ROOT="$repo" LIV_CONTRACTS_WORK="$repo.trabajo" \
+caso_git() { # caso_git NOMBRE ESPERADO MOTIVO SALIDA REFERENCIA [CARPETA_DE_TRABAJO]
+  resultado=$(correr "$repo.txt" env LIV_CONTRACTS_ROOT="$proyecto" LIV_CONTRACTS_WORK="${6:-$repo.trabajo}" \
     LIV_CONTRACTS_BREAKING_APPROVED=false sh "$backend/contracts/scripts/compare.sh" "$5")
   verificar "git/$1" "$resultado" "$2" "$3" "$4" "$repo.txt"
 }
@@ -112,66 +114,88 @@ cabeza_quitada="$pruebas/comparar/campo-requerido-quitado/head.yaml"
 cabeza_compatible="$pruebas/comparar/campo-opcional-agregado/head.yaml"
 
 repo_nuevo crlf-sin-cambios
-sed 's/$/\r/' "$repo/contracts/openapi/muestra.yaml" > "$repo/crlf" && mv "$repo/crlf" "$repo/contracts/openapi/muestra.yaml"
+sed 's/$/\r/' "$proyecto/contracts/openapi/muestra.yaml" > "$repo/crlf"
+mv "$repo/crlf" "$proyecto/contracts/openapi/muestra.yaml"
 caso_git crlf-sin-cambios pasa '' 'sin cambios (1.0.0)' HEAD
 
 repo_nuevo incompatible
-cp "$cabeza_quitada" "$repo/contracts/openapi/muestra.yaml"
+cp "$cabeza_quitada" "$proyecto/contracts/openapi/muestra.yaml"
 caso_git incompatible falla INCOMPATIBLE '' HEAD
 
 repo_nuevo referencia-inexistente
 caso_git referencia-inexistente falla GIT_ERROR '' no-existe
 
 repo_nuevo nombre-invalido
-cp "$pruebas/muestra.yaml" "$repo/contracts/openapi/Muestra-2.yaml"
+cp "$pruebas/muestra.yaml" "$proyecto/contracts/openapi/Muestra-2.yaml"
 caso_git nombre-invalido falla INVALID_NAME '' HEAD
 
+repo_nuevo archivo-oculto
+cp "$pruebas/muestra.yaml" "$proyecto/contracts/openapi/.oculto.yaml"
+caso_git archivo-oculto falla INVALID_NAME '' HEAD
+
 repo_nuevo extension-yml
-cp "$pruebas/muestra.yaml" "$repo/contracts/openapi/otro.yml"
+cp "$pruebas/muestra.yaml" "$proyecto/contracts/openapi/otro.yml"
 caso_git extension-yml falla UNEXPECTED_FILE '' HEAD
 
 repo_nuevo subcarpeta
-mkdir -p "$repo/contracts/openapi/comun"
-cp "$pruebas/muestra.yaml" "$repo/contracts/openapi/comun/otro.yaml"
+mkdir -p "$proyecto/contracts/openapi/comun"
+cp "$pruebas/muestra.yaml" "$proyecto/contracts/openapi/comun/otro.yaml"
 caso_git subcarpeta falla UNEXPECTED_FILE '' HEAD
-
-repo_nuevo comparador-y-contrato
-mkdir -p "$repo/contracts/scripts"
-echo 'regla=1' > "$repo/contracts/scripts/regla.sh"
-git -C "$repo" add -A
-git -C "$repo" commit -q -m comparador
-echo 'regla=2' > "$repo/contracts/scripts/regla.sh"
-cp "$cabeza_compatible" "$repo/contracts/openapi/muestra.yaml"
-caso_git comparador-y-contrato falla GATE_AND_CONTRACTS '' HEAD
 
 repo_nuevo sin-contratos sin-contratos
 caso_git sin-contratos falla NO_CONTRACTS '' HEAD
 
+# Una carpeta de trabajo que es el propio proyecto no se borra.
+repo_nuevo trabajo-inseguro
+caso_git trabajo-inseguro falla UNSAFE_WORKDIR '' HEAD "$proyecto"
+resultado=falla
+[ -f "$proyecto/contracts/openapi/muestra.yaml" ] && resultado=pasa
+echo "El proyecto sigue con sus contratos: $resultado" > "$repo.queda.txt"
+verificar git/trabajo-inseguro-no-borra "$resultado" pasa '' '' "$repo.queda.txt"
+
 echo "Publicar:"
-# Cada caso tiene una raíz con contracts/openapi/muestra.yaml y un almacén vacío del gh falso.
+# Cada caso tiene un repositorio con dos o tres commits y un almacén vacío del gh falso. publish.sh publica el
+# último commit (GITHUB_SHA) y lo compara con el anterior (HEAD^1).
 etiqueta=contract-muestra-v1.0.0
-preparar_publicacion() { # preparar_publicacion NOMBRE [sin-contratos]
+otros=0
+repo_publicacion() { # repo_publicacion NOMBRE
   dir="$trabajo/publicar/$1"
+  repo="$dir/repo"
   almacen="$dir/almacen"
-  mkdir -p "$dir/raiz/contracts/openapi" "$almacen"
+  mkdir -p "$repo/contracts/openapi" "$almacen"
   : > "$almacen/llamadas"
-  [ "${2:-}" = sin-contratos ] || tr -d '\r' < "$pruebas/muestra.yaml" > "$dir/raiz/contracts/openapi/muestra.yaml"
-  publicado="$dir/raiz/contracts/openapi/muestra.yaml"
+  git -C "$repo" init -q
+  git -C "$repo" config core.autocrlf false
+  git -C "$repo" config user.name prueba
+  git -C "$repo" config user.email prueba@example.invalid
+  publicado="$repo/contracts/openapi/muestra.yaml"
 }
-sembrar_release() { # sembrar_release ESTADO YAML_O_VACIO SHA_O_VACIO
-  mkdir -p "$almacen/releases/$etiqueta/assets"
-  echo "$1" > "$almacen/releases/$etiqueta/estado"
-  [ -n "$2" ] && tr -d '\r' < "$2" > "$almacen/releases/$etiqueta/assets/muestra.yaml"
-  [ -n "$3" ] && printf '%s  muestra.yaml\n' "$3" > "$almacen/releases/$etiqueta/assets/muestra.yaml.sha256"
-  if [ "$1" = published ]; then mkdir -p "$almacen/tags" && touch "$almacen/tags/$etiqueta"; fi
+commit_contrato() { # commit_contrato ARCHIVO
+  tr -d '\r' < "$1" > "$publicado"
+  git -C "$repo" add -A
+  git -C "$repo" commit -q -m contrato
+}
+commit_otro() {
+  otros=$((otros + 1))
+  echo "$otros" >> "$repo/README.md"
+  git -C "$repo" add -A
+  git -C "$repo" commit -q -m otro
+}
+sha_de() { tr -d '\r' < "$1" | sha256sum | cut -d ' ' -f 1; }
+sembrar_release() { # sembrar_release ETIQUETA ESTADO YAML_O_VACIO SHA_O_VACIO
+  mkdir -p "$almacen/releases/$1/assets"
+  echo "$2" > "$almacen/releases/$1/estado"
+  [ -n "$3" ] && tr -d '\r' < "$3" > "$almacen/releases/$1/assets/muestra.yaml"
+  [ -n "$4" ] && printf '%s  muestra.yaml\n' "$4" > "$almacen/releases/$1/assets/muestra.yaml.sha256"
+  if [ "$2" = published ]; then mkdir -p "$almacen/tags" && touch "$almacen/tags/$1"; fi
 }
 caso_publicar() { # caso_publicar NOMBRE ESPERADO MOTIVO SALIDA
-  resultado=$(correr "$dir/salida.txt" env LIV_CONTRACTS_ROOT="$dir/raiz" LIV_CONTRACTS_WORK="$dir/trabajo" \
-    LIV_GH="sh $pruebas/fake-gh.sh" FAKE_GH_STORE="$almacen" GH_REPO=liv/prueba GITHUB_SHA=0123abc \
-    sh "$backend/contracts/scripts/publish.sh")
+  resultado=$(correr "$dir/salida.txt" env LIV_CONTRACTS_ROOT="$repo" LIV_CONTRACTS_WORK="$dir/trabajo" \
+    LIV_GH="sh $pruebas/fake-gh.sh" FAKE_GH_STORE="$almacen" GH_REPO=liv/prueba \
+    GITHUB_SHA="$(git -C "$repo" rev-parse HEAD)" sh "$backend/contracts/scripts/publish.sh" HEAD^1)
   verificar "publicar/$1" "$resultado" "$2" "$3" "$4" "$dir/salida.txt"
 }
-# Comprueba el estado del almacén después de publicar.
+# Comprueba el almacén del gh falso después de publicar.
 caso_almacen() { # caso_almacen NOMBRE CONDICION...
   nombre=$1
   shift
@@ -180,46 +204,110 @@ caso_almacen() { # caso_almacen NOMBRE CONDICION...
   cat "$almacen/llamadas" >> "$dir/almacen.txt"
   verificar "publicar/$nombre" "$resultado" pasa '' '' "$dir/almacen.txt"
 }
+# La release está publicada con el contenido del commit, no el del árbol de trabajo.
 publicada_completa() {
+  contenido=$(cd "$repo" && MSYS_NO_PATHCONV=1 git show HEAD:contracts/openapi/muestra.yaml | sha256sum | cut -d ' ' -f 1)
   [ "$(cat "$almacen/releases/$etiqueta/estado")" = published ] &&
-    cmp -s "$almacen/releases/$etiqueta/assets/muestra.yaml" "$publicado" &&
-    [ "$(cut -d ' ' -f 1 "$almacen/releases/$etiqueta/assets/muestra.yaml.sha256")" = "$(sha256sum "$publicado" | cut -d ' ' -f 1)" ]
+    [ "$(sha256sum < "$almacen/releases/$etiqueta/assets/muestra.yaml" | cut -d ' ' -f 1)" = "$contenido" ] &&
+    [ "$(cut -d ' ' -f 1 "$almacen/releases/$etiqueta/assets/muestra.yaml.sha256")" = "$contenido" ]
 }
 sin_crear() { ! grep -q '^release create' "$almacen/llamadas"; }
+sin_publicar() { ! grep -q -- '--draft=false' "$almacen/llamadas"; }
 
-preparar_publicacion nueva
+repo_publicacion nueva
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
 caso_publicar nueva pasa '' "publicada $etiqueta"
 caso_almacen nueva-queda-completa publicada_completa
 
-preparar_publicacion ya-publicada
-sembrar_release published "$publicado" "$(sha256sum "$publicado" | cut -d ' ' -f 1)"
+repo_publicacion arbol-con-cambios
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+tr -d '\r' < "$cabeza_compatible" > "$publicado"
+caso_publicar arbol-con-cambios pasa '' "publicada $etiqueta"
+caso_almacen arbol-con-cambios-publica-el-commit publicada_completa
+
+repo_publicacion ya-publicada
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" published "$publicado" "$(sha_de "$publicado")"
 caso_publicar ya-publicada pasa '' "$etiqueta ya está publicada"
 caso_almacen ya-publicada-sin-crear sin_crear
 
-preparar_publicacion otro-contenido
-sembrar_release published "$cabeza_compatible" "$(tr -d '\r' < "$cabeza_compatible" | sha256sum | cut -d ' ' -f 1)"
+repo_publicacion otro-contenido
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" published "$cabeza_compatible" "$(sha_de "$cabeza_compatible")"
 caso_publicar otro-contenido falla PUBLISHED_CHANGED ''
 
-preparar_publicacion yaml-reemplazado
-sembrar_release published "$cabeza_compatible" "$(sha256sum "$publicado" | cut -d ' ' -f 1)"
+repo_publicacion yaml-reemplazado
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" published "$cabeza_compatible" "$(sha_de "$publicado")"
 caso_publicar yaml-reemplazado falla PUBLISHED_CHANGED ''
 
-preparar_publicacion borrador-a-medias
-sembrar_release draft '' "$(sha256sum "$publicado" | cut -d ' ' -f 1)"
+repo_publicacion borrador-a-medias
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" draft '' "$(sha_de "$publicado")"
 caso_publicar borrador-a-medias pasa '' "publicada $etiqueta"
 caso_almacen borrador-a-medias-queda-completa publicada_completa
 
-preparar_publicacion etiqueta-sin-release
+repo_publicacion borrador-no-verifica
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" draft '' "$(sha_de "$publicado")"
+touch "$almacen/download-altera"
+caso_publicar borrador-no-verifica falla PUBLISH_ERROR ''
+caso_almacen borrador-no-verifica-sin-publicar sin_publicar
+
+repo_publicacion subida-falla
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" draft '' "$(sha_de "$publicado")"
+touch "$almacen/upload-falla"
+caso_publicar subida-falla falla PUBLISH_ERROR ''
+caso_almacen subida-falla-sin-publicar sin_publicar
+
+repo_publicacion etiqueta-sin-release
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
 mkdir -p "$almacen/tags" && touch "$almacen/tags/$etiqueta"
 caso_publicar etiqueta-sin-release falla PUBLISH_ERROR ''
 caso_almacen etiqueta-sin-release-sin-crear sin_crear
 
-preparar_publicacion error-de-red
+repo_publicacion error-de-red
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
 touch "$almacen/view-falla"
 caso_publicar error-de-red falla PUBLISH_ERROR ''
 caso_almacen error-de-red-sin-crear sin_crear
 
-preparar_publicacion sin-contratos sin-contratos
+repo_publicacion error-api-etiqueta
+commit_otro
+commit_contrato "$pruebas/muestra.yaml"
+touch "$almacen/api-falla"
+caso_publicar error-api-etiqueta falla PUBLISH_ERROR ''
+caso_almacen error-api-etiqueta-sin-crear sin_crear
+
+# El contrato no cambia en este commit, pero nunca tuvo release: es la primera publicación.
+repo_publicacion nunca-publicado
+commit_contrato "$pruebas/muestra.yaml"
+commit_otro
+caso_publicar nunca-publicado pasa '' "publicada $etiqueta"
+
+# 1.1.0 llegó en un commit anterior cuya publicación no corrió o falló: no se publica sin haberla juzgado.
+repo_publicacion anterior-sin-publicar
+commit_contrato "$pruebas/muestra.yaml"
+sembrar_release "$etiqueta" published "$publicado" "$(sha_de "$publicado")"
+commit_contrato "$cabeza_compatible"
+commit_otro
+caso_publicar anterior-sin-publicar falla UNPUBLISHED_EARLIER ''
+caso_almacen anterior-sin-publicar-sin-crear sin_crear
+
+repo_publicacion sin-contratos
+commit_otro
+commit_otro
 caso_publicar sin-contratos falla NO_CONTRACTS ''
 
 if [ "$fallas" -gt 0 ]; then

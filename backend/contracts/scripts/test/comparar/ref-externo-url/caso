@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=si
+base=muestra
+head=archivo
+motivo=EXTERNAL_REF
+nota=$ref a una URL: el SHA-256 publicado no cubriría el archivo remoto
