@@ -14,14 +14,18 @@ on:
       - 'backend/bff/contracts/**'
       - '.github/workflows/backend-main.yml'
   # Para volver a intentar la publicación de la punta de main, solo desde main. Como cada versión se juzga contra
-  # lo publicado, también publica una versión que quedó pendiente de una integración anterior.
+  # lo publicado, también publica una versión compatible que quedó pendiente de una integración anterior. Una
+  # incompatible aprobada solo se publica con la etiqueta del PR que la trajo: «Re-run» de la ejecución de ese
+  # commit.
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # Las publicaciones van en fila, sin cancelarse. GitHub deja una sola en espera: con tres integraciones seguidas,
-# la del medio se cancela, y la siguiente publica la versión que quede en el árbol.
+# la del medio se cancela, y la siguiente publica la versión que quede en el árbol, juzgada contra lo publicado.
+# Si la del medio traía un cambio incompatible aprobado, la siguiente no tiene su etiqueta y lo rechaza: se
+# publica con «Re-run» de la ejecución cancelada.
 concurrency:
   group: backend-main
   cancel-in-progress: false
