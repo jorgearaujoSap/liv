@@ -127,6 +127,17 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-03
 
+- Feature 001, T15 (PR #60): auditoría en el backend. 001-18 queda marcado.
+  - **Eventos de LIV:** inicio, fin, rechazo y primer ingreso llegan por el *outbox* JDBC de Spring Modulith a oyentes asíncronos, cada uno en su administración. Los rechazos sin administración válida quedan como fila de plataforma, sin actor.
+  - **Eventos de Keycloak:**
+    - un importador programado, con ShedLock y el cliente `liv-audit-importer`, copia intentos fallidos, bloqueos y cambios de administradores;
+    - enmascara el usuario intentado (HMAC), la IP y el autor, y solo guarda las claves del plan;
+    - lee desde el instante exacto y no salta eventos;
+    - se prueba contra Keycloak real.
+  - **Decisiones del responsable**, registradas en el plan (ajustes de T15): sin actor, un solo PR, `SessionDenied` sin emisor ni `sub`, purga del *outbox* y lista blanca del plan.
+  - **Verificación:** `./mvnw verify` termina con 342 pruebas en verde. Hubo tres rondas de revisión adversarial de nivel alto y las cuatro lentes.
+  - **Variables obligatorias nuevas:** `LIV_AUDIT_HMAC_KEY` y `LIV_AUDIT_IMPORTER_SECRET`.
+
 - Feature 001, T08 hecha en dos PR: tema `liv` de Keycloak e imagen propia (`backend/identity/`). Usa `liv-components` 0.2.0 con versión exacta y solo sus *tokens*.
   - **PR #57:** imagen de Keycloak 26.8.1 con el tema, optimizada para PostgreSQL; plantilla común con `Keycloak/BrandPanel`; inicio de sesión en escritorio y móvil, con "Ingresando…" y credenciales incorrectas; página de error. El *realm* activa el tema y `backend/dev/compose.yaml` construye la imagen.
   - **PR #58:** contraseña nueva, configurar el segundo factor (pasos, QR y clave) y pedir su código, con los errores en su campo.

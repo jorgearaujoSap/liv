@@ -404,6 +404,18 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
+  - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;
+  - **un solo PR** para toda la tarea;
+  - **`SessionDenied` sin emisor ni `sub`**, porque el evento espera en el *outbox* y la auditoría no los usa. Conserva el `sid`;
+  - **purga del *outbox*:** cada entrega completada se borra (`completion-mode: delete`), y `liv_app` tiene `DELETE` sobre `platform.event_publication` (migración `V202611031000`). No se puede limitar con RLS, y una prueba exige que ningún código de LIV nombre la tabla;
+  - **lista blanca del plan:** `new_values` del importador solo lleva `result`, `reason`, `truncated_ip` y `masked_attempted_username`. No se importan los roles ni el estado de un cambio, ni `GROUP_MEMBERSHIP`;
+  - **técnicos, salidos de la revisión:**
+    - el importador lee desde el instante exacto (`dateFrom` en milisegundos de Keycloak 26) y, tras una corrida incompleta, sigue desde la marca sin releer la superposición (columna `complete`, migración `V202611031010`);
+    - la primera importación empieza a los 29 días, un día antes de que Keycloak borre;
+    - la reentrega del *outbox* es un trabajo programado de `platform`, no al arrancar, para que la API arranque sin base;
+    - los oyentes tienen un ejecutor de pocos hilos;
+    - las métricas son `liv.audit.importer.lag` y `liv.audit.importer.failures`.
 - **Ajustes de T14 (aprobados por el responsable el 2026-11-03, PR #55).** Salieron al escribir el catálogo del menú y de la revisión adversarial:
   - **catálogo del menú** (`backend/src/main/resources/platform/menu-catalog.yaml`):
     - árbol completo de Doc. 01 §3, hasta las hojas de 1.5 y 1.6. Los módulos 2 a 9 son hojas hasta que tengan matriz por opción; el frontend decide cuántos niveles pinta;

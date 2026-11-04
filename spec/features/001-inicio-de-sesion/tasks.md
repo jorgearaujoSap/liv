@@ -270,7 +270,19 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - 001-15: matriz rol → opciones visibles contra una tabla esperada escrita aparte;
     - 001-16: caso de uso y controlador de prueba, 200 con el permiso y 403 sin él;
     - ArchUnit: `@RequiresPermission` en los servicios de `application`, con su lista de excepciones.
-- [ ] **T15** · `audit`: oyentes, función de rechazos e importador de eventos del proveedor (adaptador, cursor, ShedLock, enmascarado).
+- [x] **T15** · `audit`: oyentes, función de rechazos e importador de eventos del proveedor (adaptador, cursor, ShedLock, enmascarado). — Hecha: PR #60, con las decisiones del responsable (plan › Decisiones, ajustes de T15).
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista:
+      - en `core`, los cuatro eventos (`eventId`, fecha y `correlationId`; `SessionDenied` sin emisor ni `sub`), `StartSession`, `JdbcSessionStore` y sus pruebas;
+      - en `platform`, `Correlation`, `time`, `async`, `scheduling`, `persistence/OutboxConfiguration`, `persistence/OutboxResubmissionJob` y `web/CorrelationIdFilter`;
+      - `application.yml` y `config/application-dev.yml`;
+      - las migraciones `V202611031000` y `V202611031010`;
+      - en las pruebas, `LivDatabase`, `RealKeycloak`, `LivAppGrantsTest`, `FlywayProfilesTest` y las de arquitectura;
+      - `README.md` y `CHANGELOG.md`;
+    - la lista cerrada de `@OpenUseCase` suma los cuatro oyentes y el importador;
+    - unas 3.300 líneas, la mayoría pruebas;
+    - tres rondas de revisión, la segunda en un solo commit `fix:`;
+    - quedan bajos documentados en el PR: empates de milisegundo en el borde de una página, el supuesto de relojes sincronizados y la reentrega sin tope de un evento que siempre falla.
   - Archivos: `backend/src/main/java/co/com/sapenlinea/liv/audit/**`, `platform/infrastructure/identity/**`, `backend/pom.xml` (Modulith JDBC, ShedLock, `oauth2-client`), `backend/src/test/**/audit/**`.
   - Prueba primero:
     - 001-18 por tipo de evento: inicio, rechazo con y sin administración, fin por cada motivo, intento fallido, bloqueo y cambio de rol en la consola;
