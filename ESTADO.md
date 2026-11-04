@@ -127,6 +127,12 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-03
 
+- Feature 001, alcance del BFF, por decisión del responsable: primero un BFF mínimo para validar con usuarios, y el endurecimiento antes de producción.
+  - **T17:** inicio y cierre de sesión.
+  - **T18:** reenvío a la API, CSRF, inactividad, límite absoluto, `keepalive` y `bff.yaml`.
+  - **T19, antes de producción:** terminador y barrido de sesiones vencidas, canal trasero, límite de tasa y cabeceras.
+  - Se mantiene el BFF porque lo piden 001-11 y el ADR 0010.
+
 - Feature 001, T15 (PR #60): auditoría en el backend. 001-18 queda marcado.
   - **Eventos de LIV:** inicio, fin, rechazo y primer ingreso llegan por el *outbox* JDBC de Spring Modulith a oyentes asíncronos, cada uno en su administración. Los rechazos sin administración válida quedan como fila de plataforma, sin actor.
   - **Eventos de Keycloak:**

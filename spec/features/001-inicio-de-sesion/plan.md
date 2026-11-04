@@ -404,6 +404,19 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin rotación del *refresh token***, que el plan no pedía y cerraba sesiones con renovaciones simultáneas;
   - **HTTPS siempre** (`sslRequired: all` en lugar de `external`), porque detrás de un balanceador mal configurado `external` dejaría pasar HTTP;
   - HTTPS y bloqueo como valores fijos; la capa de desarrollo fuera de `identity/config/` y sin TOTP; flujo de contraseña directa denegado; eventos sin `jboss-logging`; canal trasero por la URL interna.
+- **Alcance del BFF (decisión del responsable, 2026-11-03).** El BFF se queda, porque lo pide 001-11 (el navegador nunca tiene *tokens*) y el ADR 0010. Sin él habría que rehacer lo ya construido: los clientes del *realm*, el `azp` que exige la API y el registro de sesiones. Pero se construye por etapas:
+  - **ahora, para validar con usuarios:**
+    - T16, el esqueleto;
+    - T17, el inicio y cierre de sesión;
+    - T18, el reenvío a la API, CSRF, la inactividad y el límite absoluto en la petición del usuario, `keepalive`, `/bff/session` y `bff.yaml`;
+  - **antes de producción (T19):**
+    - el terminador que revoca y audita las sesiones vencidas que nadie vuelve a leer, y su barrido con ShedLock;
+    - el cierre por canal trasero;
+    - la limitación de tasa;
+    - las cabeceras de doc. 02 §8;
+  - **criterios que se completan en T19:**
+    - 001-10 queda probado en la petición del usuario; la sesión vencida sin que el usuario vuelva, en T19;
+    - en 001-18, las expiraciones solo se auditan cuando el usuario vuelve hasta T19, que las audita aunque no vuelva.
 - **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
   - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;
   - **un solo PR** para toda la tarea;
