@@ -52,7 +52,7 @@ _Cada criterio se comprueba con sí/no. No hay reglas funcionales con código pa
 
 **Auditoría, idioma y accesibilidad**
 
-- [ ] **001-18** — Dados inicios de sesión exitosos y fallidos, bloqueos, expiraciones, cierres de sesión y cambios de roles hechos en el proveedor de identidad, entonces quedan en la auditoría inmutable de LIV con usuario (o el nombre intentado, enmascarado), fecha y resultado, sin contraseñas ni códigos; los eventos originados en LIV llevan además su `correlation_id`. _Enmienda 1: los eventos del proveedor se copian a la auditoría de LIV._ _Prueba:_ pendiente
+- [x] **001-18** — Dados inicios de sesión exitosos y fallidos, bloqueos, expiraciones, cierres de sesión y cambios de roles hechos en el proveedor de identidad, entonces quedan en la auditoría inmutable de LIV con usuario (o el nombre intentado, enmascarado), fecha y resultado, sin contraseñas ni códigos; los eventos originados en LIV llevan además su `correlation_id`. _Enmienda 1: los eventos del proveedor se copian a la auditoría de LIV._ _Prueba:_ `SessionAuditTest`, `IdentityProviderImportTest` y `KeycloakIdentityProviderEventsTest` (backend, contra Keycloak real; PR #60)
 - [ ] **001-19** — Las páginas de inicio de sesión, segundo factor y error están en español, usan los estilos de LIV (tokens de `liv-components`) y cumplen WCAG 2.1 AA (verificado con axe‑core). _Prueba:_ pendiente. T08 cubre el español y el uso exclusivo de *tokens* en las páginas de acceso (`identity/theme/check.sh`, PR #57 y #58); faltan axe y la prueba visual (T23) y las pantallas del frontend (T22)
 
 **Independencia del proveedor de identidad**
