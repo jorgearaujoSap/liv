@@ -18,7 +18,8 @@ permissions:
   contents: read
 
 # Las publicaciones van en fila, sin cancelarse. GitHub deja una sola en espera: con tres integraciones seguidas,
-# la del medio se cancela y su versión, si la había, se publica con «Re-run» de esa ejecución.
+# la del medio se cancela. Si traía una versión nueva, la siguiente no la publica sin haberla juzgado
+# (UNPUBLISHED_EARLIER, en publish.sh): se publica con «Re-run» de la ejecución cancelada.
 concurrency:
   group: backend-main
   cancel-in-progress: false
@@ -50,21 +51,28 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: ¿Tiene contratos que publicar el proyecto?
-        id: project
+      # Juez y publicador: los scripts del commit anterior, como en backend-contracts-pr. Si aún no los tiene (la
+      # integración que los agrega), los de este commit.
+      - name: Scripts que juzgan y publican
+        id: judge
         working-directory: .
         env:
           PROJECT: ${{ matrix.project }}
         run: |
-          if [ -f "$PROJECT/contracts/scripts/publish.sh" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if git cat-file -e "HEAD^1:$PROJECT/contracts/scripts/publish.sh" 2> /dev/null; then
+            git worktree add --detach "$RUNNER_TEMP/base" HEAD^1
+            echo "dir=$RUNNER_TEMP/base/$PROJECT" >> "$GITHUB_OUTPUT"
+          elif [ -f "$PROJECT/contracts/scripts/publish.sh" ]; then
+            echo "El commit anterior aún no tiene los scripts: se usan los de este commit, que los agrega."
+            echo "dir=$GITHUB_WORKSPACE/$PROJECT" >> "$GITHUB_OUTPUT"
           else
-            echo "$PROJECT aún no tiene contracts/scripts/publish.sh: no hay contratos que publicar."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "$PROJECT no tiene contracts/scripts/publish.sh: no hay contratos que publicar."
+            exit 0
           fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       # Java para el Maven del proyecto, que corre openapi-diff.
-      - if: steps.project.outputs.enabled == 'true'
+      - if: steps.judge.outputs.enabled == 'true'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -76,7 +84,7 @@ jobs:
       # PR subieron la misma versión. La aprobación es la etiqueta del PR que se integró en este commit.
       - name: Etiqueta contrato-incompatible del PR integrado
         id: label
-        if: steps.project.outputs.enabled == 'true'
+        if: steps.judge.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -86,14 +94,19 @@ jobs:
           echo "approved=$approved" >> "$GITHUB_OUTPUT"
 
       - name: Contratos contra el commit anterior
-        if: steps.project.outputs.enabled == 'true'
+        if: steps.judge.outputs.enabled == 'true'
         env:
+          JUDGE: ${{ steps.judge.outputs.dir }}
+          LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
-        run: sh contracts/scripts/compare.sh HEAD^1
+        run: sh "$JUDGE/contracts/scripts/compare.sh" HEAD^1
 
+      # Publica solo la versión que introduce este commit, o la de un contrato que nunca se publicó.
       - name: Publicar los contratos
-        if: steps.project.outputs.enabled == 'true'
+        if: steps.judge.outputs.enabled == 'true'
         env:
+          JUDGE: ${{ steps.judge.outputs.dir }}
+          LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: sh contracts/scripts/publish.sh
+        run: sh "$JUDGE/contracts/scripts/publish.sh" HEAD^1

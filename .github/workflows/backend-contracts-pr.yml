@@ -1,7 +1,9 @@
 # Compuerta Q08 del backend (doc. 04 §8): los contratos OpenAPI no tienen cambios incompatibles sin aprobar
-# (doc. 01 §10, ADR 0027). Solo orquesta los scripts de contracts/scripts/ de cada proyecto, desde su carpeta
-# (IN‑08): la API (backend/) y el BFF (backend/bff/), que tiene su propia copia desde T18; mientras no la tenga,
-# su trabajo no hace nada.
+# (doc. 01 §10, ADR 0027). Solo orquesta los scripts de contracts/scripts/ de cada proyecto (IN‑08): la API
+# (backend/) y el BFF (backend/bff/), que tiene su propia copia desde T18; mientras no la tenga, su trabajo no
+# hace nada.
+# Juzga el comparador de la base (la punta de main, con su pom.xml), no el del PR: un PR no puede cambiar la regla
+# con la que se juzga. Los scripts del PR solo se prueban con su test/run.sh, y rigen desde que se integran.
 # Va aparte de backend-pr para que poner o quitar la etiqueta contrato-incompatible vuelva a correr solo esta
 # comprobación y no el verify completo. La etiqueta es la aprobación del responsable; la pone una persona con
 # permiso de escritura, nunca un agente.
@@ -52,21 +54,28 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: ¿Tiene comparador el proyecto?
-        id: project
+      # Juez: el comparador de la base, en un worktree aparte. Si la base aún no lo tiene (el PR que lo agrega),
+      # juzga el del PR; si ninguno lo tiene, el proyecto no tiene contratos que comparar.
+      - name: Comparador que juzga
+        id: judge
         working-directory: .
         env:
           PROJECT: ${{ matrix.project }}
         run: |
-          if [ -f "$PROJECT/contracts/scripts/compare.sh" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if git cat-file -e "HEAD^1:$PROJECT/contracts/scripts/compare.sh" 2> /dev/null; then
+            git worktree add --detach "$RUNNER_TEMP/base" HEAD^1
+            echo "dir=$RUNNER_TEMP/base/$PROJECT" >> "$GITHUB_OUTPUT"
+          elif [ -f "$PROJECT/contracts/scripts/compare.sh" ]; then
+            echo "La base aún no tiene comparador: juzga el del PR, que lo agrega."
+            echo "dir=$GITHUB_WORKSPACE/$PROJECT" >> "$GITHUB_OUTPUT"
           else
-            echo "$PROJECT aún no tiene contracts/scripts/compare.sh: no hay contratos que comparar."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "$PROJECT no tiene contracts/scripts/compare.sh: no hay contratos que comparar."
+            exit 0
           fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       # Java para el Maven del proyecto, que corre openapi-diff.
-      - if: steps.project.outputs.enabled == 'true'
+      - if: steps.judge.outputs.enabled == 'true'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -74,23 +83,26 @@ jobs:
           cache: maven
           cache-dependency-path: ${{ matrix.project }}/pom.xml
 
-      - name: Pruebas del comparador
-        if: steps.project.outputs.enabled == 'true'
+      - name: Pruebas de los scripts del PR
+        if: steps.judge.outputs.enabled == 'true' && hashFiles(format('{0}/contracts/scripts/test/run.sh', matrix.project)) != ''
         run: sh contracts/scripts/test/run.sh
 
       - name: Etiqueta contrato-incompatible
         id: label
-        if: steps.project.outputs.enabled == 'true'
+        if: steps.judge.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          approved=$(gh api "repos/$GH_REPO/issues/$PR_NUMBER/labels" --jq 'any(.[]; .name == "contrato-incompatible")')
+          approved=$(gh api "repos/$GH_REPO/issues/$PR_NUMBER/labels?per_page=100" \
+            --jq 'any(.[]; .name == "contrato-incompatible")')
           echo "approved=$approved" >> "$GITHUB_OUTPUT"
 
       - name: Contratos del PR contra main
-        if: steps.project.outputs.enabled == 'true'
+        if: steps.judge.outputs.enabled == 'true'
         env:
+          JUDGE: ${{ steps.judge.outputs.dir }}
+          LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
-        run: sh contracts/scripts/compare.sh HEAD^1
+        run: sh "$JUDGE/contracts/scripts/compare.sh" HEAD^1
