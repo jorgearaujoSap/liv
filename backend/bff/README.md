@@ -51,17 +51,24 @@ El BFF usa su propio esquema, `bff`, en la base de LIV, con dos roles (doc. 02 �
 | `liv_bff_owner` | Dueño del esquema. Solo lo usan las migraciones |
 | `liv_bff` | Aplicación: DML en `bff`, sin acceso a los esquemas de LIV |
 
-- **La infraestructura crea los roles y el esquema** (`CREATE SCHEMA bff AUTHORIZATION liv_bff_owner`). Flyway no crea el esquema: el historial queda dentro de él, en `bff.flyway_schema_history`.
-- **La primera migración** (`V202611032100__bff_schema_roles.sql`) comprueba ese contrato y se detiene con un mensaje claro si no se cumple:
-  - `liv_bff_owner` es el dueño del esquema;
-  - ninguno de los dos roles es superusuario ni tiene `BYPASSRLS`, `CREATEROLE` o `CREATEDB`;
-  - `liv_bff` no es miembro de otros roles;
-  - solo los dos roles del BFF tienen permisos sobre `bff` (`liv_app` no);
-  - `liv_bff` no crea objetos, no tiene `TEMP` y no ve otros esquemas.
+- **Lo que debe entregar la infraestructura** (en local, el entorno de desarrollo del backend; en AWS, la infraestructura como código):
+  - los roles `liv_bff_owner` y `liv_bff`, con inicio de sesión y sin atributos de privilegio ni membresías;
+  - en la base, `REVOKE ALL ON DATABASE … FROM PUBLIC` y `REVOKE ALL ON SCHEMA public FROM PUBLIC`, más `CONNECT` para los dos roles. `liv_bff_owner` no es dueño de la base y no puede revocarlos por su cuenta;
+  - el esquema: `CREATE SCHEMA bff AUTHORIZATION liv_bff_owner`. Flyway no lo crea: el historial queda dentro de él, en `bff.flyway_schema_history`.
+- **La primera migración** (`V202611032100__bff_schema_roles.sql`, PostgreSQL 16 o superior) comprueba ese contrato y se detiene con un mensaje claro si no se cumple. La reversión deja la base como estaba, y la migración se puede repetir al corregir. Comprueba que:
+  - corre como `liv_bff_owner` y que ese rol es el dueño del esquema;
+  - ninguno de los dos roles es superusuario ni tiene `BYPASSRLS`, `CREATEROLE`, `CREATEDB` o `REPLICATION`;
+  - ninguno de los dos es miembro de otros roles. En RDS el poder llega por membresía (`rds_superuser`, `pg_read_all_data`…);
+  - solo un administrador (con `CREATEROLE`) es miembro de ellos. Quien los crea en RDS queda como miembro;
+  - solo los dos roles del BFF tienen permisos sobre `bff` (`liv_app` no), y los permisos por defecto del dueño solo dan DML en `bff` a `liv_bff`;
+  - ninguno de los dos ve otros esquemas (ni los de LIV ni `public`), crea objetos fuera de `bff` ni crea esquemas en la base. `liv_bff` tampoco crea objetos en `bff` ni tiene `TEMP`.
 
-  Además fija los permisos del dueño: `USAGE` y DML por defecto para `liv_bff`, y nada sobre el historial de Flyway.
-- **Flyway** corre solo en los perfiles `dev` y `test`, como `liv_bff_owner`. En staging y producción migra la imagen `liv-bff-migrations` como paso del despliegue.
-- **Variables:** `LIV_DB_URL` y `LIV_BFF_PASSWORD`, sin valor por defecto; con el perfil `dev`, además, `LIV_BFF_OWNER_PASSWORD`. La conexión es perezosa: el BFF arranca aunque la base no esté arriba.
+  Además fija los permisos del dueño:
+  - `USAGE` sobre el esquema y DML por defecto sobre tablas y secuencias para `liv_bff`;
+  - sus funciones nacen sin `EXECUTE` para `PUBLIC`;
+  - nada para `liv_bff` sobre el historial de Flyway.
+- **Flyway** corre solo en los perfiles `dev` y `test`, como `liv_bff_owner`. En staging y producción migrará la imagen `liv-bff-migrations` como paso del despliegue; esa imagen y el `Dockerfile` todavía no existen.
+- **Variables:** `LIV_DB_URL` y `LIV_BFF_PASSWORD`. En `application.yml` no tienen valor por defecto, y el perfil `dev` trae la URL de la base local. Con el perfil `dev` se necesita además `LIV_BFF_OWNER_PASSWORD`. La conexión es perezosa: el BFF arranca aunque la base no esté arriba, y si no responde se falla a los 5 s.
 - **En local:** el entorno de desarrollo del backend crea los roles, la base y el esquema en el puerto 5433. El perfil `dev` vive en `config/` y Spring lo lee cuando se arranca desde `backend/bff/`.
 
 ## Spring Cloud
