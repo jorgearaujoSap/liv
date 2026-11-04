@@ -6,9 +6,9 @@
 #   - un cambio incompatible, o quitar un contrato, pasa solo si el PR tiene la etiqueta contrato-incompatible
 #     (LIV_CONTRACTS_BREAKING_APPROVED=true) y, si el contrato sigue, con la versión mayor subida;
 #   - un contrato nuevo pasa si openapi-diff lo puede leer;
-#   - los $ref son internos (#/...) y el proyecto tiene al menos un contrato;
-#   - con una referencia de Git, un mismo cambio no toca a la vez el comparador (contracts/scripts/ o la versión
-#     de openapi-diff en pom.xml) y un contrato: así un PR no cambia la regla con la que se juzga.
+#   - los $ref son internos (#/...) y el proyecto tiene al menos un contrato.
+# En CI, el que juzga es el comparador de la base (HEAD^1, con su pom.xml), no el del PR: un PR no cambia la regla
+# con la que se juzga. Un cambio en estos scripts rige desde la integración siguiente.
 # Huecos conocidos de openapi-diff 2.1.7, que revisa una persona (ADR 0027): no detecta una petición más estricta
 # por minLength, minimum o similares, ni un campo obligatorio de la respuesta que pasa a nullable.
 #
@@ -40,13 +40,9 @@ case "${1:-}" in
 esac
 
 aprobado=${LIV_CONTRACTS_BREAKING_APPROVED:-false}
-trabajo=${LIV_CONTRACTS_WORK:-$proyecto/target/contracts-compare}
-rm -rf "$trabajo"
-mkdir -p "$trabajo"
-trabajo=$(cd "$trabajo" && pwd)
-cd "${LIV_CONTRACTS_ROOT:-$proyecto}" || exit 2
 fallas=0
-cambiados=0
+prepare_workdir "${LIV_CONTRACTS_WORK:-$proyecto/target/contracts-compare}" "${LIV_CONTRACTS_ROOT:-$proyecto}"
+cd "${LIV_CONTRACTS_ROOT:-$proyecto}" || exit 2
 
 # Resultado de openapi-diff: incompatible, compatible, equivalent o error. Deja el reporte en $trabajo.
 diff_result() { # diff_result BASE HEAD NOMBRE
@@ -74,7 +70,9 @@ compare_error() { # compare_error NOMBRE
   sed 's/^/             /' "$trabajo/$1.log"
 }
 
-has_external_ref() { grep -Eq "^[[:space:]]*\\\$ref:[[:space:]]*[\"']?[^#\"'[:space:]]" "$1"; }
+# Un $ref que no empieza por # apunta a otro archivo o a una URL. Se busca en cualquier forma de YAML: en bloque,
+# en una lista (- $ref: ...), en flujo ({ $ref: ... }) o con la clave entre comillas.
+has_external_ref() { grep -Eq "[\"']?\\\$ref[\"']?[[:space:]]*:[[:space:]]*[\"']?[^#\"'[:space:]]" "$1"; }
 
 # Un cambio incompatible pasa solo con la etiqueta y la versión mayor subida.
 judge_breaking() { # judge_breaking NOMBRE VERSION_BASE VERSION_HEAD
@@ -94,7 +92,6 @@ compare_contract() { # compare_contract NOMBRE
   head="$head_dir/$nombre.yaml"
 
   if [ ! -f "$head" ]; then
-    cambiados=$((cambiados + 1))
     if [ "$aprobado" = true ]; then
       ok "$nombre: se quitó, con la etiqueta contrato-incompatible"
     else
@@ -114,7 +111,6 @@ compare_contract() { # compare_contract NOMBRE
   fi
 
   if [ ! -f "$base" ]; then
-    cambiados=$((cambiados + 1))
     # Comparado consigo mismo, openapi-diff solo comprueba que lo puede leer.
     if [ "$(diff_result "$head" "$head" "$nombre")" = error ]; then
       compare_error "$nombre"
@@ -128,7 +124,6 @@ compare_contract() { # compare_contract NOMBRE
     return
   fi
 
-  cambiados=$((cambiados + 1))
   v_base=$(contract_version "$base")
   if is_semver "$v_base" && ! semver_gt "$v_head" "$v_base"; then
     falla VERSION_NOT_BUMPED "$nombre" "el contrato cambió y info.version debe subir de $v_base (es $v_head)."
@@ -138,18 +133,6 @@ compare_contract() { # compare_contract NOMBRE
     compatible | equivalent) ok "$nombre: cambio compatible ($v_base → $v_head)" ;;
     *) compare_error "$nombre" ;;
   esac
-}
-
-# Verdadero si el cambio frente a la referencia toca el comparador. Un error de Git sale con 2.
-gate_changed() { # gate_changed REFERENCIA
-  git diff --quiet "$1" -- contracts/scripts
-  case $? in
-    0) ;;
-    1) return 0 ;;
-    *) return 2 ;;
-  esac
-  cambios_pom=$(git diff "$1" -- pom.xml) || return 2
-  printf '%s\n' "$cambios_pom" | grep -q '^[-+].*openapi-diff'
 }
 
 if [ -n "$referencia" ]; then
@@ -172,14 +155,6 @@ done
 
 if ! ls "$head_dir"/*.yaml > /dev/null 2>&1; then
   falla NO_CONTRACTS "$CONTRACT_DIR" "el proyecto no tiene contratos; si se movieron, la compuerta no compararía nada."
-fi
-if [ -n "$referencia" ] && [ "$cambiados" -gt 0 ]; then
-  gate_changed "$referencia"
-  case $? in
-    0) falla GATE_AND_CONTRACTS comparador "el cambio toca a la vez el comparador (contracts/scripts/ u openapi-diff en pom.xml) y algún contrato; van en PR separados para que el comparador no se juzgue a sí mismo." ;;
-    1) ;;
-    *) falla GIT_ERROR "$referencia" "no se pudo saber si el cambio toca el comparador." ;;
-  esac
 fi
 
 if [ "$fallas" -gt 0 ]; then

@@ -38,10 +38,11 @@ add_contract() { # add_contract NOMBRE_DE_ARCHIVO CARPETA_DESTINO < contenido
   tr -d '\r' > "$2/$1"
 }
 
-# Copia los contratos del árbol de trabajo.
+# Copia los contratos del árbol de trabajo, también los archivos ocultos: Git sí los ve, y uno que pasara aquí
+# bloquearía después la comparación en main.
 collect_worktree() { # collect_worktree CARPETA_DESTINO
   [ -d "$CONTRACT_DIR" ] || return 0
-  for entrada in "$CONTRACT_DIR"/*; do
+  for entrada in "$CONTRACT_DIR"/* "$CONTRACT_DIR"/.[!.]* "$CONTRACT_DIR"/..?*; do
     [ -e "$entrada" ] || continue
     if [ -d "$entrada" ]; then
       falla UNEXPECTED_FILE "$(basename "$entrada")" "en $CONTRACT_DIR/ no van subcarpetas."
@@ -69,7 +70,8 @@ collect_ref() { # collect_ref REFERENCIA CARPETA_DESTINO
       falla UNEXPECTED_FILE "$(basename "$ruta")" "en $CONTRACT_DIR/ no van subcarpetas."
       return 1
     fi
-    if ! git show "$1:./$ruta" > "$lista.contenido"; then
+    # MSYS_NO_PATHCONV: Git Bash no convierte «referencia:ruta» como si fuera una ruta de Windows.
+    if ! MSYS_NO_PATHCONV=1 git show "$1:./$ruta" > "$lista.contenido"; then
       falla GIT_ERROR "$(basename "$ruta")" "no se pudo leer en $1."
       return 1
     fi
@@ -77,18 +79,41 @@ collect_ref() { # collect_ref REFERENCIA CARPETA_DESTINO
   done < "$lista"
 }
 
-# info.version del contrato: la clave version dentro del bloque info del primer nivel, sin comillas, espacios,
-# retornos de carro ni comentario. Si está repetida no devuelve nada (un lector de YAML tomaría la última y esta
-# función la primera), y el contrato queda con versión inválida. En el awk, \047 es la comilla simple.
+# info.version del contrato: la clave version (también entre comillas) dentro del bloque info del primer nivel.
+# Si el valor va entre comillas, es lo de dentro (un # ahí no es comentario); si no, se quita el comentario.
+# Si info o version están repetidos no devuelve nada, porque un lector de YAML tomaría el último y esta función
+# el primero: el contrato queda con versión inválida. En el awk, \047 es la comilla simple.
 contract_version() { # contract_version ARCHIVO
-  awk '/^info:/ { dentro = 1; next }
-       dentro && /^[^ #]/ { exit }
-       dentro && /^  version:/ { veces++; linea = $0 }
+  awk '{ sub(/\r$/, "") }
+       /^info:[ \t]*(#.*)?$/ { infos++; dentro = (infos == 1); next }
+       /^[^ #]/ { dentro = 0 }
+       dentro && /^  ["\047]?version["\047]?:/ { veces++; linea = $0 }
        END {
-         if (veces != 1) exit
-         sub(/^  version:/, "", linea); sub(/[ \t]+#.*$/, "", linea); gsub(/["\047 \t\r]/, "", linea)
+         if (infos != 1 || veces != 1) exit
+         sub(/^  ["\047]?version["\047]?:[ \t]*/, "", linea)
+         if (linea ~ /^"/) { sub(/^"/, "", linea); sub(/".*$/, "", linea) }
+         else if (linea ~ /^\047/) { sub(/^\047/, "", linea); sub(/\047.*$/, "", linea) }
+         else { sub(/[ \t]+#.*$/, "", linea); sub(/[ \t]+$/, "", linea) }
          print linea
        }' "$1"
+}
+
+# Deja en $trabajo la carpeta de trabajo, absoluta y vacía. Antes de borrarla comprueba que no sea la raíz ni
+# contenga el proyecto o la carpeta de los contratos: LIV_CONTRACTS_WORK=. no borra nada.
+prepare_workdir() { # prepare_workdir CARPETA CARPETA_DE_LOS_CONTRATOS
+  mkdir -p "$1" || exit 2
+  trabajo=$(cd "$1" && pwd) || exit 2
+  raiz_abs=$(cd "$2" && pwd) || exit 2
+  for protegida in / "$proyecto/" "$raiz_abs/"; do
+    case "$protegida" in
+      "$trabajo" | "$trabajo"/*)
+        falla UNSAFE_WORKDIR "$trabajo" "la carpeta de trabajo contiene el proyecto o sus contratos; no se borra."
+        exit 1
+        ;;
+    esac
+  done
+  rm -rf "$trabajo"
+  mkdir -p "$trabajo"
 }
 
 is_semver() { printf '%s' "$1" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; }
