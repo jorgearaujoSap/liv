@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.dao.NonTransientDataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -45,9 +45,14 @@ import org.springframework.stereotype.Service;
  *   <li><b>Once:</b> by (source, event id), and the watermark skips the events already seen in the
  *       overlap window that each run reads again.
  *   <li><b>Nothing skipped:</b> if the provider has more events than a run reads, the watermark
- *       stays at the last one read; an event the audit rejects is kept as a minimal row instead of
- *       stopping the importer.
+ *       stays at the last one read and the next run goes on from there; an event the audit rejects
+ *       is kept as a minimal row instead of stopping the importer.
  * </ul>
+ *
+ * <p>It assumes the clocks of LIV and of the provider agree within the overlap (NTP): the watermark
+ * of a run with nothing new is now minus the overlap. Events of the same millisecond on both sides
+ * of a page of the provider may come in either order; the overlap reads them again only when the
+ * run read everything.
  */
 @Service
 @ConditionalOnProperty(name = "liv.audit.importer.enabled", havingValue = "true")
@@ -103,10 +108,17 @@ public class ImportIdentityProviderEvents {
   public ImportResult importNew() {
     Instant now = clock.instant();
     Cursor cursor = log.cursor().orElse(null);
-    Instant from =
-        cursor == null
-            ? now.minus(settings.retention())
-            : cursor.lastEventAt().minus(settings.overlap());
+    Instant from;
+    if (cursor == null) {
+      from = now.minus(settings.retention());
+    } else if (cursor.complete()) {
+      // Everything was read: read the overlap again, for events the provider stored late.
+      from = cursor.lastEventAt().minus(settings.overlap());
+    } else {
+      // A run that could not read everything: go on right from where it stopped. Reading the
+      // overlap again would fill this run with events already seen, and never move on.
+      from = cursor.lastEventAt();
+    }
     Set<String> seen = cursor == null ? Set.of() : cursor.seenEventIds();
 
     int limit = settings.pageSize() * settings.maxPages();
@@ -133,7 +145,7 @@ public class ImportIdentityProviderEvents {
                 .filter(event -> !event.time().isBefore(windowStart))
                 .map(ImportIdentityProviderEvents::sourceEventId)
                 .collect(Collectors.toSet()),
-            true));
+            !users.more() && !admins.more()));
 
     boolean behind = watermark.isBefore(now.minus(settings.maxLag()));
     if (behind) {
@@ -146,32 +158,41 @@ public class ImportIdentityProviderEvents {
   }
 
   /**
-   * Appends one event. If the audit rejects it as it is (a constraint), it keeps the event with its
-   * result only, so a single event cannot stop the import; a database that does not respond stops
-   * the run, which the next one repeats.
+   * Appends one event. If the audit rejects it as it is (an integrity constraint), it keeps the
+   * event as a platform row with its result only, so a single event cannot stop the import; if even
+   * that is rejected, it logs the event and goes on. Any other failure (the database does not
+   * respond) stops the run, which the next one repeats: a row written then would stay incomplete
+   * forever, since the audit is insert only.
    */
   private void append(ProviderEvent event) {
     Entry entry = entry(event);
     try {
       log.append(entry);
-    } catch (NonTransientDataAccessException e) {
+    } catch (DataIntegrityViolationException rejected) {
       LOG.warn(
-          "Identity provider event {} rejected by the audit; kept without its details",
+          "Identity provider event {} rejected by the audit; kept as a platform row without details",
           entry.sourceEventId(),
-          e);
-      log.append(
-          new Entry(
-              entry.source(),
-              entry.sourceEventId(),
-              entry.administrationId(),
-              entry.userId(),
-              entry.entityName(),
-              null,
-              entry.operation(),
-              entry.occurredAt(),
-              null,
-              entry.actorRef(),
-              Map.of("result", entry.newValues().get("result"))));
+          rejected);
+      try {
+        log.append(
+            new Entry(
+                entry.source(),
+                entry.sourceEventId(),
+                null,
+                null,
+                entry.entityName(),
+                null,
+                entry.operation(),
+                entry.occurredAt(),
+                null,
+                null,
+                Map.of("result", entry.newValues().get("result"))));
+      } catch (DataIntegrityViolationException alsoRejected) {
+        LOG.error(
+            "Identity provider event {} could not be audited at all",
+            entry.sourceEventId(),
+            alsoRejected);
+      }
     }
   }
 

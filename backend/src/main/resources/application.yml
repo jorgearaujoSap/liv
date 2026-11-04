@@ -76,7 +76,9 @@ liv:
       # de agua se atrasa más de un día: Keycloak los borra a los 30 días (eventsExpiration).
       overlap: PT5M
       max-lag: P1D
-      retention: P30D
+      # Un día antes de que Keycloak los borre (30 días): leer en el borde correría los desplazamientos si borra
+      # entre dos páginas.
+      retention: P29D
       page-size: 100
       max-pages: 20
   security:

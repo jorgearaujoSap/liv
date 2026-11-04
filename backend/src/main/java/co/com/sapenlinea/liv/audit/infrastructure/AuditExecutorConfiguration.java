@@ -27,7 +27,9 @@ class AuditExecutorConfiguration {
     executor.setQueueCapacity(queue);
     executor.setThreadNamePrefix("audit-");
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    // On shutdown, the listeners in course get some seconds; the rest stay in the outbox.
     executor.setWaitForTasksToCompleteOnShutdown(true);
+    executor.setAwaitTerminationSeconds(10);
     return executor;
   }
 }

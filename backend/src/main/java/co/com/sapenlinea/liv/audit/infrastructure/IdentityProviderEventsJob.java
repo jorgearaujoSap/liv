@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.audit.infrastructure;
 
+import co.com.sapenlinea.liv.audit.application.AuditLog;
 import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents;
 import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.ImportResult;
 import io.micrometer.core.instrument.Counter;
@@ -7,8 +8,6 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicReference;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +21,8 @@ import org.springframework.stereotype.Component;
  * failed run is logged and the next one reads again from the watermark.
  *
  * <p>Two metrics tell whether the audit of the provider advances, also when every run fails: {@code
- * liv.audit.importer.lag} (seconds since the watermark of the last run that finished) and {@code
- * liv.audit.importer.failures}.
+ * liv.audit.importer.lag}, the seconds since the shared watermark ({@code audit.import_cursor}, the
+ * same in every replica, whichever imports), and {@code liv.audit.importer.failures}.
  */
 @Component
 @ConditionalOnProperty(name = "liv.audit.importer.enabled", havingValue = "true")
@@ -35,16 +34,15 @@ public class IdentityProviderEventsJob {
   private static final Logger LOG = LoggerFactory.getLogger(IdentityProviderEventsJob.class);
 
   private final ImportIdentityProviderEvents importer;
+  private final AuditLog log;
   private final Clock clock;
   private final Counter failures;
-  private final AtomicReference<Instant> watermark;
 
   IdentityProviderEventsJob(
-      ImportIdentityProviderEvents importer, Clock clock, MeterRegistry metrics) {
+      ImportIdentityProviderEvents importer, AuditLog log, Clock clock, MeterRegistry metrics) {
     this.importer = importer;
+    this.log = log;
     this.clock = clock;
-    // Until the first run finishes, the lag counts from startup.
-    this.watermark = new AtomicReference<>(clock.instant());
     this.failures = metrics.counter("liv.audit.importer.failures");
     Gauge.builder("liv.audit.importer.lag", this, IdentityProviderEventsJob::lagSeconds)
         .baseUnit("seconds")
@@ -62,7 +60,6 @@ public class IdentityProviderEventsJob {
   public void run() {
     try {
       ImportResult result = importer.importNew();
-      watermark.set(result.cursor());
       LOG.debug(
           "Identity provider events imported: {}, watermark {}",
           result.imported(),
@@ -71,13 +68,21 @@ public class IdentityProviderEventsJob {
       failures.increment();
       // The provider or the database may be down: the next run reads again from the watermark.
       LOG.error(
-          "The import of identity provider events failed; the audit of the provider is {} behind",
-          Duration.ofSeconds((long) lagSeconds()),
+          "The import of identity provider events failed; the audit of the provider is {} s behind",
+          (long) lagSeconds(),
           e);
     }
   }
 
+  /** Seconds since the shared watermark; NaN before the first import or without a database. */
   private double lagSeconds() {
-    return Duration.between(watermark.get(), clock.instant()).toSeconds();
+    try {
+      return log.cursor()
+          .map(cursor ->
+              (double) Duration.between(cursor.lastEventAt(), clock.instant()).toSeconds())
+          .orElse(Double.NaN);
+    } catch (RuntimeException e) {
+      return Double.NaN;
+    }
   }
 }
