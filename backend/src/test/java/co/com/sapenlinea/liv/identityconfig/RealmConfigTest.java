@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -360,7 +361,7 @@ class RealmConfigTest {
 
   @Test
   @DisplayName(
-      "001-21 · El nombre y el correo del perfil caben en el registro de LIV (plan, ajustes de T13)")
+      "001-14 · El nombre y el correo del perfil caben en el registro de LIV (plan, ajustes de T13)")
   void profileFitsTheLivRegistry() throws IOException {
     // The lengths of core.admin_user, read from its migration: the registry is the authority.
     String migration =
@@ -371,6 +372,31 @@ class RealmConfigTest {
     // The name claim is "firstName lastName": both, with the space, fit in full_name.
     assertThat(maxLength("firstName") + 1 + maxLength("lastName")).isLessThanOrEqualTo(fullName);
     assertThat(maxLength("email")).isLessThanOrEqualTo(email);
+  }
+
+  @Test
+  @DisplayName(
+      "001-14 · Nombre y apellido son obligatorios: sin ellos LIV tomaría el correo como nombre")
+  void nameIsRequired() {
+    for (String attribute : List.of("firstName", "lastName")) {
+      Map<String, Object> declared =
+          list(userProfile().get("attributes")).stream()
+              .filter(a -> attribute.equals(a.get("name")))
+              .findFirst()
+              .orElseThrow();
+      assertThat(declared).as(attribute).containsKey("required");
+      assertThat(map(declared.get("required")).get("roles"))
+          .as(attribute)
+          .isEqualTo(List.of("admin", "user"));
+    }
+    // Every user the realm declares, service accounts included, has them, or it would not import.
+    List<Map<String, Object>> users = new ArrayList<>(list(realm.get("users")));
+    users.addAll(list(dev.get("users")));
+    for (Map<String, Object> user : users) {
+      assertThat(user)
+          .as(String.valueOf(user.get("username")))
+          .containsKeys("firstName", "lastName");
+    }
   }
 
   @Test

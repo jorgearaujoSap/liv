@@ -150,9 +150,23 @@ public final class RealKeycloak {
                 .header("Content-Type", "application/json")
                 .POST(
                     HttpRequest.BodyPublishers.ofString(
-                        "{\"username\":\"%s\",\"enabled\":true}".formatted(username))));
+                        ("{\"username\":\"%s\",\"enabled\":true,"
+                                + "\"firstName\":\"Usuaria\",\"lastName\":\"De Prueba\"}")
+                            .formatted(username))));
     String location = created.headers().firstValue("Location").orElseThrow();
     return location.substring(location.lastIndexOf('/') + 1);
+  }
+
+  /**
+   * The status of creating a user with this JSON representation through the administration API, as
+   * a console would, whatever it is: the profile of the realm may refuse it.
+   */
+  public static int createUserStatus(String representation) {
+    return adminAnswer(
+            HttpRequest.newBuilder(URI.create(adminBase() + "/users"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(representation)))
+        .statusCode();
   }
 
   /** Grants a realm role to a user with the administration API, as an administrator would. */
@@ -168,6 +182,16 @@ public final class RealKeycloak {
 
   /** A call of the administration API of the realm as the bootstrap administrator. */
   private static HttpResponse<String> admin(HttpRequest.Builder request) {
+    HttpResponse<String> response = adminAnswer(request);
+    if (response.statusCode() >= 300) {
+      throw new IllegalStateException(
+          "La API de administración respondió " + response.statusCode() + ": " + response.body());
+    }
+    return response;
+  }
+
+  /** A call of the administration API of the realm as the bootstrap administrator, as answered. */
+  private static HttpResponse<String> adminAnswer(HttpRequest.Builder request) {
     String root = issuer().substring(0, issuer().indexOf("/realms/"));
     HttpResponse<String> token =
         send(
@@ -188,13 +212,8 @@ public final class RealKeycloak {
                                 "password",
                                 ADMIN_PASSWORD)))));
     String accessToken = JSON.readTree(token.body()).get("access_token").asString();
-    HttpResponse<String> response =
-        send(HttpClient.newHttpClient(), request.header("Authorization", "Bearer " + accessToken));
-    if (response.statusCode() >= 300) {
-      throw new IllegalStateException(
-          "La API de administración respondió " + response.statusCode() + ": " + response.body());
-    }
-    return response;
+    return send(
+        HttpClient.newHttpClient(), request.header("Authorization", "Bearer " + accessToken));
   }
 
   private static String adminBase() {
