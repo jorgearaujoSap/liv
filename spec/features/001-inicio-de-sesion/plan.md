@@ -427,12 +427,13 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - la primera migración del BFF (`V202611032100`, PostgreSQL 16 o superior) solo comprueba ese contrato y fija los permisos del dueño;
     - el contrato: migra `liv_bff_owner`; los dos roles sin atributos de privilegio (también `REPLICATION`) ni membresías; nadie es miembro de ellos, directo o indirecto, salvo un administrador ajeno a LIV (con `CREATEROLE`, como el creador en RDS); solo ellos tienen permisos sobre `bff`, y los permisos por defecto solo dan DML a `liv_bff`; nada fuera de `bff`;
   - **pendientes de decisión humana** (listados en el PR #66):
-    - el trabajo de CI del BFF (Q01–Q03) y la publicación de su imagen, que T02 asignaba a T16: requieren aprobación (`AGENTS.md` §4.5);
+    - la publicación de la imagen del BFF, que T02 asignaba a T16: requiere aprobación (`AGENTS.md` §4.5);
     - Spring Boot 4.1.2, que ya usa `liv-api`, tiene menos de dos semanas de publicado;
     - las dependencias de prueba y de *build* del BFF, iguales a las de `backend/`, que la fila del BFF del ADR 0023 no nombra;
     - la etiqueta de versiones del BFF (`bff-vX.Y.Z`), que `AGENTS.md` §4.6 no define;
     - en AWS, la rotación de credenciales de un solo usuario para `liv_bff_owner` y `liv_bff`: la de usuarios alternos crea un clon miembro del rol, y la migración lo rechazaría;
     - quitar de `backend/dev/initdb` los permisos por defecto sobre `bff`, que ya fija la migración. En local le dan a `liv_bff` acceso al historial de Flyway hasta que la migración termina;
+  - **resuelto el 2026-11-04:** el responsable aprobó el trabajo de CI del BFF, `bff-pr` con `bff · verify` (Q01–Q03). Mientras el *workflow* tenga filtro de ruta, el *check* no puede ser obligatorio en la protección de `main`: hasta pasar a «correr siempre y omitir trabajos» (F0‑07), cada PR de `backend/bff/` se integra solo con `bff · verify` en verde;
   - **para la primera tarea que use la base del BFF:** comprobar en cada conexión que el rol es `liv_bff`, como `LivAppConnectionCheck` en la API.
 - **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
   - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;

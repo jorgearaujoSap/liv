@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-03
+> **Última actualización:** 2026-11-04
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -55,7 +55,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Storybook con 18 componentes: `Icon`, `Logo`, `Spinner`, `Skeleton`, `Badge` y `Avatar` (T03); `Button`, `IconButton`, `TextField`, `CodeInput` y `Alert` (T04, PR #36). *Tokens* `border/strong` y `focus/ring` y placeholder de `CodeInput` corregidos para WCAG 2.1 AA (T04a, PR #38). `Dialog`, `ResultState`, `NavItem`, `SideNav`, `AppHeader`, `PageHeader` y `ModuleCard` (T05, PR #43; 0.2.0 preparada, la publica un humano). Faltan *script* que regenere los tokens desde Figma y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
 | F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Keycloak se construye desde `backend/identity/Dockerfile` con el tema `liv` (T08, PR #57 y #58). Faltan MinIO, ClamAV y observabilidad |
-| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Falta el trabajo de PR del BFF (`backend/bff/`, T16; requiere aprobación del responsable). Faltan publicación de imágenes y contratos (la de los contratos del backend, tarea aparte antes de T20, con su comparador de cambios incompatibles; la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
+| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Desde el 2026-11-04, `bff-pr` (Q01–Q03) para `backend/bff/`, aprobado por el responsable. Faltan publicación de imágenes y contratos (la de los contratos del backend, tarea aparte antes de T20, con su comparador de cambios incompatibles; la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
 | F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway `V202611010900`–`0920` (T10 de la feature 001, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
 | F0‑09 | Auditoría, correlación y observabilidad | 🔄 | Correlación: `X-Correlation-Id` solo como UUID, en la respuesta, el MDC y cada línea de log; credenciales enmascaradas en los logs (T12 parte 1, PR #45). Pendientes: auditoría (T15), log estructurado en JSON con enmascarado y datos personales |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
@@ -118,7 +118,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - si la imagen `node` que compila el tema queda cubierta por "Tailwind CLI" en el ADR 0023;
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
-7. BFF (tras T16), decisiones pendientes del responsable: el trabajo de CI de `backend/bff/` (Q01–Q03), Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z` (plan › Decisiones, «Ajustes de T16»).
+7. BFF (tras T16), decisiones pendientes del responsable: la publicación de la imagen del BFF, Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z` (plan › Decisiones, «Ajustes de T16»).
 
 ---
 
@@ -126,9 +126,24 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
+### 2026-11-04
+
+- F0-07, CI del BFF: nuevo *workflow* `bff-pr` con el trabajo `bff · verify` (Q01–Q03), aprobado por el responsable.
+  - **Qué hace:** en los PR que tocan `backend/bff/`, corre `./mvnw verify` del BFF: compilación, formato, arquitectura y pruebas con Testcontainers.
+  - **Por qué:** `backend/bff/` es un proyecto Maven aparte y el `verify` de `backend/` no lo compila. Va antes de T17 para que el código del BFF que agregan T17 y T18 ya tenga CI.
+  - **Cómo se usa:** el *check* informa pero todavía no bloquea. Si fuera obligatorio, los PR que no tocan el BFF lo esperarían para siempre, porque el filtro de ruta no lo corre. Hasta que los *workflows* corran siempre y omitan los trabajos que no aplican (F0‑07), cada PR de `backend/bff/` se integra solo con `bff · verify` en verde.
+  - **Documentación:** doc. 04 §9, `tasks.md` (T02 y T16) y el plan, en «Ajustes de T16».
+  - **Revisión:** dos revisores adversariales de nivel alto y las lentes de resiliencia, confiabilidad y legibilidad; sin críticos ni altos.
+  - **Sigue pendiente:**
+    - la publicación de la imagen del BFF;
+    - exigir el *check* en la protección de `main`;
+    - que `backend-pr` no corra en los PR que solo tocan el BFF (`!backend/bff/**`);
+    - una verificación automática que compare los permisos de `backend/dev/initdb` con los que repiten las pruebas del BFF;
+    - fijar con su suma el Maven del *wrapper* y la imagen Ryuk de Testcontainers, en `backend/` y en el BFF.
+
 ### 2026-11-03
 
-- Feature 001, T16 (PR #66, por integrar): *spike* de Spring Cloud Gateway y esqueleto del BFF en `backend/bff/` (`liv-bff`).
+- Feature 001, T16 (PR #66): *spike* de Spring Cloud Gateway y esqueleto del BFF en `backend/bff/` (`liv-bff`).
   - ***Spike*:** Spring Cloud 2025.1.3 (Gateway Server MVC 5.0.3) es compatible con Spring Boot 4.1.2, así que no hace falta el plan B.
   - **Esqueleto:** proyecto Maven autónomo con Spotless, ArchUnit (sin `org.keycloak`, 001-20), catálogo de paquetes y tamaño de clases. Flyway del esquema `bff` como `liv_bff_owner`; la aplicación usa `liv_bff`. Sin endpoints ni tablas.
   - **Migración:** comprueba el contrato de los roles que entrega la infraestructura y fija los permisos del dueño. 50 pruebas con Testcontainers.
