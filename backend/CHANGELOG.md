@@ -64,7 +64,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - ArchUnit exige además servicios interceptables (`@Service`, no `final`, sin superclase), métodos marcados que no sean `static` ni `final`, ningún otro método que no sea privado, ninguna llamada ni referencia con `this` a un método protegido, ningún caso de uso creado con `@Bean`, controladores que usan solo casos de uso (no sus puertos), ningún `@RequiresPermission` en métodos asíncronos u oyentes y ningún `@PreAuthorize`, `@Secured` ni `@RolesAllowed`;
   - `GET /api/v1/me/capabilities` (`platform.yaml`) devuelve el árbol del menú que permiten los permisos del usuario (001-15). Las opciones salen de `platform/menu-catalog.yaml`, con el mapa de Doc. 01 §3 hasta las hojas de 1.5 y 1.6, todas en `COMING_SOON`; un catálogo mal escrito impide arrancar;
   - las pruebas comparan cada uno de los 11 roles con la matriz aprobada, escrita aparte.
-- Perfil de usuario del *realm* alineado con el registro de LIV (feature 001; plan, ajustes de T13): nombre de hasta 74 caracteres y apellido de hasta 75 (con el espacio del *claim* `name`, 150 como `core.admin_user.full_name`) y correo de hasta 200. El proveedor rechaza un nombre más largo antes de que el primer ingreso falle en LIV.
+- Perfil de usuario del *realm* alineado con el registro de LIV (feature 001; plan, ajustes de T13):
+  - nombre de hasta 74 caracteres y apellido de hasta 75: con el espacio del *claim* `name`, 150, como `core.admin_user.full_name`;
+  - correo de hasta 200;
+  - nombre y apellido obligatorios, porque sin ellos LIV tomaría el correo como nombre (decisión del responsable);
+  - los espacios cuentan al medir (`trim-disabled`).
+
+  Así un valor que no cabe en el registro lo rechaza Keycloak al crear o editar el usuario, y no LIV en su primer ingreso. Se prueba contra Keycloak real.
 - Auditoría (feature 001, T15; 001-18):
   - *outbox* de Spring Modulith en JDBC (`spring-modulith-starter-jdbc`, ADR 0023) sobre `platform.event_publication`: los eventos de `core` llegan a la auditoría después del *commit*. Un trabajo programado de `platform` reentrega cada 5 minutos los que quedaron pendientes (no al arrancar, para que la API siga arrancando sin base), y el tipo de base se fija en PostgreSQL sin consultarla. Cada entrega completada se borra (`completion-mode: delete`; migración `V202611031000` con `DELETE` para `liv_app` sobre esa tabla), y `SessionDenied` ya no lleva el emisor ni el `sub` (decisiones del responsable);
   - trabajos programados de plataforma con ShedLock (`platform.shedlock`): una réplica a la vez;
