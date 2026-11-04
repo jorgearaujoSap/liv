@@ -75,7 +75,17 @@ latest_published() { # latest_published NOMBRE
     sort -t . -k 1,1n -k 2,2n -k 3,3n | tail -n 1
 }
 
-# Juzga el contrato con compare.sh contra la release publicada más alta, o como contrato nuevo si no tiene.
+# Verdadero si el commit publicado cambia el contrato frente a su padre (o no tiene padre). Un error de Git cuenta
+# como «no lo cambia»: así no se aprueba nada por error.
+changed_in_commit() { # changed_in_commit NOMBRE
+  git rev-parse -q --verify "$GITHUB_SHA^1^{commit}" > /dev/null || return 0
+  git diff --quiet "$GITHUB_SHA^1" "$GITHUB_SHA" -- "$CONTRACT_DIR/$1.yaml"
+  [ $? -eq 1 ]
+}
+
+# Juzga el contrato con compare.sh contra la release publicada más alta, o como contrato nuevo si no tiene. La
+# etiqueta del PR integrado aprueba solo los contratos que ese commit cambia, no una versión que quedó pendiente
+# de otro commit.
 judge_against_release() { # judge_against_release ARCHIVO NOMBRE
   juicio="$trabajo/juicio/$2"
   mkdir -p "$juicio/base" "$juicio/head"
@@ -98,7 +108,16 @@ judge_against_release() { # judge_against_release ARCHIVO NOMBRE
   else
     echo "  $2: no tiene releases publicadas; se juzga como contrato nuevo"
   fi
-  if ! LIV_CONTRACTS_WORK="$juicio/trabajo" sh "$scripts/compare.sh" --dirs "$juicio/base" "$juicio/head"; then
+  aprobado_contrato=false
+  if [ "${LIV_CONTRACTS_BREAKING_APPROVED:-false}" = true ]; then
+    if changed_in_commit "$2"; then
+      aprobado_contrato=true
+    else
+      echo "  $2: la etiqueta contrato-incompatible del PR no lo aprueba, porque este commit no lo cambia"
+    fi
+  fi
+  if ! LIV_CONTRACTS_BREAKING_APPROVED=$aprobado_contrato LIV_CONTRACTS_WORK="$juicio/trabajo" \
+      sh "$scripts/compare.sh" --dirs "$juicio/base" "$juicio/head"; then
     falla REJECTED "$2" "no cumple Q08 frente a lo publicado; no se publica."
     return 1
   fi

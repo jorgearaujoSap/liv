@@ -106,7 +106,8 @@ contract_version() { # contract_version ARCHIVO
 
 # Deja en $trabajo la carpeta de trabajo, absoluta y vacía. Antes de borrarla comprueba, con las rutas reales
 # (pwd -P, sin enlaces simbólicos), que no sea la raíz, que no contenga el proyecto ni la carpeta de los contratos,
-# y que, si está dentro de alguno de ellos, esté en su target/: LIV_CONTRACTS_WORK=. o =src no borran nada.
+# y que, si está dentro de alguno de ellos, sea una subcarpeta de su target/: LIV_CONTRACTS_WORK=., =src o =target
+# no borran nada.
 prepare_workdir() { # prepare_workdir CARPETA CARPETA_DE_LOS_CONTRATOS
   mkdir -p "$1" || exit 2
   trabajo=$(cd "$1" && pwd -P) || exit 2
@@ -115,7 +116,7 @@ prepare_workdir() { # prepare_workdir CARPETA CARPETA_DE_LOS_CONTRATOS
   for protegida in "$(cd "$proyecto" && pwd -P)" "$(cd "$2" && pwd -P)"; do
     case "$protegida/" in "$trabajo"/*) inseguro=true ;; esac
     case "$trabajo/" in
-      "$protegida"/target/*) ;;
+      "$protegida"/target/?*) ;;
       "$protegida"/*) inseguro=true ;;
     esac
   done

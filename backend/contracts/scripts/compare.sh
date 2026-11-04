@@ -72,10 +72,11 @@ compare_error() { # compare_error NOMBRE
 
 # Un $ref que no empieza por # apunta a otro archivo o a una URL. Se busca en cualquier forma de YAML: en bloque,
 # en una lista (- $ref: ...), en flujo ({ $ref: ... }) o con la clave entre comillas. Un $ref con el valor en la
-# línea siguiente, o una clave escrita con escapes ($, \x24), también cuentan: el valor va en la misma línea.
+# línea siguiente (con o sin comentario tras los dos puntos), o una clave escrita con escapes ($, \x24,
+# \U00000024), también cuentan: el valor va en la misma línea.
 has_external_ref() {
   grep -Eq -e "[\"']?\\\$ref[\"']?[[:space:]]*:[[:space:]]*[\"']?[^#\"'[:space:]]" \
-    -e "\\\$ref[\"']?[[:space:]]*:[[:space:]]*\$" -e "\\\\(u0024|x24)" "$1"
+    -e "\\\$ref[\"']?[[:space:]]*:[[:space:]]*(#.*)?\$" -e "\\\\(u0024|x24|U00000024)" "$1"
 }
 
 # Un cambio incompatible pasa solo con la etiqueta y la versión mayor subida.
