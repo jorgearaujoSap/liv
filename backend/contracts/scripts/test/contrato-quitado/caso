@@ -1,0 +1,5 @@
+esperado=falla
+aprobado=no
+base=muestra
+head=ninguno
+motivo=CONTRACT_REMOVED

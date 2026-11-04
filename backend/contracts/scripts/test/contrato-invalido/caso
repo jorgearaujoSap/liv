@@ -1,0 +1,5 @@
+esperado=falla
+aprobado=si
+base=muestra
+head=archivo
+motivo=COMPARE_ERROR
