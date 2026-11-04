@@ -1,14 +1,18 @@
 package co.com.sapenlinea.liv.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import co.com.sapenlinea.liv.audit.application.AuditLog;
 import co.com.sapenlinea.liv.audit.application.AuditProperties;
 import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents;
 import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.ImportResult;
@@ -19,6 +23,7 @@ import co.com.sapenlinea.liv.platform.IdentityProviderEvents.EventsPage;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents.Kind;
 import co.com.sapenlinea.liv.platform.IdentityProviderEvents.ProviderEvent;
 import co.com.sapenlinea.liv.platform.PlatformWebTest;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
@@ -37,8 +42,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
  * 001-18 for the events of the identity provider: the importer copies failed logins, lockouts and
@@ -62,6 +70,8 @@ class IdentityProviderImportTest extends PlatformWebTest {
   static final String KEY = "clave-hmac-de-prueba-con-mas-de-32-caracteres";
 
   @MockitoBean IdentityProviderEvents provider;
+  @MockitoSpyBean AuditLog log;
+  @Autowired MeterRegistry metrics;
   @Autowired ImportIdentityProviderEvents importer;
   @Autowired IdentityProviderEventsJob job;
   @Autowired AuditProperties properties;
@@ -207,16 +217,21 @@ class IdentityProviderImportTest extends PlatformWebTest {
 
   @Test
   @Tag("001-18")
-  @DisplayName("001-18 · La primera importación empieza en la retención del proveedor (30 días)")
+  @DisplayName(
+      "001-18 · La primera importación empieza un día antes de que el proveedor borre (29 de 30 días)")
   void firstImportStartsAtTheRetention() {
     LivDatabase.setImportCursor(null);
+    // Keycloak deletes events after 30 days: reading from its very edge, it could delete some
+    // between two pages and shift the offsets.
+    assertThat(properties.importer().retention()).isLessThan(Duration.ofDays(30));
 
     importer.importNew();
 
     ArgumentCaptor<Instant> from = ArgumentCaptor.forClass(Instant.class);
     verify(provider, atLeastOnce()).userEvents(from.capture(), anyInt());
     assertThat(from.getValue())
-        .isCloseTo(Instant.now().minus(Duration.ofDays(30)), within(1, ChronoUnit.MINUTES));
+        .isCloseTo(
+            Instant.now().minus(properties.importer().retention()), within(1, ChronoUnit.MINUTES));
   }
 
   @Test
@@ -248,6 +263,91 @@ class IdentityProviderImportTest extends PlatformWebTest {
     LivDatabase.setImportCursor(Instant.now().minus(Duration.ofDays(2)));
 
     assertThat(importer.importNew().behind()).isFalse();
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName(
+      "001-18 · Una ráfaga con más eventos de los que lee una corrida se importa entera en las siguientes")
+  void denseBurstIsImportedInTheFollowingRuns() {
+    Instant start = Instant.now().minus(Duration.ofMinutes(10)).truncatedTo(ChronoUnit.MILLIS);
+    LivDatabase.setImportCursor(start.minus(Duration.ofMinutes(1)));
+    int perRun = properties.importer().pageSize() * properties.importer().maxPages();
+    // More than a run reads, all within less than the overlap of 5 minutes.
+    List<ProviderEvent> burst =
+        IntStream.range(0, perRun + perRun / 4)
+            .mapToObj(i ->
+                failedLogin(
+                    UUID.randomUUID().toString(),
+                    start.plusMillis(100L * i),
+                    null,
+                    "rafaga" + i,
+                    null))
+            .toList();
+    when(provider.userEvents(any(), anyInt()))
+        .thenAnswer(call -> pageOf(burst, call.getArgument(0), call.getArgument(1)));
+
+    ImportResult first = importer.importNew();
+    ImportResult second = importer.importNew();
+
+    assertThat(first.cursor()).isBefore(burst.getLast().time());
+    assertThat(second.cursor()).isAfterOrEqualTo(burst.getLast().time());
+    assertThat(
+            AuditRows.ofProviderEvent("user:" + burst.getFirst().id()).size()
+                + AuditRows.ofProviderEvent("user:" + burst.getLast().id()).size())
+        .isEqualTo(2);
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName(
+      "001-18 · Si la base falla al guardar un evento, la corrida se detiene y no deja una fila incompleta")
+  void databaseFailureStopsTheRunWithoutAMinimalRow() {
+    String id = UUID.randomUUID().toString();
+    userEvents(failedLogin(id, recent(), null, "sin-base", "203.0.113.5"));
+    doThrow(new DataAccessResourceFailureException("base de datos caída"))
+        .doCallRealMethod()
+        .when(log)
+        .append(argThat(entry -> ("user:" + id).equals(entry.sourceEventId())));
+
+    assertThatThrownBy(importer::importNew).isInstanceOf(DataAccessResourceFailureException.class);
+
+    assertThat(AuditRows.ofProviderEvent("user:" + id)).isEmpty();
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName(
+      "001-18 · Un evento que la auditoría rechaza queda como fila mínima de plataforma, y la corrida sigue")
+  void rejectedEventIsKeptAsAMinimalPlatformRow() {
+    String rejected = UUID.randomUUID().toString();
+    String next = UUID.randomUUID().toString();
+    userEvents(
+        failedLogin(rejected, recent(), ACTIVE, "rechazado", "203.0.113.6"),
+        failedLogin(next, recent().plusMillis(1), null, "siguiente", "203.0.113.7"));
+    doThrow(new DataIntegrityViolationException("viola una restricción"))
+        .doCallRealMethod()
+        .when(log)
+        .append(argThat(entry -> ("user:" + rejected).equals(entry.sourceEventId())));
+
+    importer.importNew();
+
+    AuditRows.Row minimal = only(AuditRows.ofProviderEvent("user:" + rejected));
+    assertThat(minimal.administrationId()).isNull();
+    assertThat(minimal.userId()).isNull();
+    assertThat(minimal.newValues()).isEqualTo(Map.of("result", "FAILURE"));
+    assertThat(AuditRows.ofProviderEvent("user:" + next)).hasSize(1);
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName("001-18 · El atraso se mide desde la marca de agua compartida, en cualquier réplica")
+  void lagIsMeasuredFromTheSharedWatermark() {
+    LivDatabase.setImportCursor(Instant.now().minus(Duration.ofDays(2)));
+
+    double lag = metrics.get("liv.audit.importer.lag").gauge().value();
+
+    assertThat(lag).isGreaterThan(Duration.ofDays(1).toSeconds());
   }
 
   @Test
@@ -286,6 +386,12 @@ class IdentityProviderImportTest extends PlatformWebTest {
 
     verify(provider, never()).userEvents(any(), anyInt());
     verify(provider, never()).adminEvents(any(), anyInt());
+  }
+
+  /** What a provider with {@code all} answers: from {@code from} on, at most {@code limit}. */
+  private static EventsPage pageOf(List<ProviderEvent> all, Instant from, int limit) {
+    List<ProviderEvent> after = all.stream().filter(e -> !e.time().isBefore(from)).toList();
+    return new EventsPage(after.subList(0, Math.min(limit, after.size())), after.size() > limit);
   }
 
   /** Everything the provider has: no more after these. */

@@ -82,12 +82,13 @@ class JdbcAuditLog implements AuditLog {
   public Optional<Cursor> cursor() {
     return inPlatformJob(() ->
         jdbc.sql(
-                "SELECT last_event_at, seen_event_ids FROM audit.import_cursor"
+                "SELECT last_event_at, seen_event_ids, complete FROM audit.import_cursor"
                     + " WHERE source = 'IDENTITY_PROVIDER'")
             .query((row, number) ->
                 new Cursor(
                     row.getTimestamp("last_event_at").toInstant(),
-                    ids(row.getArray("seen_event_ids"))))
+                    ids(row.getArray("seen_event_ids")),
+                    row.getBoolean("complete")))
             .optional());
   }
 
@@ -96,16 +97,19 @@ class JdbcAuditLog implements AuditLog {
     runInPlatformJob(() ->
         jdbc.sql(
                 """
-                INSERT INTO audit.import_cursor (source, last_event_at, seen_event_ids)
-                VALUES ('IDENTITY_PROVIDER', ?, ?)
+                INSERT INTO audit.import_cursor (source, last_event_at, seen_event_ids, complete)
+                VALUES ('IDENTITY_PROVIDER', ?, ?, ?)
                 ON CONFLICT (source) DO UPDATE
                   SET last_event_at = EXCLUDED.last_event_at,
                       seen_event_ids = EXCLUDED.seen_event_ids,
+                      complete = EXCLUDED.complete,
                       updated_at = now()
                   WHERE audit.import_cursor.last_event_at <= EXCLUDED.last_event_at
                 """)
             .params(
-                Timestamp.from(cursor.lastEventAt()), cursor.seenEventIds().toArray(String[]::new))
+                Timestamp.from(cursor.lastEventAt()),
+                cursor.seenEventIds().toArray(String[]::new),
+                cursor.complete())
             .update());
   }
 

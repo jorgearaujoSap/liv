@@ -132,7 +132,8 @@ public class ImportIdentityProviderEvents {
             events.stream()
                 .filter(event -> !event.time().isBefore(windowStart))
                 .map(ImportIdentityProviderEvents::sourceEventId)
-                .collect(Collectors.toSet())));
+                .collect(Collectors.toSet()),
+            true));
 
     boolean behind = watermark.isBefore(now.minus(settings.maxLag()));
     if (behind) {

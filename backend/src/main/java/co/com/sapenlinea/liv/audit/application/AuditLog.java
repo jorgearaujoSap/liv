@@ -73,8 +73,10 @@ public interface AuditLog {
    * @param lastEventAt the time of the newest event imported
    * @param seenEventIds the ids of the events imported inside the overlap window, so the next
    *     import, which reads that window again, skips them
+   * @param complete whether the import read everything the provider had; if not, the next one goes
+   *     on right from {@code lastEventAt}, without the overlap
    */
-  record Cursor(Instant lastEventAt, Set<String> seenEventIds) {
+  record Cursor(Instant lastEventAt, Set<String> seenEventIds, boolean complete) {
 
     public Cursor {
       seenEventIds = Set.copyOf(seenEventIds);

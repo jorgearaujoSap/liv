@@ -91,7 +91,12 @@ class FlywayProfilesTest {
     void flywayMigratesAnEmptyDatabaseAsTheOwner() throws SQLException {
       assertThat(appliedVersions(flyway))
           .containsExactly(
-              "202611010900", "202611010905", "202611010910", "202611010915", "202611010920");
+              "202611010900",
+              "202611010905",
+              "202611010910",
+              "202611010915",
+              "202611010920",
+              "202611031000");
       assertThat(userOf(flyway.getConfiguration().getDataSource())).isEqualTo(LivDatabase.OWNER);
       assertThat(userOf(dataSource)).isEqualTo(LivDatabase.APP);
       try (Connection connection = dataSource.getConnection()) {
