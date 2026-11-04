@@ -10,6 +10,7 @@
 #   aprobado=si|no                si el PR tiene la etiqueta contrato-incompatible
 #   base=muestra|archivo|ninguna  archivo: base.yaml; ninguna: el contrato es nuevo
 #   head=archivo|muestra|ninguno  archivo: head.yaml; muestra: sin cambios; ninguno: el contrato se quitó
+#   otro=si                       agrega otro.yaml, igual en la base y en el PR
 #   motivo=CODIGO                 si falla, el código que debe dar, como [INCOMPATIBLE]
 #   salida=TEXTO                  si pasa, la línea que debe dar, como «contrato nuevo (1.0.0)»
 #   nota=TEXTO                    por qué existe el escenario; no se comprueba
@@ -71,6 +72,10 @@ for caso in "$pruebas"/comparar/*/caso; do
     archivo) cp "$escenario/head.yaml" "$dir/head/muestra.yaml" ;;
     muestra) cp "$pruebas/muestra.yaml" "$dir/head/muestra.yaml" ;;
   esac
+  if [ "$(valor otro "$caso")" = si ]; then
+    cp "$pruebas/muestra.yaml" "$dir/base/otro.yaml"
+    cp "$pruebas/muestra.yaml" "$dir/head/otro.yaml"
+  fi
   aprobado=false
   [ "$(valor aprobado "$caso")" = si ] && aprobado=true
 

@@ -142,7 +142,7 @@
     <pluginManagement>
       <plugins>
         <!-- Comparador de cambios incompatibles de los contratos (Q08, doc. 01 §10, ADR 0027). No corre
-             en el build: lo invoca contracts/compare.sh, una vez por contrato. -->
+             en el build: lo invoca contracts/scripts/compare.sh, una vez por contrato. -->
         <plugin>
           <groupId>org.openapitools.openapidiff</groupId>
           <artifactId>openapi-diff-maven</artifactId>

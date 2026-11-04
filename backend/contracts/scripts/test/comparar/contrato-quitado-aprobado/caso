@@ -3,3 +3,5 @@ aprobado=si
 base=muestra
 head=ninguno
 salida=se quitó, con la etiqueta contrato-incompatible
+otro=si
+nota=otro.yaml sigue igual: un proyecto sin ningún contrato falla aparte con NO_CONTRACTS
