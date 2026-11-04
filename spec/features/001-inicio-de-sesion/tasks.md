@@ -299,9 +299,15 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## `backend/bff/`
 
-- [ ] **T16** · *Spike* de Spring Cloud Gateway con Spring Boot 4.1 y esqueleto del proyecto: Maven, Spotless, ArchUnit, Flyway del esquema `bff` y `README.md`/`AGENTS.md` del BFF.
+- [x] **T16** · *Spike* de Spring Cloud Gateway con Spring Boot 4.1 y esqueleto del proyecto: Maven, Spotless, ArchUnit, Flyway del esquema `bff` y `README.md`/`AGENTS.md` del BFF. — Hecha: PR #66.
   - Archivos: `backend/bff/**`.
   - Prueba primero: la regla de ArchUnit sin `org.keycloak` y la carga del contexto. **Si no hay versión compatible, se detiene y se lleva el plan B al responsable.**
+  - **Resultado del *spike*:** Spring Cloud 2025.1.3 (Gateway Server MVC 5.0.3) es compatible con Boot 4.1.2; no hace falta el plan B. Ver plan › Decisiones, «Ajustes de T16».
+  - **Desviaciones declaradas:**
+    - la migración no crea tablas: solo comprueba el contrato de los roles y fija los permisos del esquema. Las tablas llegan con las tareas que las usan;
+    - el PR supera las ~400 líneas (unas 1.700: 484 del *wrapper* copiado, 764 de pruebas, 142 de documentación y unas 313 de código y configuración), porque partir el esqueleto dejaría proyectos que no compilan solos;
+    - dependencias de prueba y de *build* (`spring-boot-starter-webmvc-test`, `testcontainers-postgresql`, `archunit-junit5` y Spotless) iguales a las de `backend/`. La fila del BFF del ADR 0023 no las nombra; falta que el responsable lo confirme;
+    - el CI de PR del backend no compila ni prueba `backend/bff/`; la verificación fue local. El trabajo de CI del BFF queda pendiente de aprobación (`AGENTS.md` §4.5).
 > **Alcance del BFF (decisión del responsable, 2026-11-03).** Primero un BFF mínimo, que basta para validar con usuarios: T17 y T18. El endurecimiento de T19 se hace **antes de producción**. Ver plan › Decisiones, «Alcance del BFF».
 
 - [ ] **T17** · Inicio y cierre de sesión.
