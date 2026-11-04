@@ -64,4 +64,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - ArchUnit exige además servicios interceptables (`@Service`, no `final`, sin superclase), métodos marcados que no sean `static` ni `final`, ningún otro método que no sea privado, ninguna llamada ni referencia con `this` a un método protegido, ningún caso de uso creado con `@Bean`, controladores que usan solo casos de uso (no sus puertos), ningún `@RequiresPermission` en métodos asíncronos u oyentes y ningún `@PreAuthorize`, `@Secured` ni `@RolesAllowed`;
   - `GET /api/v1/me/capabilities` (`platform.yaml`) devuelve el árbol del menú que permiten los permisos del usuario (001-15). Las opciones salen de `platform/menu-catalog.yaml`, con el mapa de Doc. 01 §3 hasta las hojas de 1.5 y 1.6, todas en `COMING_SOON`; un catálogo mal escrito impide arrancar;
   - las pruebas comparan cada uno de los 11 roles con la matriz aprobada, escrita aparte.
+- Auditoría (feature 001, T15; 001-18):
+  - *outbox* de Spring Modulith en JDBC (`spring-modulith-starter-jdbc`, ADR 0023) sobre `platform.event_publication`: los eventos de `core` llegan a la auditoría después del *commit*. Un trabajo programado de `platform` reentrega cada 5 minutos los que quedaron pendientes (no al arrancar, para que la API siga arrancando sin base), y el tipo de base se fija en PostgreSQL sin consultarla;
+  - trabajos programados de plataforma con ShedLock (`platform.shedlock`): una réplica a la vez;
+  - los eventos de `core` llevan `eventId`, su fecha y el `correlationId` de la petición (`platform.Correlation`); `java.time.Clock` se inyecta desde `platform`;
+  - oyentes asíncronos en `audit` para `SessionStarted`, `SessionEnded`, `SessionDenied` y `UserProvisioned`. Cada fila va en la administración del evento; un rechazo sin administración válida va como fila de plataforma por `audit.record_platform_session_denied`, sin actor (decisión del responsable). Una sola vez por evento;
+  - importador de eventos de Keycloak (`spring-boot-starter-oauth2-client` y ShedLock 7.10.1, ADR 0023), con el cliente `liv-audit-importer`:
+    - copia intentos fallidos, bloqueos, errores de canje de código y cambios de roles y de estado hechos por administradores;
+    - enmascara el usuario intentado (HMAC-SHA256 con `LIV_AUDIT_HMAC_KEY`, más su longitud), trunca la IP (/24 y /48) y guarda al autor como referencia opaca;
+    - cada minuto, una réplica a la vez, con marca de agua en `audit.import_cursor`, 5 minutos de superposición y aviso si se atrasa más de un día;
+    - el puerto `IdentityProviderEvents` está en `platform` y solo su adaptador conoce la API de Keycloak; se prueba contra Keycloak real;
+  - `ModularityTest` verifica las flechas del ADR 0025 (`audit → core`, `audit → platform`, nadie depende de `audit`).
 - Tema `liv` de Keycloak, contraseña nueva y segundo factor (feature 001, T08 parte b): páginas de contraseña nueva, configurar el segundo factor (pasos, QR y clave) y pedir su código, con CodeInput y los errores en su campo; `check.sh` las prueba (001-06, 001-07, 001-19).

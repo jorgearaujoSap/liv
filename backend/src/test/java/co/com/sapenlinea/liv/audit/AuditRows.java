@@ -65,6 +65,12 @@ final class AuditRows {
         "SELECT " + COLUMNS + " FROM audit.audit_event e WHERE correlation_id = ?", correlation);
   }
 
+  /** The rows with this correlation id now, without waiting. */
+  static List<Row> byCorrelationNow(String correlation) {
+    return read(
+        "SELECT " + COLUMNS + " FROM audit.audit_event e WHERE correlation_id = ?", correlation);
+  }
+
   /** The rows of the identity provider with this source event id (none if not imported). */
   static List<Row> ofProviderEvent(String sourceEventId) {
     return read(

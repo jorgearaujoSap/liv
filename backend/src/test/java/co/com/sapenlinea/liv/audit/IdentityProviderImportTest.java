@@ -8,6 +8,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import co.com.sapenlinea.liv.audit.application.AuditProperties;
 import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents;
 import co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.ImportResult;
 import co.com.sapenlinea.liv.audit.infrastructure.IdentityProviderEventsJob;
@@ -25,6 +26,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +62,7 @@ class IdentityProviderImportTest extends PlatformWebTest {
   @MockitoBean IdentityProviderEvents provider;
   @Autowired ImportIdentityProviderEvents importer;
   @Autowired IdentityProviderEventsJob job;
+  @Autowired AuditProperties properties;
 
   @BeforeEach
   void freshCursor() {
@@ -242,9 +245,22 @@ class IdentityProviderImportTest extends PlatformWebTest {
   @DisplayName("001-18 · El importador avisa si se atrasa más de un día")
   void importerReportsWhenBehind() {
     LivDatabase.setImportCursor(Instant.now().minus(Duration.ofDays(2)));
-    assertThat(importer.importNew().behind()).isTrue();
+    Instant stuck = Instant.now().minus(Duration.ofDays(2)).truncatedTo(ChronoUnit.MILLIS);
+    // A full page at one instant: the importer cannot move past it in this run.
+    userEvents(
+        IntStream.range(0, properties.importer().pageSize())
+            .mapToObj(i -> failedLogin(UUID.randomUUID().toString(), stuck, null, "u" + i, null))
+            .toArray(ProviderEvent[]::new));
 
-    userEvents(failedLogin(UUID.randomUUID().toString(), recent(), null, "al-dia", "203.0.113.3"));
+    assertThat(importer.importNew().behind()).isTrue();
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName("001-18 · Sin eventos nuevos el importador está al día, aunque el último sea viejo")
+  void quietProviderIsNotBehind() {
+    LivDatabase.setImportCursor(Instant.now().minus(Duration.ofDays(2)));
+
     assertThat(importer.importNew().behind()).isFalse();
   }
 

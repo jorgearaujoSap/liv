@@ -12,11 +12,17 @@ import java.util.List;
  */
 public interface IdentityProviderEvents {
 
-  /** Events of users (failed logins, lockouts), from {@code from} on, oldest first. */
-  List<ProviderEvent> userEvents(Instant from, int max);
+  /**
+   * Up to {@code limit} events of users (failed logins, lockouts) from {@code from} on, oldest
+   * first.
+   */
+  List<ProviderEvent> userEvents(Instant from, int limit);
 
-  /** Events of administrators on users (roles, attributes, state), oldest first. */
-  List<ProviderEvent> adminEvents(Instant from, int max);
+  /**
+   * Up to {@code limit} changes of administrators to users (roles, attributes, state), oldest
+   * first.
+   */
+  List<ProviderEvent> adminEvents(Instant from, int limit);
 
   /**
    * An event of the provider.

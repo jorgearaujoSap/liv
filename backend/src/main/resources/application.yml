@@ -47,6 +47,11 @@ liv:
   # identidad: un usuario desconocido recibe 403 (001-17) y se vincula de forma explícita (decisión de T13).
   sessions:
     auto-provision: true
+  # Reentrega de los eventos del outbox cuyo oyente falló o no terminó: cada 5 minutos, los de más de 5 minutos
+  # (los más recientes pueden estar en curso), una réplica a la vez (ShedLock).
+  outbox:
+    resubmission-interval: PT5M
+    resubmit-older-than: PT5M
   # Auditoría (001-18, T15). La clave del HMAC enmascara el usuario intentado y el autor de los cambios del
   # proveedor; no tiene valor por defecto. El importador copia los eventos del proveedor con el cliente
   # liv-audit-importer (client credentials) cada minuto, uno a la vez entre réplicas (ShedLock).
@@ -76,14 +81,15 @@ liv:
       administration-id: administration_id
       roles: roles
 
-# Outbox de Spring Modulith en JDBC (T15): la tabla platform.event_publication la crea Flyway, no Modulith. Al
-# arrancar se vuelven a entregar los eventos que quedaron sin completar (por ejemplo, si la instancia cayó).
+# Outbox de Spring Modulith en JDBC (T15): la tabla platform.event_publication la crea Flyway, no Modulith. Los
+# eventos sin completar no se reentregan al arrancar (eso exige la base para arrancar, ajustes de T12): los
+# reentrega un trabajo programado de platform (liv.outbox).
 spring.modulith.events:
   jdbc:
     schema: platform
     schema-initialization:
       enabled: false
-  republish-outstanding-events-on-restart: true
+  republish-outstanding-events-on-restart: false
 
 # Cada línea de log lleva el id de correlación de la petición (doc. 02 §9, CorrelationIdFilter).
 logging:

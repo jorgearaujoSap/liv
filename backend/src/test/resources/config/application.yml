@@ -7,6 +7,9 @@ liv:
   audit:
     importer:
       enabled: false
+  # La reentrega programada no corre sola en las pruebas: OutboxRedeliveryTest la llama.
+  outbox:
+    resubmission-interval: PT24H
 
 # Pools pequeños: cada contexto de prueba cacheado tiene el suyo contra el mismo PostgreSQL.
 spring:

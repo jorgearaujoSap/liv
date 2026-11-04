@@ -119,6 +119,12 @@ El BFF inicia y cierra la sesión de LIV de cada usuario por `core-internal.yaml
   Un método sin marca se niega a todos. Los servicios de `application` son `@Service`, no `final` y sin superclase, y no se llaman a sí mismos con `this` en un método protegido, porque esa llamada no pasaría por la comprobación.
 - **Menú (`GET /api/v1/me/capabilities`, 001-15):** `src/main/resources/platform/menu-catalog.yaml` lista las opciones de Doc. 01 §3. Cada hoja lleva su permiso y su estado (`AVAILABLE` o `COMING_SOON`); una rama se ve si se ve alguno de sus hijos. Cuando una feature construye una opción, cambia su estado a `AVAILABLE` en ese archivo.
 
+## Auditoría
+
+- **Eventos de LIV (001-18):** inicio, fin, rechazo y primer ingreso quedan en `audit.audit_event` con usuario, fecha, resultado y correlación. Los escribe un oyente asíncrono después del *commit*; el *outbox* JDBC (`platform.event_publication`) guarda cada entrega hasta que termina.
+- **Eventos del proveedor:** el importador los copia cada `liv.audit.importer.interval` con el cliente `liv-audit-importer`, enmascarados (ver `CHANGELOG.md`).
+- **Variables:** `LIV_AUDIT_HMAC_KEY` (al menos 32 caracteres) y `LIV_AUDIT_IMPORTER_SECRET`. Sin ellas, la API no arranca mientras `liv.audit.importer.enabled` esté encendido (lo está por omisión).
+
 ## Estado
 
 Esqueleto de la Fase 0 (entregable F0‑04): módulos vacíos y guardias de arquitectura activas. Sin funcionalidad de negocio todavía. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
