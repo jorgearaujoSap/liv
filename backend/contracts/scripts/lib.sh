@@ -43,6 +43,11 @@ add_contract() { # add_contract NOMBRE_DE_ARCHIVO CARPETA_DESTINO < contenido
 collect_worktree() { # collect_worktree CARPETA_DESTINO
   [ -d "$CONTRACT_DIR" ] || return 0
   for entrada in "$CONTRACT_DIR"/* "$CONTRACT_DIR"/.[!.]* "$CONTRACT_DIR"/..?*; do
+    # Un enlace simbólico se lee distinto aquí (su destino) que en Git (su ruta): se rechaza, también si está roto.
+    if [ -L "$entrada" ]; then
+      falla UNEXPECTED_FILE "$(basename "$entrada")" "en $CONTRACT_DIR/ no van enlaces simbólicos."
+      return 1
+    fi
     [ -e "$entrada" ] || continue
     if [ -d "$entrada" ]; then
       falla UNEXPECTED_FILE "$(basename "$entrada")" "en $CONTRACT_DIR/ no van subcarpetas."
@@ -64,10 +69,10 @@ collect_ref() { # collect_ref REFERENCIA CARPETA_DESTINO
     falla GIT_ERROR "$1" "no se pudo listar $CONTRACT_DIR/."
     return 1
   fi
-  # Cada línea de ls-tree: modo, tipo y objeto, y tras un tabulador la ruta.
-  while read -r _modo tipo _objeto ruta; do
-    if [ "$tipo" != blob ]; then
-      falla UNEXPECTED_FILE "$(basename "$ruta")" "en $CONTRACT_DIR/ no van subcarpetas."
+  # Cada línea de ls-tree: modo, tipo y objeto, y tras un tabulador la ruta. El modo 120000 es un enlace simbólico.
+  while read -r modo tipo _objeto ruta; do
+    if [ "$tipo" != blob ] || [ "$modo" = 120000 ]; then
+      falla UNEXPECTED_FILE "$(basename "$ruta")" "en $CONTRACT_DIR/ no van subcarpetas ni enlaces simbólicos."
       return 1
     fi
     # MSYS_NO_PATHCONV: Git Bash no convierte «referencia:ruta» como si fuera una ruta de Windows.
@@ -79,18 +84,19 @@ collect_ref() { # collect_ref REFERENCIA CARPETA_DESTINO
   done < "$lista"
 }
 
-# info.version del contrato: la clave version (también entre comillas) dentro del bloque info del primer nivel.
-# Si el valor va entre comillas, es lo de dentro (un # ahí no es comentario); si no, se quita el comentario.
-# Si info o version están repetidos no devuelve nada, porque un lector de YAML tomaría el último y esta función
-# el primero: el contrato queda con versión inválida. En el awk, \047 es la comilla simple.
+# info.version del contrato: la clave version dentro del bloque info del primer nivel, con la clave entre comillas
+# o sin ellas y con espacio o sin él antes de los dos puntos. Si el valor va entre comillas, es lo de dentro (un #
+# ahí no es comentario); si no, se quita el comentario. Si info o version están repetidos, o info va en estilo de
+# flujo, no devuelve nada, porque un lector de YAML podría leer otra versión: el contrato queda con versión
+# inválida. En el awk, \047 es la comilla simple.
 contract_version() { # contract_version ARCHIVO
   awk '{ sub(/\r$/, "") }
-       /^info:[ \t]*(#.*)?$/ { infos++; dentro = (infos == 1); next }
+       /^["\047]?info["\047]?[ \t]*:/ { infos++; dentro = (infos == 1); next }
        /^[^ #]/ { dentro = 0 }
-       dentro && /^  ["\047]?version["\047]?:/ { veces++; linea = $0 }
+       dentro && /^  ["\047]?version["\047]?[ \t]*:/ { veces++; linea = $0 }
        END {
          if (infos != 1 || veces != 1) exit
-         sub(/^  ["\047]?version["\047]?:[ \t]*/, "", linea)
+         sub(/^  ["\047]?version["\047]?[ \t]*:[ \t]*/, "", linea)
          if (linea ~ /^"/) { sub(/^"/, "", linea); sub(/".*$/, "", linea) }
          else if (linea ~ /^\047/) { sub(/^\047/, "", linea); sub(/\047.*$/, "", linea) }
          else { sub(/[ \t]+#.*$/, "", linea); sub(/[ \t]+$/, "", linea) }
@@ -98,20 +104,25 @@ contract_version() { # contract_version ARCHIVO
        }' "$1"
 }
 
-# Deja en $trabajo la carpeta de trabajo, absoluta y vacía. Antes de borrarla comprueba que no sea la raíz ni
-# contenga el proyecto o la carpeta de los contratos: LIV_CONTRACTS_WORK=. no borra nada.
+# Deja en $trabajo la carpeta de trabajo, absoluta y vacía. Antes de borrarla comprueba, con las rutas reales
+# (pwd -P, sin enlaces simbólicos), que no sea la raíz, que no contenga el proyecto ni la carpeta de los contratos,
+# y que, si está dentro de alguno de ellos, esté en su target/: LIV_CONTRACTS_WORK=. o =src no borran nada.
 prepare_workdir() { # prepare_workdir CARPETA CARPETA_DE_LOS_CONTRATOS
   mkdir -p "$1" || exit 2
-  trabajo=$(cd "$1" && pwd) || exit 2
-  raiz_abs=$(cd "$2" && pwd) || exit 2
-  for protegida in / "$proyecto/" "$raiz_abs/"; do
-    case "$protegida" in
-      "$trabajo" | "$trabajo"/*)
-        falla UNSAFE_WORKDIR "$trabajo" "la carpeta de trabajo contiene el proyecto o sus contratos; no se borra."
-        exit 1
-        ;;
+  trabajo=$(cd "$1" && pwd -P) || exit 2
+  inseguro=false
+  [ "$trabajo" = / ] && inseguro=true
+  for protegida in "$(cd "$proyecto" && pwd -P)" "$(cd "$2" && pwd -P)"; do
+    case "$protegida/" in "$trabajo"/*) inseguro=true ;; esac
+    case "$trabajo/" in
+      "$protegida"/target/*) ;;
+      "$protegida"/*) inseguro=true ;;
     esac
   done
+  if [ "$inseguro" = true ]; then
+    falla UNSAFE_WORKDIR "$trabajo" "la carpeta de trabajo debe estar en target/ o fuera del proyecto; no se borra."
+    exit 1
+  fi
   rm -rf "$trabajo"
   mkdir -p "$trabajo"
 }
