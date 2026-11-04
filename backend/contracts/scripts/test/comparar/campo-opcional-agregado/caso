@@ -2,3 +2,4 @@ esperado=pasa
 aprobado=no
 base=muestra
 head=archivo
+salida=cambio compatible (1.0.0 → 1.1.0)

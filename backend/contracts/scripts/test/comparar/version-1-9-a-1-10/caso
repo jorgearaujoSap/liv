@@ -1,0 +1,5 @@
+esperado=pasa
+aprobado=no
+base=archivo
+head=archivo
+salida=cambio compatible (1.9.0 → 1.10.0)
