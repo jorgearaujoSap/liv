@@ -47,6 +47,24 @@ liv:
   # identidad: un usuario desconocido recibe 403 (001-17) y se vincula de forma explícita (decisión de T13).
   sessions:
     auto-provision: true
+  # Auditoría (001-18, T15). La clave del HMAC enmascara el usuario intentado y el autor de los cambios del
+  # proveedor; no tiene valor por defecto. El importador copia los eventos del proveedor con el cliente
+  # liv-audit-importer (client credentials) cada minuto, uno a la vez entre réplicas (ShedLock).
+  audit:
+    hmac-key: ${LIV_AUDIT_HMAC_KEY:}
+    importer:
+      enabled: true
+      client-id: liv-audit-importer
+      client-secret: ${LIV_AUDIT_IMPORTER_SECRET:}
+      interval: PT1M
+      initial-delay: PT1M
+      # La consulta se superpone con la anterior (eventos que el proveedor guarda tarde) y se alerta si la marca
+      # de agua se atrasa más de un día: Keycloak los borra a los 30 días (eventsExpiration).
+      overlap: PT5M
+      max-lag: P1D
+      retention: P30D
+      page-size: 100
+      max-pages: 20
   security:
     issuer-uri: ${LIV_OIDC_ISSUER_URI}
     user-audience: liv-api
@@ -57,6 +75,15 @@ liv:
     claims:
       administration-id: administration_id
       roles: roles
+
+# Outbox de Spring Modulith en JDBC (T15): la tabla platform.event_publication la crea Flyway, no Modulith. Al
+# arrancar se vuelven a entregar los eventos que quedaron sin completar (por ejemplo, si la instancia cayó).
+spring.modulith.events:
+  jdbc:
+    schema: platform
+    schema-initialization:
+      enabled: false
+  republish-outstanding-events-on-restart: true
 
 # Cada línea de log lleva el id de correlación de la petición (doc. 02 §9, CorrelationIdFilter).
 logging:

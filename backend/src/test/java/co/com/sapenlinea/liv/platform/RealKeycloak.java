@@ -38,10 +38,13 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Started once per test run, on first use; if the realm cannot be applied, the containers are
  * stopped and the error says why.
  */
-final class RealKeycloak {
+public final class RealKeycloak {
 
   /** Users of {@code dev/keycloak/liv-realm-dev.yaml} without a second factor (role CONSULTA). */
-  static final String USER = "dev.consulta";
+  public static final String USER = "dev.consulta";
+
+  /** Secret of {@code liv-audit-importer} in this provider (T15). */
+  public static final String AUDIT_IMPORTER_SECRET = "liv-audit-importer-prueba";
 
   static final String USER_OF_B = "dev.consulta.b";
 
@@ -78,7 +81,7 @@ final class RealKeycloak {
 
   private RealKeycloak() {}
 
-  static synchronized String issuer() {
+  public static synchronized String issuer() {
     if (keycloak == null) {
       keycloak = start();
     }
@@ -129,8 +132,95 @@ final class RealKeycloak {
     return response.headers().firstValue("Location").orElse(response.body());
   }
 
+  /** A login with a wrong password through the login form, as a browser would (T15). */
+  public static void failedLogin(String username) {
+    HttpResponse<String> page =
+        loginWith(username, "contrasena-equivocada", challenge(randomVerifier()));
+    if (page.statusCode() != 200) {
+      throw new IllegalStateException(
+          "Keycloak no rechazó el inicio fallido (estado " + page.statusCode() + ")");
+    }
+  }
+
+  /** Creates an enabled user of the realm with the administration API and returns its id (T15). */
+  public static String createUser(String username) {
+    HttpResponse<String> created =
+        admin(
+            HttpRequest.newBuilder(URI.create(adminBase() + "/users"))
+                .header("Content-Type", "application/json")
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        "{\"username\":\"%s\",\"enabled\":true}".formatted(username))));
+    String location = created.headers().firstValue("Location").orElseThrow();
+    return location.substring(location.lastIndexOf('/') + 1);
+  }
+
+  /** Grants a realm role to a user with the administration API, as an administrator would. */
+  public static void grantRealmRole(String userId, String role) {
+    String representation =
+        admin(HttpRequest.newBuilder(URI.create(adminBase() + "/roles/" + role)).GET()).body();
+    admin(
+        HttpRequest.newBuilder(
+                URI.create(adminBase() + "/users/" + userId + "/role-mappings/realm"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString("[" + representation + "]")));
+  }
+
+  /** A call of the administration API of the realm as the bootstrap administrator. */
+  private static HttpResponse<String> admin(HttpRequest.Builder request) {
+    String root = issuer().substring(0, issuer().indexOf("/realms/"));
+    HttpResponse<String> token =
+        send(
+            HttpClient.newHttpClient(),
+            HttpRequest.newBuilder(
+                    URI.create(root + "/realms/master/protocol/openid-connect/token"))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        form(
+                            Map.of(
+                                "grant_type",
+                                "password",
+                                "client_id",
+                                "admin-cli",
+                                "username",
+                                ADMIN,
+                                "password",
+                                ADMIN_PASSWORD)))));
+    String accessToken = JSON.readTree(token.body()).get("access_token").asString();
+    HttpResponse<String> response =
+        send(HttpClient.newHttpClient(), request.header("Authorization", "Bearer " + accessToken));
+    if (response.statusCode() >= 300) {
+      throw new IllegalStateException(
+          "La API de administración respondió " + response.statusCode() + ": " + response.body());
+    }
+    return response;
+  }
+
+  private static String adminBase() {
+    return issuer().replace("/realms/", "/admin/realms/");
+  }
+
   /** Logs in through the login form of the realm and returns the authorization code. */
   private static String login(String username, String codeChallenge) {
+    HttpResponse<String> afterLogin = loginWith(username, PASSWORD, codeChallenge);
+    String location = afterLogin.headers().firstValue("Location").orElse("");
+    Matcher code = CODE.matcher(location);
+    if (!location.startsWith(REDIRECT_URI) || !code.find()) {
+      // A required action (password change, second factor) answers with a page, not a redirect.
+      throw new IllegalStateException(
+          "Keycloak no devolvió un código para "
+              + username
+              + " (estado "
+              + afterLogin.statusCode()
+              + "): ¿el usuario tiene una acción requerida?");
+    }
+    return code.group(1);
+  }
+
+  /** The answer of the login form to a username and password. */
+  private static HttpResponse<String> loginWith(
+      String username, String password, String codeChallenge) {
     // Keycloak's session cookies are carried by hand: the JDK cookie handler does not send back
     // cookies marked Secure over http, which a browser on localhost does.
     HttpClient browser =
@@ -159,27 +249,14 @@ final class RealKeycloak {
               + page.statusCode()
               + ")");
     }
-    HttpResponse<String> afterLogin =
-        send(
-            browser,
-            HttpRequest.newBuilder(URI.create(action.group(1).replace("&amp;", "&")))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .header("Cookie", cookies(page))
-                .POST(
-                    HttpRequest.BodyPublishers.ofString(
-                        form(Map.of("username", username, "password", PASSWORD)))));
-    String location = afterLogin.headers().firstValue("Location").orElse("");
-    Matcher code = CODE.matcher(location);
-    if (!location.startsWith(REDIRECT_URI) || !code.find()) {
-      // A required action (password change, second factor) answers with a page, not a redirect.
-      throw new IllegalStateException(
-          "Keycloak no devolvió un código para "
-              + username
-              + " (estado "
-              + afterLogin.statusCode()
-              + "): ¿el usuario tiene una acción requerida?");
-    }
-    return code.group(1);
+    return send(
+        browser,
+        HttpRequest.newBuilder(URI.create(action.group(1).replace("&amp;", "&")))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Cookie", cookies(page))
+            .POST(
+                HttpRequest.BodyPublishers.ofString(
+                    form(Map.of("username", username, "password", password)))));
   }
 
   private static Response exchange(String code, String verifier) {
@@ -312,7 +389,7 @@ final class RealKeycloak {
             .withEnv("LIV_BFF_BACKCHANNEL_URL", BFF_BASE_URL)
             .withEnv("LIV_BFF_CLIENT_SECRET", BFF_SECRET)
             .withEnv("LIV_BFF_SERVICE_CLIENT_SECRET", SERVICE_SECRET)
-            .withEnv("LIV_AUDIT_IMPORTER_SECRET", "liv-audit-importer-prueba")
+            .withEnv("LIV_AUDIT_IMPORTER_SECRET", AUDIT_IMPORTER_SECRET)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(BASE_REALM), "/config/base/liv-realm.yaml")
             .withCopyFileToContainer(

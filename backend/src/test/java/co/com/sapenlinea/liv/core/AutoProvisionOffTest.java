@@ -56,7 +56,10 @@ class AutoProvisionOffTest extends PlatformWebTest {
                 sid,
                 null,
                 null,
-                LivDatabase.ADMIN_A));
+                LivDatabase.ADMIN_A,
+                null,
+                null,
+                null));
     assertThat(
             LivDatabase.readAsOwner(
                 "SELECT id FROM core.admin_user WHERE identity_subject = ?", subject))

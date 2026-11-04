@@ -3,12 +3,14 @@ package co.com.sapenlinea.liv.core.application;
 import co.com.sapenlinea.liv.core.SessionDenied;
 import co.com.sapenlinea.liv.core.application.SessionStore.StartOutcome;
 import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
+import co.com.sapenlinea.liv.platform.Correlation;
 import co.com.sapenlinea.liv.platform.DirectoryUser;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
 import co.com.sapenlinea.liv.platform.OpenUseCase;
 import co.com.sapenlinea.liv.platform.RequestRefusedException;
 import co.com.sapenlinea.liv.platform.TokenUser;
 import co.com.sapenlinea.liv.platform.UserDirectory;
+import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -43,11 +45,14 @@ public class StartSession {
   private final UserDirectory directory;
   private final SessionStore store;
   private final SessionProperties properties;
+  private final Clock clock;
 
-  StartSession(UserDirectory directory, SessionStore store, SessionProperties properties) {
+  StartSession(
+      UserDirectory directory, SessionStore store, SessionProperties properties, Clock clock) {
     this.directory = directory;
     this.store = store;
     this.properties = properties;
+    this.clock = clock;
   }
 
   /**
@@ -152,7 +157,10 @@ public class StartSession {
               sid,
               user == null ? null : user.id(),
               user == null ? null : user.administrationId(),
-              token.administrationId().orElse(null)));
+              token.administrationId().orElse(null),
+              clock.instant(),
+              UUID.randomUUID(),
+              Correlation.current().orElse(null)));
     }
   }
 }

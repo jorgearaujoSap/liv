@@ -53,7 +53,17 @@ final class AuthorizationRules {
           "co.com.sapenlinea.liv.core.application.StartSession.start("
               + "co.com.sapenlinea.liv.platform.TokenUser, java.lang.String)",
           "co.com.sapenlinea.liv.core.application.EndSession.end("
-              + "java.lang.String, java.lang.String, java.lang.String, java.lang.String)");
+              + "java.lang.String, java.lang.String, java.lang.String, java.lang.String)",
+          // Listeners of the events of core and the importer job (T15): no user, no request.
+          "co.com.sapenlinea.liv.audit.application.RecordSessionEvents.started("
+              + "co.com.sapenlinea.liv.core.SessionStarted)",
+          "co.com.sapenlinea.liv.audit.application.RecordSessionEvents.ended("
+              + "co.com.sapenlinea.liv.core.SessionEnded)",
+          "co.com.sapenlinea.liv.audit.application.RecordSessionEvents.denied("
+              + "co.com.sapenlinea.liv.core.SessionDenied)",
+          "co.com.sapenlinea.liv.audit.application.RecordSessionEvents.provisioned("
+              + "co.com.sapenlinea.liv.core.UserProvisioned)",
+          "co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.importNew()");
 
   /** Methods that run in another thread or without a request: a permission would always fail. */
   private static final List<String> DETACHED_METHODS =

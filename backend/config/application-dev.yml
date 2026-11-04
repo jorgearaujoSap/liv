@@ -22,3 +22,8 @@ liv:
     issuer-uri: ${LIV_OIDC_ISSUER_URI:http://localhost:8180/realms/liv}
     # El Keycloak local no tiene TLS; fuera de dev y test el emisor debe ser https.
     allow-http-issuer: true
+  # Importador de eventos con el secreto de dev/.env y una clave de HMAC ficticia, solo de desarrollo.
+  audit:
+    hmac-key: ${LIV_AUDIT_HMAC_KEY:clave-hmac-ficticia-solo-para-desarrollo-local}
+    importer:
+      client-secret: ${LIV_AUDIT_IMPORTER_SECRET}

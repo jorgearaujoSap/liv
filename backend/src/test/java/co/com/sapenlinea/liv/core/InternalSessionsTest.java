@@ -64,7 +64,7 @@ class InternalSessionsTest extends PlatformWebTest {
     assertThat(userId.toString()).isNotEqualTo(subject);
     assertThat(sessionsOf(sid(token))).hasSize(1);
     assertThat(events.of(UserProvisioned.class))
-        .contains(new UserProvisioned(userId, LivDatabase.ADMIN_A));
+        .contains(new UserProvisioned(userId, LivDatabase.ADMIN_A, null, null, null));
     assertThat(events.of(SessionStarted.class))
         .anyMatch(e -> e.userId().equals(userId) && e.sid().equals(sid(token)));
   }
@@ -153,7 +153,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(first),
                 null,
                 null,
-                LivDatabase.ADMIN_A));
+                LivDatabase.ADMIN_A,
+                null,
+                null,
+                null));
   }
 
   @Test
@@ -191,7 +194,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(token),
                 userId,
                 LivDatabase.ADMIN_A,
-                LivDatabase.ADMIN_A));
+                LivDatabase.ADMIN_A,
+                null,
+                null,
+                null));
   }
 
   @Test
@@ -213,7 +219,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(token),
                 userId,
                 LivDatabase.ADMIN_A,
-                LivDatabase.ADMIN_B));
+                LivDatabase.ADMIN_B,
+                null,
+                null,
+                null));
   }
 
   @Test
@@ -241,7 +250,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(withUnknown),
                 null,
                 null,
-                unknown));
+                unknown,
+                null,
+                null,
+                null));
     assertThat(deniedFor(sid(withoutAdministration))).hasSize(1);
   }
 
@@ -272,7 +284,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(ofNewcomer),
                 null,
                 null,
-                administration));
+                administration,
+                null,
+                null,
+                null));
     assertThat(deniedFor(sid(ofRegistered)))
         .containsExactly(
             denied(
@@ -397,7 +412,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(token),
                 registered,
                 LivDatabase.ADMIN_B,
-                LivDatabase.ADMIN_A));
+                LivDatabase.ADMIN_A,
+                null,
+                null,
+                null));
   }
 
   @Test
@@ -428,7 +446,10 @@ class InternalSessionsTest extends PlatformWebTest {
                 sid(token),
                 registered,
                 LivDatabase.ADMIN_A,
-                LivDatabase.ADMIN_A));
+                LivDatabase.ADMIN_A,
+                null,
+                null,
+                null));
   }
 
   @Test
@@ -547,7 +568,10 @@ class InternalSessionsTest extends PlatformWebTest {
         sid,
         user == null ? null : (UUID) user[0],
         user == null ? null : (UUID) user[2],
-        claimed);
+        claimed,
+        null,
+        null,
+        null);
   }
 
   private List<SessionDenied> deniedFor(String sid) {

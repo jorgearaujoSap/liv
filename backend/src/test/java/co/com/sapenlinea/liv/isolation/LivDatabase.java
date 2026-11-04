@@ -12,6 +12,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -165,6 +167,25 @@ public final class LivDatabase {
         return rows(connection, select, args);
       } finally {
         connection.rollback();
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Sets the watermark of the importer of the identity provider, as its owner, with no ids seen
+   * (T15); {@code null} removes it, as before the first import.
+   */
+  public static void setImportCursor(Instant lastEventAt) {
+    try {
+      update(OWNER, null, "DELETE FROM audit.import_cursor");
+      if (lastEventAt != null) {
+        update(
+            OWNER,
+            null,
+            "INSERT INTO audit.import_cursor (source, last_event_at) VALUES ('IDENTITY_PROVIDER', ?)",
+            Timestamp.from(lastEventAt));
       }
     } catch (SQLException e) {
       throw new IllegalStateException(e);

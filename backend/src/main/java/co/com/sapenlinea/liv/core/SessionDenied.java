@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.core;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -18,6 +19,9 @@ import java.util.UUID;
  * @param userId the LIV id of the user, or null if it is not registered
  * @param registeredAdministrationId the registered administration of the user, or null
  * @param claimedAdministrationId the administration the token claims, or null
+ * @param deniedAt when it was refused
+ * @param eventId the id of this event: the audit stores it once (idempotent listener, T15)
+ * @param correlationId the correlation id of the request that caused it, if any (001-18)
  */
 public record SessionDenied(
     String code,
@@ -26,4 +30,7 @@ public record SessionDenied(
     String sid,
     UUID userId,
     UUID registeredAdministrationId,
-    UUID claimedAdministrationId) {}
+    UUID claimedAdministrationId,
+    Instant deniedAt,
+    UUID eventId,
+    String correlationId) {}
