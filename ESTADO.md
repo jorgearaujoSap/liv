@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-03
+> **Última actualización:** 2026-11-04
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -55,7 +55,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Storybook con 18 componentes: `Icon`, `Logo`, `Spinner`, `Skeleton`, `Badge` y `Avatar` (T03); `Button`, `IconButton`, `TextField`, `CodeInput` y `Alert` (T04, PR #36). *Tokens* `border/strong` y `focus/ring` y placeholder de `CodeInput` corregidos para WCAG 2.1 AA (T04a, PR #38). `Dialog`, `ResultState`, `NavItem`, `SideNav`, `AppHeader`, `PageHeader` y `ModuleCard` (T05, PR #43; 0.2.0 preparada, la publica un humano). Faltan *script* que regenere los tokens desde Figma y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
 | F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Keycloak se construye desde `backend/identity/Dockerfile` con el tema `liv` (T08, PR #57 y #58). Faltan MinIO, ClamAV y observabilidad |
-| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Falta el trabajo de PR del BFF (`backend/bff/`, T16; requiere aprobación del responsable). Faltan publicación de imágenes y contratos (la de los contratos del backend, tarea aparte antes de T20, con su comparador de cambios incompatibles; la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
+| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Falta el trabajo de PR del BFF (`backend/bff/`, T16; requiere aprobación del responsable). Contratos del backend (tarea aparte antes de T20, ADR 0027): comparador de cambios incompatibles Q08 (`backend-contracts-pr`) y publicación como *releases* `contract-<nombre>-vX.Y.Z` (`backend-main`), en revisión en los PR #69 (`backend/`) y #70 (`.github/`). Faltan publicación de imágenes (la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
 | F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway `V202611010900`–`0920` (T10 de la feature 001, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
 | F0‑09 | Auditoría, correlación y observabilidad | 🔄 | Correlación: `X-Correlation-Id` solo como UUID, en la respuesta, el MDC y cada línea de log; credenciales enmascaradas en los logs (T12 parte 1, PR #45). Pendientes: auditoría (T15), log estructurado en JSON con enmascarado y datos personales |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
@@ -119,12 +119,31 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
 7. BFF (tras T16), decisiones pendientes del responsable: el trabajo de CI de `backend/bff/` (Q01–Q03), Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z` (plan › Decisiones, «Ajustes de T16»).
+8. Contratos (F0‑07, ADR 0027): integrar el PR #69 y después el #70, volviendo a correr sus *checks*. Comprobar que la primera ejecución de `backend-main` publica `contract-core-v1.0.0`, `contract-core-internal-v1.0.0` y `contract-platform-v1.0.0`. Luego, T20. Quedan por decidir:
+   - activar las *releases* inmutables y un *ruleset* para las etiquetas `contract-*`;
+   - exigir Q08 como *check*;
+   - fijar `distributionSha256Sum` en el *wrapper* de Maven.
 
 ---
 
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-04
+
+- F0‑07, tarea aparte antes de T20 (PR #69 de `backend/` y #70 de `.github/`, por integrar en ese orden; ADR 0027): comparador de cambios incompatibles de los contratos (Q08) y su publicación.
+  - **Diseño aprobado por el responsable:** una *release* `contract-<nombre>-vX.Y.Z` por contrato y versión, con el YAML y su SHA-256; `openapi-diff-maven` 2.1.7 como comparador; la etiqueta `contrato-incompatible` más la versión mayor para aprobar un cambio incompatible.
+  - **Decisiones posteriores, tras la revisión:**
+    - el BFF tendrá su propia copia de los *scripts* (T18);
+    - dos PR, uno por proyecto;
+    - por ahora no se activan las *releases* inmutables;
+    - los huecos de `openapi-diff` se documentan;
+    - `main` juzga cada versión contra la última *release* publicada antes de publicarla.
+  - **Juez:** en CI juzgan los *scripts* de la base, no los del PR. Las pruebas del PR corren en otro trabajo, sin compartir caché.
+  - **Pruebas:** 79 casos en `contracts/scripts/test/run.sh`. Entre ellos, quitar un campo requerido de la respuesta falla con `[INCOMPATIBLE]`; los demás cubren el modo Git y la publicación con un `gh` falso.
+  - **Revisión:** tres rondas adversariales con `liv-revisor-critico` (la tercera, autorizada por el responsable), las cuatro lentes y una verificación puntual. Al final no queda ningún hallazgo crítico ni alto.
+  - Se creó en el repositorio la etiqueta `contrato-incompatible`.
 
 ### 2026-11-03
 
