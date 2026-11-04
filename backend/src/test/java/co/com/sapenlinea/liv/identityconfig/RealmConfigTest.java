@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,10 @@ class RealmConfigTest {
 
   /** Capa solo de desarrollo: vive fuera de identity/config para que ninguna imagen la copie. */
   private static final Path DEV = Path.of("dev/keycloak/liv-realm-dev.yaml");
+
+  /** The registry of LIV users: {@code core.admin_user}. */
+  private static final Path REGISTRY_MIGRATION =
+      Path.of("src/main/resources/db/migration/V202611010905__core_administrations_users.sql");
 
   private static final Pattern VAR = Pattern.compile("\\$\\(env:([A-Z0-9_]+)(?::-([^)]*))?\\)");
 
@@ -355,6 +360,48 @@ class RealmConfigTest {
   }
 
   @Test
+  @DisplayName(
+      "001-14 · El nombre y el correo del perfil caben en el registro de LIV (plan, ajustes de T13)")
+  void profileFitsTheLivRegistry() throws IOException {
+    // The lengths of core.admin_user, read from its migration: the registry is the authority.
+    String migration =
+        Files.readString(REGISTRY_MIGRATION, StandardCharsets.UTF_8).replace("\r", "");
+    int fullName = columnLength(migration, "full_name");
+    int email = columnLength(migration, "email");
+
+    // The name claim is "firstName lastName": both, with the space, fit in full_name.
+    assertThat(maxLength("firstName") + 1 + maxLength("lastName")).isLessThanOrEqualTo(fullName);
+    assertThat(maxLength("email")).isLessThanOrEqualTo(email);
+  }
+
+  @Test
+  @DisplayName(
+      "001-14 · Nombre y apellido son obligatorios: sin ellos LIV tomaría el correo como nombre")
+  void nameIsRequired() {
+    for (String attribute : List.of("firstName", "lastName")) {
+      Map<String, Object> declared =
+          list(userProfile().get("attributes")).stream()
+              .filter(a -> attribute.equals(a.get("name")))
+              .findFirst()
+              .orElseThrow();
+      assertThat(declared).as(attribute).containsKey("required");
+      assertThat(map(declared.get("required")).get("roles"))
+          .as(attribute)
+          .isEqualTo(List.of("admin", "user"));
+    }
+    // Every user the realm declares has them: keycloak-config-cli writes those users through the
+    // administration API, which applies the profile. Service accounts Keycloak creates by itself,
+    // like the BFF's, are not declared here and are not validated until someone edits them.
+    List<Map<String, Object>> users = new ArrayList<>(list(realm.get("users")));
+    users.addAll(list(dev.get("users")));
+    for (Map<String, Object> user : users) {
+      assertThat(user)
+          .as(String.valueOf(user.get("username")))
+          .containsKeys("firstName", "lastName");
+    }
+  }
+
+  @Test
   @DisplayName("001-17 · Solo un administrador ve y edita administration_id")
   void administrationAttribute() {
     Map<String, Object> attribute =
@@ -447,6 +494,25 @@ class RealmConfigTest {
 
   private static int priority(Map<String, Object> execution) {
     return (int) execution.get("priority");
+  }
+
+  /** The maximum length the profile allows for {@code attribute}. */
+  private static int maxLength(String attribute) {
+    Map<String, Object> declared =
+        list(userProfile().get("attributes")).stream()
+            .filter(a -> attribute.equals(a.get("name")))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("falta " + attribute + " en el perfil"));
+    return (int) map(map(declared.get("validations")).get("length")).get("max");
+  }
+
+  private static int columnLength(String migration, String column) {
+    Matcher declared =
+        Pattern.compile("\\n\\s*" + column + "\\s+VARCHAR\\((\\d+)\\)").matcher(migration);
+    if (!declared.find()) {
+      throw new AssertionError("falta la columna " + column + " en " + REGISTRY_MIGRATION);
+    }
+    return Integer.parseInt(declared.group(1));
   }
 
   /** El perfil de usuario declarativo viaja como un JSON dentro de una cadena del componente. */

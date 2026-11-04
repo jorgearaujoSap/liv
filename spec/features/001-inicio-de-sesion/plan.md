@@ -445,7 +445,11 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - ningún `@PreAuthorize`, `@Secured` ni `@RolesAllowed`;
   - el diseño del menú en Figma y `capabilityGuard` (T21 y T22) deben contemplar el tercer nivel (1.5.x y 1.6.x).
 - **Ajustes de T13 (aprobados por el responsable el 2026-11-02, PR #51).** Salieron de la revisión de la parte 1:
-  - en el primer ingreso, sin correo o con nombre o correo más largos que el registro (150 y 200 caracteres), se rechaza con 401 `001-14` y se audita; los límites del *realm* se alinearán con los del registro en una tarea de `identity`;
+  - en el primer ingreso, sin correo o con nombre o correo más largos que el registro (150 y 200 caracteres), se rechaza con 401 `001-14` y se audita. Los límites del *realm* se alinearon con los del registro (PR #62, decisiones del responsable del 2026-11-03):
+    - nombre de hasta 74 caracteres y apellido de hasta 75, para que el *claim* `name` quepa en 150;
+    - correo de hasta 200;
+    - nombre y apellido obligatorios, porque sin ellos LIV toma el correo como nombre;
+    - los espacios cuentan al medir;
   - una sesión cerrada no se reabre con su `sid`: 401 `001-14`, auditado. El 200 queda solo para el reintento sobre la sesión abierta;
   - todos los rechazos del inicio publican `SessionDenied`, también los 401 por `sid`; el evento lleva el `sid` y separa la administración registrada de la que dice el *token*;
   - el alta automática se puede apagar con `liv.sessions.auto-provision` (por ejemplo, durante un cambio de proveedor): un desconocido recibe 403 `001-17` y el vínculo se rehace de forma explícita.

@@ -169,6 +169,13 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - **PR #58:** dos altos. La prueba no verificaba los nombres de campo ni los caminos de éxito, y no se cerraban las demás sesiones. Se corrigieron; segunda ronda sin críticos ni altos.
   - **Pendiente, fuera de T08** (cambia CI y requiere aprobación del responsable): un trabajo de CI que construya `backend/identity/Dockerfile`, ejecute `check.sh`, revise la imagen con Trivy y la publique. Va con las demás publicaciones de F0‑07.
 
+- [x] **T08b** · Perfil del *realm* con los largos del registro de LIV (ajustes de T13). — Hecha: PR #62.
+  - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/src/test/**/identityconfig/**`, `backend/src/test/**/platform/RealKeycloak.java`, `backend/CHANGELOG.md`.
+  - Prueba primero:
+    - `RealmConfigTest`: los largos caben en el registro, leídos de su migración, y nombre y apellido son obligatorios;
+    - `RealmProfileLimitsTest`, contra Keycloak real: acepta los largos exactos y rechaza, nombrando el campo, los mayores, la falta de nombre o de apellido y los espacios que alargan el nombre.
+  - Decisiones del responsable: nombre y apellido obligatorios, y el reparto 74/75.
+
 ## `backend/dev/`
 
 - [x] **T09** · Entorno local. — Hecha: PR #20. La verificación del *realm* queda pendiente hasta T07.
