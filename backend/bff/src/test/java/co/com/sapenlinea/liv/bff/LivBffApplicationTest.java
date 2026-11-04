@@ -36,7 +36,9 @@ class LivBffApplicationTest {
 
   @LocalServerPort private int port;
 
-  /** The whole route in one property source: Spring Boot binds a list from a single source. */
+  /**
+   * Toda la ruta en una sola fuente de propiedades: Spring Boot enlaza una lista desde una sola.
+   */
   @DynamicPropertySource
   static void upstream(DynamicPropertyRegistry registry) {
     registry.add("spring.cloud.gateway.server.webmvc.routes[0].id", () -> "spike");

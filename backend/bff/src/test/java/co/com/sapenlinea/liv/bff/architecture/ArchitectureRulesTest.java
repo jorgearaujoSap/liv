@@ -2,7 +2,10 @@ package co.com.sapenlinea.liv.bff.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -24,6 +27,17 @@ class ArchitectureRulesTest {
           .dependOnClassesThat()
           .resideInAPackage("org.keycloak..")
           .because("authentication uses only standard OIDC and OAuth 2.0 (D-001-6, 001-20)");
+
+  /**
+   * The rule above only sees the code of the BFF: a Keycloak adapter that arrived through the
+   * pom.xml and configured itself would pass it. No Keycloak class may be on the classpath at all.
+   */
+  @ArchTest
+  static void noIdentityProviderLibrariesOnTheClasspath(JavaClasses bffClasses) {
+    assertThat(new ClassFileImporter().importPackages("org.keycloak"))
+        .as("clases de Keycloak en el classpath (001-20)")
+        .isEmpty();
+  }
 
   @ArchTest
   static final ArchRule constructorInjectionOnly =

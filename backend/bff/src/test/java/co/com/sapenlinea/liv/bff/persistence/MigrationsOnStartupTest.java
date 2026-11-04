@@ -18,7 +18,9 @@ import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Con el perfil de pruebas, el BFF migra al arrancar como liv_bff_owner con la configuración de
- * application.yml (historial en el esquema bff) y la aplicación se conecta como liv_bff.
+ * application.yml (historial solo en el esquema bff, que Flyway no crea) y la aplicación se conecta
+ * como liv_bff. Las demás pruebas de la migración usan una copia de esa configuración
+ * (BffDatabase).
  */
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = WebEnvironment.NONE)
@@ -43,7 +45,15 @@ class MigrationsOnStartupTest {
                 BffDatabase.OWNER,
                 "SELECT count(*) FROM bff.flyway_schema_history"
                     + " WHERE success AND installed_by = 'liv_bff_owner'"))
-        .isNotEqualTo("0");
+        .isEqualTo("1");
+    assertThat(
+            BffDatabase.queryValue(
+                BffDatabase.jdbcUrl(),
+                BffDatabase.OWNER,
+                "SELECT count(*) FROM pg_tables"
+                    + " WHERE tablename = 'flyway_schema_history' AND schemaname <> 'bff'"))
+        .as("historial fuera del esquema bff")
+        .isEqualTo("0");
   }
 
   private String value(String select) throws SQLException {
