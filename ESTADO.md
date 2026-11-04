@@ -130,8 +130,16 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 - F0-07, CI del BFF: nuevo *workflow* `bff-pr` con el trabajo `bff · verify` (Q01–Q03), aprobado por el responsable.
   - **Qué hace:** en los PR que tocan `backend/bff/`, corre `./mvnw verify` del BFF: compilación, formato, arquitectura y pruebas con Testcontainers.
-  - **Por qué:** `backend/bff/` es un proyecto Maven aparte y el `verify` de `backend/` no lo compila. Va antes de T17 para que el inicio de sesión entre con CI.
-  - **Sigue pendiente:** la publicación de la imagen del BFF y exigir el *check* en la protección de `main`.
+  - **Por qué:** `backend/bff/` es un proyecto Maven aparte y el `verify` de `backend/` no lo compila. Va antes de T17 para que el código del BFF que agregan T17 y T18 ya tenga CI.
+  - **Cómo se usa:** el *check* informa pero todavía no bloquea, porque con filtro de ruta no puede ser obligatorio. Hasta pasar a «correr siempre y omitir trabajos» (F0‑07), cada PR de `backend/bff/` se integra solo con `bff · verify` en verde.
+  - **Documentación:** doc. 04 §9, `tasks.md` (T02 y T16) y el plan, en «Ajustes de T16».
+  - **Revisión:** dos revisores adversariales de nivel alto y las lentes de resiliencia, confiabilidad y legibilidad; sin críticos ni altos.
+  - **Sigue pendiente:**
+    - la publicación de la imagen del BFF;
+    - exigir el *check* en la protección de `main`;
+    - que `backend-pr` no corra en los PR que solo tocan el BFF (`!backend/bff/**`);
+    - que algo verifique que los permisos de `backend/dev/initdb` y los que repiten las pruebas del BFF sigan iguales;
+    - fijar con su suma el Maven del *wrapper* y la imagen Ryuk de Testcontainers, en `backend/` y en el BFF.
 
 ### 2026-11-03
 
