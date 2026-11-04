@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.platform.persistence;
 
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.context.annotation.Bean;
@@ -24,14 +25,17 @@ class OutboxConfiguration {
   @Bean
   static BeanFactoryPostProcessor postgresOutbox() {
     return beanFactory -> {
-      if (!beanFactory.containsBeanDefinition(DATABASE_TYPE_BEAN)
-          || !(beanFactory.getBeanDefinition(DATABASE_TYPE_BEAN)
-              instanceof AbstractBeanDefinition definition)) {
-        // A version of Spring Modulith that renamed its bean would read the database at startup.
+      // A version of Spring Modulith that renamed its bean would read the database at startup.
+      if (!beanFactory.containsBeanDefinition(DATABASE_TYPE_BEAN)) {
         throw new IllegalStateException(
             "Spring Modulith changed: no bean '" + DATABASE_TYPE_BEAN + "' to set to PostgreSQL");
       }
-      definition.setInstanceSupplier(OutboxConfiguration::postgres);
+      BeanDefinition definition = beanFactory.getBeanDefinition(DATABASE_TYPE_BEAN);
+      if (!(definition instanceof AbstractBeanDefinition configurable)) {
+        throw new IllegalStateException(
+            "Spring Modulith changed: bean '" + DATABASE_TYPE_BEAN + "' cannot be set");
+      }
+      configurable.setInstanceSupplier(OutboxConfiguration::postgres);
     };
   }
 

@@ -68,10 +68,15 @@ public class IdentityProviderEventsJob {
       failures.increment();
       // The provider or the database may be down: the next run reads again from the watermark.
       LOG.error(
-          "The import of identity provider events failed; the audit of the provider is {} s behind",
-          (long) lagSeconds(),
+          "The import of identity provider events failed; the audit of the provider is {} behind",
+          lagText(),
           e);
     }
+  }
+
+  private String lagText() {
+    double lag = lagSeconds();
+    return Double.isNaN(lag) ? "an unknown time" : Duration.ofSeconds((long) lag).toString();
   }
 
   /** Seconds since the shared watermark; NaN before the first import or without a database. */

@@ -116,7 +116,7 @@ public final class KeycloakIdentityProviderEvents implements IdentityProviderEve
         KeycloakIdentityProviderEvents::adminEvent);
   }
 
-  /** Up to {@code limit} events from {@code from} on, oldest first, page by page. */
+  /** Up to {@code limit} (positive) events from {@code from} on, oldest first, page by page. */
   private EventsPage read(
       String path,
       Function<UriBuilder, UriBuilder> filter,

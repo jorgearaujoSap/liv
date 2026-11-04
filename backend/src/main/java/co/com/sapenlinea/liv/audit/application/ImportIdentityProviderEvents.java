@@ -174,19 +174,7 @@ public class ImportIdentityProviderEvents {
           entry.sourceEventId(),
           rejected);
       try {
-        log.append(
-            new Entry(
-                entry.source(),
-                entry.sourceEventId(),
-                null,
-                null,
-                entry.entityName(),
-                null,
-                entry.operation(),
-                entry.occurredAt(),
-                null,
-                null,
-                Map.of("result", entry.newValues().get("result"))));
+        log.append(minimalRow(entry));
       } catch (DataIntegrityViolationException alsoRejected) {
         LOG.error(
             "Identity provider event {} could not be audited at all",
@@ -194,6 +182,26 @@ public class ImportIdentityProviderEvents {
             alsoRejected);
       }
     }
+  }
+
+  /**
+   * A platform row with only the source, the operation, the time and the result: what the audit
+   * rejected was in the rest.
+   */
+  private static Entry minimalRow(Entry entry) {
+    Map<String, Object> resultOnly = Map.of("result", entry.newValues().get("result"));
+    return new Entry(
+        entry.source(),
+        entry.sourceEventId(),
+        null,
+        null,
+        entry.entityName(),
+        null,
+        entry.operation(),
+        entry.occurredAt(),
+        null,
+        null,
+        resultOnly);
   }
 
   /**
@@ -224,6 +232,7 @@ public class ImportIdentityProviderEvents {
     if (!page.more()) {
       return null;
     }
+    // More events but none read (it cannot happen with a positive limit): do not move at all.
     return page.events().isEmpty() ? Instant.EPOCH : page.events().getLast().time();
   }
 

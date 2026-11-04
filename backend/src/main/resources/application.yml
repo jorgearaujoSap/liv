@@ -4,7 +4,8 @@ spring:
   threads:
     virtual:
       enabled: true
-  # El ejecutor de Spring Boot sigue siendo el de @Async por omisión aunque la auditoría tenga el suyo (T15).
+  # force: Spring Boot crea su ejecutor aunque exista otro (el auditExecutor de los oyentes de auditoría, que lo
+  # piden por nombre), y ese ejecutor de Spring Boot sigue siendo el de cualquier otro @Async.
   task:
     execution:
       mode: force
