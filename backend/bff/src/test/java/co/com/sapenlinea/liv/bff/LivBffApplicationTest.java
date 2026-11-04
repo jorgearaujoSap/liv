@@ -28,9 +28,7 @@ import org.springframework.test.context.DynamicPropertySource;
     webEnvironment = WebEnvironment.RANDOM_PORT,
     properties = {
       "spring.datasource.url=jdbc:postgresql://localhost:1/sin-base",
-      "spring.datasource.password=sin-uso",
-      "spring.cloud.gateway.server.webmvc.routes[0].id=spike",
-      "spring.cloud.gateway.server.webmvc.routes[0].predicates[0]=Path=/spike/**"
+      "spring.datasource.password=sin-uso"
     })
 class LivBffApplicationTest {
 
@@ -38,8 +36,12 @@ class LivBffApplicationTest {
 
   @LocalServerPort private int port;
 
+  /** The whole route in one property source: Spring Boot binds a list from a single source. */
   @DynamicPropertySource
   static void upstream(DynamicPropertyRegistry registry) {
+    registry.add("spring.cloud.gateway.server.webmvc.routes[0].id", () -> "spike");
+    registry.add(
+        "spring.cloud.gateway.server.webmvc.routes[0].predicates[0]", () -> "Path=/spike/**");
     registry.add(
         "spring.cloud.gateway.server.webmvc.routes[0].uri",
         () -> "http://localhost:" + UPSTREAM.getAddress().getPort());

@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: liv-bff
+  # El BFF se conecta siempre como liv_bff (DML en el esquema bff, sin acceso a los esquemas de LIV; doc. 02 §5.2).
+  # La URL y la contraseña llegan por variables de entorno y no tienen valor por defecto. La conexión es perezosa:
+  # el BFF arranca aunque la base no esté arriba.
+  datasource:
+    url: ${LIV_DB_URL}
+    username: liv_bff
+    password: ${LIV_BFF_PASSWORD}
+  # Flyway (liv_bff_owner) corre solo en los perfiles dev y test. En staging y producción migra la imagen
+  # liv-bff-migrations como paso del despliegue. El esquema bff lo crea la infraestructura (Flyway no lo crea) y
+  # el historial queda dentro de él, en bff.flyway_schema_history.
+  flyway:
+    enabled: false
+    schemas: bff
+    default-schema: bff
+    create-schemas: false
+
+server:
+  port: ${SERVER_PORT:8081}

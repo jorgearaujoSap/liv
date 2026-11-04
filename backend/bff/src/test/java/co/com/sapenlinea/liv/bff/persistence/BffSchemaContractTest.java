@@ -39,8 +39,13 @@ class BffSchemaContractTest {
                 OWNER,
                 "SELECT installed_by FROM bff.flyway_schema_history WHERE success LIMIT 1"))
         .isEqualTo(OWNER);
-    assertThat(queryValue(url, OWNER, "SELECT to_regclass('public.flyway_schema_history')"))
-        .isNull();
+    assertThat(
+            queryValue(
+                url,
+                OWNER,
+                "SELECT count(*) FROM pg_tables"
+                    + " WHERE tablename = 'flyway_schema_history' AND schemaname <> 'bff'"))
+        .isEqualTo("0");
   }
 
   @Test
