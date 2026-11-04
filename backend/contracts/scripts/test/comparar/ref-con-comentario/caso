@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=si
+base=muestra
+head=archivo
+motivo=EXTERNAL_REF
+nota=un comentario tras los dos puntos y el valor en la línea siguiente

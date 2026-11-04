@@ -82,7 +82,9 @@ case "$1 ${2:-}" in
     if [ -e "$almacen/api-falla" ]; then echo 'gh: Bad Gateway (HTTP 502)' >&2; exit 1; fi
     case "$2" in
       */git/matching-refs/tags/*)
-        # Las etiquetas que empiezan por el prefijo, como las da --jq '.[].ref'.
+        # Las etiquetas que empiezan por el prefijo, como las da --jq '.[].ref'. Sin --paginate, el gh real solo
+        # devuelve la primera página.
+        exigir --paginate "$@"
         prefijo=${2##*/git/matching-refs/tags/}
         for etiqueta in "$almacen"/tags/"$prefijo"*; do
           [ -e "$etiqueta" ] && printf 'refs/tags/%s\n' "$(basename "$etiqueta")"

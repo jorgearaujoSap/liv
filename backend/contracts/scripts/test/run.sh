@@ -163,6 +163,16 @@ resultado=falla
 echo "El proyecto sigue con sus contratos: $resultado" > "$repo.queda.txt"
 verificar git/trabajo-dentro-del-proyecto-no-borra "$resultado" pasa '' '' "$repo.queda.txt"
 
+# target/ entero tampoco: la carpeta de trabajo es una subcarpeta de target/.
+repo_nuevo trabajo-es-target
+mkdir -p "$proyecto/target"
+echo compilado > "$proyecto/target/queda"
+caso_git trabajo-es-target falla UNSAFE_WORKDIR '' HEAD "$proyecto/target"
+resultado=falla
+[ -f "$proyecto/target/queda" ] && resultado=pasa
+echo "target/ sigue con su contenido: $resultado" > "$repo.queda.txt"
+verificar git/trabajo-es-target-no-borra "$resultado" pasa '' '' "$repo.queda.txt"
+
 echo "Publicar:"
 # Cada caso tiene un repositorio con un commit (GITHUB_SHA) y un almacén vacío del gh falso. publish.sh juzga
 # cada versión sin release contra la release publicada más alta de su contrato y solo entonces la publica.
@@ -339,6 +349,28 @@ commit_contrato "$pruebas/muestra.yaml"
 touch "$almacen/api-falla"
 caso_publicar error-api falla PUBLISH_ERROR ''
 caso_almacen error-api-sin-crear sin_crear
+
+# La etiqueta del PR integrado aprueba solo los contratos que ese commit cambia: el incompatible de muestra quedó
+# pendiente de un commit anterior, y este solo agrega otro.yaml.
+repo_publicacion etiqueta-de-otro-contrato
+commit_contrato "$cabeza_mayor"
+sembrar_publicada "$v1" "$pruebas/muestra.yaml"
+tr -d '\r' < "$pruebas/muestra.yaml" > "$repo/contracts/openapi/otro.yaml"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m otro
+caso_publicar etiqueta-de-otro-contrato falla INCOMPATIBLE '' true
+caso_almacen etiqueta-de-otro-contrato-publica-otro test -d "$almacen/releases/contract-otro-v1.0.0"
+
+# La release más alta se elige por número: 1.10.0 es mayor que 1.9.0. Contra 1.9.0, la 1.9.5 sí se publicaría.
+repo_publicacion release-mas-alta-numerica
+commit_contrato "$pruebas/comparar/version-1-9-a-1-10/base.yaml"
+sed 's/^  version: 1.9.0/  version: 1.9.5/' "$publicado" > "$repo/v195"
+mv "$repo/v195" "$publicado"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m v195
+sembrar_publicada contract-muestra-v1.9.0 "$pruebas/comparar/version-1-9-a-1-10/base.yaml"
+sembrar_publicada contract-muestra-v1.10.0 "$pruebas/comparar/version-1-9-a-1-10/head.yaml"
+caso_publicar release-mas-alta-numerica falla VERSION_NOT_BUMPED ''
 
 repo_publicacion sin-contratos
 commit_vacio
