@@ -185,7 +185,8 @@ class LogoutFlowTest extends BffFlowTest {
 
     // The provider of the tests issues the refresh token as an unsigned JWT ({"alg":"none"}); its
     // access token is signed and starts with another header.
-    assertThat(BACKEND.revocationCalls().get(0).body()).contains("token=" + OidcProvider.UNSIGNED_JWT_HEADER);
+    assertThat(BACKEND.revocationCalls().get(0).body())
+        .contains("token=" + OidcProvider.UNSIGNED_JWT_HEADER);
   }
 
   @Test

@@ -19,12 +19,12 @@ public final class OidcProvider {
   public static final String SESSION_ID = "sid-1";
   public static final String USER_CLIENT = "liv-bff";
   public static final String SERVICE_CLIENT = "liv-bff-service";
+
   /** The header of an unsigned JWT ({"alg":"none"}): how this provider issues its refresh token. */
   public static final String UNSIGNED_JWT_HEADER =
       java.util.Base64.getUrlEncoder()
           .withoutPadding()
           .encodeToString("{\"alg\":\"none\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-
 
   private static final String ISSUER_ID = "liv";
   private static final String ISSUER_WITHOUT_SID = "liv-sin-sid";
