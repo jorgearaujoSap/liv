@@ -83,6 +83,10 @@ class ReturnToTest {
         "/x/../bff/login",
         "/x/%2E%2e/bff/login",
         "/..",
+        "/bff;x/login",
+        "/x/..;/bff/login",
+        "/login;a/oauth2/code/liv",
+        "/%3Bx",
       })
   @DisplayName("001-01 · Las rutas del propio BFF no son destino de vuelta")
   void refusesTheRoutesOfTheBff(String target) {

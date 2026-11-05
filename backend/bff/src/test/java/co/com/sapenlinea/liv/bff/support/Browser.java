@@ -54,6 +54,13 @@ public final class Browser {
     return send(HttpRequest.newBuilder(URI.create(url)).GET(), url);
   }
 
+  /** A GET with headers, such as the {@code Sec-Fetch-*} a browser adds to a request. */
+  public Reply get(String url, Map<String, String> headers) {
+    HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).GET();
+    headers.forEach(request::header);
+    return send(request, url);
+  }
+
   public Reply post(String url, String form) {
     return send(
         HttpRequest.newBuilder(URI.create(url))
