@@ -19,6 +19,36 @@ spring:
     schemas: bff
     default-schema: bff
     create-schemas: false
+  # Sesiones en el servidor (ADR 0010): Spring Session JDBC en el esquema bff. Las tablas las crea la migración
+  # V202611051000 (liv_bff no crea objetos), y llevan el esquema por delante porque liv_bff no tiene uno propio.
+  session:
+    jdbc:
+      initialize-schema: never
+      table-name: bff.SPRING_SESSION
 
 server:
   port: ${SERVER_PORT:8081}
+  # La única cookie de LIV que autentica (001-11): HttpOnly, Secure y SameSite=Strict, sin tokens dentro.
+  # Secure va fijo: con TLS terminado en el balanceador el BFF recibe HTTP y, si no, no la marcaría.
+  servlet:
+    session:
+      cookie:
+        name: LIV_SESSION
+        http-only: true
+        secure: true
+        same-site: strict
+
+# Configuración propia del BFF. Los secretos y las URL llegan por variables de entorno y no tienen valor por
+# defecto: sin ellos no arranca. El proveedor es cualquier servidor OIDC estándar (001-20); sus clientes son
+# liv-bff (código con PKCE) y liv-bff-service (client credentials), definidos en el realm.
+liv:
+  bff:
+    oidc:
+      issuer-uri: ${LIV_OIDC_ISSUER_URI}
+      client-secret: ${LIV_BFF_CLIENT_SECRET}
+      service-client-secret: ${LIV_BFF_SERVICE_CLIENT_SECRET}
+    api:
+      base-url: ${LIV_API_URL}
+    session:
+      # 32 bytes en base64 (AES-256-GCM). En AWS sale de Secrets Manager.
+      encryption-key: ${LIV_BFF_SESSION_KEY}
