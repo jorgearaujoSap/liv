@@ -348,7 +348,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - un nuevo `GET /bff/login` con una sesión abierta la cierra antes, si es una navegación del navegador;
     - `POST /bff/logout` responde `{"redirectTo":"/bff/login"}`: el frontend (T21) navega a esa ruta.
   - **Revisión:** adversarial con dos revisores críticos ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y los mismos 2 altos en los dos revisores (si no se obtenía el *token* de servicio, el inicio dejaba una sesión a medias y salir no cerraba nada), corregidos con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico ni alto. Resumen por severidad en el PR #79.
-- [ ] **T18** · Reenvío a la API y sesión mínima.
+- [x] **T18** · Reenvío a la API y sesión mínima. — Hecha: PR #80, con las decisiones y los riesgos para el responsable que lista el PR (plan › Decisiones, «Ajustes de T18»).
   - Contenido:
     - enrutamiento de `/api/**` con *TokenRelay* y bloqueo de `/internal/**`;
     - CSRF y `Cache-Control: no-store`;
@@ -365,6 +365,16 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `/bff/session` no extiende la sesión;
     - `/internal/**` responde 404 desde el BFF;
     - `invalid_grant` lleva a 401.
+  - **Desviaciones declaradas:**
+    - un filtro propio (`TokenRelayFilter`) en lugar del `TokenRelay` de Spring Cloud Gateway, que exige una autenticación OAuth2 y la sesión solo guarda emisor, `sub` y `sid`;
+    - archivos fuera de la lista: `login/LoginSuccessHandler` (marca el inicio de la duración máxima), `application.yml`, `config/application-dev.yml`, `README.md`, `CHANGELOG.md` y, en las pruebas, el *pool* de conexiones y la caché de contextos, porque la docena de contextos distintos agotaba las 100 conexiones del PostgreSQL de pruebas;
+    - unas 2.500 líneas sin los 63 archivos copiados de `contracts/scripts/` (unas 820 de código y configuración, el resto pruebas);
+    - sin dependencias nuevas salvo `openapi-diff-maven` en `pluginManagement` (ADR 0027).
+  - **Qué hace, además de lo pedido:**
+    - lo que responde la API no puede poner cookies ni permitir caché; el `scope` del navegador no llega al proveedor al renovar; el *token* anti-CSRF solo se lee de la cabecera;
+    - salir o volver a `/bff/login` pasado el límite se audita como `ABSOLUTE`;
+    - si el proveedor falla un momento y al *token* aún le queda vida, la petición sigue con él; sin *refresh token* o con `invalid_grant` o `invalid_token`, la sesión termina.
+  - **Revisión:** adversarial con dos revisores críticos ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico ni alto; los medios coincidentes (el `scope` del navegador, el *token* CSRF como parámetro, la auditoría `LOGOUT` en lugar de `ABSOLUTE`, la API con cookies, el 502 sin contrato, `keepalive` sin prueba de extensión) se corrigieron con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico ni alto. Resumen por severidad en el PR #80.
 - [ ] **T19** · Endurecimiento del BFF. **Antes de producción**, no antes de validar con usuarios.
   - Contenido:
     - `SessionTerminator` con repositorio decorado: una sesión vencida que nadie vuelve a leer se revoca en el proveedor y se avisa a LIV (`EndSession` con `IDLE` o `ABSOLUTE`), para que la expiración quede auditada (001-18);
