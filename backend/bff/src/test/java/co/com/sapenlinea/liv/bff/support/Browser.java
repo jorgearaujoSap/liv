@@ -91,10 +91,6 @@ public final class Browser {
     return cookies.getOrDefault(authority(bffBase), Map.of()).get(name);
   }
 
-  public Map<String, String> cookiesOfBff() {
-    return Map.copyOf(cookies.getOrDefault(authority(bffBase), Map.of()));
-  }
-
   public void setCookie(String name, String value) {
     cookies.computeIfAbsent(authority(bffBase), key -> new LinkedHashMap<>()).put(name, value);
   }

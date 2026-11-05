@@ -165,6 +165,30 @@ class LogoutFlowTest extends BffFlowTest {
   }
 
   @Test
+  @DisplayName("001-09 · Si LIV y el proveedor fallan a la vez, igual se cierra la sesión del BFF")
+  void logoutWorksEvenIfEverythingElseFails() throws SQLException {
+    Browser browser = signedIn();
+    BACKEND.endSessionAnswers(500);
+    BACKEND.revocationAnswers(500);
+
+    Reply reply = logout(browser);
+
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(storedSessions()).isZero();
+    assertThat(browser.cookie("LIV_SESSION")).isNull();
+  }
+
+  @Test
+  @DisplayName("001-09 · La revocación lleva el refresh token, no el de acceso")
+  void theRevokedTokenIsTheRefreshToken() {
+    logout(signedIn());
+
+    // The provider of the tests issues the refresh token as an unsigned JWT ({"alg":"none"}); its
+    // access token is signed and starts with another header.
+    assertThat(BACKEND.revocationCalls().get(0).body()).contains("token=" + OidcProvider.UNSIGNED_JWT_HEADER);
+  }
+
+  @Test
   @DisplayName("001-09 · Salir solo se acepta con POST")
   void logoutIsNotAGet() {
     Browser browser = signedIn();

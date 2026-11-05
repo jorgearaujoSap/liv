@@ -71,7 +71,19 @@ class ReturnToTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"/bff/logout", "/bff/login?returnTo=/x", "/login/oauth2/code/liv"})
+  @ValueSource(
+      strings = {
+        "/bff/logout",
+        "/bff/login?returnTo=/x",
+        "/login/oauth2/code/liv",
+        "/%62ff/login",
+        "/l%6fgin/oauth2/code/liv",
+        "/./bff/login",
+        "/%2e/bff/login",
+        "/x/../bff/login",
+        "/x/%2E%2e/bff/login",
+        "/..",
+      })
   @DisplayName("001-01 · Las rutas del propio BFF no son destino de vuelta")
   void refusesTheRoutesOfTheBff(String target) {
     assertThat(ReturnTo.sanitize(target)).isEqualTo("/");
