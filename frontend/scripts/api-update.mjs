@@ -10,7 +10,15 @@
 // publicado.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,10 +27,14 @@ const projectDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_SPEC_DIR = join(projectDir, 'api-spec');
 const DEFAULT_API_DIR = join(projectDir, 'src', 'app', 'api');
 
-const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+// Propietario y nombre empiezan por un carácter alfanumérico: así no admiten «.» ni «..».
+const REPOSITORY = /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/;
 const NAME = /^[a-z0-9-]+$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+const MAX_CONTRACT_BYTES = 2 * 1024 * 1024;
 
 export const sha256Hex = (content) => createHash('sha256').update(content).digest('hex');
 
@@ -57,11 +69,14 @@ export async function fetchContracts(versions, fetchFn = fetch) {
   const contracts = new Map();
   for (const [name, { version, sha256 }] of Object.entries(versions.contracts)) {
     const url = contractUrl(versions.repository, name, version);
-    const response = await fetchFn(url);
+    const response = await fetchFn(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
     if (!response.ok) {
       throw new Error(`${name} ${version}: la descarga de ${url} respondió ${response.status}`);
     }
     const content = Buffer.from(await response.arrayBuffer());
+    if (content.length > MAX_CONTRACT_BYTES) {
+      throw new Error(`${name} ${version}: la respuesta supera los 2 MiB; no es un contrato`);
+    }
     const actual = sha256Hex(content);
     if (actual !== sha256) {
       throw new Error(
@@ -100,8 +115,13 @@ export function verifyLocal(specDir, versions) {
 export async function updateApiSpec({ specDir = DEFAULT_SPEC_DIR, fetchFn = fetch } = {}) {
   const versions = readVersions(specDir);
   const contracts = await fetchContracts(versions, fetchFn);
+  // Primero se escriben todos con nombre temporal; solo entonces se reemplaza lo anterior.
+  for (const [name, content] of contracts)
+    writeFileSync(join(specDir, `${name}.yaml.tmp`), content);
   for (const file of yamlFiles(specDir)) rmSync(join(specDir, file));
-  for (const [name, content] of contracts) writeFileSync(join(specDir, `${name}.yaml`), content);
+  for (const name of contracts.keys()) {
+    renameSync(join(specDir, `${name}.yaml.tmp`), join(specDir, `${name}.yaml`));
+  }
   return versions;
 }
 
@@ -119,28 +139,36 @@ export function generateClient({ specDir = DEFAULT_SPEC_DIR, outDir = DEFAULT_AP
   const require = createRequire(import.meta.url);
   const generator = require.resolve('ng-openapi-gen/lib/index.js');
   for (const name of names) {
+    // Se genera aparte y solo si termina bien reemplaza al cliente anterior.
     const out = join(outDir, name);
-    rmSync(out, { recursive: true, force: true });
-    mkdirSync(out, { recursive: true });
-    execFileSync(
-      process.execPath,
-      [
-        generator,
-        '--silent',
-        'true',
-        '--input',
-        join(specDir, `${name}.yaml`),
-        '--output',
-        out,
-        '--endOfLineStyle',
-        'lf',
-        '--apiService',
-        `${pascal(name)}Api`,
-        '--configuration',
-        `${pascal(name)}ApiConfiguration`,
-      ],
-      { stdio: ['ignore', 'inherit', 'inherit'] },
-    );
+    const staging = join(outDir, `.${name}.tmp`);
+    rmSync(staging, { recursive: true, force: true });
+    mkdirSync(staging, { recursive: true });
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          generator,
+          '--silent',
+          'true',
+          '--input',
+          join(specDir, `${name}.yaml`),
+          '--output',
+          staging,
+          '--endOfLineStyle',
+          'lf',
+          '--apiService',
+          `${pascal(name)}Api`,
+          '--configuration',
+          `${pascal(name)}ApiConfiguration`,
+        ],
+        { stdio: ['ignore', 'inherit', 'inherit'] },
+      );
+      rmSync(out, { recursive: true, force: true });
+      renameSync(staging, out);
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
   }
 }
 

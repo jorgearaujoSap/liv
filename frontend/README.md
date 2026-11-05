@@ -40,7 +40,9 @@ El único contrato con el backend es el OpenAPI. El backend publica cada contrat
 
 Para adoptar una versión nueva de un contrato, en un PR propio: cambia `version` y `sha256` en `api-spec/versions.json` (el SHA-256 está en el archivo `<nombre>.yaml.sha256` de la *release*), ejecuta `npm run api:update`, verifica y sube `api-spec/` y `src/app/api/`. Si el SHA-256 de lo descargado no es el fijado, el *script* falla y no cambia nada. `api-spec/*.yaml` y `src/app/api/**` no se editan a mano ni se formatean (`.gitattributes` y `.prettierignore`).
 
-**`HttpClient` solo en el cliente generado.** Una regla de ESLint prohíbe importarlo fuera de `src/app/api/`: el resto de la aplicación llama a la API con el cliente, por ejemplo `inject(CoreApi).invoke(getCurrentUser)`. Registrar `provideHttpClient()` en la configuración de la aplicación, que el cliente necesita, y escribir *interceptores* no requieren importarlo.
+**`HttpClient` solo en el cliente generado.** Una regla de ESLint prohíbe importar `HttpClient` y `HttpBackend` (un tipo con `import type` sí se permite), usar `fetch` o `XMLHttpRequest` y hacer `import()` de `@angular/common/http` fuera de las carpetas de los contratos de `src/app/api/`: el resto de la aplicación llama a la API con el cliente, por ejemplo `inject(CoreApi).invoke(getCurrentUser)`, y así pasa por el interceptor. Registrar `provideHttpClient()` en la configuración de la aplicación, que el cliente necesita, y escribir *interceptores* no requieren importarlo.
+
+`npm run api:update` necesita red hacia GitHub (30 s de tiempo límite por contrato, 2 MiB como máximo). Cuando `frontend/` tenga su propio repositorio, el `repository` de `versions.json` sigue siendo el de las *releases* de los contratos, que publica el repositorio del backend.
 
 ## Estructura
 
