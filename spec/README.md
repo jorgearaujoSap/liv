@@ -57,4 +57,4 @@ Para herramientas que usan los nombres de fase de gentle‑ai, los artefactos va
 
 ## Flujo directo
 
-Los cambios sencillos, bien definidos y de impacto acotado no crean carpeta de feature ni documentos de planificación. Llevan su prueba si cambian el comportamiento, las verificaciones y el CI en verde, «Flujo: directo» en la descripción del PR, y su entrada en `CHANGELOG.md` y `ESTADO.md`. Si al implementarlos aparece complejidad o riesgo, se detienen y siguen este flujo desde `spec.md` (`AGENTS.md` §4.3).
+Los cambios sencillos, bien definidos y de impacto acotado, que no cumplen ningún criterio de SDD, no crean carpeta de feature ni documentos de planificación. Llevan las pruebas, verificaciones, revisión y registro que pide `AGENTS.md` §4.3. Si al implementarlos aparece complejidad o riesgo, siguen este flujo desde `spec.md`.

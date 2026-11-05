@@ -168,7 +168,7 @@ Un PR no se integra si falla cualquiera:
 | Q08 | OpenAPI | Sin cambios incompatibles no aprobados |
 | Q09 | Configuraciones de jurisdicción | Válidas contra su esquema y sin errores CJ |
 | Q10 | e2e de humo | En verde |
-| Q11 | Trazabilidad SDD | El PR referencia su carpeta `spec/features/NNN-nombre-feature/` con `spec.md` y `plan.md` aprobados (salvo los del flujo directo, cuya descripción dice «Flujo: directo» y por qué no necesitan spec; doc. 05 §3.3) |
+| Q11 | Trazabilidad SDD | El PR referencia su carpeta `spec/features/NNN-nombre-feature/` con `spec.md` y `plan.md` aprobados (salvo los del flujo directo, cuya descripción dice «Flujo: directo» y por qué no necesitan spec; doc. 05 §3.3). En un PR directo, `sdd-guard` comprueba lo que se puede medir: que no toque rutas críticas (salvo las excepciones de `AGENTS.md` §4.3), contratos, migraciones ni documentos funcionales, ADR, arquitectura o constitución, y que no pase de ~200 líneas. Hasta que exista, lo comprueba la H3 |
 | Q12 | Tamaño del PR | Advertencia sobre 400 líneas cambiadas (sin contar código generado); requiere justificación |
 | Q13 | Commits | Conventional Commits |
 | Q14 | Librería `liv-components` | Toda variante tiene historia; regresión visual sin diferencias no aprobadas (una diferencia esperada se aprueba actualizando la captura de referencia, con visto bueno del líder de frontend y de un responsable funcional); accesibilidad sin errores |

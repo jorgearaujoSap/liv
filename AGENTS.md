@@ -107,31 +107,39 @@ La constitución manda: si una feature choca con `spec/constitution/`, se replan
 
 ### 4.3 Evaluación previa y clasificación de cambios
 
-Antes de escribir una especificación, el agente evalúa la solicitud (§2, paso 2). **El cambio va por el SDD si se cumple al menos uno** de estos criterios:
+Antes de escribir una especificación, evalúa la solicitud (§2, paso 2). **El cambio va por el SDD si se cumple al menos uno** de estos criterios:
 
-1. **Reglas:** crea o cambia una regla de negocio o tributaria (documentos funcionales, códigos de regla, configuración de jurisdicción) o toca un pendiente funcional.
-2. **Contratos y datos:** cambia un contrato (OpenAPI, esquema de configuración) o el modelo de datos (migraciones).
-3. **Riesgo:** toca una ruta crítica (abajo) o la autenticación, la autorización, las políticas RLS o los roles.
-4. **Arquitectura:** crea un módulo o una dependencia entre módulos, agrega una dependencia o cambia la constitución. Además, esto exige un ADR (§4.5).
-5. **Interfaz:** crea o cambia una pantalla, o crea o modifica un componente de `liv-components` (§6).
-6. **Alcance:** la solicitud es ambigua o admite más de una interpretación razonable, o necesita más de un PR o más de ~400 líneas.
+1. **Reglas:** crea, cambia o corrige una regla de negocio o tributaria (documentos funcionales, códigos de regla, configuración de jurisdicción). Un defecto que hace aplicar mal una regla también cuenta. También cuenta tocar un pendiente funcional.
+2. **Contratos y datos:** cambia un contrato (OpenAPI, esquema de configuración), aunque sea solo una descripción, o el modelo de datos (migraciones).
+3. **Rutas críticas y seguridad:** toca una ruta crítica (abajo) o la autenticación, la autorización, las políticas RLS o los roles. Única excepción: en una ruta crítica pueden ir por el flujo directo los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias. Nunca en `backend/contracts/**`, `backend/**/db/migration/**`, `.github/**` ni `docs/funcional/anexos/**`.
+4. **Arquitectura:** crea un módulo o una dependencia entre módulos, o agrega una dependencia o sube su versión mayor. Además, esto exige un ADR (§4.5).
+5. **Interfaz:** crea una pantalla, cambia su estructura o su aspecto, o crea o modifica un componente de `liv-components` (§6). Corregir una errata en un texto visible que ya está en el diseño de Figma no cuenta.
+6. **Alcance:**
+   - la solicitud admite más de una interpretación razonable y la persona no la aclaró (G8: detente y pregunta);
+   - necesita más de un PR o más de ~200 líneas de cambio, sin contar los archivos generados ni los *lockfiles*.
 
-Si no se cumple ninguno y la tarea es sencilla, está bien definida y su impacto queda acotado a un proyecto, va por el **flujo directo**. Ante la duda, va por el SDD (doc. 05, G8).
+Si no se cumple ninguno y la tarea es sencilla, está bien definida y su impacto queda acotado a un proyecto, va por el **flujo directo**. Si la duda sigue después de preguntar, va por el SDD. La tabla orienta; mandan los criterios.
+
+Los documentos funcionales, los ADR, los documentos de arquitectura, la constitución y las reglas de los `AGENTS.md` nunca van por el flujo directo. Siguen su propio proceso: versión del documento (§3.1), ADR (`liv-adr`) y aprobación humana (§4.5).
 
 | Tipo | Ejemplos | Flujo |
 |---|---|---|
-| Directo | Texto, formato, parche de dependencia, defecto con causa clara y acotado a un módulo, pruebas nuevas, refactorización local sin cambio de comportamiento, documentación, *scripts* de desarrollo | Sin carpeta de feature ni documentos de planificación. Lleva lo que pide el flujo directo (abajo) |
+| Directo | Errata de texto, formato, parche de dependencia, defecto con causa clara fuera de reglas y rutas críticas, pruebas nuevas, refactorización local sin cambio de comportamiento, `README.md` o comentarios, *scripts* de desarrollo | Sin carpeta de feature ni documentos de planificación. Lleva lo que pide el flujo directo (abajo) |
 | Normal | Nueva consulta, pantalla, validación o componente de `liv-components` | Feature completa (spec, plan, tareas) |
 | Crítico | Motor de liquidación, cuenta corriente, configuración de jurisdicción, seguridad, migraciones, CI, contratos, modificación de un componente existente de `liv-components` | Feature completa + revisión adversarial (`liv-revision-adversarial`) + las cuatro lentes de riesgo, resiliencia, legibilidad y confiabilidad (`liv-revision-4r`) + dos aprobaciones humanas |
 
 **Flujo directo:**
 
 - **Pruebas:** si cambia el comportamiento, primero la prueba que falla (en un defecto, la que lo reproduce), luego el código.
-- **Verificaciones:** las locales del proyecto y el CI en verde; la lente de legibilidad antes de cada *commit* (§9); la revisión H3 del PR.
-- **PR:** su descripción dice «Flujo: directo» y por qué no se cumple ningún criterio. En la H3, la persona puede devolverlo al SDD.
-- **Registro:** el `CHANGELOG.md` del proyecto que toca, en «Sin publicar», y la bitácora de `ESTADO.md` (§7). La raíz no tiene `CHANGELOG.md`, así que sus cambios solo van en `ESTADO.md`.
-- **Reevaluación:** si durante la implementación aparece un criterio, o más complejidad o riesgo de lo previsto, el agente se detiene y no abre el PR. Le dice a la persona qué encontró, y el cambio sigue por el SDD desde `spec.md`. Lo ya hecho sirve como exploración.
-- **Sin cambios:** las prohibiciones de §4.5 aplican igual. Un cambio en una ruta crítica solo va por el flujo directo si es de texto o formato y no cambia el comportamiento.
+- **Verificaciones:** las locales del proyecto y el CI en verde.
+- **Revisión:**
+  - si cambia el comportamiento (un defecto, una refactorización, un *script*), un revisor independiente revisa la corrección antes del PR: el subagente `liv-revisor` o una sesión nueva (§10.1, regla 4);
+  - si solo cambia texto, formato, documentación o pruebas, basta la lente de legibilidad de cada *commit* (§9), que revisa el estilo, no la corrección;
+  - en los dos casos, después viene la H3.
+- **PR:** su descripción dice «Flujo: directo», qué criterios se revisaron, por qué no se cumple ninguno y qué revisión se hizo. En la H3, la persona puede devolverlo al SDD.
+- **Registro:** el `CHANGELOG.md` del proyecto que toca, en «Sin publicar», y la bitácora de `ESTADO.md` (§7). La raíz (`docs/`, `spec/`, `.claude/`, `.github/`) no tiene `CHANGELOG.md`: sus cambios se registran solo en `ESTADO.md`.
+- **Reevaluación:** si al implementar aparece un criterio, o más complejidad o riesgo de lo previsto, detente y no abras el PR. Explícale a la persona qué encontraste y sigue por el SDD desde `spec.md`. Lo ya hecho cuenta como el paso 1 (Explorar) de §4.2.
+- **Lo que no cambia:** las prohibiciones de §4.5 y la excepción del equipo de una persona (abajo).
 
 **Rutas críticas:** `backend/**/liv/tax/**`, `backend/**/liv/ledger/**`, `backend/**/liv/jurisdiction/**`, `backend/**/liv/platform/**/security/**`, `backend/**/db/migration/**`, `backend/contracts/**`, `backend/pom.xml`, `backend/bff/**`, `backend/identity/**`, `docs/funcional/anexos/**`, `ui/**`, `.github/**`.
 
@@ -276,8 +284,8 @@ Cada tarea usa el modelo más económico que la resuelve bien. Los tokens se gas
 | Nivel | Para qué | Tareas |
 |---|---|---|
 | **Alto** (razonamiento profundo) | Decisiones difíciles de revertir y revisiones de cambios críticos | **Diseño:** `spec.md` y `plan.md`; ADR; modelo de amenazas. **Revisión:** adversarial de planes de features críticas y de cambios críticos (§4.3); lente de riesgo de `liv-revision-4r` en cambios críticos. **Diagnóstico** de un fallo que no se entendió en el primer intento |
-| **Estándar** | Construcción guiada por una spec y un plan aprobados | **Construcción:** `tasks.md`; implementar sus tareas con TDD; cambios del flujo directo que no son solo texto o formato; diseño en Figma sobre patrones ya definidos. **Revisión:** adversarial de planes y cambios normales; lentes de resiliencia y confiabilidad; lente de riesgo en cambios normales. **Documentación:** `ESTADO.md`, mensajes de *commit* y de PR |
-| **Económico** (rápido) | Tareas mecánicas o de solo lectura | Búsquedas e inventarios en el repositorio; resumir archivos o salidas largas; lente de legibilidad antes de cada *commit*; cambios del flujo directo de texto o formato; verificar que una corrección puntual quedó aplicada |
+| **Estándar** | Construcción guiada por una spec y un plan aprobados | **Construcción:** `tasks.md`; implementar sus tareas con TDD; cambios del flujo directo que cambian el comportamiento, y su revisión independiente; diseño en Figma sobre patrones ya definidos. **Revisión:** adversarial de planes y cambios normales; lentes de resiliencia y confiabilidad; lente de riesgo en cambios normales. **Documentación:** `ESTADO.md`, mensajes de *commit* y de PR |
+| **Económico** (rápido) | Tareas mecánicas o de solo lectura | Búsquedas e inventarios en el repositorio; resumir archivos o salidas largas; lente de legibilidad antes de cada *commit*; cambios del flujo directo de texto, formato o documentación; verificar que una corrección puntual quedó aplicada |
 
 Reglas:
 
@@ -309,6 +317,6 @@ Reglas:
 - [ ] Las verificaciones locales y las compuertas de CI están en verde, o se reporta qué falló.
 - [ ] Solo se tocaron los archivos de la tarea.
 - [ ] La documentación afectada está actualizada (funcional, arquitectura, ADR, glosario).
-- [ ] La revisión independiente se ejecutó y sus hallazgos se resolvieron o justificaron: en el SDD, `liv-revision-adversarial` y `liv-revision-4r` si aplica; en el flujo directo, la lente de legibilidad.
-- [ ] El `CHANGELOG.md` del proyecto que se tocó tiene su entrada (en la raíz no hay).
+- [ ] La revisión independiente se ejecutó y sus hallazgos se resolvieron o justificaron: en el SDD, `liv-revision-adversarial` y `liv-revision-4r` si aplica; en el flujo directo, la de §4.3.
+- [ ] El `CHANGELOG.md` del proyecto que se tocó tiene su entrada. Los cambios de la raíz se registran solo en `ESTADO.md`.
 - [ ] `ESTADO.md` refleja la tarea y tiene su entrada en la bitácora (`liv-estado`).

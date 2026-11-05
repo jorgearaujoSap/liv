@@ -25,17 +25,19 @@ Con eso, el costo de documentar supera al del cambio, y el SDD pierde peso donde
 
 ## Decisión
 
-Se elige la opción 3. El ADR 0014 sigue vigente: el SDD + TDD es la metodología principal. Este ADR solo define cuándo un cambio no necesita especificación.
+Se elige la opción 3. El ADR 0014 sigue vigente: el SDD + TDD es la metodología principal. Este ADR enmienda su alcance: cambia la consecuencia del principio G1 (doc. 05 §1), que eximía solo a los cambios triviales, y define cuándo un cambio no necesita especificación. Se aplica desde su aceptación.
 
 - **Evaluación previa.** Es el paso 2 de `AGENTS.md` §2, y sus criterios están en §4.3, que reemplaza el tipo «trivial» por el **flujo directo**. Si se cumple al menos un criterio, el cambio va por el SDD (normal o crítico, como hasta hoy):
-  - reglas de negocio o tributarias;
+  - reglas de negocio o tributarias, incluido un defecto que hace aplicar mal una regla;
   - contratos o datos;
-  - rutas críticas o seguridad;
-  - decisiones de arquitectura;
+  - rutas críticas o seguridad, con una excepción acotada para comentarios, `README.md`, `CHANGELOG.md` y parches de dependencias;
+  - arquitectura (módulos, dependencias);
   - interfaz;
-  - ambigüedad o tamaño.
+  - ambigüedad que la persona no aclaró, o más de un PR o de ~200 líneas.
+- **Fuera del flujo directo.** Los documentos funcionales, los ADR, la arquitectura, la constitución y las reglas de los `AGENTS.md` nunca van por el flujo directo: siguen su propio proceso de versión, ADR y aprobación.
 - **Flujo directo.** Sin carpeta de feature ni documentos de planificación.
-  - Prueba primero si cambia el comportamiento, verificaciones locales, CI en verde, lente de legibilidad y revisión H3.
+  - Prueba primero si cambia el comportamiento, verificaciones locales y CI en verde.
+  - Si cambia el comportamiento, un revisor independiente (`liv-revisor`) revisa la corrección antes del PR. Si no, basta la lente de legibilidad. En los dos casos, después viene la H3. En el equipo de una persona, la H3 la hace quien abre el PR, así que esa revisión independiente es el control de la corrección.
   - La descripción del PR declara el flujo y por qué no aplica ningún criterio.
   - Se documenta en el `CHANGELOG.md` del proyecto que toca y en la bitácora de `ESTADO.md`. La raíz no tiene `CHANGELOG.md`, así que sus cambios quedan en `ESTADO.md`.
 - **Reevaluación.** Si durante una implementación directa aparece un criterio, el agente se detiene, se lo informa a la persona y el cambio sigue por el SDD. Ante la duda, también va por el SDD (G8).
@@ -48,7 +50,7 @@ Se elige la opción 3. El ADR 0014 sigue vigente: el SDD + TDD es la metodologí
   - una sola tabla de clasificación, sin metodología paralela;
   - cada PR dice qué flujo usó, así que la H3 puede devolverlo al SDD.
 - **Negativas o costos:**
-  - un agente puede clasificar mal. Se mitiga con criterios explícitos, con la reevaluación y con la regla «ante la duda, SDD»;
+  - un agente puede clasificar mal. Se mitiga con criterios explícitos, con la reevaluación, con la regla «ante la duda, pregunta y, si sigue, SDD» y, cuando exista, con `sdd-guard`, que comprobará lo medible de un PR directo (doc. 04 §6, Q11);
   - una nueva métrica en el doc. 05 §12 vigila los PR directos devueltos al SDD.
 - **Qué cambia en el repositorio:**
   - `AGENTS.md` §2, §4.1, §4.3, §10.1 y §11;

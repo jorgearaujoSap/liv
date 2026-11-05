@@ -103,11 +103,11 @@ spec/
 
 ### 3.3 Evaluación previa y clasificación de cambios
 
-Antes de escribir una especificación, el agente evalúa la solicitud (ADR 0028). Si cumple algún criterio de SDD (reglas, contratos y datos, riesgo, arquitectura, interfaz o alcance), va por el flujo de §3.1. Si no cumple ninguno y es sencilla, clara y de impacto acotado, va por el **flujo directo**. Los criterios, lo que exige el flujo directo y la reevaluación durante la implementación están en `AGENTS.md` §4.3, que es la fuente única de las reglas (§4).
+Antes de escribir una especificación, el agente evalúa la solicitud (ADR 0028). Si cumple algún criterio de SDD (reglas, contratos y datos, rutas críticas y seguridad, arquitectura, interfaz o alcance), va por el flujo de §3.1. Si no cumple ninguno y es sencilla, clara y de impacto acotado, va por el **flujo directo**. Los criterios, sus ejemplos, lo que exige el flujo directo y la reevaluación están en `AGENTS.md` §4.3, que es la fuente única de las reglas (§4 de este documento); aquí no se repiten.
 
 | Tipo | Ejemplos | Flujo |
 |---|---|---|
-| Directo | Corrección de texto, actualización de dependencia de parche por Renovate, formato, defecto con causa clara y acotado, pruebas nuevas, refactorización local, documentación | Sin carpeta de feature ni documentos de planificación; prueba primero si cambia el comportamiento, verificaciones y CI en verde, «Flujo: directo» en el PR, `CHANGELOG.md` y `ESTADO.md` |
+| Directo | Cambios sencillos, claros y acotados que no cumplen ningún criterio de SDD (`AGENTS.md` §4.3) | Sin carpeta de feature ni documentos de planificación; con las pruebas, verificaciones, revisión y registro de `AGENTS.md` §4.3 |
 | Normal | Nueva consulta, nueva pantalla, nueva validación, nuevo componente en `liv-components` | Feature completa: spec, plan y tareas (con diseño en Figma si hay interfaz) |
 | Crítico | Motor de liquidación, cuenta corriente, configuración de jurisdicción, seguridad, migraciones, CI, **modificación de un componente existente de `liv-components`** | Feature completa + `liv-revision-adversarial` + `liv-revision-4r` (§10) + dos aprobaciones humanas (en la librería, el líder de frontend y un responsable funcional) |
 

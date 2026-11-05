@@ -134,7 +134,16 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 - SDD adaptativo (ADR 0028, propuesto), a pedido del responsable: antes de escribir una spec, el agente evalúa la solicitud. El SDD sigue siendo la metodología principal; no se instala ODD ni otra metodología.
   - **Criterios de SDD** (`AGENTS.md` §4.3): reglas, contratos y datos, riesgo y rutas críticas, arquitectura, interfaz, y alcance ambiguo o grande. Con uno basta para ir por el SDD; ante la duda, también.
-  - **Flujo directo:** reemplaza al tipo «trivial». Va sin carpeta de feature ni documentos de planificación, pero con prueba primero si cambia el comportamiento, verificaciones y CI en verde, lente de legibilidad, «Flujo: directo» en el PR y la revisión H3. Se registra en el `CHANGELOG.md` del proyecto y en esta bitácora.
+  - **Flujo directo:** reemplaza al tipo «trivial». Va sin carpeta de feature ni documentos de planificación, pero lleva:
+    - prueba primero si cambia el comportamiento;
+    - verificaciones y CI en verde;
+    - si cambia el comportamiento, un revisor independiente (`liv-revisor`) antes del PR; si no, la lente de legibilidad;
+    - «Flujo: directo» en el PR y la revisión H3;
+    - su registro en el `CHANGELOG.md` del proyecto y en esta bitácora (la raíz, solo aquí).
+  - **Revisión:** dos revisores adversariales ciegos (nivel estándar). Sus hallazgos altos se corrigieron:
+    - un cambio directo sin revisión de su corrección;
+    - la declaración del flujo sin ninguna comprobación (queda para `sdd-guard`);
+    - las ambigüedades con rutas críticas, parches de dependencias y textos de pantallas.
   - **Reevaluación:** si durante un cambio directo aparece un criterio, el agente se detiene y el cambio sigue por el SDD desde `spec.md`.
   - **Dónde:** `AGENTS.md` §2, §4.1, §4.3, §10 y §11; doc. 05 §1, §3.3 y §12; doc. 04 (Q11 y ramas); doc. 00 §6; `spec/README.md`; *skill* `liv-sdd-feature`. Los `AGENTS.md` de cada proyecto, en un PR por proyecto.
 
