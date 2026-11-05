@@ -1,0 +1,5 @@
+esperado=pasa
+aprobado=si
+base=muestra
+head=archivo
+salida=cambio incompatible aprobado (1.0.0 → 2.0.0)
