@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -17,12 +15,6 @@ import org.junit.jupiter.api.Test;
  * (8 hours). It answers 401 without a valid session and gives nothing else away.
  */
 class SessionStatusTest extends BffFlowTest {
-
-  static long seconds(String json, String field) {
-    Matcher matcher = Pattern.compile("\"" + field + "\"\\s*:\\s*(\\d+)").matcher(json);
-    assertThat(matcher.find()).as("%s en %s", field, json).isTrue();
-    return Long.parseLong(matcher.group(1));
-  }
 
   @Test
   @Tag("001-22")
@@ -68,6 +60,23 @@ class SessionStatusTest extends BffFlowTest {
       assertThat(reply.body()).doesNotContain("SecondsLeft");
       assertThat(reply.header("cache-control")).contains("no-store");
     }
+  }
+
+  @Test
+  @Tag("001-22")
+  @DisplayName(
+      "001-22 · Con dos cookies de sesión (una vieja y la buena), responde por la buena, como Spring Session")
+  void readsEveryCookieOfTheSession() {
+    Browser browser = browser();
+    browser.signIn("/");
+    String valid = browser.cookie("LIV_SESSION");
+    String stale = "MDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAw";
+
+    Reply reply =
+        browser.getWithCookieHeader(
+            bffBase() + "/bff/session", "LIV_SESSION=" + stale + "; LIV_SESSION=" + valid);
+
+    assertThat(reply.status()).isEqualTo(200);
   }
 
   @Test

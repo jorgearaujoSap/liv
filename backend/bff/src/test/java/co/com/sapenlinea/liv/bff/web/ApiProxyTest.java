@@ -81,6 +81,22 @@ class ApiProxyTest extends BffFlowTest {
   }
 
   @Test
+  @Tag("001-11")
+  @DisplayName(
+      "001-11 · Lo que la API pone en su respuesta (cookies, caché pública) no llega al navegador")
+  void theApiCannotSetCookiesOrAllowCaching() {
+    Browser browser = signedIn();
+    BACKEND.apiAnswersWithHeader("Set-Cookie", "SESION=de-la-api; Path=/");
+    BACKEND.apiAnswersWithHeader("Cache-Control", "public, max-age=3600");
+
+    Reply reply = browser.get(bffBase() + "/api/v1/me");
+
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(reply.setCookies()).noneMatch(cookie -> cookie.startsWith("SESION="));
+    assertThat(reply.header("cache-control")).contains("no-store").doesNotContain("public");
+  }
+
+  @Test
   @Tag("001-14")
   @DisplayName("001-14 · Sin sesión, /api/** responde 401 y no llega a la API")
   void withoutASessionTheApiIsNotReached() {
@@ -97,21 +113,35 @@ class ApiProxyTest extends BffFlowTest {
       "001-20 · /internal/** responde 404 desde el BFF, con o sin sesión, y nunca llega a la API")
   void internalEndpointsAreNeverRouted() {
     Browser browser = signedIn();
+    Browser withoutSession = browser();
+    withoutSession.get(bffBase() + "/api/v1/me"); // the 401 hands out the anti-CSRF cookie
 
-    for (String method : new String[] {"GET", "POST"}) {
-      Reply withSession =
-          method.equals("GET")
-              ? browser.get(bffBase() + "/internal/v1/sessions")
-              : browser.post(bffBase() + "/internal/v1/sessions", "");
-      Reply withoutSession =
-          method.equals("GET")
-              ? browser().get(bffBase() + "/internal/v1/sessions")
-              : browser().postWithoutCsrfToken(bffBase() + "/internal/v1/sessions", "");
-
-      assertThat(withSession.status()).as(method + " con sesión").isEqualTo(404);
-      assertThat(withoutSession.status()).as(method + " sin sesión").isIn(404, 403);
-    }
+    assertThat(browser.get(bffBase() + "/internal/v1/sessions").status()).isEqualTo(404);
+    assertThat(browser.post(bffBase() + "/internal/v1/sessions", "").status()).isEqualTo(404);
+    assertThat(withoutSession.get(bffBase() + "/internal/v1/sessions").status()).isEqualTo(404);
+    assertThat(withoutSession.post(bffBase() + "/internal/v1/sessions", "").status())
+        .isEqualTo(404);
     assertThat(BACKEND.calls()).isEmpty();
+  }
+
+  @Test
+  @Tag("001-20")
+  @DisplayName("001-20 · Una ruta de /api/** que intenta salirse hacia /internal no llega a la API")
+  void pathsThatEscapeTheApiPrefixAreNotForwarded() {
+    Browser browser = signedIn();
+
+    for (String path :
+        new String[] {
+          "/api/%2e%2e/internal/v1/sessions",
+          "/api/..;/internal/v1/sessions",
+          "/api/../internal/v1/sessions",
+          "//internal/v1/sessions",
+          "/api/%2f%2finternal/v1/sessions",
+        }) {
+      Reply reply = browser.get(bffBase() + path);
+      assertThat(reply.status()).as(path).isIn(400, 404);
+    }
+    assertThat(BACKEND.calls().stream().filter(call -> call.path().contains("internal"))).isEmpty();
   }
 
   @Test

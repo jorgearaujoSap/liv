@@ -108,4 +108,18 @@ class CsrfTest extends BffFlowTest {
       assertThat(lower).contains("secure", "samesite=strict", "path=/").doesNotContain("httponly");
     }
   }
+
+  @Test
+  @DisplayName(
+      "001-12 · El token anti-CSRF solo vale en la cabecera: un parámetro _csrf no se acepta")
+  void theTokenIsOnlyReadFromTheHeader() {
+    Browser browser = signedIn();
+    String token = browser.cookie("XSRF-TOKEN");
+
+    Reply reply =
+        browser.postWithoutCsrfToken(bffBase() + "/api/v1/liquidaciones", "_csrf=" + token);
+
+    assertThat(reply.status()).isEqualTo(403);
+    assertThat(BACKEND.apiCalls()).isEmpty();
+  }
 }

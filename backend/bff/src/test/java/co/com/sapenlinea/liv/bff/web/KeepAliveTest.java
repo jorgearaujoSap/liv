@@ -18,10 +18,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -42,14 +40,6 @@ class KeepAliveTest extends BffFlowTest {
     when(refresh.getTokenResponse(any())).thenReturn(renewed("acceso-renovado-1"));
   }
 
-  static OAuth2AccessTokenResponse renewed(String accessToken) {
-    return OAuth2AccessTokenResponse.withToken(accessToken)
-        .tokenType(OAuth2AccessToken.TokenType.BEARER)
-        .expiresIn(300)
-        .refreshToken("refresco-renovado")
-        .build();
-  }
-
   private Browser signedIn() {
     Browser browser = browser();
     browser.signIn("/");
@@ -68,8 +58,8 @@ class KeepAliveTest extends BffFlowTest {
     Reply second = browser.post(bffBase() + "/bff/session/keepalive", "");
 
     assertThat(first.status()).isEqualTo(200);
-    assertThat(SessionStatusTest.seconds(first.body(), "idleSecondsLeft")).isBetween(880L, 900L);
-    assertThat(SessionStatusTest.seconds(first.body(), "absoluteSecondsLeft")).isPositive();
+    assertThat(seconds(first.body(), "idleSecondsLeft")).isBetween(880L, 900L);
+    assertThat(seconds(first.body(), "absoluteSecondsLeft")).isPositive();
     assertThat(second.status()).isEqualTo(200);
     verify(refresh, times(2)).getTokenResponse(any());
     assertThat(first.header("cache-control")).contains("no-store");
@@ -123,5 +113,39 @@ class KeepAliveTest extends BffFlowTest {
     assertThat(storedSessions()).isZero();
     assertThat(browser.cookie("LIV_SESSION")).isNull();
     assertThat(reply.body()).doesNotContain("invalid_grant");
+  }
+
+  @Test
+  @Tag("001-22")
+  @DisplayName("001-22 · keepalive sin el token anti-CSRF se rechaza y no renueva nada")
+  void keepAliveNeedsTheCsrfToken() {
+    Browser browser = signedIn();
+
+    Reply reply = browser.postWithoutCsrfToken(bffBase() + "/bff/session/keepalive", "");
+
+    assertThat(reply.status()).isEqualTo(403);
+    verify(refresh, times(0)).getTokenResponse(any());
+  }
+
+  @Test
+  @Tag("001-22")
+  @DisplayName(
+      "001-22 · Si el proveedor no responde (no es invalid_grant), keepalive responde 502 y la sesión sigue abierta")
+  void aProviderThatDoesNotAnswerLeavesTheSessionOpen() throws SQLException {
+    Browser browser = signedIn();
+    for (RuntimeException failure :
+        new RuntimeException[] {
+          new OAuth2AuthorizationException(new OAuth2Error("server_error")),
+          new IllegalStateException("sin conexión")
+        }) {
+      when(refresh.getTokenResponse(any())).thenThrow(failure);
+
+      Reply reply = browser.post(bffBase() + "/bff/session/keepalive", "");
+
+      assertThat(reply.status()).as(failure.toString()).isEqualTo(502);
+    }
+    assertThat(BACKEND.endSessionCalls()).isEmpty();
+    assertThat(storedSessions()).isEqualTo(1);
+    assertThat(browser.get(bffBase() + "/api/v1/me").status()).isEqualTo(200);
   }
 }

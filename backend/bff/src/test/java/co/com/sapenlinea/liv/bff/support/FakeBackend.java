@@ -35,6 +35,7 @@ public final class FakeBackend {
   private final AtomicInteger revokeStatus = new AtomicInteger(200);
   private volatile long startSessionDelayMillis;
   private volatile long apiDelayMillis;
+  private final Map<String, String> apiHeaders = new java.util.concurrent.ConcurrentHashMap<>();
   private final AtomicInteger apiStatus = new AtomicInteger(200);
   private volatile String apiBody = "{\"ok\":true}";
 
@@ -65,8 +66,14 @@ public final class FakeBackend {
     revokeStatus.set(200);
     startSessionDelayMillis = 0;
     apiDelayMillis = 0;
+    apiHeaders.clear();
     apiStatus.set(200);
     apiBody = "{\"ok\":true}";
+  }
+
+  /** A header the public API adds to its answers, such as a cache directive or a cookie. */
+  public void apiAnswersWithHeader(String name, String value) {
+    apiHeaders.put(name, value);
   }
 
   /** The public API answers only after this long: a slow API. */
@@ -152,6 +159,7 @@ public final class FakeBackend {
       status = revokeStatus.get();
     } else if (path.startsWith("/api/")) {
       sleep(apiDelayMillis);
+      apiHeaders.forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
       status = apiStatus.get();
       answer = apiBody;
     } else {

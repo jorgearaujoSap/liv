@@ -52,6 +52,34 @@ public abstract class BffTest {
     BffDatabase.execute(BffDatabase.jdbcUrl(), BffDatabase.OWNER, "DELETE FROM bff.spring_session");
   }
 
+  /** Waits: the tests of the session limits run on real time, with limits of a few seconds. */
+  protected static void pause(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  /** A number of the JSON that {@code /bff/session} answers. */
+  protected static long seconds(String json, String field) {
+    java.util.regex.Matcher matcher =
+        Pattern.compile("\"" + field + "\"\\s*:\\s*(\\d+)").matcher(json);
+    org.assertj.core.api.Assertions.assertThat(matcher.find()).as("%s en %s", field, json).isTrue();
+    return Long.parseLong(matcher.group(1));
+  }
+
+  /** What the token endpoint of the provider answers to a renewal, in the tests that replace it. */
+  protected static org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse
+      renewed(String accessToken) {
+    return org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse.withToken(
+            accessToken)
+        .tokenType(org.springframework.security.oauth2.core.OAuth2AccessToken.TokenType.BEARER)
+        .expiresIn(300)
+        .refreshToken("refresco-renovado")
+        .build();
+  }
+
   protected String bffBase() {
     return "http://localhost:" + port;
   }

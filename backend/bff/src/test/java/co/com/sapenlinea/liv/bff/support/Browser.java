@@ -54,6 +54,12 @@ public final class Browser {
     return send(HttpRequest.newBuilder(URI.create(url)).GET(), url);
   }
 
+  /** A GET with the {@code Cookie} header written by hand: two cookies with the same name, say. */
+  public Reply getWithCookieHeader(String url, String cookieHeader) {
+    return send(
+        HttpRequest.newBuilder(URI.create(url)).GET().header("Cookie", cookieHeader), url, false);
+  }
+
   /** A GET with headers, such as the {@code Sec-Fetch-*} a browser adds to a request. */
   public Reply get(String url, Map<String, String> headers) {
     HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).GET();
@@ -122,9 +128,13 @@ public final class Browser {
   }
 
   private Reply send(HttpRequest.Builder request, String url) {
+    return send(request, url, true);
+  }
+
+  private Reply send(HttpRequest.Builder request, String url, boolean withJar) {
     String authority = authority(url);
     Map<String, String> jar = cookies.getOrDefault(authority, Map.of());
-    if (!jar.isEmpty()) {
+    if (withJar && !jar.isEmpty()) {
       request.header(
           "Cookie",
           String.join(

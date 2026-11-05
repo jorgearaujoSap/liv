@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.bff.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,7 +44,7 @@ class ExpiringTokenTest extends BffTest {
   @BeforeEach
   void providerRenews() {
     reset(refresh);
-    when(refresh.getTokenResponse(any())).thenReturn(KeepAliveTest.renewed("acceso-renovado-2"));
+    when(refresh.getTokenResponse(any())).thenReturn(renewed("acceso-renovado-2"));
   }
 
   @Test
@@ -88,5 +89,40 @@ class ExpiringTokenTest extends BffTest {
     assertThat(BACKEND.revocationCalls()).isEmpty();
     assertThat(storedSessions()).isZero();
     assertThat(browser.cookie("LIV_SESSION")).isNull();
+  }
+
+  @Test
+  @Tag("001-11")
+  @DisplayName(
+      "001-11 · Un parámetro scope de la petición del navegador no llega a la renovación del token")
+  void theBrowserCannotChooseTheScopeOfTheRenewal() {
+    Browser browser = browser();
+    browser.signIn("/");
+    BACKEND.reset();
+
+    Reply reply = browser.get(bffBase() + "/api/v1/me?scope=otro");
+
+    assertThat(reply.status()).isEqualTo(200);
+    verify(refresh, times(1)).getTokenResponse(argThat(request -> request.getScopes().isEmpty()));
+  }
+
+  @Test
+  @Tag("001-10")
+  @DisplayName(
+      "001-10 · Si el proveedor falla un momento y al token aún le queda vida, la petición sigue con ese token")
+  void aPassingFailureWithAValidTokenDoesNotCutTheRequest() throws SQLException {
+    Browser browser = browser();
+    browser.signIn("/");
+    String current = BACKEND.startSessionCalls().get(0).header("x-user-token");
+    BACKEND.reset();
+    when(refresh.getTokenResponse(any()))
+        .thenThrow(new OAuth2AuthorizationException(new OAuth2Error("server_error")));
+
+    Reply reply = browser.get(bffBase() + "/api/v1/me");
+
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(BACKEND.apiCalls().get(0).header("authorization")).isEqualTo("Bearer " + current);
+    assertThat(BACKEND.endSessionCalls()).isEmpty();
+    assertThat(storedSessions()).isEqualTo(1);
   }
 }
