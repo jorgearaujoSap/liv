@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-04
+> **Última actualización:** 2026-11-05
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -48,7 +48,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | # | Entregable | Estado | Detalle |
 |---|---|---|---|
 | F0‑01 | Monorepo y traslado de documentos a `docs/` | ✅ | Documentación en `docs/`; `backend/`, `frontend/` y `ui/` creados como proyectos autónomos, sin referencias entre ellos ni herramientas compartidas en la raíz (verificado) |
-| F0‑02 | ADR 0001–0021 aceptados | 🔄 | Los 25 aceptados el 2026-11-01 (tabla del doc. 00 §6). Creados `docs/adr/` y los archivos de los ADR 0023–0025 (feature 001, aceptados con su H2) y 0026 (dependencias de desarrollo de `ui/`, aceptado el 2026-11-02). Faltan los archivos de los ADR 0001–0022 con la *skill* `liv-adr` |
+| F0‑02 | ADR 0001–0021 aceptados | 🔄 | Los 25 aceptados el 2026-11-01 (tabla del doc. 00 §6). Creados `docs/adr/` y los archivos de los ADR 0023–0025 (feature 001, aceptados con su H2) y 0026 (dependencias de desarrollo de `ui/`, aceptado el 2026-11-02). El ADR 0028 (SDD adaptativo) se aceptó el 2026-11-05. Faltan los archivos de los ADR 0001–0022 con la *skill* `liv-adr` |
 | F0‑03 | `AGENTS.md`/`CLAUDE.md`, *skills*, plantillas SDD, ganchos | 🔄 | `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, plantillas SDD (`spec/`), *skills* de proceso (`.claude/skills/`) y política de modelos con 4 subagentes por nivel (`AGENTS.md` §10, `.claude/agents/`) creados. Faltan plantilla de PR y ganchos del agente y de Git; las *skills* de código se crean con F0‑04 y F0‑05 |
 | F0‑04 | Esqueleto de backend con reglas de arquitectura | ✅ | Maven (*wrapper* 3.10.0, un artefacto `liv-api` en la raíz de `backend/`), Java 21, Spring Boot 4.1.2, Spring Modulith 2.1.1; base del equipo mejorada (ADR 0021): módulos `shared`, `platform` y 8 de negocio como paquetes con capas `api`/`application`/`domain`/`infrastructure`. 12 pruebas: arranque, fronteras (Modulith), catálogo de módulos y capas, 6 reglas de arquitectura y tamaño de clases, comprobadas también con violaciones a propósito; Google Java Format con Spotless. Paquete `co.com.sapenlinea.liv`. Contratos OpenAPI en `contracts/openapi/` con interfaces generadas (T11, PR #40). Seguridad de `platform` con OIDC estándar: servidor de recursos, usuario resuelto en el registro de LIV, Problem Details y enmascarado de credenciales (T12 parte 1, PR #45). Esqueleto del BFF en `backend/bff/` (`liv-bff`, Spring Cloud Gateway Server MVC; T16, PR #66). Pendiente para otros entregables: Flyway, PostgreSQL y Testcontainers (F0‑08), Dockerfile y `dev/` (F0‑06), Error Prone y NullAway (F0‑07) |
 | F0‑05 | Esqueleto de frontend | 🔄 | Workspace Angular 21.2 (Node 22), Tailwind 4, *tokens* desde el paquete `liv-components@0.1.0` instalado desde npm (versión exacta), ESLint con reglas de frontera (comprobadas), Prettier, Vitest; raíz sin pantallas. Faltan autenticación, *layout* y menú (necesitan F0‑05b y el BFF) y el cliente generado desde `api-spec/` |
@@ -129,6 +129,23 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-05
+
+- SDD adaptativo (ADR 0028, aceptado por el responsable el mismo día), a su pedido: antes de escribir una spec, el agente evalúa la solicitud. El SDD sigue siendo la metodología principal; no se instala ODD ni otra metodología.
+  - **Criterios de SDD** (`AGENTS.md` §4.3): reglas, contratos y datos, riesgo y rutas críticas, arquitectura, interfaz, y alcance ambiguo o grande. Con uno basta para ir por el SDD; ante la duda, también.
+  - **Flujo directo:** reemplaza al tipo «trivial». Va sin carpeta de feature ni documentos de planificación, pero lleva:
+    - prueba primero si cambia el comportamiento;
+    - verificaciones y CI en verde;
+    - si cambia el comportamiento, un revisor independiente (`liv-revisor`) antes del PR; si no, la lente de legibilidad;
+    - «Flujo: directo» en el PR y la revisión H3;
+    - su registro en el `CHANGELOG.md` del proyecto y en esta bitácora (la raíz, solo aquí).
+  - **Revisión:** dos revisores adversariales ciegos (nivel estándar). Sus hallazgos altos se corrigieron:
+    - un cambio directo sin revisión de su corrección;
+    - la declaración del flujo sin ninguna comprobación (queda para `sdd-guard`);
+    - las ambigüedades con rutas críticas, parches de dependencias y textos de pantallas.
+  - **Reevaluación:** si durante un cambio directo aparece un criterio, el agente se detiene y el cambio sigue por el SDD desde `spec.md`.
+  - **Dónde:** `AGENTS.md` §2, §4.1, §4.3, §10 y §11; doc. 05 §1, §3.3 y §12; doc. 04 (Q11 y ramas); doc. 00 §6; `spec/README.md`; *skill* `liv-sdd-feature`. Los `AGENTS.md` de cada proyecto, en un PR por proyecto.
 
 ### 2026-11-04
 
