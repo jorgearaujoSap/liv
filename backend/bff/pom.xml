@@ -46,6 +46,19 @@
       <artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
     </dependency>
 
+    <!-- Inicio de sesión OIDC (código con PKCE) y cliente de servicio (ADR 0023, 0010). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+
+    <!-- Sesión en el servidor, en el esquema bff (ADR 0023). En Boot 4 la configuración automática de
+         spring-session-jdbc viene en su starter. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-session-jdbc</artifactId>
+    </dependency>
+
     <!-- Migraciones del esquema bff (ADR 0023): Flyway solo corre en los perfiles dev y test, como
          liv_bff_owner; la aplicación usa liv_bff. -->
     <dependency>
