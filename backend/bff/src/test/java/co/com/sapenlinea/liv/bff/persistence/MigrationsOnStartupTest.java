@@ -24,7 +24,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * (BffDatabase).
  */
 @ActiveProfiles("test")
-@SpringBootTest(webEnvironment = WebEnvironment.NONE)
+@SpringBootTest(webEnvironment = WebEnvironment.MOCK)
 class MigrationsOnStartupTest {
 
   @Autowired private DataSource dataSource;
@@ -46,9 +46,10 @@ class MigrationsOnStartupTest {
             BffDatabase.queryValue(
                 BffDatabase.jdbcUrl(),
                 BffDatabase.OWNER,
-                "SELECT count(*) FROM bff.flyway_schema_history"
-                    + " WHERE success AND installed_by = 'liv_bff_owner'"))
-        .isEqualTo("1");
+                "SELECT bool_and(success AND installed_by = 'liv_bff_owner')"
+                    + " FROM bff.flyway_schema_history"))
+        .as("todas las migraciones, aplicadas por el dueño y con éxito")
+        .isEqualTo("t");
     assertThat(
             BffDatabase.queryValue(
                 BffDatabase.jdbcUrl(),

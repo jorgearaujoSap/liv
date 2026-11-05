@@ -1,7 +1,8 @@
 # Perfil de desarrollo local. Está fuera de src/main/resources a propósito: Spring lo lee de ./config cuando se
 # arranca desde backend/bff/, y no va dentro del jar.
 # Migra con liv_bff_owner y conecta la aplicación como liv_bff a la base local (la del entorno de desarrollo del
-# backend, en el puerto 5433). Variables: LIV_BFF_OWNER_PASSWORD y LIV_BFF_PASSWORD.
+# backend, en el puerto 5433). Variables: LIV_BFF_OWNER_PASSWORD, LIV_BFF_PASSWORD, LIV_BFF_CLIENT_SECRET y
+# LIV_BFF_SERVICE_CLIENT_SECRET (las mismas de backend/dev/.env).
 spring:
   datasource:
     url: ${LIV_DB_URL:jdbc:postgresql://localhost:5433/liv}
@@ -9,3 +10,18 @@ spring:
     enabled: true
     user: liv_bff_owner
     password: ${LIV_BFF_OWNER_PASSWORD}
+
+liv:
+  bff:
+    oidc:
+      # Keycloak del entorno local, sin HTTPS.
+      issuer-uri: ${LIV_OIDC_ISSUER_URI:http://localhost:8180/realms/liv}
+      allow-http-issuer: true
+      # El realm registra {LIV_BFF_BASE_URL}/login/oauth2/code/liv: el BFF usa la misma variable, porque detrás del
+      # proxy del frontend la dirección que ve el BFF no es la del navegador.
+      redirect-uri: ${LIV_BFF_BASE_URL:http://localhost:4200}/login/oauth2/code/{registrationId}
+    api:
+      base-url: ${LIV_API_URL:http://localhost:8080}
+    session:
+      # Clave ficticia, solo para desarrollo local (32 bytes en base64). Nunca la de un entorno real.
+      encryption-key: ${LIV_BFF_SESSION_KEY:ZGV2LWxvY2FsLWtleS1ub3QtZm9yLXByb2R1Y3Rpb24=}

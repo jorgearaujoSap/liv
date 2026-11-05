@@ -15,7 +15,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -24,15 +31,34 @@ import org.springframework.test.context.DynamicPropertySource;
  * de datos (la conexión es perezosa) y enruta una ruta de prueba hacia un servidor de juguete. Las
  * rutas reales (/api/** con TokenRelay) llegan con las tareas siguientes.
  */
+@ActiveProfiles("test")
 @SpringBootTest(
     webEnvironment = WebEnvironment.RANDOM_PORT,
     properties = {
       "spring.datasource.url=jdbc:postgresql://localhost:1/sin-base",
-      "spring.datasource.password=sin-uso"
+      "spring.datasource.password=sin-uso",
+      "spring.flyway.enabled=false"
     })
+@Import(LivBffApplicationTest.OpenSpikeRoute.class)
 class LivBffApplicationTest {
 
   private static final HttpServer UPSTREAM = startUpstream();
+
+  /**
+   * The BFF now asks for a session on every route but its own sign in (T17); the Gateway spike runs
+   * on a route of its own that this test opens. The real routes (/api/**) arrive with T18.
+   */
+  @TestConfiguration(proxyBeanMethods = false)
+  static class OpenSpikeRoute {
+    @Bean
+    @Order(0)
+    SecurityFilterChain spikeChain(HttpSecurity http) {
+      return http.securityMatcher("/spike/**")
+          .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+          .csrf(csrf -> csrf.disable())
+          .build();
+    }
+  }
 
   @LocalServerPort private int port;
 

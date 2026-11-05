@@ -30,14 +30,21 @@ backend/bff/
 ├── config/application-dev.yml      ← perfil de desarrollo (fuera del jar)
 └── src/
     ├── main/java/co/com/sapenlinea/liv/bff/
-    │   └── LivBffApplication.java
+    │   ├── LivBffApplication.java
+    │   ├── login/                  ← inicio de sesión: /bff/login, returnTo, regreso del proveedor y rechazo
+    │   ├── logout/                 ← cierre de sesión: /bff/logout
+    │   ├── session/                ← tokens cifrados, llamadas a LIV y al proveedor, comprobación del rol de BD
+    │   └── web/                    ← configuración: propiedades, clientes OIDC y seguridad
     ├── main/resources/
     │   ├── application.yml
     │   └── db/migration/           ← migraciones Flyway del esquema bff
     └── test/java/co/com/sapenlinea/liv/bff/
         ├── LivBffApplicationTest.java
         ├── architecture/           ← guardias: reglas de arquitectura, catálogo de paquetes, tamaño
-        └── persistence/            ← PostgreSQL real: contrato del esquema y de los roles
+        ├── login/, logout/         ← flujo completo contra un proveedor OIDC genérico (mock-oauth2-server)
+        ├── persistence/            ← PostgreSQL real: contrato del esquema, tablas de sesión y rol de conexión
+        ├── session/                ← cifrado de los tokens
+        └── support/                ← el proveedor, la API simulada y un "navegador" de prueba
 ```
 
 Los paquetes de `co.com.sapenlinea.liv.bff` son los que declaran las tareas de la feature 001: `login`, `logout`, `session` y `web`. Un paquete nuevo es un cambio de diseño: se agrega al catálogo de `PackageCatalogTest` en el mismo PR.
@@ -78,6 +85,41 @@ Se fija el tren **2025.1.3** (Oakwood, con Spring Cloud Gateway 5.0.3). El tren 
 
 Al subir Spring Boot de versión menor, hay que confirmar en la tabla de compatibilidad de Spring Cloud qué tren le corresponde.
 
+## Configuración
+
+Todo llega por variables de entorno y los secretos y las URL no tienen valor por defecto: sin ellos el BFF no arranca. El perfil `dev` (`config/application-dev.yml`) trae valores para el entorno local de `backend/dev/`.
+
+| Variable | Qué es |
+|---|---|
+| `LIV_DB_URL`, `LIV_BFF_PASSWORD` | Base de datos, como `liv_bff` |
+| `LIV_OIDC_ISSUER_URI` | Emisor del proveedor OIDC, con `https://` (solo `liv.bff.oidc.allow-http-issuer=true` admite `http://`). Su documento de descubrimiento se lee la primera vez que se necesita, no al arrancar: el BFF arranca aunque el proveedor esté caído |
+| `LIV_BFF_CLIENT_SECRET` | Secreto del cliente `liv-bff` (código con PKCE) |
+| `LIV_BFF_SERVICE_CLIENT_SECRET` | Secreto del cliente `liv-bff-service` (*client credentials*), para los endpoints internos de la API |
+| `LIV_API_URL` | Dirección interna de `liv-api` |
+| `LIV_BFF_SESSION_KEY` | Clave que cifra los *tokens* de la sesión: 32 bytes en base64 (AES-256-GCM). En AWS sale de Secrets Manager |
+
+Propiedades opcionales (`liv.bff.*`): `oidc.revocation-uri` (si el proveedor no publica `revocation_endpoint`), `oidc.redirect-uri` (por omisión `{baseUrl}/login/oauth2/code/{registrationId}`; detrás de un proxy hay que dar la dirección pública) y `api.connect-timeout` / `api.read-timeout` (2 s y 5 s).
+
+## Inicio y cierre de sesión (T17)
+
+El navegador nunca recibe un *token* (001-11): la sesión vive en el servidor y el navegador solo lleva la cookie `LIV_SESSION` (`HttpOnly`, `Secure`, `SameSite=Strict`).
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /bff/login?returnTo=<ruta>` | Redirige al proveedor con código, PKCE, *nonce* y `prompt=login`. `returnTo` solo se acepta si es una ruta de LIV (`ReturnTo`); si no, se vuelve a `/` |
+| `GET /login/oauth2/code/liv` | Regreso del proveedor: cambia el id de sesión, abre la sesión en LIV (`StartSession` con el *token* de servicio y el del usuario; un 200 es un reintento) y redirige a la ruta pedida. Si LIV no acepta la sesión, revoca el *refresh token* (RFC 7009), borra la sesión y redirige a `/bff/login`, sin motivo |
+| `POST /bff/logout` | `EndSession(LOGOUT)` en LIV, revocación del *refresh token* en el proveedor y borrado de la sesión. Responde `{"redirectTo":"/bff/login"}`; cada paso sigue si el anterior falla. Sin sesión responde igual y no llama a nadie |
+| Cualquier otra ruta | 401 sin sesión. El reenvío a `/api` llega con T18 |
+
+Detalles que conviene conocer:
+
+- **Un nuevo `GET /bff/login` con una sesión abierta la cierra antes** (`EndSession(LOGOUT)` y revocación), pero solo si es una navegación del navegador: una imagen, un `fetch` o una precarga (`Sec-Fetch-*`, `Sec-Purpose`) no hacen nada. Si la cookie no viaja (enlace desde otro sitio, `SameSite=Strict`), la sesión anterior queda abierta hasta que T19 la barra.
+- **Si `StartSession` no responde a tiempo**, el BFF no sabe si LIV creó la sesión: la rechaza y la compensa con `EndSession(PROVIDER)`. Si LIV la confirma después de ese `EndSession`, queda abierta en LIV hasta que T19 (o una expiración en LIV) la cierre.
+- **`SameSite=Strict` exige que el proveedor y LIV sean del mismo sitio** (mismo dominio registrable, como `liv.test` y `auth.liv.test`): de otro modo el navegador no envía la cookie en el regreso del proveedor.
+- Los motivos de `EndSession` que usa T17 son `LOGOUT` (salir y empezar otro inicio de sesión) y `PROVIDER` (compensación); un motivo propio para cada caso sería un cambio del contrato `core-internal.yaml`.
+
+Los *tokens* se guardan cifrados (`TokenCipher`) como un atributo de la sesión de Spring Session JDBC, en las tablas `bff.spring_session*`; el contexto de seguridad solo guarda el emisor, el `sub` y el `sid`.
+
 ## Estado
 
-Esqueleto (feature 001, T16): proyecto, guardias y esquema `bff` sin tablas, todavía sin endpoints. El inicio de sesión, la sesión y la seguridad de borde llegan con las tareas siguientes de la feature 001 (`tasks.md`). Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
+Inicio y cierre de sesión (feature 001, T17). Faltan, con las tareas siguientes de la feature 001 (`tasks.md`): el reenvío a la API, CSRF, la inactividad, el límite absoluto, `keepalive` y `/bff/session` (T18), y el endurecimiento (T19). Mientras tanto no hay CSRF: la cookie `SameSite=Strict` evita que otro sitio la envíe, pero T18 lo agrega. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
