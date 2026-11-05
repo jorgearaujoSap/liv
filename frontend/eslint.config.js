@@ -23,11 +23,11 @@ const boundaryPatterns = [
 // llama a la API a través de ese cliente.
 const httpClientRestriction = {
   name: '@angular/common/http',
-  importNames: ['HttpClient', 'HttpBackend'],
+  importNames: ['HttpClient', 'HttpBackend', 'HttpHandler'],
   // Un tipo no hace ninguna llamada: solo se prohíbe el uso en tiempo de ejecución.
   allowTypeImports: true,
   message:
-    'HttpClient y HttpBackend solo se usan en el cliente generado (src/app/api/). Llama a la API con ese cliente, p. ej. CoreApi.invoke(getCurrentUser).',
+    'HttpClient, HttpBackend y HttpHandler solo se usan en el cliente generado (src/app/api/). Llama a la API con ese cliente, p. ej. CoreApi.invoke(getCurrentUser).',
 };
 
 // Otras formas de llamar a la API sin pasar por el cliente generado y su interceptor.
@@ -37,6 +37,12 @@ const bypassRules = {
     'error',
     { name: 'fetch', message: bypassMessage },
     { name: 'XMLHttpRequest', message: bypassMessage },
+  ],
+  'no-restricted-properties': [
+    'error',
+    ...['window', 'globalThis', 'self'].flatMap((object) =>
+      ['fetch', 'XMLHttpRequest'].map((property) => ({ object, property, message: bypassMessage })),
+    ),
   ],
   'no-restricted-syntax': [
     'error',
@@ -83,7 +89,8 @@ module.exports = defineConfig([
   },
   {
     // El cliente generado es el servicio de datos: ahí sí va HttpClient. Solo las carpetas de los
-    // contratos: un archivo escrito a mano en src/app/api/ no está exento.
+    // contratos; que no haya código a mano dentro de ellas lo comprueba la prueba que compara el
+    // cliente con lo que genera ng-openapi-gen (scripts/api-update.test.mjs).
     files: ['src/app/api/*/**/*.ts'],
     // Cada archivo generado lleva su propio «eslint-disable» y no se puede editar para quitarlo.
     linterOptions: { reportUnusedDisableDirectives: 'off' },

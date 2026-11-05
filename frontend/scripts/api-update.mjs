@@ -115,12 +115,21 @@ export function verifyLocal(specDir, versions) {
 export async function updateApiSpec({ specDir = DEFAULT_SPEC_DIR, fetchFn = fetch } = {}) {
   const versions = readVersions(specDir);
   const contracts = await fetchContracts(versions, fetchFn);
-  // Primero se escriben todos con nombre temporal; solo entonces se reemplaza lo anterior.
-  for (const [name, content] of contracts)
-    writeFileSync(join(specDir, `${name}.yaml.tmp`), content);
-  for (const file of yamlFiles(specDir)) rmSync(join(specDir, file));
-  for (const name of contracts.keys()) {
-    renameSync(join(specDir, `${name}.yaml.tmp`), join(specDir, `${name}.yaml`));
+  // Cada copia se escribe con nombre temporal y se renombra sobre la anterior, que se reemplaza en
+  // un solo paso; solo después se borran las de contratos que ya no están. Si algo falla, no quedan
+  // temporales.
+  try {
+    for (const [name, content] of contracts) {
+      writeFileSync(join(specDir, `${name}.yaml.tmp`), content);
+    }
+    for (const name of contracts.keys()) {
+      renameSync(join(specDir, `${name}.yaml.tmp`), join(specDir, `${name}.yaml`));
+    }
+  } finally {
+    for (const name of contracts.keys()) rmSync(join(specDir, `${name}.yaml.tmp`), { force: true });
+  }
+  for (const file of yamlFiles(specDir)) {
+    if (!contracts.has(file.replace(/\.yaml$/, ''))) rmSync(join(specDir, file));
   }
   return versions;
 }

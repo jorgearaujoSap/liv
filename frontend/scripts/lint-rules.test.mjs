@@ -14,6 +14,7 @@ const eslint = new ESLint({ cwd: projectDir });
 const RESTRICTION_RULES = [
   'no-restricted-imports',
   'no-restricted-globals',
+  'no-restricted-properties',
   'no-restricted-syntax',
 ];
 
