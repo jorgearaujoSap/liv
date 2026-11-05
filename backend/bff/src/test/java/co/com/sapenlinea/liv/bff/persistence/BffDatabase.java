@@ -18,9 +18,9 @@ import org.testcontainers.utility.DockerImageName;
  */
 public final class BffDatabase {
 
-  static final String OWNER = "liv_bff_owner";
-  static final String APP = "liv_bff";
-  static final String API = "liv_app";
+  public static final String OWNER = "liv_bff_owner";
+  public static final String APP = "liv_bff";
+  public static final String API = "liv_app";
 
   /** Una base y su URL de JDBC. */
   record Database(String name, String url) {}
@@ -126,7 +126,7 @@ public final class BffDatabase {
   }
 
   /** Ejecuta una sentencia con el rol dado. */
-  static void execute(String url, String role, String sql) throws SQLException {
+  public static void execute(String url, String role, String sql) throws SQLException {
     try (Connection connection = DriverManager.getConnection(url, role, password(role));
         var statement = connection.createStatement()) {
       statement.execute(sql);
@@ -134,7 +134,7 @@ public final class BffDatabase {
   }
 
   /** El primer valor de una consulta con el rol dado. */
-  static String queryValue(String url, String role, String select) throws SQLException {
+  public static String queryValue(String url, String role, String select) throws SQLException {
     try (Connection connection = DriverManager.getConnection(url, role, password(role));
         var statement = connection.createStatement();
         ResultSet result = statement.executeQuery(select)) {
