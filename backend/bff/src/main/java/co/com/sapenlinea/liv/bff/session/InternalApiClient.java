@@ -57,7 +57,9 @@ public final class InternalApiClient {
           e.getStatusCode().is5xxServerError());
     } catch (ResourceAccessException e) {
       // The exception of a failed connection can name the host: only its class is logged.
-      LOG.warn("StartSession no obtuvo respuesta: {}", e.getCause().getClass().getSimpleName());
+      LOG.warn(
+          "StartSession no obtuvo respuesta: {}",
+          (e.getCause() == null ? e : e.getCause()).getClass().getSimpleName());
       throw new SessionNotStartedException("StartSession no obtuvo respuesta", true);
     } catch (RuntimeException e) {
       // The call did not even leave: no service token (the provider refused it or is down).

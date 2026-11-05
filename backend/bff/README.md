@@ -111,6 +111,13 @@ El navegador nunca recibe un *token* (001-11): la sesión vive en el servidor y 
 | `POST /bff/logout` | `EndSession(LOGOUT)` en LIV, revocación del *refresh token* en el proveedor y borrado de la sesión. Responde `{"redirectTo":"/bff/login"}`; cada paso sigue si el anterior falla. Sin sesión responde igual y no llama a nadie |
 | Cualquier otra ruta | 401 sin sesión. El reenvío a `/api` llega con T18 |
 
+Detalles que conviene conocer:
+
+- **Un nuevo `GET /bff/login` con una sesión abierta la cierra antes** (`EndSession(LOGOUT)` y revocación), pero solo si es una navegación del navegador: una imagen, un `fetch` o una precarga (`Sec-Fetch-*`, `Sec-Purpose`) no hacen nada. Si la cookie no viaja (enlace desde otro sitio, `SameSite=Strict`), la sesión anterior queda abierta hasta que T19 la barra.
+- **Si `StartSession` no responde a tiempo**, el BFF no sabe si LIV creó la sesión: la rechaza y la compensa con `EndSession(PROVIDER)`. Si LIV la confirma después de ese `EndSession`, queda abierta en LIV hasta que T19 (o una expiración en LIV) la cierre.
+- **`SameSite=Strict` exige que el proveedor y LIV sean del mismo sitio** (mismo dominio registrable, como `liv.test` y `auth.liv.test`): de otro modo el navegador no envía la cookie en el regreso del proveedor.
+- Los motivos de `EndSession` que usa T17 son `LOGOUT` (salir y empezar otro inicio de sesión) y `PROVIDER` (compensación); un motivo propio para cada caso sería un cambio del contrato `core-internal.yaml`.
+
 Los *tokens* se guardan cifrados (`TokenCipher`) como un atributo de la sesión de Spring Session JDBC, en las tablas `bff.spring_session*`; el contexto de seguridad solo guarda el emisor, el `sub` y el `sid`.
 
 ## Estado

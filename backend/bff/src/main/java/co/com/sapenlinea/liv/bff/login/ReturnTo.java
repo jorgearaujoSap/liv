@@ -58,6 +58,10 @@ public final class ReturnTo {
     } catch (IllegalArgumentException e) {
       return true;
     }
+    if (decoded.contains(";")) {
+      // Path parameters (/x/..;/y): a server drops them and normalizes what is left.
+      return true;
+    }
     for (String segment : decoded.split("/")) {
       if (segment.equals(".") || segment.equals("..")) {
         return true;
