@@ -8,8 +8,6 @@ import { BffApi } from '../../api/bff/bff-api';
 import { getSession } from '../../api/bff/functions';
 import { CoreApi } from '../../api/core/core-api';
 import { getCurrentUser } from '../../api/core/functions';
-import { PlatformApi } from '../../api/platform/platform-api';
-import { getCapabilities } from '../../api/platform/functions';
 import { APP_PATHS } from '../app-paths';
 import { BrowserNavigation } from '../browser/browser-navigation.service';
 import { CapabilityService } from '../capabilities/capability.service';
@@ -220,7 +218,7 @@ describe('interceptor de la API', () => {
     });
 
     it('un 403 de la propia recarga no la dispara otra vez', async () => {
-      const result = TestBed.inject(PlatformApi).invoke(getCapabilities);
+      const result = TestBed.inject(CapabilityService).reload();
       http.expectOne('/api/v1/me/capabilities').flush(null, FORBIDDEN);
 
       await expect(result).rejects.toMatchObject({ status: 403 });
