@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.context.SecurityContext;
@@ -70,8 +69,14 @@ final class SessionStatusFilter extends OncePerRequestFilter {
   }
 
   private Optional<SessionStatus> statusOf(HttpServletRequest request) {
-    List<String> ids = idResolver.resolveSessionIds(request);
-    Session session = ids.isEmpty() ? null : sessions.findById(ids.get(0));
+    // Every cookie, as Spring Session's filter does: the first one may be an old one.
+    Session session = null;
+    for (String id : idResolver.resolveSessionIds(request)) {
+      session = sessions.findById(id);
+      if (session != null) {
+        break;
+      }
+    }
     if (session == null
         || !(session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)
             instanceof SecurityContext context)

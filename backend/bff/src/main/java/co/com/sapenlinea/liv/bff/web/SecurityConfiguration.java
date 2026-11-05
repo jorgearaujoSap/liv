@@ -22,7 +22,6 @@ import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.session.SessionRepository;
 
 /**
@@ -67,7 +66,7 @@ class SecurityConfiguration {
         };
     http.csrf(csrf ->
             csrf.csrfTokenRepository(csrfTokens)
-                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
+                .csrfTokenRequestHandler(new HeaderOnlyCsrfTokenRequestHandler()))
         .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
         .addFilterAfter(
             new AbsoluteLimitFilter(lifetime, closer), SecurityContextHolderFilter.class)

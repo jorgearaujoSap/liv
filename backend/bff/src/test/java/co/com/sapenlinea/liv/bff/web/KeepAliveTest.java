@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.bff.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -138,7 +139,7 @@ class KeepAliveTest extends BffFlowTest {
           new OAuth2AuthorizationException(new OAuth2Error("server_error")),
           new IllegalStateException("sin conexión")
         }) {
-      when(refresh.getTokenResponse(any())).thenThrow(failure);
+      doThrow(failure).when(refresh).getTokenResponse(any());
 
       Reply reply = browser.post(bffBase() + "/bff/session/keepalive", "");
 

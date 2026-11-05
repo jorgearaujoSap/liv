@@ -65,7 +65,8 @@ class BffContractTest {
     assertThat(statuses("/bff/login", "get")).containsExactly("302");
     assertThat(statuses("/bff/logout", "post")).containsExactly("200", "403");
     assertThat(statuses("/bff/session", "get")).containsExactly("200", "401");
-    assertThat(statuses("/bff/session/keepalive", "post")).containsExactly("200", "401", "403");
+    assertThat(statuses("/bff/session/keepalive", "post"))
+        .containsExactly("200", "401", "403", "502");
   }
 
   @Test
