@@ -12,10 +12,10 @@ import org.springframework.test.context.TestPropertySource;
 
 /**
  * Fifteen minutes without activity end the session (001-10; the authority is the BFF, plan, «Sesión
- * y tiempos»). Here the time is 3 seconds. A request of the person extends it; asking how much is
+ * y tiempos»). Here the time is 4 seconds. A request of the person extends it; asking how much is
  * left ({@code /bff/session}) does not.
  */
-@TestPropertySource(properties = "spring.session.timeout=3s")
+@TestPropertySource(properties = "spring.session.timeout=4s")
 class IdleTimeoutTest extends BffFlowTest {
 
   private static void waitMillis(long millis) {
@@ -35,7 +35,7 @@ class IdleTimeoutTest extends BffFlowTest {
     browser.signIn("/");
     BACKEND.reset();
 
-    waitMillis(3500);
+    waitMillis(4500);
     Reply reply = browser.get(bffBase() + "/api/v1/me");
 
     assertThat(reply.status()).isEqualTo(401);
@@ -61,7 +61,9 @@ class IdleTimeoutTest extends BffFlowTest {
     assertThat(SessionStatusTest.seconds(second.body(), "idleSecondsLeft"))
         .as("lo que queda baja, no se renueva")
         .isLessThan(SessionStatusTest.seconds(first.body(), "idleSecondsLeft"));
-    assertThat(third.status()).as("4,5 s después del último uso real").isEqualTo(401);
+    assertThat(third.status())
+        .as("4,5 s después del último uso real, con 4 s de inactividad")
+        .isEqualTo(401);
   }
 
   @Test
@@ -78,7 +80,7 @@ class IdleTimeoutTest extends BffFlowTest {
 
     assertThat(used.status()).isEqualTo(200);
     assertThat(stillThere.status())
-        .as("4 s después del inicio, 2 s después del uso")
+        .as("4 s después del inicio, 2 s después del uso: sigue abierta")
         .isEqualTo(200);
   }
 }

@@ -1,6 +1,12 @@
 # Perfil de pruebas: Flyway corre con el dueño del esquema (liv_bff_owner) y la aplicación usa liv_bff. Las URL
 # y las contraseñas las fija cada prueba con el contenedor de PostgreSQL.
 spring:
+  # Cada contexto de pruebas abre su propio pool: con 10 conexiones cada uno, la docena de contextos distintos
+  # agota las 100 del servidor de pruebas.
+  datasource:
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
   flyway:
     enabled: true
     user: liv_bff_owner

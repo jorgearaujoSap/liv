@@ -72,11 +72,15 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
 
   /**
    * @param encryptionKey the key that encrypts the tokens in the session: 32 bytes in base64
+   * @param absoluteTimeout the maximum duration of a session, whatever its activity (001-10)
    */
-  public record Session(String encryptionKey) {
+  public record Session(String encryptionKey, @DefaultValue("8h") Duration absoluteTimeout) {
 
     public Session {
       required(encryptionKey, "liv.bff.session.encryption-key");
+      if (absoluteTimeout.isZero() || absoluteTimeout.isNegative()) {
+        throw new IllegalArgumentException("liv.bff.session.absolute-timeout debe ser positiva");
+      }
     }
   }
 

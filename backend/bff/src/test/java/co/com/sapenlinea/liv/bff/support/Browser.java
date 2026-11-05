@@ -75,7 +75,7 @@ public final class Browser {
     if (csrf != null) {
       request.header("X-XSRF-TOKEN", csrf);
     }
-    headers.forEach(request::header);
+    headers.forEach(request::setHeader);
     return send(request, url);
   }
 

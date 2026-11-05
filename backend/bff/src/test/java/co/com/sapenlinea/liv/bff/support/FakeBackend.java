@@ -34,6 +34,7 @@ public final class FakeBackend {
   private final AtomicInteger endSessionStatus = new AtomicInteger(204);
   private final AtomicInteger revokeStatus = new AtomicInteger(200);
   private volatile long startSessionDelayMillis;
+  private volatile long apiDelayMillis;
   private final AtomicInteger apiStatus = new AtomicInteger(200);
   private volatile String apiBody = "{\"ok\":true}";
 
@@ -63,8 +64,14 @@ public final class FakeBackend {
     endSessionStatus.set(204);
     revokeStatus.set(200);
     startSessionDelayMillis = 0;
+    apiDelayMillis = 0;
     apiStatus.set(200);
     apiBody = "{\"ok\":true}";
+  }
+
+  /** The public API answers only after this long: a slow API. */
+  public void apiAnswersAfter(long millis) {
+    apiDelayMillis = millis;
   }
 
   /** What the public API (/api/**) answers to what the BFF forwards. */
@@ -144,6 +151,7 @@ public final class FakeBackend {
     } else if (path.equals(REVOKE)) {
       status = revokeStatus.get();
     } else if (path.startsWith("/api/")) {
+      sleep(apiDelayMillis);
       status = apiStatus.get();
       answer = apiBody;
     } else {

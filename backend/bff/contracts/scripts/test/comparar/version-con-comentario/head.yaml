@@ -1,0 +1,34 @@
+openapi: 3.0.3
+info:
+  title: LIV · contrato de muestra
+  version: 1.1.0 # agrega nickname
+  description: Contrato base de las pruebas del comparador; cada escenario lo cambia en un solo punto.
+paths:
+  /api/v1/samples:
+    get:
+      operationId: listSamples
+      parameters:
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Muestras.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sample'
+components:
+  schemas:
+    Sample:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        nickname:
+          type: string

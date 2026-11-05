@@ -83,7 +83,9 @@ class ExpiringTokenTest extends BffTest {
     assertThat(BACKEND.apiCalls()).as("nunca se reenvía sin token").isEmpty();
     assertThat(BACKEND.endSessionCalls()).hasSize(1);
     assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"PROVIDER\"");
-    assertThat(BACKEND.revocationCalls()).hasSize(1);
+    // The provider refused the grant: that refresh token is already worthless, there is nothing to
+    // revoke.
+    assertThat(BACKEND.revocationCalls()).isEmpty();
     assertThat(storedSessions()).isZero();
     assertThat(browser.cookie("LIV_SESSION")).isNull();
   }

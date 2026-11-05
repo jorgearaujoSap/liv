@@ -251,7 +251,10 @@ class LoginFlowTest extends BffFlowTest {
   void theSessionCookieIsHardened() {
     SignIn signIn = browser().signIn("/");
 
-    List<String> cookies = signIn.callback().setCookies();
+    List<String> cookies =
+        signIn.callback().setCookies().stream()
+            .filter(setCookie -> setCookie.startsWith("LIV_SESSION="))
+            .toList();
     assertThat(cookies).hasSize(1);
     String cookie = cookies.get(0);
     assertThat(cookie).startsWith("LIV_SESSION=");

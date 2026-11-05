@@ -131,7 +131,9 @@ class LogoutFlowTest extends BffFlowTest {
   @Test
   @DisplayName("001-09 · Salir sin sesión responde igual y no llama a nadie")
   void logoutWithoutASessionDoesNothing() {
-    Reply reply = logout(browser());
+    Browser browser = browser();
+    browser.get(bffBase() + "/api/v1/me"); // the 401 hands out the anti-CSRF cookie
+    Reply reply = logout(browser);
 
     assertThat(reply.status()).isEqualTo(200);
     assertThat(reply.body().replaceAll("\\s", "")).isEqualTo("{\"redirectTo\":\"/bff/login\"}");

@@ -1,0 +1,6 @@
+esperado=pasa
+aprobado=no
+base=muestra
+head=archivo
+salida=cambio compatible (1.0.0 → 1.1.0)
+nota=hueco conocido de openapi-diff 2.1.7 (ADR 0027): la petición es más estricta y no lo detecta; lo revisa una persona

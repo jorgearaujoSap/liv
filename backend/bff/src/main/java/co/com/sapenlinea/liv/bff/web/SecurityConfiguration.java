@@ -6,6 +6,7 @@ import co.com.sapenlinea.liv.bff.login.LoginSuccessHandler;
 import co.com.sapenlinea.liv.bff.session.InternalApiClient;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
+import co.com.sapenlinea.liv.bff.session.SessionLifetime;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -14,19 +15,25 @@ import org.springframework.security.config.annotation.web.configurers.RequestCac
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.session.SessionRepository;
 
 /**
- * The security of the BFF at this stage (feature 001, T17): the sign in with OpenID Connect (code
- * with PKCE, {@code prompt=login}), the session in the server and the sign out. Everything else
- * needs a session and answers 401 without one: the browser, not the BFF, decides where to go.
+ * The security of the BFF (feature 001, T17 and T18): the sign in with OpenID Connect (code with
+ * PKCE, {@code prompt=login}), the session in the server, the sign out, the anti-CSRF token and the
+ * maximum duration of the session. Everything else needs a session and answers 401 without one: the
+ * browser, not the BFF, decides where to go. {@code /api/**} goes to the API ({@link
+ * ApiRouteConfiguration}); {@code /internal/**} has no route, so it is a 404.
  *
- * <p>Not here yet: CSRF, the inactivity and absolute limits and the forwarding to {@code /api}
- * (T18), and the hardening of T19. Meanwhile the only cookie, {@code LIV_SESSION}, is {@code
- * SameSite=Strict}, so a request from another site does not carry it.
+ * <p>The hardening of T19 (rate limit, headers beyond the default {@code Cache-Control}) is not
+ * here yet.
  */
 @Configuration(proxyBeanMethods = false)
 class SecurityConfiguration {
@@ -46,9 +53,24 @@ class SecurityConfiguration {
       RefreshTokenRevoker revoker,
       SessionCloser closer,
       SecurityContextRepository contexts,
-      SessionRepository<?> sessions) {
-    // CSRF is T18 (001-12). Until then the only cookie is SameSite=Strict.
-    http.csrf(csrf -> csrf.disable())
+      SessionRepository<?> sessions,
+      SessionLifetime lifetime) {
+    // The frontend reads the cookie (no HttpOnly) and sends it back in the X-XSRF-TOKEN header
+    // (001-12). The cookie is no credential: LIV_SESSION is the one that authenticates.
+    CookieCsrfTokenRepository csrfTokens = CookieCsrfTokenRepository.withHttpOnlyFalse();
+    csrfTokens.setCookieCustomizer(cookie -> cookie.secure(true).sameSite("Strict").path("/"));
+    AccessDeniedHandler csrfRejected =
+        (request, response, exception) -> {
+          response.setStatus(HttpStatus.FORBIDDEN.value());
+          response.setContentType("application/problem+json");
+          response.getWriter().write("{\"status\":403,\"code\":\"001-12\"}");
+        };
+    http.csrf(csrf ->
+            csrf.csrfTokenRepository(csrfTokens)
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
+        .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
+        .addFilterAfter(
+            new AbsoluteLimitFilter(lifetime, closer), SecurityContextHolderFilter.class)
         .securityContext(context -> context.securityContextRepository(contexts))
         .requestCache(RequestCacheConfigurer::disable)
         .logout(logout -> logout.disable())
@@ -57,12 +79,18 @@ class SecurityConfiguration {
                 .requestMatchers(
                     LoginAuthorizationRequestResolver.LOGIN_PATH,
                     "/login/oauth2/code/*",
-                    "/bff/logout")
+                    "/bff/logout",
+                    // No route: a 404 for everybody, not a 401 that says it exists. The 404 is
+                    // served by /error, which a person without a session must reach.
+                    "/internal/**",
+                    "/error")
                 .permitAll()
                 .anyRequest()
                 .authenticated())
         .exceptionHandling(exceptions ->
-            exceptions.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            exceptions
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                .accessDeniedHandler(csrfRejected))
         .oauth2Login(login ->
             login
                 .loginPage(LoginAuthorizationRequestResolver.LOGIN_PATH)
@@ -70,7 +98,11 @@ class SecurityConfiguration {
                     endpoint.authorizationRequestResolver(
                         new LoginAuthorizationRequestResolver(registrations, closer)))
                 .authorizedClientRepository(clients)
-                .successHandler(new LoginSuccessHandler(clients, api, contexts, revoker, sessions))
+                .successHandler(
+                    new CsrfTokenAfterLogin(
+                        new LoginSuccessHandler(
+                            clients, api, contexts, revoker, sessions, lifetime),
+                        csrfTokens))
                 .failureHandler(new LoginFailureHandler(contexts)));
     return http.build();
   }

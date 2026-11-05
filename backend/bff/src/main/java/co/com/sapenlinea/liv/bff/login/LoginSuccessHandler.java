@@ -5,6 +5,7 @@ import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.SessionAuthentication;
 import co.com.sapenlinea.liv.bff.session.SessionIdentity;
+import co.com.sapenlinea.liv.bff.session.SessionLifetime;
 import co.com.sapenlinea.liv.bff.session.SessionNotStartedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,13 +39,16 @@ public final class LoginSuccessHandler implements AuthenticationSuccessHandler {
   private final InternalApiClient api;
   private final SecurityContextRepository contexts;
   private final LoginRejection rejection;
+  private final SessionLifetime lifetime;
 
   public LoginSuccessHandler(
       OAuth2AuthorizedClientRepository clients,
       InternalApiClient api,
       SecurityContextRepository contexts,
       RefreshTokenRevoker revoker,
-      SessionRepository<?> sessions) {
+      SessionRepository<?> sessions,
+      SessionLifetime lifetime) {
+    this.lifetime = lifetime;
     this.clients = clients;
     this.api = api;
     this.contexts = contexts;
@@ -88,6 +92,7 @@ public final class LoginSuccessHandler implements AuthenticationSuccessHandler {
     context.setAuthentication(new SessionAuthentication(identity));
     holder.setContext(context);
     contexts.saveContext(context, request, response);
+    lifetime.markStarted(request.getSession());
     LoginRejection.redirect(response, takeReturnTo(request));
   }
 
