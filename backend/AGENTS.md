@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el backend.
 
 ## Antes de tocar código
 
-1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio trivial.
+1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3).
 2. Lee la sección del documento funcional y del documento de arquitectura que cita la feature.
 3. Trabaja solo en los archivos que declara la tarea.
 
