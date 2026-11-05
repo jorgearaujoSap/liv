@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: LIV · platform
+  version: 1.0.0
+  description: >-
+    API pública del módulo platform (doc. 01 §10, ADR 0005): capacidades del usuario para armar el
+    menú. El backend decide qué opciones se ven; el frontend no recalcula esa lógica y pone los
+    textos por código. Feature 001 · Inicio de sesión.
+tags:
+  - name: Capabilities
+    description: Opciones de menú visibles para el usuario de la sesión.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/me/capabilities:
+    get:
+      tags: [Capabilities]
+      operationId: getCapabilities
+      summary: Árbol de opciones de menú visibles según los permisos del usuario (001-15).
+      description: >-
+        Un módulo aparece si el usuario puede ver al menos una de sus opciones. Las opciones aún
+        no construidas vienen como COMING_SOON y se muestran deshabilitadas. Las modalidades
+        activas de la jurisdicción también filtran el menú (doc. 01 §10); en la feature 001 solo
+        cuentan los permisos.
+      responses:
+        '200':
+          description: Opciones visibles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acceso del usuario. Lo agrega el BFF; el navegador nunca lo recibe.
+  responses:
+    Unauthorized:
+      description: >-
+        Sin sesión válida. code: 001-14 (token inválido o ausente, o usuario no registrado en LIV),
+        001-05 (usuario desactivado) o 001-17 (la administración del token no es la registrada).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Capabilities:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: Módulos visibles, en el orden del menú (Doc. 01 §3).
+          items:
+            $ref: '#/components/schemas/Capability'
+    Capability:
+      type: object
+      required: [code, status, children]
+      properties:
+        code:
+          type: string
+          description: Número de la opción de menú, por ejemplo 1, 1.5 o 1.5.9.
+          pattern: '^[0-9]+(\.[0-9]+)*$'
+          maxLength: 16
+        status:
+          $ref: '#/components/schemas/CapabilityStatus'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Capability'
+    CapabilityStatus:
+      type: string
+      description: AVAILABLE navega; COMING_SOON se muestra deshabilitada (001-15).
+      enum: [AVAILABLE, COMING_SOON]
+    Problem:
+      type: object
+      description: Problem Details (RFC 9457) con el código de la regla o criterio (doc. 01 §10).
+      required: [status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        code:
+          type: string
+          description: Código de la regla o del criterio, por ejemplo 001-14.
+          maxLength: 32

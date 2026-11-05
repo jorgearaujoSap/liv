@@ -1,0 +1,5 @@
+{
+  "/bff": { "target": "http://localhost:8081" },
+  "/api": { "target": "http://localhost:8081" },
+  "/login/oauth2": { "target": "http://localhost:8081" }
+}

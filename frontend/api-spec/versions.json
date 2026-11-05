@@ -1,0 +1,17 @@
+{
+  "repository": "jorgearaujoSap/liv",
+  "contracts": {
+    "bff": {
+      "version": "1.0.0",
+      "sha256": "e487da8290878a826ee2f18e5f16bf1096acdb4d764581176fea1bb7201e3458"
+    },
+    "core": {
+      "version": "1.0.0",
+      "sha256": "915cefc5b4627f217d50bcc7c80d91fa570ba323d6ac7d681227a6bd61cd4a2c"
+    },
+    "platform": {
+      "version": "1.0.0",
+      "sha256": "5b99fc08cdc379d9739dc22a9294a44ce18e13a851221851c465568c91576929"
+    }
+  }
+}

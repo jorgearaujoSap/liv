@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: LIV · BFF
+  version: 1.0.0
+  description: >-
+    Rutas propias del BFF que usa el navegador (ADR 0010, ADR 0005): inicio y cierre de sesión y
+    estado de la sesión. Contract-first: el BFF se escribe contra este archivo y el frontend usa una
+    copia fijada en frontend/api-spec/. No incluye /api/** (el contrato de la API: core.yaml y
+    platform.yaml), que el BFF reenvía con el token de la sesión, ni /internal/**, que nunca se
+    publica. En /api/** el propio BFF responde, sin cuerpo, 401 (sin sesión, o la sesión terminó) y
+    502 (entre otros casos: el proveedor no renovó el token y el que había ya venció). El
+    frontend trata todo 502 como un error que se puede reintentar. El navegador nunca recibe un token: la única cookie que autentica es LIV_SESSION
+    (HttpOnly, Secure, SameSite=Strict). Toda petición que modifica datos, incluidas las de este
+    contrato, lleva el token anti-CSRF: el frontend copia la cookie XSRF-TOKEN a la cabecera
+    X-XSRF-TOKEN, y sin él responde 403. Feature 001 · Inicio de sesión.
+tags:
+  - name: Session
+    description: Inicio y cierre de sesión y estado de la sesión.
+paths:
+  /bff/login:
+    get:
+      tags: [Session]
+      operationId: login
+      summary: Inicia el inicio de sesión (001-01).
+      description: >-
+        Se navega a esta ruta (navegación completa, no una petición del frontend). Redirige al
+        proveedor de identidad con código y PKCE; el proveedor siempre pide las credenciales
+        (prompt=login). Al volver, el BFF abre la sesión y redirige a returnTo. Si ya había una
+        sesión abierta, la cierra antes. Si el proveedor o LIV no aceptan el inicio, la persona
+        vuelve a esta misma ruta, sin ningún motivo en la URL.
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          description: >-
+            Ruta de LIV a la que volver tras autenticarse. Solo se acepta una ruta propia (empieza
+            por una sola /, sin // ni \, ni rutas del BFF); cualquier otro valor se cambia por /.
+          schema:
+            type: string
+            maxLength: 2048
+      responses:
+        '302':
+          description: Redirección al proveedor de identidad.
+          headers:
+            Location:
+              description: Dirección de autorización del proveedor.
+              schema:
+                type: string
+  /bff/logout:
+    post:
+      tags: [Session]
+      operationId: logout
+      summary: Cierra la sesión (001-09).
+      description: >-
+        Avisa a LIV (EndSession), revoca el refresh token en el proveedor, lo que cierra la sesión
+        de la persona allí, y borra la sesión del BFF. Cada paso sigue si el anterior falla. Sin
+        sesión responde igual. El frontend navega por completo a la ruta que responde.
+      responses:
+        '200':
+          description: Sesión cerrada.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResult'
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+  /bff/session:
+    get:
+      tags: [Session]
+      operationId: getSession
+      summary: Cuánto le queda a la sesión (001-22, 001-10).
+      description: >-
+        Lee la sesión sin extenderla: preguntar no la mantiene viva. No lleva datos de la persona
+        (esos los da /api/v1/me).
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: La sesión está abierta.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionStatus'
+        '401':
+          description: >-
+            No hay una sesión abierta: no existe, venció por inactividad o llegó a su duración
+            máxima.
+  /bff/session/keepalive:
+    post:
+      tags: [Session]
+      operationId: keepAliveSession
+      summary: La persona elige seguir conectada (001-22).
+      description: >-
+        Renueva siempre el token de acceso, aunque no esté por vencer, así que el proveedor de
+        identidad también reinicia su inactividad, y extiende la sesión. No pasa de la duración
+        máxima. Si el proveedor rechaza la renovación (usuario desactivado o sesión cerrada allí),
+        la sesión termina y responde 401.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Sesión extendida; lo que queda.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionStatus'
+        '401':
+          description: No hay una sesión abierta, llegó a su duración máxima o no se pudo renovar.
+        '403':
+          $ref: '#/components/responses/CsrfRejected'
+        '502':
+          description: >-
+            El proveedor de identidad no respondió a la renovación. La sesión sigue abierta: se
+            puede intentar de nuevo.
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: LIV_SESSION
+      description: >-
+        Cookie de sesión del BFF (HttpOnly, Secure, SameSite=Strict). No contiene ningún token.
+  responses:
+    CsrfRejected:
+      description: >-
+        Falta el token anti-CSRF o no es el de la cookie XSRF-TOKEN (001-12). code: 001-12.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    SessionStatus:
+      type: object
+      required: [idleSecondsLeft, absoluteSecondsLeft]
+      properties:
+        idleSecondsLeft:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Segundos que faltan para que venza por inactividad (15 minutos sin actividad).
+        absoluteSecondsLeft:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Segundos que faltan para su duración máxima (8 horas), haya o no actividad.
+    LogoutResult:
+      type: object
+      required: [redirectTo]
+      properties:
+        redirectTo:
+          type: string
+          description: Ruta de LIV a la que navegar para iniciar sesión de nuevo (/bff/login).
+    Problem:
+      type: object
+      description: Problem Details (RFC 9457) con el código del criterio (doc. 01 §10).
+      required: [status, code]
+      properties:
+        status:
+          type: integer
+          format: int32
+        code:
+          type: string
+          description: Código del criterio, por ejemplo 001-12.
+          maxLength: 32
