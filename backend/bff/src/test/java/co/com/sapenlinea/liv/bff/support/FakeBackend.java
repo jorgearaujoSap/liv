@@ -52,10 +52,6 @@ public final class FakeBackend {
     return apiBaseUrl() + REVOKE;
   }
 
-  public void stop() {
-    server.stop(0);
-  }
-
   /** Forgets the calls and answers the usual statuses again. */
   public void reset() {
     calls.clear();

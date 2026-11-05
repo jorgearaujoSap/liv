@@ -72,6 +72,27 @@ class SessionTablesTest {
   }
 
   @Test
+  @DisplayName("001-20 · La columna de la persona admite un sub de hasta 255 caracteres, como OIDC")
+  void principalNameFitsAnyOidcSubject() throws SQLException {
+    Database database = newLocalDatabase();
+    migrate(database.url());
+
+    execute(
+        database.url(),
+        APP,
+        "INSERT INTO bff.spring_session (primary_id, session_id, creation_time, last_access_time,"
+            + " max_inactive_interval, expiry_time, principal_name)"
+            + " VALUES ('p1', 's1', 1, 1, 900, 2, '"
+            + "x".repeat(255)
+            + "')");
+
+    assertThat(
+            queryValue(
+                database.url(), APP, "SELECT length(principal_name) FROM bff.spring_session"))
+        .isEqualTo("255");
+  }
+
+  @Test
   @DisplayName("001-11 · liv_bff no crea ni cambia tablas, y liv_app no ve las de sesión")
   void otherRolesGetNothingMore() throws SQLException {
     Database database = newLocalDatabase();

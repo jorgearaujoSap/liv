@@ -76,15 +76,19 @@ class SessionConfiguration {
   }
 
   @Bean
-  InternalApiClient internalApiClient(
-      BffProperties properties, ClientRegistrationRepository registrations) {
+  ServiceTokens serviceTokens(ClientRegistrationRepository registrations) {
+    return new ServiceTokens(registrations);
+  }
+
+  @Bean
+  InternalApiClient internalApiClient(BffProperties properties, ServiceTokens serviceTokens) {
     BffProperties.Api api = properties.api();
     RestClient http =
         Http.client(api.connectTimeout(), api.readTimeout())
             .mutate()
             .baseUrl(api.baseUrl())
             .build();
-    return new InternalApiClient(http, new ServiceTokens(registrations));
+    return new InternalApiClient(http, serviceTokens);
   }
 
   @Bean

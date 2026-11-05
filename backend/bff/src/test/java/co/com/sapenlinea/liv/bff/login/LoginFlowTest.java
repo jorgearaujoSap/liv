@@ -112,8 +112,8 @@ class LoginFlowTest extends BffFlowTest {
   }
 
   @Test
-  @Tag("001-21")
-  @DisplayName("001-21 · StartSession recibe el token de servicio, el del usuario y el sid")
+  @Tag("001-20")
+  @DisplayName("001-20 · StartSession recibe el token de servicio, el del usuario y el sid")
   void startSessionReceivesBothTokens() {
     browser().signIn("/");
 
@@ -136,8 +136,8 @@ class LoginFlowTest extends BffFlowTest {
   }
 
   @Test
-  @Tag("001-21")
-  @DisplayName("001-21 · Un 200 de StartSession es un reintento con la sesión ya creada: entra")
+  @Tag("001-20")
+  @DisplayName("001-20 · Un 200 de StartSession es un reintento con la sesión ya creada: entra")
   void anAlreadyCreatedSessionIsNotAFailure() {
     BACKEND.startSessionAnswers(200);
 
@@ -173,7 +173,17 @@ class LoginFlowTest extends BffFlowTest {
                         "liv-bff:secreto-de-prueba-del-bff".getBytes(StandardCharsets.UTF_8)));
     assertThat(storedSessions()).as("sesiones guardadas").isZero();
     assertThat(browser.cookie("LIV_SESSION")).as("cookie de sesión").isNull();
-    assertThat(BACKEND.endSessionCalls()).as("EndSession de una sesión que no empezó").isEmpty();
+    // A refusal (4xx) is a clear answer: LIV has no session to end. After a failure with no clear
+    // answer (5xx) LIV may have created it, so the BFF compensates with EndSession.
+    if (status >= 500) {
+      assertThat(BACKEND.endSessionCalls()).hasSize(1);
+      assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"PROVIDER\"");
+    } else {
+      assertThat(BACKEND.endSessionCalls()).as("EndSession de una sesión que no empezó").isEmpty();
+    }
+    assertThat(revocation.body())
+        .as("se revoca el refresh token")
+        .contains("token=eyJhbGciOiJub25lIn0");
   }
 
   @Test
@@ -224,6 +234,12 @@ class LoginFlowTest extends BffFlowTest {
             .distinct()
             .toList();
     assertThat(cookieNames).containsExactly("LIV_SESSION");
+    browser.bffReplies().stream()
+        .flatMap(reply -> reply.setCookies().stream())
+        .forEach(cookie ->
+            assertThat(cookie.toLowerCase(Locale.ROOT))
+                .as(cookie)
+                .contains("httponly", "secure", "samesite=strict"));
   }
 
   @Test
@@ -255,7 +271,8 @@ class LoginFlowTest extends BffFlowTest {
             "SELECT string_agg(encode(attribute_bytes, 'escape'), '') FROM bff.spring_session_attributes");
 
     assertThat(stored).as("atributos guardados").isNotBlank();
-    assertThat(stored).doesNotContain(userToken).doesNotContain("eyJhbGciOi");
+    assertThat(stored).doesNotContain(userToken);
+    assertThat(JWT.matcher(stored).find()).as("un JWT (id, acceso o refresh) en claro").isFalse();
     assertThat(
             BffDatabase.queryValue(
                 BffDatabase.jdbcUrl(),
@@ -278,9 +295,9 @@ class LoginFlowTest extends BffFlowTest {
   }
 
   @Test
-  @Tag("001-14")
+  @Tag("001-11")
   @DisplayName(
-      "001-14 · Una ruta que no es del inicio de sesión, sin sesión, responde 401 sin redirigir")
+      "001-11 · Una ruta que no es del inicio de sesión, sin sesión, responde 401 sin redirigir")
   void aProtectedRouteWithoutASessionIsUnauthorized() {
     Reply reply = browser().get(bffBase() + "/privado");
 
