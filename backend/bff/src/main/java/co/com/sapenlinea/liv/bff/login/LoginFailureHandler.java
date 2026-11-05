@@ -20,8 +20,9 @@ import org.springframework.security.web.context.SecurityContextRepository;
  * parameter is not trusted).
  *
  * <p>A session that is already open is left alone: a stale or repeated answer must not drop it
- * without ending it in LIV and in the provider. It is the sign out, or the next {@code /bff/login},
- * that ends it.
+ * without ending it in LIV and in the provider, and the person goes to the home page instead of
+ * {@code /bff/login}, which would end it. It is the sign out, or a navigation to {@code
+ * /bff/login}, that ends it.
  */
 public final class LoginFailureHandler implements AuthenticationFailureHandler {
 
@@ -44,11 +45,14 @@ public final class LoginFailureHandler implements AuthenticationFailureHandler {
     LOG.warn(
         "El regreso del proveedor no se pudo usar: {}",
         ERROR_CODE.matcher(code).matches() ? code : "otro");
-    if (!hasAnOpenSession(request)) {
-      HttpSession session = request.getSession(false);
-      if (session != null) {
-        session.invalidate();
-      }
+    if (hasAnOpenSession(request)) {
+      // /bff/login would end it: a stale answer sends the person to the home page, still signed in.
+      LoginRejection.redirect(response, ReturnTo.HOME);
+      return;
+    }
+    HttpSession session = request.getSession(false);
+    if (session != null) {
+      session.invalidate();
     }
     LoginRejection.redirect(response, LoginAuthorizationRequestResolver.LOGIN_PATH);
   }
