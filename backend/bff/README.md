@@ -26,6 +26,7 @@ En Windows, `mvnw.cmd` en lugar de `./mvnw`.
 ```
 backend/bff/
 ├── pom.xml                         ← un artefacto: liv-bff
+├── contracts/                      ← bff.yaml (OpenAPI) y la copia de los scripts de Q08
 ├── mvnw, mvnw.cmd, .mvn/           ← Maven wrapper
 ├── config/application-dev.yml      ← perfil de desarrollo (fuera del jar)
 └── src/
@@ -109,7 +110,11 @@ El navegador nunca recibe un *token* (001-11): la sesión vive en el servidor y 
 | `GET /bff/login?returnTo=<ruta>` | Redirige al proveedor con código, PKCE, *nonce* y `prompt=login`. `returnTo` solo se acepta si es una ruta de LIV (`ReturnTo`); si no, se vuelve a `/` |
 | `GET /login/oauth2/code/liv` | Regreso del proveedor: cambia el id de sesión, abre la sesión en LIV (`StartSession` con el *token* de servicio y el del usuario; un 200 es un reintento) y redirige a la ruta pedida. Si LIV no acepta la sesión, revoca el *refresh token* (RFC 7009), borra la sesión y redirige a `/bff/login`, sin motivo |
 | `POST /bff/logout` | `EndSession(LOGOUT)` en LIV, revocación del *refresh token* en el proveedor y borrado de la sesión. Responde `{"redirectTo":"/bff/login"}`; cada paso sigue si el anterior falla. Sin sesión responde igual y no llama a nadie |
-| Cualquier otra ruta | 401 sin sesión. El reenvío a `/api` llega con T18 |
+| `GET /bff/session` | Cuánto le queda a la sesión: `{"idleSecondsLeft", "absoluteSecondsLeft"}`, o 401. **No la extiende** (T18) |
+| `POST /bff/session/keepalive` | La persona elige seguir conectada: renueva **siempre** el *token* (así el proveedor también reinicia su inactividad) y extiende la sesión; no pasa de la duración máxima (T18) |
+| `/api/**` | Se reenvía a `liv-api` con el *token* de acceso de la sesión, renovado si le queda menos de un minuto (T18) |
+| `/internal/**` | 404: nunca se enruta (T18) |
+| Cualquier otra ruta | 401 sin sesión |
 
 Detalles que conviene conocer:
 
@@ -120,6 +125,15 @@ Detalles que conviene conocer:
 
 Los *tokens* se guardan cifrados (`TokenCipher`) como un atributo de la sesión de Spring Session JDBC, en las tablas `bff.spring_session*`; el contexto de seguridad solo guarda el emisor, el `sub` y el `sid`.
 
+## Sesión, CSRF y reenvío a la API (T18)
+
+El contrato con el frontend es `contracts/openapi/bff.yaml` (*contract‑first*, ADR 0005): `/bff/login`, `/bff/logout`, `/bff/session` y `/bff/session/keepalive`. `/api/**` es el contrato de la API, no de este.
+
+- **Tiempos** (plan, «Sesión y tiempos»): 15 minutos sin actividad (`spring.session.timeout`) y 8 horas de duración máxima (`liv.bff.session.absolute-timeout`), comprobada en cada petición de la persona: pasada, la sesión termina con `EndSession(ABSOLUTE)`, la revocación y el borrado, y la respuesta es 401. Cualquier petición que pase por la cadena (por ejemplo, a `/api`) extiende la inactividad; `GET /bff/session` no, porque responde antes del filtro de Spring Session.
+- **CSRF** (001-12): la cookie `XSRF-TOKEN` (`Secure`, `SameSite=Strict`, sin `HttpOnly` para que la lea el frontend) se copia a la cabecera `X-XSRF-TOKEN` en toda petición que modifica datos; sin ella, 403 con `code: 001-12`. La cookie no es una credencial: la única que autentica es `LIV_SESSION`. Se entrega con la respuesta que deja entrar a la persona y con toda respuesta posterior.
+- **Reenvío:** del navegador no pasan a la API ni su `Authorization`, ni la cookie de sesión, ni `X-User-Token`, ni `X-XSRF-TOKEN`. Si el proveedor rechaza la renovación (`invalid_grant`: usuario desactivado o sesión cerrada allí), nunca se reenvía sin *token*: la sesión termina con `EndSession(PROVIDER)` y la respuesta es 401; si el proveedor no responde, 502 y la sesión sigue. Tiempos de espera: `spring.http.clients.connect-timeout` (2 s) y `read-timeout` (30 s).
+- **Contratos (Q08):** `contracts/scripts/` es la copia del comparador de cambios incompatibles de `backend/` (ADR 0027): el BFF sigue siendo autónomo. `contracts/scripts/test/run.sh` lo prueba.
+
 ## Estado
 
-Inicio y cierre de sesión (feature 001, T17). Faltan, con las tareas siguientes de la feature 001 (`tasks.md`): el reenvío a la API, CSRF, la inactividad, el límite absoluto, `keepalive` y `/bff/session` (T18), y el endurecimiento (T19). Mientras tanto no hay CSRF: la cookie `SameSite=Strict` evita que otro sitio la envíe, pero T18 lo agrega. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
+Inicio y cierre de sesión, reenvío a la API, CSRF, límites de sesión, `keepalive` y `/bff/session` (feature 001, T17 y T18). Falta, con la tarea siguiente de la feature 001 (`tasks.md`): el endurecimiento antes de producción (T19): el terminador de sesiones vencidas que nadie vuelve a leer, el cierre por canal trasero, la limitación de tasa y las cabeceras de seguridad. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
