@@ -1,0 +1,87 @@
+package co.com.sapenlinea.liv.bff.contracts;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.TreeSet;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
+
+/**
+ * The contract of the BFF with the frontend, written before the code (ADR 0005): the frontend keeps
+ * a pinned copy of {@code contracts/openapi/bff.yaml} and generates its client from it (T20). The
+ * only paths are the BFF's own; {@code /api/**} is the API's contract and {@code /internal/**} is
+ * not published to the browser.
+ */
+@Tag("001-20")
+class BffContractTest {
+
+  private static final Path CONTRACT = Path.of("contracts", "openapi", "bff.yaml");
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> contract() throws IOException {
+    try (Reader reader = Files.newBufferedReader(CONTRACT, StandardCharsets.UTF_8)) {
+      return new Yaml().load(reader);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> operation(String path, String method) throws IOException {
+    Map<String, Object> paths = (Map<String, Object>) contract().get("paths");
+    return (Map<String, Object>) ((Map<String, Object>) paths.get(path)).get(method);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static java.util.Set<String> statuses(String path, String method) throws IOException {
+    Map<String, Object> responses = (Map<String, Object>) operation(path, method).get("responses");
+    return new TreeSet<>(responses.keySet());
+  }
+
+  @Test
+  @DisplayName(
+      "001-20 · El contrato es OpenAPI 3.0, con versión X.Y.Z, y solo publica las rutas propias del BFF")
+  @SuppressWarnings("unchecked")
+  void onlyTheOwnRoutesArePublished() throws IOException {
+    Map<String, Object> contract = contract();
+
+    assertThat((String) contract.get("openapi")).startsWith("3.0.");
+    assertThat((String) ((Map<String, Object>) contract.get("info")).get("version"))
+        .matches("\\d+\\.\\d+\\.\\d+");
+    assertThat(((Map<String, Object>) contract.get("paths")).keySet())
+        .containsExactlyInAnyOrder(
+            "/bff/login", "/bff/logout", "/bff/session", "/bff/session/keepalive");
+  }
+
+  @Test
+  @DisplayName("001-20 · Cada ruta declara su método y las respuestas que el BFF da")
+  void eachRouteDeclaresItsAnswers() throws IOException {
+    assertThat(statuses("/bff/login", "get")).containsExactly("302");
+    assertThat(statuses("/bff/logout", "post")).containsExactly("200", "403");
+    assertThat(statuses("/bff/session", "get")).containsExactly("200", "401");
+    assertThat(statuses("/bff/session/keepalive", "post")).containsExactly("200", "401", "403");
+  }
+
+  @Test
+  @DisplayName("001-20 · Cada operación tiene operationId, para el cliente que genera el frontend")
+  @SuppressWarnings("unchecked")
+  void everyOperationHasAnId() throws IOException {
+    for (String[] route :
+        new String[][] {
+          {"/bff/login", "get"},
+          {"/bff/logout", "post"},
+          {"/bff/session", "get"},
+          {"/bff/session/keepalive", "post"}
+        }) {
+      assertThat(operation(route[0], route[1]).get("operationId"))
+          .as(route[0])
+          .isInstanceOf(String.class);
+    }
+  }
+}

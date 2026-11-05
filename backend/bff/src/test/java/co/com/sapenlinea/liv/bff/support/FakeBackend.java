@@ -34,6 +34,8 @@ public final class FakeBackend {
   private final AtomicInteger endSessionStatus = new AtomicInteger(204);
   private final AtomicInteger revokeStatus = new AtomicInteger(200);
   private volatile long startSessionDelayMillis;
+  private final AtomicInteger apiStatus = new AtomicInteger(200);
+  private volatile String apiBody = "{\"ok\":true}";
 
   public FakeBackend() {
     try {
@@ -61,6 +63,19 @@ public final class FakeBackend {
     endSessionStatus.set(204);
     revokeStatus.set(200);
     startSessionDelayMillis = 0;
+    apiStatus.set(200);
+    apiBody = "{\"ok\":true}";
+  }
+
+  /** What the public API (/api/**) answers to what the BFF forwards. */
+  public void apiAnswers(int status, String body) {
+    apiStatus.set(status);
+    apiBody = body;
+  }
+
+  /** The requests the BFF forwarded to the public API. */
+  public List<Call> apiCalls() {
+    return calls.stream().filter(call -> call.path().startsWith("/api/")).toList();
   }
 
   /** StartSession answers only after this long: a slow API. */
@@ -128,6 +143,9 @@ public final class FakeBackend {
       status = endSessionStatus.get();
     } else if (path.equals(REVOKE)) {
       status = revokeStatus.get();
+    } else if (path.startsWith("/api/")) {
+      status = apiStatus.get();
+      answer = apiBody;
     } else {
       status = 404;
     }

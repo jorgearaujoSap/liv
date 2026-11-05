@@ -1,0 +1,131 @@
+package co.com.sapenlinea.liv.bff.web;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import co.com.sapenlinea.liv.bff.support.BffFlowTest;
+import co.com.sapenlinea.liv.bff.support.Browser;
+import co.com.sapenlinea.liv.bff.support.Browser.Reply;
+import java.util.Locale;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+/**
+ * The BFF is the only door of the browser to the API (ADR 0010): {@code /api/**} goes to liv-api
+ * with the access token of the session, which the browser never sees, and {@code /internal/**}
+ * never goes anywhere (plan, step 10).
+ */
+class ApiProxyTest extends BffFlowTest {
+
+  /** The access token of the person, as the BFF sent it to LIV when it started the session. */
+  private String userToken;
+
+  private Browser signedIn() {
+    Browser browser = browser();
+    browser.signIn("/");
+    userToken = BACKEND.startSessionCalls().get(0).header("x-user-token");
+    BACKEND.reset();
+    return browser;
+  }
+
+  @Test
+  @Tag("001-11")
+  @DisplayName("001-11 · /api/** va a la API con el token de acceso de la sesión")
+  void theApiReceivesTheAccessTokenOfTheSession() {
+    Browser browser = signedIn();
+
+    Reply reply = browser.get(bffBase() + "/api/v1/me?formato=resumen");
+
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(reply.body()).isEqualTo("{\"ok\":true}");
+    assertThat(BACKEND.apiCalls()).hasSize(1);
+    assertThat(BACKEND.apiCalls().get(0).path()).isEqualTo("/api/v1/me");
+    assertThat(BACKEND.apiCalls().get(0).header("authorization")).isEqualTo("Bearer " + userToken);
+  }
+
+  @Test
+  @Tag("001-11")
+  @DisplayName(
+      "001-11 · Lo que el navegador manda como credencial no llega a la API: ni su Authorization, ni la cookie, ni X-User-Token")
+  void theBrowserCredentialsAreNotForwarded() {
+    Browser browser = signedIn();
+
+    browser.get(
+        bffBase() + "/api/v1/me",
+        Map.of(
+            "Authorization", "Bearer del-navegador",
+            "X-User-Token", "del-navegador",
+            "X-XSRF-TOKEN", "del-navegador"));
+
+    var call = BACKEND.apiCalls().get(0);
+    assertThat(call.header("authorization")).isEqualTo("Bearer " + userToken);
+    assertThat(call.header("cookie")).as("cookie de sesión hacia la API").isNull();
+    assertThat(call.header("x-user-token")).isNull();
+    assertThat(call.header("x-xsrf-token")).isNull();
+  }
+
+  @Test
+  @Tag("001-11")
+  @DisplayName("001-11 · La respuesta de la API llega tal cual, sin ningún token y sin caché")
+  void theAnswerOfTheApiPassesThroughWithoutCache() {
+    Browser browser = signedIn();
+    BACKEND.apiAnswers(403, "{\"status\":403,\"code\":\"001-16\"}");
+
+    Reply reply = browser.get(bffBase() + "/api/v1/me/capabilities");
+
+    assertThat(reply.status()).isEqualTo(403);
+    assertThat(reply.body()).contains("001-16");
+    assertThat(reply.header("cache-control")).contains("no-store");
+    assertThat(JWT.matcher(reply.headers().toString() + reply.body()).find()).isFalse();
+  }
+
+  @Test
+  @Tag("001-14")
+  @DisplayName("001-14 · Sin sesión, /api/** responde 401 y no llega a la API")
+  void withoutASessionTheApiIsNotReached() {
+    Reply reply = browser().get(bffBase() + "/api/v1/me");
+
+    assertThat(reply.status()).isEqualTo(401);
+    assertThat(reply.location()).isNull();
+    assertThat(BACKEND.apiCalls()).isEmpty();
+  }
+
+  @Test
+  @Tag("001-20")
+  @DisplayName(
+      "001-20 · /internal/** responde 404 desde el BFF, con o sin sesión, y nunca llega a la API")
+  void internalEndpointsAreNeverRouted() {
+    Browser browser = signedIn();
+
+    for (String method : new String[] {"GET", "POST"}) {
+      Reply withSession =
+          method.equals("GET")
+              ? browser.get(bffBase() + "/internal/v1/sessions")
+              : browser.post(bffBase() + "/internal/v1/sessions", "");
+      Reply withoutSession =
+          method.equals("GET")
+              ? browser().get(bffBase() + "/internal/v1/sessions")
+              : browser().postWithoutCsrfToken(bffBase() + "/internal/v1/sessions", "");
+
+      assertThat(withSession.status()).as(method + " con sesión").isEqualTo(404);
+      assertThat(withoutSession.status()).as(method + " sin sesión").isIn(404, 403);
+    }
+    assertThat(BACKEND.calls()).isEmpty();
+  }
+
+  @Test
+  @Tag("001-11")
+  @DisplayName(
+      "001-11 · Las respuestas del BFF no llevan ningún JWT ni la cookie de sesión hacia la API")
+  void noTokenInAnyHeader() {
+    Browser browser = signedIn();
+
+    browser.get(bffBase() + "/api/v1/me");
+
+    for (Reply reply : browser.bffReplies()) {
+      assertThat(reply.headers().toString().toLowerCase(Locale.ROOT)).doesNotContain("bearer");
+      assertThat(JWT.matcher(reply.headers().toString() + reply.body()).find()).isFalse();
+    }
+  }
+}

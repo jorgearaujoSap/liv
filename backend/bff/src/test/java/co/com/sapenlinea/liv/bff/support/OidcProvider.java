@@ -28,6 +28,7 @@ public final class OidcProvider {
 
   private static final String ISSUER_ID = "liv";
   private static final String ISSUER_WITHOUT_SID = "liv-sin-sid";
+  private static final String ISSUER_SHORT_TOKENS = "liv-tokens-cortos";
   private static final String IMAGE =
       "ghcr.io/navikt/mock-oauth2-server:3.0.1@sha256:4f3660e5f3586b81fe2e0d42d0c9fcd3c8c64268db0d3ade261dadd70d27020b";
   private static final int PORT = 8080;
@@ -38,6 +39,12 @@ public final class OidcProvider {
 
   public static String issuer() {
     return "http://%s:%d/%s".formatted(SERVER.getHost(), SERVER.getMappedPort(PORT), ISSUER_ID);
+  }
+
+  /** An issuer whose tokens last 30 seconds, less than the minute before which they are renewed. */
+  public static String issuerWithShortTokens() {
+    return "http://%s:%d/%s"
+        .formatted(SERVER.getHost(), SERVER.getMappedPort(PORT), ISSUER_SHORT_TOKENS);
   }
 
   /** An issuer whose tokens carry no {@code sid} claim. */
@@ -121,7 +128,15 @@ public final class OidcProvider {
                         "tokenExpiry",
                         300,
                         "requestMappings",
-                        List.of(withoutSid, service)))));
+                        List.of(withoutSid, service)),
+                    // Tokens of 30 seconds: always about to expire, so the BFF renews them.
+                    Map.of(
+                        "issuerId",
+                        ISSUER_SHORT_TOKENS,
+                        "tokenExpiry",
+                        30,
+                        "requestMappings",
+                        List.of(user, service)))));
     GenericContainer<?> container =
         new GenericContainer<>(DockerImageName.parse(IMAGE))
             .withEnv("JSON_CONFIG", config)

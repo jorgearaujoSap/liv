@@ -61,7 +61,26 @@ public final class Browser {
     return send(request, url);
   }
 
+  /** A POST as the frontend sends it: with the anti-CSRF token of the cookie in the header. */
   public Reply post(String url, String form) {
+    return post(url, form, Map.of());
+  }
+
+  public Reply post(String url, String form, Map<String, String> headers) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(BodyPublishers.ofString(form));
+    String csrf = cookies.getOrDefault(authority(url), Map.of()).get("XSRF-TOKEN");
+    if (csrf != null) {
+      request.header("X-XSRF-TOKEN", csrf);
+    }
+    headers.forEach(request::header);
+    return send(request, url);
+  }
+
+  /** A POST that does not carry the anti-CSRF token, as a form of another site would. */
+  public Reply postWithoutCsrfToken(String url, String form) {
     return send(
         HttpRequest.newBuilder(URI.create(url))
             .header("Content-Type", "application/x-www-form-urlencoded")
