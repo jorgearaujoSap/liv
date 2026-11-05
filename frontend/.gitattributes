@@ -1,0 +1,4 @@
+# Los contratos se verifican por SHA-256: sin conversión de finales de línea en ningún equipo.
+api-spec/*.yaml -text
+# El cliente generado sale siempre con LF (ng-openapi-gen --endOfLineStyle lf).
+src/app/api/** text eol=lf

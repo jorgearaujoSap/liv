@@ -1,0 +1,107 @@
+openapi: 3.0.3
+info:
+  title: LIV · core
+  version: 1.0.0
+  description: >-
+    API pública del módulo core (doc. 01 §10, ADR 0005). Contract-first: el backend genera sus
+    interfaces desde este archivo y el frontend usa una copia fijada en frontend/api-spec/.
+    Feature 001 · Inicio de sesión.
+tags:
+  - name: CurrentUser
+    description: El usuario de la sesión.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/me:
+    get:
+      tags: [CurrentUser]
+      operationId: getCurrentUser
+      summary: Usuario de la sesión, con su administración, roles y permisos (001-13).
+      description: >-
+        Solo lectura. La administración es la registrada en LIV, no la del claim del token.
+      responses:
+        '200':
+          description: Usuario de la sesión.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acceso del usuario. Lo agrega el BFF; el navegador nunca lo recibe.
+  responses:
+    Unauthorized:
+      description: >-
+        Sin sesión válida. code: 001-14 (token inválido o ausente, o usuario no registrado en LIV),
+        001-05 (usuario desactivado) o 001-17 (la administración del token no es la registrada).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    CurrentUser:
+      type: object
+      required: [id, fullName, email, administration, roles, permissions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        administration:
+          $ref: '#/components/schemas/AdministrationSummary'
+        roles:
+          type: array
+          description: Roles de LIV del usuario (doc. 02 §4.2).
+          items:
+            type: string
+            maxLength: 64
+        permissions:
+          type: array
+          description: Permisos efectivos, por ejemplo core.user.read.
+          items:
+            type: string
+            maxLength: 128
+    AdministrationSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+    Problem:
+      type: object
+      description: Problem Details (RFC 9457) con el código de la regla o criterio (doc. 01 §10).
+      required: [status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        code:
+          type: string
+          description: Código de la regla o del criterio, por ejemplo 001-14.
+          maxLength: 32
