@@ -114,8 +114,16 @@ class BffSchemaContractTest {
             queryValue(
                 database.url(),
                 OWNER,
-                "SELECT count(*) FROM bff.flyway_schema_history WHERE success"))
+                "SELECT count(*) FROM bff.flyway_schema_history"
+                    + " WHERE success AND version = '202611032100'"))
         .isEqualTo("1");
+    assertThat(
+            queryValue(
+                database.url(),
+                OWNER,
+                "SELECT count(*) FROM bff.flyway_schema_history WHERE NOT success"))
+        .as("migraciones fallidas")
+        .isEqualTo("0");
   }
 
   @Test

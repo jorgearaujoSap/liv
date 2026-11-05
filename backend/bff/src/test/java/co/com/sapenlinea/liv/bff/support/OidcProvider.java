@@ -50,6 +50,8 @@ public final class OidcProvider {
                 "Usuario de prueba",
                 "email",
                 "usuario-1@test.invalid",
+                "azp",
+                USER_CLIENT,
                 "aud",
                 List.of("liv-api", USER_CLIENT)));
     Map<String, Object> service =

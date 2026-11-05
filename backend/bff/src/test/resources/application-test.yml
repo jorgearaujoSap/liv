@@ -4,3 +4,17 @@ spring:
   flyway:
     enabled: true
     user: liv_bff_owner
+
+# Valores de relleno para que el BFF arranque en las pruebas que no usan el proveedor ni la API: el proveedor se
+# lee la primera vez que se necesita, no al arrancar. Las pruebas del flujo los reemplazan (BffFlowTest).
+liv:
+  bff:
+    oidc:
+      issuer-uri: http://localhost:1/sin-proveedor
+      allow-http-issuer: true
+      client-secret: relleno-de-prueba
+      service-client-secret: relleno-de-prueba
+    api:
+      base-url: http://localhost:1
+    session:
+      encryption-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
