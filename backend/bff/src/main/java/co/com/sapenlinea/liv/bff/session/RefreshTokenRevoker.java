@@ -11,7 +11,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 /**
  * Revokes the refresh token of a session in the identity provider (RFC 7009). That also closes the
@@ -33,40 +32,41 @@ public final class RefreshTokenRevoker {
 
   /**
    * Revokes the refresh token of the client. It never throws: a session ends even if the provider
-   * does not answer.
-   *
-   * @return whether the provider accepted the revocation
+   * does not answer, whatever goes wrong (no refresh token, no endpoint, a failed call).
    */
-  public boolean revoke(OAuth2AuthorizedClient client) {
+  public void revoke(OAuth2AuthorizedClient client) {
     if (client.getRefreshToken() == null) {
       LOG.warn("La sesión no tiene refresh token: no hay nada que revocar en el proveedor");
-      return false;
+      return;
     }
     ClientRegistration registration = client.getClientRegistration();
     String endpoint = endpointOf(registration);
     if (endpoint == null) {
       LOG.error("El proveedor no publica un endpoint de revocación y no se configuró uno");
-      return false;
+      return;
     }
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("token", client.getRefreshToken().getTokenValue());
     form.add("token_type_hint", "refresh_token");
     try {
-      http.post()
-          .uri(endpoint)
-          .headers(headers ->
-              headers.setBasicAuth(
-                  formEncoded(registration.getClientId()),
-                  formEncoded(registration.getClientSecret())))
-          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-          .body(form)
-          .retrieve()
-          .toBodilessEntity();
-      return true;
-    } catch (RestClientException e) {
+      post(registration, endpoint, form);
+    } catch (RuntimeException e) {
       LOG.warn("La revocación en el proveedor falló: {}", e.getClass().getSimpleName());
-      return false;
     }
+  }
+
+  private void post(
+      ClientRegistration registration, String endpoint, MultiValueMap<String, String> form) {
+    http.post()
+        .uri(endpoint)
+        .headers(headers ->
+            headers.setBasicAuth(
+                formEncoded(registration.getClientId()),
+                formEncoded(registration.getClientSecret())))
+        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+        .body(form)
+        .retrieve()
+        .toBodilessEntity();
   }
 
   private String endpointOf(ClientRegistration registration) {

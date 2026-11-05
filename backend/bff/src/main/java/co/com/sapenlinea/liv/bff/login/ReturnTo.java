@@ -1,5 +1,7 @@
 package co.com.sapenlinea.liv.bff.login;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -31,7 +33,7 @@ public final class ReturnTo {
         || !SAFE_PATH.matcher(requested).matches()
         || requested.startsWith("//")
         || hasEncodedSlash(requested)
-        || isOwnRoute(requested)) {
+        || leadsToAnOwnRoute(requested)) {
       return HOME;
     }
     return requested;
@@ -43,17 +45,26 @@ public final class ReturnTo {
     return lower.contains("%2f") || lower.contains("%5c");
   }
 
-  private static boolean isOwnRoute(String path) {
-    int end = path.length();
-    for (char separator : new char[] {'?', '#'}) {
-      int index = path.indexOf(separator);
-      if (index >= 0) {
-        end = Math.min(end, index);
+  /**
+   * Whether the path, once the browser and the server normalize it, is a route of the BFF: letters
+   * written as {@code %XX} (a server decodes them) and the segments {@code .} and {@code ..} (a
+   * browser resolves them) must not hide it. What cannot be decoded is refused.
+   */
+  private static boolean leadsToAnOwnRoute(String path) {
+    String route = path.split("[?#]", 2)[0];
+    String decoded;
+    try {
+      decoded = URLDecoder.decode(route.replace("+", "%2B"), StandardCharsets.UTF_8);
+    } catch (IllegalArgumentException e) {
+      return true;
+    }
+    for (String segment : decoded.split("/")) {
+      if (segment.equals(".") || segment.equals("..")) {
+        return true;
       }
     }
-    String route = path.substring(0, end);
     for (String own : OWN_ROUTES) {
-      if (route.equals(own) || route.startsWith(own + "/")) {
+      if (decoded.equals(own) || decoded.startsWith(own + "/")) {
         return true;
       }
     }

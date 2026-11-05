@@ -5,6 +5,7 @@ import co.com.sapenlinea.liv.bff.login.LoginFailureHandler;
 import co.com.sapenlinea.liv.bff.login.LoginSuccessHandler;
 import co.com.sapenlinea.liv.bff.session.InternalApiClient;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
+import co.com.sapenlinea.liv.bff.session.SessionCloser;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -43,15 +44,20 @@ class SecurityConfiguration {
       OAuth2AuthorizedClientRepository clients,
       InternalApiClient api,
       RefreshTokenRevoker revoker,
+      SessionCloser closer,
       SecurityContextRepository contexts,
       SessionRepository<?> sessions) {
+    // CSRF is T18 (001-12). Until then the only cookie is SameSite=Strict.
     http.csrf(csrf -> csrf.disable())
         .securityContext(context -> context.securityContextRepository(contexts))
         .requestCache(RequestCacheConfigurer::disable)
         .logout(logout -> logout.disable())
         .authorizeHttpRequests(requests ->
             requests
-                .requestMatchers("/bff/login", "/login/oauth2/code/*", "/bff/logout")
+                .requestMatchers(
+                    LoginAuthorizationRequestResolver.LOGIN_PATH,
+                    "/login/oauth2/code/*",
+                    "/bff/logout")
                 .permitAll()
                 .anyRequest()
                 .authenticated())
@@ -62,10 +68,10 @@ class SecurityConfiguration {
                 .loginPage(LoginAuthorizationRequestResolver.LOGIN_PATH)
                 .authorizationEndpoint(endpoint ->
                     endpoint.authorizationRequestResolver(
-                        new LoginAuthorizationRequestResolver(registrations)))
+                        new LoginAuthorizationRequestResolver(registrations, closer)))
                 .authorizedClientRepository(clients)
                 .successHandler(new LoginSuccessHandler(clients, api, contexts, revoker, sessions))
-                .failureHandler(new LoginFailureHandler()));
+                .failureHandler(new LoginFailureHandler(contexts)));
     return http.build();
   }
 }
