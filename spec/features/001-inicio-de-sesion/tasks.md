@@ -391,10 +391,19 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## `frontend/`
 
-- [ ] **T20** · Adoptar `liv-components` 0.2.0 y los contratos.
+- [x] **T20** · Adoptar `liv-components` 0.2.0 y los contratos. — Hecha: PR #82 (`frontend/`), con las decisiones para el responsable que lista el PR.
   - Archivos: `frontend/package.json`, `package-lock.json`, `frontend/api-spec/**`, `frontend/scripts/api-update.*`, `frontend/src/app/api/**` (generado), `frontend/proxy.conf.json`.
   - Los contratos se descargan de las *releases* `contract-<nombre>-vX.Y.Z` (`https://github.com/jorgearaujoSap/liv/releases/download/<etiqueta>/<nombre>.yaml`, sin *token*). `api-spec/versions.json` fija la versión y el SHA-256 de cada uno, y `npm run api:update` verifica ese SHA-256 al descargar (ADR 0027).
   - Prueba primero: compila el cliente generado para `/me`, `/me/capabilities` y `/bff/session`; la regla de ESLint prohíbe `HttpClient` fuera de los servicios de datos.
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista: `frontend/angular.json` (necesario para `proxyConfig`), `eslint.config.js` y `scripts/lint-rules.test.mjs` (la regla de ESLint que pide la tarea y su prueba), `frontend/.gitattributes` (`api-spec/*.yaml -text`, para que el SHA-256 no dependa de `core.autocrlf`, y el cliente generado en LF), `frontend/.prettierignore`, `scripts/api-update.test.mjs`, y el `README.md` y el `CHANGELOG.md` del frontend;
+    - `npm test` ejecuta también las pruebas de los *scripts* y de las reglas de ESLint (`node --test`); el *workflow* `frontend-pr` no cambia;
+    - dependencias: `ng-openapi-gen` 1.1.0 (ADR 0023), sin ADR nuevo.
+  - **Qué hace, además de lo pedido:**
+    - un cliente por contrato (`src/app/api/{core,platform,bff}/`, con `CoreApi`, `PlatformApi` y `BffApi`);
+    - `api:generate` y `api:verify` sin red; `api:update` valida `versions.json` (sin rutas ni URL que se salgan de lo esperado), pone tiempo límite y tope de tamaño a la descarga, y no cambia nada si un SHA-256 no coincide;
+    - la regla de ESLint cubre `HttpClient`, `HttpBackend`, `HttpHandler`, `fetch`, `XMLHttpRequest` y el `import()` de `@angular/common/http` fuera de las carpetas de los contratos. Para esta tarea, «servicios de datos» es el cliente generado (doc. 01 §11); si T21 necesita `HttpClient` en otro sitio, se amplía la regla.
+  - **Revisión:** adversarial con dos `liv-revisor` ciegos (cambio normal) y la lente de legibilidad. Primera ronda: ningún crítico, 1 alto (la regla de ESLint se eludía por varias vías) y medios, corregidos con prueba en rojo primero; un hallazgo era falso (la prueba del cliente sí existe). Segunda ronda, solo sobre lo corregido: ningún crítico y 2 altos (`HttpHandler` y `window.fetch`, corregidos). Se aceptan y se declaran en el PR: la regla evita el uso accidental, no una elusión deliberada; `api:update` no es transaccional entre `api-spec/` y el cliente (lo detecta `npm test`); no se restringen `WebSocket`, `EventSource` ni `sendBeacon`.
 - [ ] **T21** · Núcleo: `SessionService`, `authGuard`, `capabilityGuard`, interceptor, `IdleService` con `BroadcastChannel`, cierre de sesión con navegación completa y nginx con sus cabeceras.
   - Archivos: `frontend/src/app/core/**`, `frontend/nginx.conf`, `frontend/Dockerfile`.
   - Prueba primero:
