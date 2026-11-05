@@ -51,4 +51,38 @@ class ArchitectureRulesTest {
           .beAnnotatedWith(Autowired.class)
           .because("dependencies are injected through constructors (CC-08)")
           .allowEmptyShould(true);
+
+  /** The pieces of the session (tokens, calls to LIV and to the provider) serve the flows. */
+  @ArchTest
+  static final ArchRule sessionDoesNotKnowTheFlows =
+      noClasses()
+          .that()
+          .resideInAPackage("..bff.session..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("..bff.login..", "..bff.logout..", "..bff.web..")
+          .because("session is the base of login and logout, never the other way round");
+
+  /**
+   * Only the configuration (web) assembles the flows; they do not depend on it or on each other.
+   */
+  @ArchTest
+  static final ArchRule flowsAreIndependent =
+      noClasses()
+          .that()
+          .resideInAnyPackage("..bff.login..", "..bff.logout..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("..bff.web..")
+          .because("the flows do not know how they are assembled");
+
+  @ArchTest
+  static final ArchRule loginDoesNotKnowLogout =
+      noClasses()
+          .that()
+          .resideInAPackage("..bff.login..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..bff.logout..")
+          .because("signing in and signing out are separate flows");
 }
