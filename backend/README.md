@@ -27,6 +27,7 @@ backend/
 ├── pom.xml                         ← un solo artefacto: liv-api
 ├── mvnw, mvnw.cmd, .mvn/           ← Maven wrapper
 ├── contracts/openapi/              ← contratos OpenAPI, uno por módulo (contract-first)
+├── contracts/scripts/              ← comparador de cambios incompatibles y publicación de los contratos
 └── src/
     ├── main/java/co/com/sapenlinea/liv/
     │   ├── LivApplication.java
@@ -60,6 +61,13 @@ La API es *contract-first* (ADR 0005, doc. 01 §10): primero se escribe el OpenA
 
 - `./mvnw` genera las interfaces de servidor y sus modelos con `openapi-generator-maven-plugin` en `target/generated-sources/openapi/`, dentro del paquete `<modulo>.api.contract`. **No se editan ni se suben al repositorio.**
 - La generación valida cada contrato: un OpenAPI inválido detiene el *build*.
+- **Versión y compatibilidad (Q08, ADR 0027).** Cada contrato lleva su versión en `info.version` (`X.Y.Z`), y si el contrato cambia, la versión sube. Un cambio incompatible, o quitar un contrato, exige la etiqueta `contrato-incompatible` en el PR y subir la versión mayor. La etiqueta es la aprobación explícita del responsable: la pone una persona, nunca un agente. El *workflow* `backend-contracts-pr` lo comprueba con `openapi-diff`; antes de abrir el PR, también en local (en Windows, desde Git Bash):
+  - `sh contracts/scripts/compare.sh origin/main` compara los contratos con `main` (con la rama al día);
+  - `sh contracts/scripts/test/run.sh` prueba el comparador y la publicación.
+- **Otras reglas de la compuerta.** En `contracts/openapi/` solo van contratos `.yaml`, con nombre en minúsculas, dígitos y guiones, y con los `$ref` internos (`#/...`). En CI juzga el comparador de la base (`main`, con su `pom.xml`), no el del PR, para que un PR no cambie la regla con la que se juzga: un cambio en `contracts/scripts/` rige desde la integración siguiente.
+- **Huecos conocidos de `openapi-diff` 2.1.7.** No detecta una petición más estricta por `minLength`, `minimum` o similares, ni un campo obligatorio de la respuesta que pasa a `nullable`. Esos cambios los revisa una persona; dos escenarios de las pruebas fijan el comportamiento actual para que un cambio de versión del plugin se note.
+- **Publicación.** Al integrar en `main`, el *workflow* `backend-main` publica cada versión nueva como *release* `contract-<nombre>-vX.Y.Z`, con `<nombre>.yaml` y su SHA-256 (`contracts/scripts/publish.sh`). Antes la juzga con `compare.sh` contra la *release* publicada más alta de ese contrato, con la etiqueta del PR integrado, que solo aprueba los contratos que ese commit cambia: no se publica nada que no cumpla Q08 frente a lo que el frontend ya usa, aunque un PR anterior se haya integrado con el *check* en rojo. Un contrato sin *releases* se valida como contrato nuevo. La *release* se crea como borrador y se publica solo con los dos archivos verificados. El frontend la descarga de `https://github.com/jorgearaujoSap/liv/releases/download/contract-<nombre>-vX.Y.Z/<nombre>.yaml` (la URL cambia si el backend pasa a su propio repositorio) y fija la versión y el SHA-256 en su `api-spec/versions.json`. Una versión publicada no cambia: si su contenido es otro, la publicación falla.
+- El nombre del archivo identifica al contrato y nombra su *release*, así que es único en todo el repositorio. El BFF (`bff/`) tendrá su propia copia de `contracts/scripts/` (T18, con `bff.yaml`), para seguir siendo un proyecto independiente.
 - Todo controlador implementa su interfaz generada y no declara rutas propias; nadie escribe a mano en los paquetes `api.contract`. `ContractRulesTest` lo verifica.
 - Los errores se responden con `ProblemDetail` de Spring (RFC 9457) y el código de la regla en `code`.
 

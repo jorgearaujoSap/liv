@@ -36,7 +36,20 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - en todo PR: título en Conventional Commits (Q13) y búsqueda de secretos con gitleaks;
     - acciones fijadas por SHA, permisos mínimos y `concurrency`.
   - Prueba primero: los comandos de cada *workflow* ejecutados en local; los *workflows* corren sobre su propio PR. La expresión del título se probó con casos válidos e inválidos.
-  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T16 y T21 (la de T08, que incluye construir la imagen de identidad y correr `check.sh`, quedó como pendiente aparte con aprobación del responsable, 2026-11-03); la de los contratos del backend y su comparador de cambios incompatibles, en una tarea aparte de F0‑07 antes de T20 (decisión del responsable, 2026-11-02); verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
+  - **Fuera de T02**, cada parte con la tarea que crea lo que publica: publicación de imágenes y de contratos (`backend-main`, `frontend-main`) con T08, T16 y T21 (la de T08, que incluye construir la imagen de identidad y correr `check.sh`, quedó como pendiente aparte con aprobación del responsable, 2026-11-03); el trabajo de PR del BFF (`.github/workflows/bff-pr.yml`, Q01–Q03), aprobado por el responsable el 2026-11-04, va aparte antes de T17; la de los contratos del backend y su comparador de cambios incompatibles, en una tarea aparte de F0‑07 antes de T20 (decisión del responsable, 2026-11-02; ver abajo); verificación de secretos de prueba del *realm* con T07; cobertura, mutación, Sonar y guardián SDD en el resto de F0‑07.
+- [ ] **Tarea aparte de F0‑07** · Comparador de cambios incompatibles de los contratos (Q08) y su publicación. Requisito de T20. Cambia CI y agrega una herramienta: diseño y herramienta aprobados por el responsable (2026-11-03), ADR 0027. — En revisión: PR #69 (`backend/`) y PR #70 (`.github/`), que se integra después del #69.
+  - Archivos: `backend/pom.xml` (`openapi-diff-maven` 2.1.7, solo en `pluginManagement`), `backend/contracts/scripts/**`, `backend/README.md`, `backend/CHANGELOG.md`, `.github/workflows/{backend-contracts-pr,backend-main}.yml`, y la etiqueta `contrato-incompatible` del repositorio.
+  - Contenido:
+    - **Versión:** `info.version` de cada contrato sube si el contrato cambia.
+    - **Aprobación:** un cambio incompatible, o quitar un contrato, exige la etiqueta `contrato-incompatible`, que pone una persona, y la versión mayor subida.
+    - **Publicación:** al integrar en `main`, cada versión nueva sale como *release* `contract-<nombre>-vX.Y.Z` con el YAML y su SHA-256. Antes se juzga contra la *release* publicada más alta de su contrato, con la etiqueta del PR integrado, que solo aprueba los contratos que cambia su commit.
+    - **Quién juzga:** en CI, los *scripts* de la base, no los del PR.
+  - Prueba primero: `contracts/scripts/test/run.sh`, con 79 casos. Entre ellos, quitar un campo requerido de la respuesta falla con `[INCOMPATIBLE]`; los demás cubren el modo Git y la publicación con un `gh` falso.
+  - **Decisiones del responsable:**
+    - el BFF tendrá su propia copia de los *scripts* (ver T18);
+    - dos PR, uno por proyecto;
+    - por ahora no se activan las *releases* inmutables ni un *ruleset* de etiquetas;
+    - los huecos conocidos de `openapi-diff` 2.1.7 se documentan: no detecta `minLength` más estricto en la petición ni un campo de la respuesta que pasa a `nullable`.
 
 ## `ui/` — `liv-components` 0.2.0
 
@@ -299,9 +312,15 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## `backend/bff/`
 
-- [ ] **T16** · *Spike* de Spring Cloud Gateway con Spring Boot 4.1 y esqueleto del proyecto: Maven, Spotless, ArchUnit, Flyway del esquema `bff` y `README.md`/`AGENTS.md` del BFF.
+- [x] **T16** · *Spike* de Spring Cloud Gateway con Spring Boot 4.1 y esqueleto del proyecto: Maven, Spotless, ArchUnit, Flyway del esquema `bff` y `README.md`/`AGENTS.md` del BFF. — Hecha: PR #66.
   - Archivos: `backend/bff/**`.
   - Prueba primero: la regla de ArchUnit sin `org.keycloak` y la carga del contexto. **Si no hay versión compatible, se detiene y se lleva el plan B al responsable.**
+  - **Resultado del *spike*:** Spring Cloud 2025.1.3 (Gateway Server MVC 5.0.3) es compatible con Boot 4.1.2; no hace falta el plan B. Ver plan › Decisiones, «Ajustes de T16».
+  - **Desviaciones declaradas:**
+    - la migración no crea tablas: solo comprueba el contrato de los roles y fija los permisos del esquema. Las tablas llegan con las tareas que las usan;
+    - el PR supera las ~400 líneas (unas 1.700: 484 del *wrapper* copiado, 764 de pruebas, 142 de documentación y unas 313 de código y configuración), porque partir el esqueleto dejaría proyectos que no compilan solos;
+    - dependencias de prueba y de *build* (`spring-boot-starter-webmvc-test`, `testcontainers-postgresql`, `archunit-junit5` y Spotless) iguales a las de `backend/`. La fila del BFF del ADR 0023 no las nombra; falta que el responsable lo confirme;
+    - el CI de PR del backend no compila ni prueba `backend/bff/`, así que la verificación de T16 fue local. El trabajo de CI del BFF se aprobó el 2026-11-04 y está en `.github/workflows/bff-pr.yml`.
 > **Alcance del BFF (decisión del responsable, 2026-11-03).** Primero un BFF mínimo, que basta para validar con usuarios: T17 y T18. El endurecimiento de T19 se hace **antes de producción**. Ver plan › Decisiones, «Alcance del BFF».
 
 - [ ] **T17** · Inicio y cierre de sesión.
@@ -325,8 +344,9 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - inactividad de 15 minutos (expiración de Spring Session) y límite absoluto de 8 horas, comprobado en cada petición;
     - `keepalive`, y `/bff/session` sin extender la sesión;
     - fallo de renovación (`invalid_grant`) lleva a 401;
-    - contrato `bff/contracts/openapi/bff.yaml`, que el frontend necesita en T20.
-  - Archivos: `backend/bff/src/main/**` (paquetes web y de sesión), `backend/bff/contracts/**`, `backend/bff/src/test/**`.
+    - contrato `bff/contracts/openapi/bff.yaml`, que el frontend necesita en T20;
+    - copia de `backend/contracts/scripts/` en `backend/bff/contracts/scripts/` y `openapi-diff-maven` en `pluginManagement` del `pom.xml` del BFF, para que Q08 y la publicación de `bff.yaml` corran en el BFF. Los *workflows* ya lo recorren, y se activan solos cuando aparece el *script* (ADR 0027; decisión del responsable, 2026-11-03).
+  - Archivos: `backend/bff/src/main/**` (paquetes web y de sesión), `backend/bff/contracts/**`, `backend/bff/pom.xml`, `backend/bff/src/test/**`.
   - Prueba primero:
     - 001-10, en la petición del usuario (inactividad y límite absoluto);
     - 001-12: mutación sin el *token* CSRF es rechazada;
@@ -352,6 +372,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 - [ ] **T20** · Adoptar `liv-components` 0.2.0 y los contratos.
   - Archivos: `frontend/package.json`, `package-lock.json`, `frontend/api-spec/**`, `frontend/scripts/api-update.*`, `frontend/src/app/api/**` (generado), `frontend/proxy.conf.json`.
+  - Los contratos se descargan de las *releases* `contract-<nombre>-vX.Y.Z` (`https://github.com/jorgearaujoSap/liv/releases/download/<etiqueta>/<nombre>.yaml`, sin *token*). `api-spec/versions.json` fija la versión y el SHA-256 de cada uno, y `npm run api:update` verifica ese SHA-256 al descargar (ADR 0027).
   - Prueba primero: compila el cliente generado para `/me`, `/me/capabilities` y `/bff/session`; la regla de ESLint prohíbe `HttpClient` fuera de los servicios de datos.
 - [ ] **T21** · Núcleo: `SessionService`, `authGuard`, `capabilityGuard`, interceptor, `IdleService` con `BroadcastChannel`, cierre de sesión con navegación completa y nginx con sus cabeceras.
   - Archivos: `frontend/src/app/core/**`, `frontend/nginx.conf`, `frontend/Dockerfile`.

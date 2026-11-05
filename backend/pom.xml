@@ -24,6 +24,7 @@
     <spotless.version>3.10.4</spotless.version>
     <google-java-format.version>2.0.0</google-java-format.version>
     <openapi-generator.version>7.26.0</openapi-generator.version>
+    <openapi-diff.version>2.1.7</openapi-diff.version>
     <shedlock.version>7.10.1</shedlock.version>
   </properties>
 
@@ -138,6 +139,17 @@
   </dependencies>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <!-- Comparador de cambios incompatibles de los contratos (Q08, doc. 01 §10, ADR 0027). No corre
+             en el build: lo invoca contracts/scripts/compare.sh, una vez por contrato. -->
+        <plugin>
+          <groupId>org.openapitools.openapidiff</groupId>
+          <artifactId>openapi-diff-maven</artifactId>
+          <version>${openapi-diff.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>

@@ -1,0 +1,11 @@
+# Perfil de desarrollo local. Está fuera de src/main/resources a propósito: Spring lo lee de ./config cuando se
+# arranca desde backend/bff/, y no va dentro del jar.
+# Migra con liv_bff_owner y conecta la aplicación como liv_bff a la base local (la del entorno de desarrollo del
+# backend, en el puerto 5433). Variables: LIV_BFF_OWNER_PASSWORD y LIV_BFF_PASSWORD.
+spring:
+  datasource:
+    url: ${LIV_DB_URL:jdbc:postgresql://localhost:5433/liv}
+  flyway:
+    enabled: true
+    user: liv_bff_owner
+    password: ${LIV_BFF_OWNER_PASSWORD}

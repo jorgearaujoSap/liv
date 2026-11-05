@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-03
+> **Última actualización:** 2026-11-04
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -50,12 +50,12 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑01 | Monorepo y traslado de documentos a `docs/` | ✅ | Documentación en `docs/`; `backend/`, `frontend/` y `ui/` creados como proyectos autónomos, sin referencias entre ellos ni herramientas compartidas en la raíz (verificado) |
 | F0‑02 | ADR 0001–0021 aceptados | 🔄 | Los 25 aceptados el 2026-11-01 (tabla del doc. 00 §6). Creados `docs/adr/` y los archivos de los ADR 0023–0025 (feature 001, aceptados con su H2) y 0026 (dependencias de desarrollo de `ui/`, aceptado el 2026-11-02). Faltan los archivos de los ADR 0001–0022 con la *skill* `liv-adr` |
 | F0‑03 | `AGENTS.md`/`CLAUDE.md`, *skills*, plantillas SDD, ganchos | 🔄 | `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, plantillas SDD (`spec/`), *skills* de proceso (`.claude/skills/`) y política de modelos con 4 subagentes por nivel (`AGENTS.md` §10, `.claude/agents/`) creados. Faltan plantilla de PR y ganchos del agente y de Git; las *skills* de código se crean con F0‑04 y F0‑05 |
-| F0‑04 | Esqueleto de backend con reglas de arquitectura | ✅ | Maven (*wrapper* 3.10.0, un artefacto `liv-api` en la raíz de `backend/`), Java 21, Spring Boot 4.1.2, Spring Modulith 2.1.1; base del equipo mejorada (ADR 0021): módulos `shared`, `platform` y 8 de negocio como paquetes con capas `api`/`application`/`domain`/`infrastructure`. 12 pruebas: arranque, fronteras (Modulith), catálogo de módulos y capas, 6 reglas de arquitectura y tamaño de clases, comprobadas también con violaciones a propósito; Google Java Format con Spotless. Paquete `co.com.sapenlinea.liv`. Contratos OpenAPI en `contracts/openapi/` con interfaces generadas (T11, PR #40). Seguridad de `platform` con OIDC estándar: servidor de recursos, usuario resuelto en el registro de LIV, Problem Details y enmascarado de credenciales (T12 parte 1, PR #45). Pendiente para otros entregables: Flyway, PostgreSQL y Testcontainers (F0‑08), BFF, Dockerfile y `dev/` (F0‑06), Error Prone y NullAway (F0‑07) |
+| F0‑04 | Esqueleto de backend con reglas de arquitectura | ✅ | Maven (*wrapper* 3.10.0, un artefacto `liv-api` en la raíz de `backend/`), Java 21, Spring Boot 4.1.2, Spring Modulith 2.1.1; base del equipo mejorada (ADR 0021): módulos `shared`, `platform` y 8 de negocio como paquetes con capas `api`/`application`/`domain`/`infrastructure`. 12 pruebas: arranque, fronteras (Modulith), catálogo de módulos y capas, 6 reglas de arquitectura y tamaño de clases, comprobadas también con violaciones a propósito; Google Java Format con Spotless. Paquete `co.com.sapenlinea.liv`. Contratos OpenAPI en `contracts/openapi/` con interfaces generadas (T11, PR #40). Seguridad de `platform` con OIDC estándar: servidor de recursos, usuario resuelto en el registro de LIV, Problem Details y enmascarado de credenciales (T12 parte 1, PR #45). Esqueleto del BFF en `backend/bff/` (`liv-bff`, Spring Cloud Gateway Server MVC; T16, PR #66). Pendiente para otros entregables: Flyway, PostgreSQL y Testcontainers (F0‑08), Dockerfile y `dev/` (F0‑06), Error Prone y NullAway (F0‑07) |
 | F0‑05 | Esqueleto de frontend | 🔄 | Workspace Angular 21.2 (Node 22), Tailwind 4, *tokens* desde el paquete `liv-components@0.1.0` instalado desde npm (versión exacta), ESLint con reglas de frontera (comprobadas), Prettier, Vitest; raíz sin pantallas. Faltan autenticación, *layout* y menú (necesitan F0‑05b y el BFF) y el cliente generado desde `api-spec/` |
 | F0‑05a | Sistema de diseño en Figma + librería + Storybook | 🔄 | Hecho: estilos y hoja de fundamentos en Figma; proyecto `ui/` con `liv-components` **0.1.0 publicada en npm** (*tokens*), proceso de publicación documentado en `ui/README.md` con verificaciones automáticas (`npm run release:check`). Storybook con 18 componentes: `Icon`, `Logo`, `Spinner`, `Skeleton`, `Badge` y `Avatar` (T03); `Button`, `IconButton`, `TextField`, `CodeInput` y `Alert` (T04, PR #36). *Tokens* `border/strong` y `focus/ring` y placeholder de `CodeInput` corregidos para WCAG 2.1 AA (T04a, PR #38). `Dialog`, `ResultState`, `NavItem`, `SideNav`, `AppHeader`, `PageHeader` y `ModuleCard` (T05, PR #43; 0.2.0 preparada, la publica un humano). Faltan *script* que regenere los tokens desde Figma y regresión visual |
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
 | F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Keycloak se construye desde `backend/identity/Dockerfile` con el tema `liv` (T08, PR #57 y #58). Faltan MinIO, ClamAV y observabilidad |
-| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Faltan publicación de imágenes y contratos (la de los contratos del backend, tarea aparte antes de T20, con su comparador de cambios incompatibles; la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
+| F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Desde el 2026-11-04, `bff-pr` (Q01–Q03) para `backend/bff/`, aprobado por el responsable. Contratos del backend (tarea aparte antes de T20, ADR 0027): comparador de cambios incompatibles Q08 (`backend-contracts-pr`) y publicación como *releases* `contract-<nombre>-vX.Y.Z` (`backend-main`), en revisión en los PR #69 (`backend/`) y #70 (`.github/`). Faltan publicación de imágenes (la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
 | F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway `V202611010900`–`0920` (T10 de la feature 001, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
 | F0‑09 | Auditoría, correlación y observabilidad | 🔄 | Correlación: `X-Correlation-Id` solo como UUID, en la respuesta, el MDC y cada línea de log; credenciales enmascaradas en los logs (T12 parte 1, PR #45). Pendientes: auditoría (T15), log estructurado en JSON con enmascarado y datos personales |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
@@ -118,6 +118,11 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - si la imagen `node` que compila el tema queda cubierta por "Tailwind CLI" en el ADR 0023;
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
+7. BFF (tras T16), decisiones pendientes del responsable: la publicación de la imagen del BFF, Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z` (plan › Decisiones, «Ajustes de T16»).
+8. Contratos (F0‑07, ADR 0027): integrar el PR #69 y después el #70, volviendo a correr sus *checks*. Comprobar que la primera ejecución de `backend-main` publica `contract-core-v1.0.0`, `contract-core-internal-v1.0.0` y `contract-platform-v1.0.0`. Luego, T20. Quedan por decidir:
+   - activar las *releases* inmutables y un *ruleset* para las etiquetas `contract-*`;
+   - exigir Q08 como *check*;
+   - fijar `distributionSha256Sum` en el *wrapper* de Maven.
 
 ---
 
@@ -125,7 +130,49 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
+### 2026-11-04
+
+- F0‑07, tarea aparte antes de T20 (PR #69 de `backend/` y #70 de `.github/`, por integrar en ese orden; ADR 0027): comparador de cambios incompatibles de los contratos (Q08) y su publicación.
+  - **Diseño aprobado por el responsable:** una *release* `contract-<nombre>-vX.Y.Z` por contrato y versión, con el YAML y su SHA-256; `openapi-diff-maven` 2.1.7 como comparador; la etiqueta `contrato-incompatible` más la versión mayor para aprobar un cambio incompatible.
+  - **Decisiones posteriores, tras la revisión:**
+    - el BFF tendrá su propia copia de los *scripts* (T18);
+    - dos PR, uno por proyecto;
+    - por ahora no se activan las *releases* inmutables;
+    - los huecos de `openapi-diff` se documentan;
+    - `main` juzga cada versión contra la última *release* publicada antes de publicarla.
+  - **Juez:** en CI juzgan los *scripts* de la base, no los del PR. Las pruebas del PR corren en otro trabajo, sin compartir caché.
+  - **Pruebas:** 79 casos en `contracts/scripts/test/run.sh`. Entre ellos, quitar un campo requerido de la respuesta falla con `[INCOMPATIBLE]`; los demás cubren el modo Git y la publicación con un `gh` falso.
+  - **Revisión:** tres rondas adversariales con `liv-revisor-critico` (la tercera, autorizada por el responsable), las cuatro lentes y una verificación puntual. Al final no queda ningún hallazgo crítico ni alto.
+  - Se creó en el repositorio la etiqueta `contrato-incompatible`.
+- F0-07, CI del BFF: nuevo *workflow* `bff-pr` con el trabajo `bff · verify` (Q01–Q03), aprobado por el responsable.
+  - **Qué hace:** en los PR que tocan `backend/bff/`, corre `./mvnw verify` del BFF: compilación, formato, arquitectura y pruebas con Testcontainers.
+  - **Por qué:** `backend/bff/` es un proyecto Maven aparte y el `verify` de `backend/` no lo compila. Va antes de T17 para que el código del BFF que agregan T17 y T18 ya tenga CI.
+  - **Cómo se usa:** el *check* informa pero todavía no bloquea. Si fuera obligatorio, los PR que no tocan el BFF lo esperarían para siempre, porque el filtro de ruta no lo corre. Hasta que los *workflows* corran siempre y omitan los trabajos que no aplican (F0‑07), cada PR de `backend/bff/` se integra solo con `bff · verify` en verde.
+  - **Documentación:** doc. 04 §9, `tasks.md` (T02 y T16) y el plan, en «Ajustes de T16».
+  - **Revisión:** dos revisores adversariales de nivel alto y las lentes de resiliencia, confiabilidad y legibilidad; sin críticos ni altos.
+  - **Sigue pendiente:**
+    - la publicación de la imagen del BFF;
+    - exigir el *check* en la protección de `main`;
+    - que `backend-pr` no corra en los PR que solo tocan el BFF (`!backend/bff/**`);
+    - una verificación automática que compare los permisos de `backend/dev/initdb` con los que repiten las pruebas del BFF;
+    - fijar con su suma el Maven del *wrapper* y la imagen Ryuk de Testcontainers, en `backend/` y en el BFF.
+
 ### 2026-11-03
+
+- Feature 001, T16 (PR #66): *spike* de Spring Cloud Gateway y esqueleto del BFF en `backend/bff/` (`liv-bff`).
+  - ***Spike*:** Spring Cloud 2025.1.3 (Gateway Server MVC 5.0.3) es compatible con Spring Boot 4.1.2, así que no hace falta el plan B.
+  - **Esqueleto:** proyecto Maven autónomo con Spotless, ArchUnit (sin `org.keycloak`, 001-20), catálogo de paquetes y tamaño de clases. Flyway del esquema `bff` como `liv_bff_owner`; la aplicación usa `liv_bff`. Sin endpoints ni tablas.
+  - **Migración:** comprueba el contrato de los roles que entrega la infraestructura y fija los permisos del dueño. 50 pruebas con Testcontainers.
+  - **Revisión:** dos rondas de revisión adversarial con revisores de nivel alto y las cuatro lentes. Se corrigieron los hallazgos altos, entre ellos las membresías de los roles, quién migra y pruebas que no detectaban permisos de más. La segunda ronda no dejó críticos ni altos.
+  - **Pendiente del responsable:**
+    - el trabajo de CI del BFF, porque hoy el CI del backend no lo compila;
+    - Spring Boot 4.1.2, con menos de dos semanas de publicado;
+    - las dependencias de prueba del BFF;
+    - la etiqueta `bff-vX.Y.Z`;
+    - la rotación de credenciales en AWS;
+    - quitar del *initdb* local los permisos por defecto sobre `bff`.
+
+    Todo está en el plan, en «Ajustes de T16».
 
 - Feature 001, alcance del BFF, por decisión del responsable: primero un BFF mínimo para validar con usuarios, y el endurecimiento antes de producción.
   - **T17:** inicio y cierre de sesión.
