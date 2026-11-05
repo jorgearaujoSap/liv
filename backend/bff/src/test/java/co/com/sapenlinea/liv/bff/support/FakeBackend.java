@@ -33,6 +33,7 @@ public final class FakeBackend {
   private final AtomicInteger startSessionStatus = new AtomicInteger(201);
   private final AtomicInteger endSessionStatus = new AtomicInteger(204);
   private final AtomicInteger revokeStatus = new AtomicInteger(200);
+  private volatile long startSessionDelayMillis;
 
   public FakeBackend() {
     try {
@@ -40,6 +41,7 @@ public final class FakeBackend {
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
+    server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
     server.createContext("/", this::handle);
     server.start();
   }
@@ -58,6 +60,12 @@ public final class FakeBackend {
     startSessionStatus.set(201);
     endSessionStatus.set(204);
     revokeStatus.set(200);
+    startSessionDelayMillis = 0;
+  }
+
+  /** StartSession answers only after this long: a slow API. */
+  public void startSessionAnswersAfter(long millis) {
+    startSessionDelayMillis = millis;
   }
 
   public void startSessionAnswers(int status) {
@@ -92,6 +100,14 @@ public final class FakeBackend {
     return callsTo(REVOKE);
   }
 
+  private static void sleep(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
   private void handle(HttpExchange exchange) throws IOException {
     String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
     Map<String, String> headers = new java.util.HashMap<>();
@@ -105,6 +121,7 @@ public final class FakeBackend {
     int status;
     String answer = "";
     if (path.equals(START_SESSION)) {
+      sleep(startSessionDelayMillis);
       status = startSessionStatus.get();
       answer = "{\"userId\":\"8f0f6b1e-5a52-4d9b-a2a2-0d6c5d3b7a10\"}";
     } else if (path.endsWith("/end")) {
