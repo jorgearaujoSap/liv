@@ -91,10 +91,12 @@ describe('readVersions', () => {
     });
   }
 
-  it('rechaza un repositorio que no es propietario/nombre', () => {
-    writeVersions(versionsFile({ repository: 'https://evil.example/x' }));
-    assert.throws(() => readVersions(dir), /repository/);
-  });
+  for (const repository of ['https://evil.example/x', '../..', './x', 'propietario/..']) {
+    it(`rechaza el repositorio «${repository}»`, () => {
+      writeVersions(versionsFile({ repository }));
+      assert.throws(() => readVersions(dir), /repository/);
+    });
+  }
 });
 
 describe('fetchContracts', () => {
@@ -116,6 +118,26 @@ describe('fetchContracts', () => {
     };
 
     await assert.rejects(fetchContracts(versionsFile(), fakeFetch(tampered)), /core.*SHA-256/s);
+  });
+
+  it('pide cada descarga con un tiempo límite', async () => {
+    const signals = [];
+    const fetchFn = async (url, options) => {
+      signals.push(options?.signal);
+      return new Response(published[url], { status: 200 });
+    };
+
+    await fetchContracts(versionsFile(), fetchFn);
+
+    assert.equal(signals.length, 2);
+    assert.ok(signals.every((signal) => signal instanceof AbortSignal));
+  });
+
+  it('rechaza una respuesta de más de 2 MiB antes de calcular nada', async () => {
+    const huge = Buffer.alloc(2 * 1024 * 1024 + 1);
+    const fetchFn = async () => new Response(huge, { status: 200 });
+
+    await assert.rejects(fetchContracts(versionsFile(), fetchFn), /core.*2 MiB/s);
   });
 
   it('falla si la release no existe', async () => {
@@ -153,6 +175,22 @@ describe('updateApiSpec', () => {
     await updateApiSpec({ specDir: dir, fetchFn: fakeFetch(published) });
 
     assert.equal(existsSync(join(dir, 'viejo.yaml')), false);
+    assert.deepEqual(readdirSync(dir).sort(), ['bff.yaml', 'core.yaml', 'versions.json']);
+  });
+});
+
+describe('generateClient', () => {
+  it('si el generador falla, deja el cliente anterior como estaba', () => {
+    const anterior = 'export const anterior = 1;';
+    writeFileSync(join(dir, 'roto.yaml'), 'esto no es un contrato OpenAPI');
+    const out = join(dir, 'api');
+    mkdirSync(join(out, 'roto'), { recursive: true });
+    writeFileSync(join(out, 'roto', 'anterior.ts'), anterior);
+
+    assert.throws(() => generateClient({ specDir: dir, outDir: out, names: ['roto'] }));
+
+    assert.equal(readFileSync(join(out, 'roto', 'anterior.ts'), 'utf8'), anterior);
+    assert.deepEqual(readdirSync(out), ['roto']);
   });
 });
 
@@ -187,6 +225,11 @@ describe('api-spec/ y src/app/api/ del proyecto', () => {
 
   it('las copias de api-spec/ coinciden con el SHA-256 de versions.json', () => {
     assert.deepEqual(verifyLocal(specDir, versions), []);
+  });
+
+  it('src/app/api/ solo tiene la carpeta de cada contrato y la prueba del cliente', () => {
+    const entries = readdirSync(join(projectDir, 'src', 'app', 'api')).sort();
+    assert.deepEqual(entries, ['api-client.spec.ts', ...Object.keys(versions.contracts)].sort());
   });
 
   it('el cliente de src/app/api/ es el que se genera de esas copias', () => {

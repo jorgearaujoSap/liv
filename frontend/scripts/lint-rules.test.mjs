@@ -11,9 +11,15 @@ import { ESLint } from 'eslint';
 const projectDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const eslint = new ESLint({ cwd: projectDir });
 
+const RESTRICTION_RULES = [
+  'no-restricted-imports',
+  'no-restricted-globals',
+  'no-restricted-syntax',
+];
+
 const restricted = async (code, filePath) => {
   const [result] = await eslint.lintText(code, { filePath: join(projectDir, filePath) });
-  return result.messages.filter((message) => message.ruleId === 'no-restricted-imports');
+  return result.messages.filter((message) => RESTRICTION_RULES.includes(message.ruleId));
 };
 
 const IMPORT_HTTP_CLIENT = `import { HttpClient } from '@angular/common/http';\nexport const x = HttpClient;\n`;
@@ -37,8 +43,59 @@ describe('HttpClient solo en el cliente generado', () => {
     assert.equal((await restricted(aliased, 'src/app/core/a.ts')).length, 1);
   });
 
-  it('src/app/api/ (cliente generado) sí puede usarlo', async () => {
+  it('un tipo de HttpClient no es un uso: `import type` sí se permite', async () => {
+    const typeOnly = `import type { HttpClient } from '@angular/common/http';
+export type X = HttpClient;
+`;
+    assert.deepEqual(await restricted(typeOnly, 'src/app/core/a.ts'), []);
+  });
+
+  it('tampoco con `import * as`', async () => {
+    const namespace = `import * as http from '@angular/common/http';
+export const x = http;
+`;
+    assert.equal((await restricted(namespace, 'src/app/core/a.ts')).length, 1);
+  });
+
+  it('src/app/api/<contrato>/ (cliente generado) sí puede usarlo', async () => {
     assert.deepEqual(await restricted(IMPORT_HTTP_CLIENT, 'src/app/api/core/core-api.ts'), []);
+  });
+
+  it('un archivo escrito a mano directamente en src/app/api/ no está exento', async () => {
+    assert.equal((await restricted(IMPORT_HTTP_CLIENT, 'src/app/api/hand.ts')).length, 1);
+  });
+
+  it('HttpBackend esquiva al cliente igual que HttpClient', async () => {
+    const code = `import { HttpBackend } from '@angular/common/http';
+export const x = HttpBackend;
+`;
+    assert.equal((await restricted(code, 'src/app/core/a.ts')).length, 1);
+  });
+
+  it('fetch, XMLHttpRequest y el import dinámico de @angular/common/http también se prohíben', async () => {
+    assert.equal(
+      (
+        await restricted(
+          `export const x = fetch('/api/v1/me');
+`,
+          'src/app/core/a.ts',
+        )
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await restricted(
+          `export const x = new XMLHttpRequest();
+`,
+          'src/app/core/a.ts',
+        )
+      ).length,
+      1,
+    );
+    const dynamic = `export const x = import('@angular/common/http');
+`;
+    assert.equal((await restricted(dynamic, 'src/app/core/a.ts')).length, 1);
   });
 
   it('el resto de @angular/common/http sigue permitido (interceptores, provideHttpClient)', async () => {
