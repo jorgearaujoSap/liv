@@ -103,7 +103,7 @@ spec/
 
 ### 3.3 Evaluación previa y clasificación de cambios
 
-Antes de escribir una especificación, el agente evalúa la solicitud (ADR 0028). Si cumple algún criterio de SDD (reglas, contratos y datos, rutas críticas y seguridad, arquitectura, interfaz o alcance), va por el flujo de §3.1. Si no cumple ninguno y es sencilla, clara y de impacto acotado, va por el **flujo directo**. Los criterios, sus ejemplos, lo que exige el flujo directo y la reevaluación están en `AGENTS.md` §4.3, que es la fuente única de las reglas (§4 de este documento); aquí no se repiten.
+Antes de escribir una especificación, el agente evalúa la solicitud (ADR 0028). Si cumple algún criterio de SDD (reglas, contratos y datos, rutas críticas y seguridad, arquitectura, interfaz o alcance), va por el flujo de §3.1. Si no cumple ninguno y es sencilla, clara y de impacto acotado, va por el **flujo directo**. Los criterios, sus ejemplos, lo que exige el flujo directo y la reevaluación están en `AGENTS.md` §4.3, que es la fuente única de las reglas (§4 de este documento); aquí no se repiten los criterios.
 
 | Tipo | Ejemplos | Flujo |
 |---|---|---|

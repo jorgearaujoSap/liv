@@ -37,10 +37,10 @@ Se elige la opción 3. El ADR 0014 sigue vigente: el SDD + TDD es la metodologí
 - **Fuera del flujo directo.** Los documentos funcionales, los ADR, la arquitectura, la constitución y las reglas de los `AGENTS.md` nunca van por el flujo directo: siguen su propio proceso de versión, ADR y aprobación.
 - **Flujo directo.** Sin carpeta de feature ni documentos de planificación.
   - Prueba primero si cambia el comportamiento, verificaciones locales y CI en verde.
-  - Si cambia el comportamiento, un revisor independiente (`liv-revisor`) revisa la corrección antes del PR. Si no, basta la lente de legibilidad. En los dos casos, después viene la H3. En el equipo de una persona, la H3 la hace quien abre el PR, así que esa revisión independiente es el control de la corrección.
+  - Si toca código o pruebas existentes, un revisor independiente (`liv-revisor`) revisa la corrección antes del PR. Si solo agrega pruebas o cambia texto, formato o comentarios, basta la lente de legibilidad. En los dos casos, después viene la H3. En el equipo de una persona, la H3 la hace quien abre el PR, así que esa revisión independiente es el control de la corrección.
   - La descripción del PR declara el flujo y por qué no aplica ningún criterio.
   - Se documenta en el `CHANGELOG.md` del proyecto que toca y en la bitácora de `ESTADO.md`. La raíz no tiene `CHANGELOG.md`, así que sus cambios quedan en `ESTADO.md`.
-- **Reevaluación.** Si durante una implementación directa aparece un criterio, el agente se detiene, se lo informa a la persona y el cambio sigue por el SDD. Ante la duda, también va por el SDD (G8).
+- **Reevaluación.** Si durante una implementación directa aparece un criterio, el agente se detiene, se lo informa a la persona y el cambio sigue por el SDD. Ante la duda, el agente pregunta (G8); si la duda sigue, va por el SDD.
 - **Sin cambios en el resto:** las prohibiciones de §4.5, las aprobaciones H1–H3, las compuertas de CI, la excepción del equipo de una persona y el flujo SDD completo.
 
 ## Consecuencias
