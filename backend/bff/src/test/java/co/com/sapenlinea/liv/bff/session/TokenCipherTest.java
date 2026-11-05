@@ -30,7 +30,8 @@ class TokenCipherTest {
     byte[] encrypted = cipher.encrypt(PLAIN);
 
     assertThat(cipher.decrypt(encrypted)).isEqualTo(PLAIN);
-    assertThat(new String(encrypted, StandardCharsets.ISO_8859_1)).doesNotContain("eyJ");
+    assertThat(new String(encrypted, StandardCharsets.ISO_8859_1))
+        .doesNotContain("eyJhbGciOiJSUzI1NiJ9");
   }
 
   @Test

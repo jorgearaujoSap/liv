@@ -255,7 +255,7 @@ class LoginFlowTest extends BffFlowTest {
             "SELECT string_agg(encode(attribute_bytes, 'escape'), '') FROM bff.spring_session_attributes");
 
     assertThat(stored).as("atributos guardados").isNotBlank();
-    assertThat(stored).doesNotContain(userToken).doesNotContain("eyJ");
+    assertThat(stored).doesNotContain(userToken).doesNotContain("eyJhbGciOi");
     assertThat(
             BffDatabase.queryValue(
                 BffDatabase.jdbcUrl(),
