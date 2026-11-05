@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.bff.web;
 
+import co.com.sapenlinea.liv.bff.session.BffConnectionCheck;
 import co.com.sapenlinea.liv.bff.session.EncryptedAuthorizedClientRepository;
 import co.com.sapenlinea.liv.bff.session.Http;
 import co.com.sapenlinea.liv.bff.session.InternalApiClient;
@@ -55,6 +56,12 @@ class SessionConfiguration {
                 .build();
     return new LazyClientRegistrationRepository(
         Map.of(OidcRegistrations.USER, user, OidcRegistrations.SERVICE, service));
+  }
+
+  /** Every connection to the database checks that it works as liv_bff (T16). */
+  @Bean
+  static BffConnectionCheck bffConnectionCheck() {
+    return new BffConnectionCheck();
   }
 
   @Bean
