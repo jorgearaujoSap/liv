@@ -447,6 +447,19 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - la sesión que puede quedar abierta en LIV si `StartSession` termina después de la compensación, o si el enlace a `/bff/login` llega desde otro sitio y la cookie `Strict` no viaja (hasta T19; una expiración en LIV lo resolvería);
     - `SameSite=Strict` exige que el proveedor y LIV sean del mismo sitio;
     - la serialización Java de los atributos de sesión, la rotación de la clave de cifrado (AAD constante, sin identificador de clave) y los tiempos de espera del descubrimiento y del intercambio del código (T19).
+- **Ajustes de T18 (PR #80; decisiones y riesgos pendientes del responsable).** Salieron de implementar el reenvío y la sesión mínima y de su revisión adversarial y de las cuatro lentes:
+  - **reenvío:** un filtro propio (`TokenRelayFilter`) en lugar del `TokenRelay` de Spring Cloud Gateway, que exige una autenticación OAuth2 y la sesión solo guarda emisor, `sub` y `sid`. Del navegador no pasan a la API su `Authorization`, la cookie de sesión, `X-User-Token` ni `X-XSRF-TOKEN`; lo que la API responde no puede poner cookies ni permitir caché. `/internal/**` no tiene ruta (404);
+  - **CSRF:** cookie `XSRF-TOKEN` (`Secure`, `SameSite=Strict`, sin `HttpOnly`) y cabecera `X-XSRF-TOKEN`, leída **solo de la cabecera** (no del parámetro `_csrf`), entregada también al iniciar sesión;
+  - **tiempos:** 15 minutos de inactividad (Spring Session) y 8 horas de duración máxima (`LIV_STARTED_AT`, desde que LIV acepta la sesión, no desde `/bff/login`), comprobada en cada petición. Pasada, la sesión termina con `ABSOLUTE`; salir o volver a `/bff/login` pasado el límite también se cierra como `ABSOLUTE`;
+  - **`/bff/session`** responde antes del filtro de Spring Session (así no extiende la sesión) y `keepalive` renueva siempre el token con un margen forzado de 1 hora;
+  - **renovación:** el `scope` del navegador no llega al proveedor; `invalid_grant` e `invalid_token`, o no tener con qué renovar, terminan la sesión con `PROVIDER` y responden 401; si el proveedor falla un momento y al token aún le queda vida, la petición sigue con él; si ya venció, 502 y la sesión sigue. Con `invalid_grant` no se revoca: Spring borra el cliente antes y ese *refresh token* ya no vale;
+  - **contrato:** `bff.yaml` 1.0.0 (`/bff/login`, `/bff/logout`, `/bff/session`, `/bff/session/keepalive`) y la copia de los *scripts* de Q08 en el BFF (ADR 0027);
+  - **pendientes de decisión humana** (listados en el PR #80):
+    - el prefijo `__Host-` para la cookie `XSRF-TOKEN`, que impide que un subdominio del mismo sitio fije la suya pero cambia el nombre del plan y de `bff.yaml`;
+    - si `invalid_client`, `invalid_scope` y `unauthorized_client` deben terminar la sesión (hoy son pasajeros y dan 502);
+    - la revocación en el final por `invalid_grant`, que el plan pedía;
+    - forzar la renovación de `keepalive` sin depender de un margen de 1 hora si los tokens duraran más;
+    - serializar las renovaciones si algún día se activa la rotación del *refresh token*.
 - **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
   - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;
   - **un solo PR** para toda la tarea;
