@@ -1,8 +1,8 @@
 # ADR-0028 · SDD adaptativo: evaluación previa antes de la especificación
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 2026-11-05
-- **Decisores:** responsable del proyecto, que lo pidió el 2026-11-05 (equipo de una persona, `AGENTS.md` §4.3)
+- **Decisores:** responsable del proyecto, que lo pidió y lo aceptó el 2026-11-05 tras dos rondas de revisión adversarial (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** ADR 0014; `AGENTS.md` §2, §4.1, §4.3, §10 y §11; `docs/arquitectura/04` §8 (Q11) y §9; `docs/arquitectura/05` §1, §3.3 y §12; `spec/README.md`; *skill* `liv-sdd-feature`
 
 ## Contexto
