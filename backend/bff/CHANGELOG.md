@@ -19,3 +19,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - reversión limpia de una migración detenida;
   - una prueba por cada incumplimiento del contrato.
 - Formato con Spotless y Google Java Format (2 espacios), verificado en `mvn verify`.
+
+### Cambiado
+
+- `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
+

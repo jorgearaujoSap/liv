@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`li
 
 ## Antes de tocar código
 
-1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio trivial.
+1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es ruta crítica, por el flujo directo solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad.
 2. Lee la sección del documento funcional y del de arquitectura que cita la feature (seguridad: doc. 02 §3 y §8).
 3. Trabaja solo en los archivos que declara la tarea.
 
