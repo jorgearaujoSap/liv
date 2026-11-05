@@ -33,6 +33,11 @@ public final class Browser {
       return values == null || values.isEmpty() ? null : values.get(0);
     }
 
+    /** Every value of a header, not only the first. */
+    public List<String> headerValues(String name) {
+      return headers.getOrDefault(name.toLowerCase(Locale.ROOT), List.of());
+    }
+
     public List<String> setCookies() {
       return headers.getOrDefault("set-cookie", List.of());
     }

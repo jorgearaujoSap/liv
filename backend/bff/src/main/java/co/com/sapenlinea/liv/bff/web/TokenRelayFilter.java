@@ -21,9 +21,10 @@ import org.springframework.web.servlet.function.ServerResponse;
  * as {@code Authorization: Bearer}, renewed first if less than a minute is left. Spring Cloud
  * Gateway's own {@code TokenRelay} only works with an OAuth2 authentication, and the session here
  * holds none (no token in the security context: {@link SessionAuthentication}). A request is never
- * forwarded without a token: if the provider refuses the renewal ({@code invalid_grant}) the
- * session ends with {@code PROVIDER} and the answer is 401; if it does not answer, the answer is
- * 502 and the session stays.
+ * forwarded without a valid token: if the provider refuses the renewal for good ({@code
+ * invalid_grant}) the session ends with {@code PROVIDER} and the answer is 401; if it does not
+ * answer, the request goes on with the token the session still has, and if that one is over too,
+ * the answer is 502 and the session stays.
  */
 final class TokenRelayFilter implements HandlerFilterFunction<ServerResponse, ServerResponse> {
 

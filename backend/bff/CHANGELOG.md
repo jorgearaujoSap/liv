@@ -8,8 +8,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 - Reenvío a la API, CSRF, límites de sesión y `keepalive` (feature 001, T18; 001-10, 001-12, 001-22):
   - `/api/**` va a `liv-api` con el *token* de acceso de la sesión (`TokenRelayFilter`, renovado si le queda menos de un minuto); no pasan la cookie, `X-User-Token`, el `Authorization` ni `X-XSRF-TOKEN` del navegador. `/internal/**` no se enruta (404). Con `invalid_grant` la sesión termina con `PROVIDER` y la respuesta es 401; si el proveedor no responde, 502;
-  - CSRF con la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN`, entregada también al iniciar sesión; sin el *token*, 403 con `code: 001-12`;
-  - inactividad de 15 minutos (`spring.session.timeout`) y duración máxima de 8 horas (`liv.bff.session.absolute-timeout`), comprobada en cada petición: pasada, `EndSession(ABSOLUTE)`, revocación, borrado y 401;
+  - CSRF con la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN` (solo la cabecera: no el parámetro `_csrf`), entregada también al iniciar sesión; sin el *token*, 403 con `code: 001-12`;
+  - inactividad de 15 minutos (`spring.session.timeout`) y duración máxima de 8 horas (`liv.bff.session.absolute-timeout`), comprobada en cada petición: pasada, `EndSession(ABSOLUTE)`, revocación, borrado y 401; salir o volver a `/bff/login` pasado el límite también se audita como `ABSOLUTE`;
+  - la renovación del *token* (`TokenRenewal`): el `scope` del navegador no llega al proveedor; si el proveedor falla un momento y al *token* aún le queda vida, la petición sigue con él; sin *refresh token*, o con `invalid_grant` o `invalid_token`, la sesión termina;
+  - la respuesta de la API pierde `Set-Cookie` y lleva `Cache-Control: no-store`; `/bff/session` lee todas las cookies de sesión;
   - `GET /bff/session` (segundos que quedan, sin extender la sesión: responde antes del filtro de Spring Session) y `POST /bff/session/keepalive` (renueva siempre el *token* y extiende la sesión);
   - tiempos de espera del reenvío (`spring.http.clients.*`);
   - `contracts/openapi/bff.yaml` (versión 1.0.0) y la copia de los *scripts* de Q08 con `openapi-diff-maven` en `pluginManagement` (ADR 0027).

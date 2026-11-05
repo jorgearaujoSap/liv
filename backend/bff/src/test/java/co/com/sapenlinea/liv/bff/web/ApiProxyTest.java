@@ -93,7 +93,10 @@ class ApiProxyTest extends BffFlowTest {
 
     assertThat(reply.status()).isEqualTo(200);
     assertThat(reply.setCookies()).noneMatch(cookie -> cookie.startsWith("SESION="));
-    assertThat(reply.header("cache-control")).contains("no-store").doesNotContain("public");
+    assertThat(reply.headerValues("cache-control"))
+        .as("todas las cabeceras Cache-Control")
+        .anyMatch(value -> value.contains("no-store"))
+        .noneMatch(value -> value.contains("public"));
   }
 
   @Test

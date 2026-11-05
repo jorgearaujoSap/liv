@@ -99,9 +99,8 @@ public final class TokenRenewal {
       if (e.sessionIsOver()) {
         throw e;
       }
-      OAuth2AuthorizedClient current =
-          clients.loadAuthorizedClient(OidcRegistrations.USER, person, request);
-      if (current != null && isAlive(current)) {
+      OAuth2AuthorizedClient current = stillWorking(request, person);
+      if (current != null) {
         LOG.warn("El proveedor no renovó el token; la petición sigue con el que aún vale");
         return current.getAccessToken().getTokenValue();
       }
@@ -120,6 +119,22 @@ public final class TokenRenewal {
     if (client.getRefreshToken() == null) {
       // Spring leaves the client as it was when there is nothing to renew with.
       throw new TokenRenewalException("La sesión no tiene refresh token", true);
+    }
+  }
+
+  /**
+   * The tokens the session already has, if they still work. Reading them can fail for the same
+   * reason the renewal did (the provider does not answer): then there is no fallback, and the
+   * failure stays what it was.
+   */
+  private OAuth2AuthorizedClient stillWorking(
+      HttpServletRequest request, SessionAuthentication person) {
+    try {
+      OAuth2AuthorizedClient current =
+          clients.loadAuthorizedClient(OidcRegistrations.USER, person, request);
+      return current != null && isAlive(current) ? current : null;
+    } catch (RuntimeException e) {
+      return null;
     }
   }
 

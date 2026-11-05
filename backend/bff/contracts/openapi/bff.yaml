@@ -8,7 +8,8 @@ info:
     copia fijada en frontend/api-spec/. No incluye /api/** (el contrato de la API: core.yaml y
     platform.yaml), que el BFF reenvía con el token de la sesión, ni /internal/**, que nunca se
     publica. En /api/** el propio BFF responde, sin cuerpo, 401 (sin sesión, o la sesión terminó) y
-    502 (el proveedor no renovó el token y el que había ya venció). El navegador nunca recibe un token: la única cookie que autentica es LIV_SESSION
+    502 (entre otros casos: el proveedor no renovó el token y el que había ya venció). El
+    frontend trata todo 502 como un error que se puede reintentar. El navegador nunca recibe un token: la única cookie que autentica es LIV_SESSION
     (HttpOnly, Secure, SameSite=Strict). Toda petición que modifica datos, incluidas las de este
     contrato, lleva el token anti-CSRF: el frontend copia la cookie XSRF-TOKEN a la cabecera
     X-XSRF-TOKEN, y sin él responde 403. Feature 001 · Inicio de sesión.
