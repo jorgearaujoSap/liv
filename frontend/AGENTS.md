@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend
 
 ## Antes de tocar código
 
-1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio trivial.
+1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3).
 2. **Toda pantalla nueva necesita su diseño aprobado** en la página `03 Pantallas` del archivo de Figma LIV‑Diseño, o una declaración de reutilización de estructura en el `plan.md` de la feature.
 3. **Todo componente nuevo nace primero** en la página `02 Componentes` de Figma, con el mismo nombre que tendrá en `liv-components` (se implementa en el proyecto `ui/`, no aquí).
 
