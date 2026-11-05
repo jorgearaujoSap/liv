@@ -33,6 +33,11 @@ public final class Browser {
       return values == null || values.isEmpty() ? null : values.get(0);
     }
 
+    /** Every value of a header, not only the first. */
+    public List<String> headerValues(String name) {
+      return headers.getOrDefault(name.toLowerCase(Locale.ROOT), List.of());
+    }
+
     public List<String> setCookies() {
       return headers.getOrDefault("set-cookie", List.of());
     }
@@ -54,6 +59,12 @@ public final class Browser {
     return send(HttpRequest.newBuilder(URI.create(url)).GET(), url);
   }
 
+  /** A GET with the {@code Cookie} header written by hand: two cookies with the same name, say. */
+  public Reply getWithCookieHeader(String url, String cookieHeader) {
+    return send(
+        HttpRequest.newBuilder(URI.create(url)).GET().header("Cookie", cookieHeader), url, false);
+  }
+
   /** A GET with headers, such as the {@code Sec-Fetch-*} a browser adds to a request. */
   public Reply get(String url, Map<String, String> headers) {
     HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).GET();
@@ -61,7 +72,26 @@ public final class Browser {
     return send(request, url);
   }
 
+  /** A POST as the frontend sends it: with the anti-CSRF token of the cookie in the header. */
   public Reply post(String url, String form) {
+    return post(url, form, Map.of());
+  }
+
+  public Reply post(String url, String form, Map<String, String> headers) {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(BodyPublishers.ofString(form));
+    String csrf = cookies.getOrDefault(authority(url), Map.of()).get("XSRF-TOKEN");
+    if (csrf != null) {
+      request.header("X-XSRF-TOKEN", csrf);
+    }
+    headers.forEach(request::setHeader);
+    return send(request, url);
+  }
+
+  /** A POST that does not carry the anti-CSRF token, as a form of another site would. */
+  public Reply postWithoutCsrfToken(String url, String form) {
     return send(
         HttpRequest.newBuilder(URI.create(url))
             .header("Content-Type", "application/x-www-form-urlencoded")
@@ -103,9 +133,13 @@ public final class Browser {
   }
 
   private Reply send(HttpRequest.Builder request, String url) {
+    return send(request, url, true);
+  }
+
+  private Reply send(HttpRequest.Builder request, String url, boolean withJar) {
     String authority = authority(url);
     Map<String, String> jar = cookies.getOrDefault(authority, Map.of());
-    if (!jar.isEmpty()) {
+    if (withJar && !jar.isEmpty()) {
       request.header(
           "Cookie",
           String.join(

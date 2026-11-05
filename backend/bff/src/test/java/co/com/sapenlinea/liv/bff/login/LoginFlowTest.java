@@ -233,9 +233,12 @@ class LoginFlowTest extends BffFlowTest {
             .map(setCookie -> setCookie.split("=", 2)[0])
             .distinct()
             .toList();
-    assertThat(cookieNames).containsExactly("LIV_SESSION");
+    // XSRF-TOKEN is not a credential (spec, 001-11, amendment 1): it only proves the request
+    // comes from the pages of LIV. LIV_SESSION is the only cookie that authenticates.
+    assertThat(cookieNames).containsExactlyInAnyOrder("LIV_SESSION", "XSRF-TOKEN");
     browser.bffReplies().stream()
         .flatMap(reply -> reply.setCookies().stream())
+        .filter(cookie -> cookie.startsWith("LIV_SESSION="))
         .forEach(cookie ->
             assertThat(cookie.toLowerCase(Locale.ROOT))
                 .as(cookie)
@@ -248,7 +251,10 @@ class LoginFlowTest extends BffFlowTest {
   void theSessionCookieIsHardened() {
     SignIn signIn = browser().signIn("/");
 
-    List<String> cookies = signIn.callback().setCookies();
+    List<String> cookies =
+        signIn.callback().setCookies().stream()
+            .filter(setCookie -> setCookie.startsWith("LIV_SESSION="))
+            .toList();
     assertThat(cookies).hasSize(1);
     String cookie = cookies.get(0);
     assertThat(cookie).startsWith("LIV_SESSION=");

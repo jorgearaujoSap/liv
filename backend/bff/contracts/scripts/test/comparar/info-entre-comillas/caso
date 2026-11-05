@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=no
+base=muestra
+head=archivo
+motivo=INVALID_VERSION
+nota=un segundo info con la clave entre comillas: un lector de YAML toma el último

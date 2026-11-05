@@ -6,6 +6,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Reenvío a la API, CSRF, límites de sesión y `keepalive` (feature 001, T18; 001-10, 001-12, 001-22):
+  - `/api/**` va a `liv-api` con el *token* de acceso de la sesión (`TokenRelayFilter`, renovado si le queda menos de un minuto); no pasan la cookie, `X-User-Token`, el `Authorization` ni `X-XSRF-TOKEN` del navegador. `/internal/**` no se enruta (404). Con `invalid_grant` la sesión termina con `PROVIDER` y la respuesta es 401; si el proveedor no responde, 502;
+  - CSRF con la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN` (solo la cabecera: no el parámetro `_csrf`), entregada también al iniciar sesión; sin el *token*, 403 con `code: 001-12`;
+  - inactividad de 15 minutos (`spring.session.timeout`) y duración máxima de 8 horas (`liv.bff.session.absolute-timeout`), comprobada en cada petición: pasada, `EndSession(ABSOLUTE)`, revocación, borrado y 401; salir o volver a `/bff/login` pasado el límite también se audita como `ABSOLUTE`;
+  - la renovación del *token* (`TokenRenewal`): el `scope` del navegador no llega al proveedor; si el proveedor falla un momento y al *token* aún le queda vida, la petición sigue con él; sin *refresh token*, o con `invalid_grant` o `invalid_token`, la sesión termina;
+  - la respuesta de la API pierde `Set-Cookie` y lleva `Cache-Control: no-store`; `/bff/session` lee todas las cookies de sesión;
+  - `GET /bff/session` (segundos que quedan, sin extender la sesión: responde antes del filtro de Spring Session) y `POST /bff/session/keepalive` (renueva siempre el *token* y extiende la sesión);
+  - tiempos de espera del reenvío (`spring.http.clients.*`);
+  - `contracts/openapi/bff.yaml` (versión 1.0.0) y la copia de los *scripts* de Q08 con `openapi-diff-maven` en `pluginManagement` (ADR 0027).
+- Pruebas: reenvío, CSRF, estado y `keepalive`, inactividad y límite absoluto con tiempos cortos, renovación del *token* y `invalid_grant` con el *token endpoint* reemplazado, y el contrato; el servidor de pruebas de PostgreSQL ya no agota sus conexiones (pool de 3 por contexto y 6 contextos en caché).
 - Inicio y cierre de sesión (feature 001, T17; 001-01, 001-09, 001-11, 001-20):
   - `GET /bff/login`: cliente OIDC con código, PKCE, *nonce* y `prompt=login`, con `returnTo` validado contra la redirección abierta. Al volver del proveedor cambia el id de sesión y llama a `StartSession` en la API con el *token* de servicio (`liv-bff-service`) y el del usuario; un 200 es un reintento;
   - si LIV rechaza la sesión, revoca el *refresh token* (RFC 7009), borra la sesión y vuelve a `/bff/login`, sin motivo en la URL;
@@ -35,7 +45,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 - Las pruebas de T16 se ajustan a la configuración nueva: el arranque sin web usa el entorno `MOCK`, el contrato de migraciones ya no cuenta una sola migración, y la prueba del Gateway abre su ruta de prueba porque todas las demás piden sesión.
 
-### Pendiente (T18 y T19)
+### Pendiente (T19)
 
-- CSRF, inactividad (15 min), límite absoluto (8 h), `keepalive`, `/bff/session` y el reenvío a `/api` (T18).
 - Tiempos de espera de las llamadas que hace Spring Security por su cuenta (descubrimiento del proveedor e intercambio del código), terminador de sesiones vencidas, canal trasero, límite de tasa y cabeceras (T19).

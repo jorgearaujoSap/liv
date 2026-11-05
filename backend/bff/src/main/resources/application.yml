@@ -21,7 +21,16 @@ spring:
     create-schemas: false
   # Sesiones en el servidor (ADR 0010): Spring Session JDBC en el esquema bff. Las tablas las crea la migración
   # V202611051000 (liv_bff no crea objetos), y llevan el esquema por delante porque liv_bff no tiene uno propio.
+  # El reenvío a la API (Spring Cloud Gateway) usa el cliente HTTP de Spring Boot: una API que no responde no
+  # retiene los hilos del BFF. La lectura admite respuestas largas (informes), no infinitas.
+  http:
+    clients:
+      connect-timeout: 2s
+      read-timeout: 30s
   session:
+    # Inactividad: 15 minutos sin ninguna petición de la persona (001-10). /bff/session no cuenta como
+    # actividad (SessionStatusFilter). La duración máxima, 8 horas, es liv.bff.session.absolute-timeout.
+    timeout: 15m
     jdbc:
       initialize-schema: never
       table-name: bff.SPRING_SESSION

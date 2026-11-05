@@ -1,0 +1,5 @@
+openapi: 3.0.3
+info:
+  title: LIV · contrato inválido
+  version: 2.0.0
+paths: [

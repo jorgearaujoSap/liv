@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=no
+base=muestra
+head=archivo
+motivo=INVALID_VERSION
+nota=dos claves version en info: un lector de YAML toma la última y awk la primera

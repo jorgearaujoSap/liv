@@ -1,8 +1,10 @@
 package co.com.sapenlinea.liv.bff.session;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 
@@ -27,6 +29,24 @@ public final class SessionCloser {
     this.clients = clients;
     this.api = api;
     this.revoker = revoker;
+  }
+
+  /**
+   * Ends the session in LIV and in the provider and deletes the session of the BFF, whatever
+   * happens on the way: the session is over (it passed its limit or the provider refused to renew
+   * it).
+   */
+  public void closeAndDelete(
+      HttpServletRequest request, SessionAuthentication session, EndReason reason) {
+    try {
+      close(request, session, reason);
+    } finally {
+      HttpSession http = request.getSession(false);
+      if (http != null) {
+        http.invalidate();
+      }
+      SecurityContextHolder.clearContext();
+    }
   }
 
   public void close(HttpServletRequest request, SessionAuthentication session, EndReason reason) {

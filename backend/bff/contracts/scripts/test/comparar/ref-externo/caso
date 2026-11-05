@@ -1,0 +1,6 @@
+esperado=falla
+aprobado=si
+base=muestra
+head=archivo
+motivo=EXTERNAL_REF
+nota=el cambio en el archivo referido no se vería y el YAML publicado no se podría resolver

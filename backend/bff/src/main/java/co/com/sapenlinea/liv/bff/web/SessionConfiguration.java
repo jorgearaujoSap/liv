@@ -8,18 +8,29 @@ import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.ServiceTokens;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
+import co.com.sapenlinea.liv.bff.session.SessionLifetime;
 import co.com.sapenlinea.liv.bff.session.TokenCipher;
+import co.com.sapenlinea.liv.bff.session.TokenRenewal;
+import java.time.Clock;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest;
+import org.springframework.security.oauth2.client.endpoint.RestClientRefreshTokenTokenResponseClient;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ClientRegistrations;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieHttpSessionIdResolver;
+import org.springframework.session.web.http.CookieSerializer;
+import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -90,6 +101,55 @@ class SessionConfiguration {
             .baseUrl(api.baseUrl())
             .build();
     return new InternalApiClient(http, serviceTokens);
+  }
+
+  @Bean
+  Clock clock() {
+    return Clock.systemUTC();
+  }
+
+  /** The maximum duration of a session, 8 hours (001-10). */
+  @Bean
+  SessionLifetime sessionLifetime(BffProperties properties, Clock clock) {
+    return new SessionLifetime(properties.session().absoluteTimeout(), clock);
+  }
+
+  /**
+   * The token endpoint of the provider for the renewals. It is a bean so a test can replace it to
+   * decide what the provider answers.
+   */
+  @Bean
+  OAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest> refreshTokenResponseClient() {
+    return new RestClientRefreshTokenTokenResponseClient();
+  }
+
+  @Bean
+  TokenRenewal tokenRenewal(
+      ClientRegistrationRepository registrations,
+      OAuth2AuthorizedClientRepository clients,
+      OAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest> refreshClient) {
+    return new TokenRenewal(registrations, clients, refreshClient);
+  }
+
+  /**
+   * {@code GET /bff/session} answers before Spring Session's filter, so asking does not extend the
+   * session (see {@link SessionStatusFilter}).
+   */
+  @Bean
+  FilterRegistrationBean<SessionStatusFilter> sessionStatusFilter(
+      SessionRepository<?> sessions,
+      CookieSerializer cookieSerializer,
+      SessionLifetime lifetime,
+      Clock clock) {
+    // The same cookie and serializer as Spring Session's filter, so both read the same id.
+    CookieHttpSessionIdResolver idResolver = new CookieHttpSessionIdResolver();
+    idResolver.setCookieSerializer(cookieSerializer);
+    FilterRegistrationBean<SessionStatusFilter> registration =
+        new FilterRegistrationBean<>(
+            new SessionStatusFilter(sessions, idResolver, lifetime, clock));
+    registration.addUrlPatterns(SessionStatusFilter.PATH);
+    registration.setOrder(SessionRepositoryFilter.DEFAULT_ORDER - 10);
+    return registration;
   }
 
   @Bean
