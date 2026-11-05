@@ -434,7 +434,19 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - en AWS, la rotación de credenciales de un solo usuario para `liv_bff_owner` y `liv_bff`: la de usuarios alternos crea un clon miembro del rol, y la migración lo rechazaría;
     - quitar de `backend/dev/initdb` los permisos por defecto sobre `bff`, que ya fija la migración. En local le dan a `liv_bff` acceso al historial de Flyway hasta que la migración termina;
   - **resuelto el 2026-11-04:** el responsable aprobó el trabajo de CI del BFF, `bff-pr` con `bff · verify` (Q01–Q03). Mientras el *workflow* tenga filtro de ruta, el *check* no puede ser obligatorio en la protección de `main`: hasta pasar a «correr siempre y omitir trabajos» (F0‑07), cada PR de `backend/bff/` se integra solo con `bff · verify` en verde;
-  - **para la primera tarea que use la base del BFF:** comprobar en cada conexión que el rol es `liv_bff`, como `LivAppConnectionCheck` en la API.
+  - **para la primera tarea que use la base del BFF:** comprobar en cada conexión que el rol es `liv_bff`, como `LivAppConnectionCheck` en la API (hecho en T17, `BffConnectionCheck`).
+- **Ajustes de T17 (PR #79; decisiones y riesgos pendientes del responsable).** Salieron de implementar el inicio y cierre de sesión y de su revisión adversarial y de las cuatro lentes:
+  - **cierre:** `POST /bff/logout` responde `{"redirectTo":"/bff/login"}` (200) y el frontend navega a esa ruta. Sin sesión responde igual y no llama a nadie. Un fallo de LIV o del proveedor no impide cerrar la sesión del BFF;
+  - **sesión y *tokens*:** Spring Session JDBC en `bff.spring_session*`. Los *tokens* van cifrados (AES-256-GCM, `LIV_BFF_SESSION_KEY`) en un atributo de la sesión, detrás de un `OAuth2AuthorizedClientRepository` propio para que el reenvío y la renovación de T18 usen los de siempre. El contexto de seguridad guarda solo emisor, `sub` y `sid`;
+  - **fallos al abrir la sesión:** ante un rechazo de LIV, o cualquier fallo del camino, se revoca el *refresh token*, se borra la sesión (también por el id que la base aún tiene, porque Spring Session JDBC escribe el id nuevo al terminar la petición) y se vuelve a `/bff/login`. Si LIV pudo crear la sesión (5xx, *timeout*), se compensa con `EndSession(PROVIDER)`;
+  - **un nuevo `GET /bff/login` con una sesión abierta** la cierra antes (`EndSession(LOGOUT)` y revocación) solo si es una navegación del navegador (`Sec-Fetch-*`); un regreso inválido del proveedor con una sesión abierta lleva al inicio sin cerrarla;
+  - **clientes OIDC al primer uso:** el BFF arranca sin el proveedor; un fallo no se guarda;
+  - **pendientes de decisión humana** (listados en el PR #79):
+    - la equivalencia de `spring-boot-starter-session-jdbc` con `spring-session-jdbc` del ADR 0023;
+    - los motivos de `EndSession` (`LOGOUT` al reemplazar una sesión y `PROVIDER` en la compensación); uno propio cambiaría `core-internal.yaml`;
+    - la sesión que puede quedar abierta en LIV si `StartSession` termina después de la compensación, o si el enlace a `/bff/login` llega desde otro sitio y la cookie `Strict` no viaja (hasta T19; una expiración en LIV lo resolvería);
+    - `SameSite=Strict` exige que el proveedor y LIV sean del mismo sitio;
+    - la serialización Java de los atributos de sesión, la rotación de la clave de cifrado (AAD constante, sin identificador de clave) y los tiempos de espera del descubrimiento y del intercambio del código (T19).
 - **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
   - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;
   - **un solo PR** para toda la tarea;

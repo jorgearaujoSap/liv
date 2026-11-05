@@ -323,7 +323,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el CI de PR del backend no compila ni prueba `backend/bff/`, así que la verificación de T16 fue local. El trabajo de CI del BFF se aprobó el 2026-11-04 y está en `.github/workflows/bff-pr.yml`.
 > **Alcance del BFF (decisión del responsable, 2026-11-03).** Primero un BFF mínimo, que basta para validar con usuarios: T17 y T18. El endurecimiento de T19 se hace **antes de producción**. Ver plan › Decisiones, «Alcance del BFF».
 
-- [ ] **T17** · Inicio y cierre de sesión.
+- [x] **T17** · Inicio y cierre de sesión. — Hecha: PR #79, con las decisiones y los riesgos para el responsable que lista el PR (plan › Decisiones, «Ajustes de T17»).
   - Contenido:
     - cliente OIDC con `prompt=login` y `returnTo` validado;
     - cambio de id de sesión;
@@ -337,6 +337,17 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - 001-09 (salir termina la sesión en LIV y en el proveedor);
     - 001-11: ninguna respuesta contiene un JWT, cookie `HttpOnly`, `Secure`, `SameSite=Strict`;
     - 001-20: flujo completo contra `mock-oauth2-server`.
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista: los paquetes `session` y `web`, `pom.xml`, `application.yml`, `config/application-dev.yml`, `README.md`, `CHANGELOG.md`, la comprobación del rol `liv_bff` en cada conexión (`BffConnectionCheck`, pendiente de T16) y las pruebas de T16 que la configuración nueva obligó a ajustar;
+    - unas 3.900 líneas, más de la mitad pruebas y *fixtures*;
+    - dependencias del ADR 0023, con una diferencia de nombre: `spring-boot-starter-oauth2-client` y `spring-boot-starter-session-jdbc` (el ADR nombra `spring-session-jdbc`; en Boot 4 su configuración automática viene en el *starter*). **Falta que el responsable lo confirme.** Sin dependencias de prueba nuevas: el proveedor es la imagen `mock-oauth2-server`.
+  - **Resuelto en esta tarea:** la comprobación del rol `liv_bff` en cada conexión, que T16 dejó para la primera tarea que usara la base del BFF.
+  - **Qué hace, además de lo pedido:**
+    - los *tokens* van cifrados (AES-256-GCM) en un atributo de la sesión, y el contexto de seguridad guarda solo emisor, `sub` y `sid`;
+    - un fallo de `StartSession` sin respuesta clara (5xx, *timeout*) se compensa con `EndSession(PROVIDER)`;
+    - un nuevo `GET /bff/login` con una sesión abierta la cierra antes, si es una navegación del navegador;
+    - `POST /bff/logout` responde `{"redirectTo":"/bff/login"}`: el frontend (T21) navega a esa ruta.
+  - **Revisión:** adversarial con dos revisores críticos ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y los mismos 2 altos en los dos revisores (si no se obtenía el *token* de servicio, el inicio dejaba una sesión a medias y salir no cerraba nada), corregidos con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico ni alto. Resumen por severidad en el PR #79.
 - [ ] **T18** · Reenvío a la API y sesión mínima.
   - Contenido:
     - enrutamiento de `/api/**` con *TokenRelay* y bloqueo de `/internal/**`;
