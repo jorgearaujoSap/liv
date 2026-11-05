@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado
+
+- `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
+
 ## [0.2.0] — 2026-11-02
 
 Primera versión con componentes (feature 001, tareas T03, T04, T04a —contraste de tokens— y T05). Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión").
