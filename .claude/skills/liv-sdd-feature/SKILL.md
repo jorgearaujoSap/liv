@@ -1,6 +1,6 @@
 ---
 name: liv-sdd-feature
-description: Crea y conduce una feature del proyecto LIV con el flujo SDD (spec → plan → tareas → código con TDD). Úsala cuando el usuario pida una funcionalidad nueva o un cambio normal o crítico, pida "crear una feature", "escribir la spec", "hacer el plan" o "desglosar tareas", o cuando haya que avanzar o cerrar una feature en spec/features/. No la uses para cambios triviales (texto, formato, parche de dependencia).
+description: Crea y conduce una feature del proyecto LIV con el flujo SDD (spec → plan → tareas → código con TDD). Úsala cuando el usuario pida una funcionalidad nueva o un cambio normal o crítico, pida "crear una feature", "escribir la spec", "hacer el plan" o "desglosar tareas", o cuando haya que avanzar o cerrar una feature en spec/features/. No la uses para los cambios del flujo directo (evaluación previa de AGENTS.md §4.3).
 ---
 
 # Feature SDD del proyecto LIV
@@ -10,7 +10,7 @@ Reemplaza a los comandos SDD de gentle‑ai. La metodología completa está en `
 ## 0. Antes de empezar
 
 1. Lee `ESTADO.md` y `spec/constitution/roadmap.md`. Si la Fase 0 no está cerrada, solo se aceptan features de la Fase 0 o de documentación.
-2. Clasifica el cambio con `AGENTS.md` §4.3. Si es **trivial**, no uses esta *skill*: va directo a un PR.
+2. Haz la evaluación previa de `AGENTS.md` §4.3. Si no se cumple ningún criterio de SDD y la tarea es sencilla y acotada, va por el **flujo directo**: no uses esta *skill*. Si llegas aquí desde un cambio directo que se volvió complejo, empieza por `spec.md`.
 3. Lee los documentos funcionales de `docs/funcional/` que toca la feature y anota las secciones y los códigos de regla (`R0xx`, `LQ-*`, `CJxx`, `CA-x.xx`…).
 4. **Modelo por fase** (`AGENTS.md` §10):
    - nivel **alto** para `spec.md`, `plan.md` y los ADR;

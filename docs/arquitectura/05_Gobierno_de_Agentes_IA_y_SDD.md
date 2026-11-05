@@ -13,7 +13,7 @@ Un agente de IA es un desarrollador muy rápido que no recuerda nada entre sesio
 
 | # | Principio | Consecuencia |
 |---|---|---|
-| G1 | **Sin especificación aprobada no hay código** | Todo cambio no trivial pasa por el flujo SDD (§3) |
+| G1 | **Sin especificación aprobada no hay código** | Todo cambio que no cumple las condiciones del flujo directo pasa por el flujo SDD (§3). La evaluación previa decide (§3.3) |
 | G2 | **Primero la prueba** | TDD obligatorio (doc. 04 §4); el agente demuestra el rojo antes del verde |
 | G3 | **La máquina verifica, el humano decide** | Las compuertas automáticas (doc. 04 §6) atrapan lo verificable; los humanos aprueban en puntos fijos (gates H1–H3) |
 | G4 | **Cambios pequeños y acotados** | Una tarea = un objetivo, un módulo, un PR revisable (≤ ~400 líneas) |
@@ -101,11 +101,13 @@ spec/
 - Las carpetas de features terminadas se conservan: son el historial de especificaciones. No hay especificación viva aparte; la fuente funcional siguen siendo los documentos funcionales.
 - Persistencia **híbrida**: los artefactos se guardan en el repositorio (revisables por el equipo en el PR) y, si el agente tiene memoria propia (p. ej. Engram), puede registrar ahí sus descubrimientos. Si hay diferencia, manda el repositorio.
 
-### 3.3 Clasificación de cambios
+### 3.3 Evaluación previa y clasificación de cambios
+
+Antes de escribir una especificación, el agente evalúa la solicitud (ADR 0028). Si cumple algún criterio de SDD (reglas, contratos y datos, rutas críticas y seguridad, arquitectura, interfaz o alcance), va por el flujo de §3.1. Si no cumple ninguno y es sencilla, clara y de impacto acotado, va por el **flujo directo**. Los criterios, sus ejemplos, lo que exige el flujo directo y la reevaluación están en `AGENTS.md` §4.3, que es la fuente única de las reglas (§4 de este documento); aquí no se repiten los criterios.
 
 | Tipo | Ejemplos | Flujo |
 |---|---|---|
-| Trivial | Corrección de texto, actualización de dependencia de parche por Renovate, formato | Sin carpeta de feature; PR con pruebas existentes en verde |
+| Directo | Cambios sencillos, claros y acotados que no cumplen ningún criterio de SDD (`AGENTS.md` §4.3) | Sin carpeta de feature ni documentos de planificación; con las pruebas, verificaciones, revisión y registro de `AGENTS.md` §4.3 |
 | Normal | Nueva consulta, nueva pantalla, nueva validación, nuevo componente en `liv-components` | Feature completa: spec, plan y tareas (con diseño en Figma si hay interfaz) |
 | Crítico | Motor de liquidación, cuenta corriente, configuración de jurisdicción, seguridad, migraciones, CI, **modificación de un componente existente de `liv-components`** | Feature completa + `liv-revision-adversarial` + `liv-revision-4r` (§10) + dos aprobaciones humanas (en la librería, el líder de frontend y un responsable funcional) |
 
@@ -293,7 +295,8 @@ Se revisan en cada retrospectiva para detectar *vibe coding* a tiempo.
 
 | Métrica | Señal de alerta |
 |---|---|
-| % de PR con carpeta de feature | < 95 % de los no triviales |
+| % de PR con carpeta de feature | < 95 % de los que no son del flujo directo |
+| PR del flujo directo devueltos al SDD en la H3 o al reevaluar | Más de uno por iteración |
 | % de PR con prueba previa al código (commit `test:` primero) | En descenso |
 | Puntaje de mutación del dominio crítico | < 80 % o en descenso |
 | Tamaño medio de PR | > 400 líneas |
