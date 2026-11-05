@@ -18,6 +18,10 @@ spec/
         └── tasks.md         ← checklist de tareas
 ```
 
+## Evaluación previa
+
+Antes de escribir una spec, el agente evalúa la solicitud con los criterios de `AGENTS.md` §4.3 (ADR 0028). Si cumple alguno, sigue el flujo de abajo. Si no, va por el flujo directo, sin carpeta de feature.
+
 ## Flujo para una feature nueva
 
 > Procedimiento detallado para personas y agentes: *skill* `liv-sdd-feature` (`.claude/skills/liv-sdd-feature/SKILL.md`). Las revisiones usan `liv-revision-adversarial` y `liv-revision-4r`.
@@ -51,6 +55,6 @@ Para herramientas que usan los nombres de fase de gentle‑ai, los artefactos va
 | verify | Criterios marcados en `spec.md` y cierre de `tasks.md` |
 | archive | `constitution/roadmap.md` + `ESTADO.md` |
 
-## Cambios triviales
+## Flujo directo
 
-Correcciones de texto, formato o parches de dependencias no crean carpeta de feature: van directo a un PR con las pruebas existentes en verde (`AGENTS.md` §4.3).
+Los cambios sencillos, bien definidos y de impacto acotado no crean carpeta de feature ni documentos de planificación. Llevan su prueba si cambian el comportamiento, las verificaciones y el CI en verde, «Flujo: directo» en la descripción del PR, y su entrada en `CHANGELOG.md` y `ESTADO.md`. Si al implementarlos aparece complejidad o riesgo, se detienen y siguen este flujo desde `spec.md` (`AGENTS.md` §4.3).

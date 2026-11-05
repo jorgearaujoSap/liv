@@ -31,7 +31,7 @@ Stack aprobado: Java 21 LTS + Spring Boot (monolito modular hexagonal), Angular 
 ## 2. Antes de empezar cualquier tarea
 
 1. Lee [`ESTADO.md`](ESTADO.md): fase actual, entregables, decisiones abiertas y bitácora.
-2. Clasifica el cambio (§4.3) y decide si necesita el flujo SDD completo.
+2. Haz la **evaluación previa** (§4.3): decide si el cambio va por el flujo directo o por el SDD, antes de escribir una especificación o código. Si al trabajar aparece complejidad o riesgo que no viste, vuelve a evaluar.
 3. Lee las secciones de los documentos funcionales y de arquitectura que toca la tarea (§3). No trabajes de memoria.
 4. Si encuentras un hueco, una contradicción o un pendiente funcional (`PENDIENTE`, `POR_CONFIRMAR`, "Pendientes por confirmar"), **detente y pregunta**. Nunca lo resuelvas con un supuesto silencioso.
 
@@ -80,7 +80,7 @@ Todos los documentos de módulo siguen la misma estructura: encabezado con **Ver
 
 ### 4.1 Principios
 
-1. **Sin especificación aprobada no hay código** (SDD).
+1. **Sin especificación aprobada no hay código** (SDD), salvo en el flujo directo (§4.3): todo cambio con reglas de negocio, contratos, datos, arquitectura o riesgo pasa por el SDD.
 2. **Primero la prueba** (TDD): rojo → verde → refactorizar.
 3. **La máquina verifica, el humano decide**: las compuertas automáticas atrapan lo verificable; los humanos aprueban en H1, H2 y H3.
 4. **Cambios pequeños**: una tarea = un objetivo, un módulo, un PR revisable (≤ ~400 líneas).
@@ -105,13 +105,33 @@ Cada feature vive en `spec/features/NNN-nombre-feature/` (copia de la plantilla 
 
 La constitución manda: si una feature choca con `spec/constitution/`, se replantea la feature; cambiar la constitución exige un ADR aprobado.
 
-### 4.3 Clasificación de cambios
+### 4.3 Evaluación previa y clasificación de cambios
+
+Antes de escribir una especificación, el agente evalúa la solicitud (§2, paso 2). **El cambio va por el SDD si se cumple al menos uno** de estos criterios:
+
+1. **Reglas:** crea o cambia una regla de negocio o tributaria (documentos funcionales, códigos de regla, configuración de jurisdicción) o toca un pendiente funcional.
+2. **Contratos y datos:** cambia un contrato (OpenAPI, esquema de configuración) o el modelo de datos (migraciones).
+3. **Riesgo:** toca una ruta crítica (abajo) o la autenticación, la autorización, las políticas RLS o los roles.
+4. **Arquitectura:** crea un módulo o una dependencia entre módulos, agrega una dependencia o cambia la constitución. Además, esto exige un ADR (§4.5).
+5. **Interfaz:** crea o cambia una pantalla, o crea o modifica un componente de `liv-components` (§6).
+6. **Alcance:** la solicitud es ambigua o admite más de una interpretación razonable, o necesita más de un PR o más de ~400 líneas.
+
+Si no se cumple ninguno y la tarea es sencilla, está bien definida y su impacto queda acotado a un proyecto, va por el **flujo directo**. Ante la duda, va por el SDD (doc. 05, G8).
 
 | Tipo | Ejemplos | Flujo |
 |---|---|---|
-| Trivial | Texto, formato, parche de dependencia | Sin carpeta de feature; PR con pruebas en verde |
+| Directo | Texto, formato, parche de dependencia, defecto con causa clara y acotado a un módulo, pruebas nuevas, refactorización local sin cambio de comportamiento, documentación, *scripts* de desarrollo | Sin carpeta de feature ni documentos de planificación. Lleva lo que pide el flujo directo (abajo) |
 | Normal | Nueva consulta, pantalla, validación o componente de `liv-components` | Feature completa (spec, plan, tareas) |
 | Crítico | Motor de liquidación, cuenta corriente, configuración de jurisdicción, seguridad, migraciones, CI, contratos, modificación de un componente existente de `liv-components` | Feature completa + revisión adversarial (`liv-revision-adversarial`) + las cuatro lentes de riesgo, resiliencia, legibilidad y confiabilidad (`liv-revision-4r`) + dos aprobaciones humanas |
+
+**Flujo directo:**
+
+- **Pruebas:** si cambia el comportamiento, primero la prueba que falla (en un defecto, la que lo reproduce), luego el código.
+- **Verificaciones:** las locales del proyecto y el CI en verde; la lente de legibilidad antes de cada *commit* (§9); la revisión H3 del PR.
+- **PR:** su descripción dice «Flujo: directo» y por qué no se cumple ningún criterio. En la H3, la persona puede devolverlo al SDD.
+- **Registro:** el `CHANGELOG.md` del proyecto que toca, en «Sin publicar», y la bitácora de `ESTADO.md` (§7). La raíz no tiene `CHANGELOG.md`, así que sus cambios solo van en `ESTADO.md`.
+- **Reevaluación:** si durante la implementación aparece un criterio, o más complejidad o riesgo de lo previsto, el agente se detiene y no abre el PR. Le dice a la persona qué encontró, y el cambio sigue por el SDD desde `spec.md`. Lo ya hecho sirve como exploración.
+- **Sin cambios:** las prohibiciones de §4.5 aplican igual. Un cambio en una ruta crítica solo va por el flujo directo si es de texto o formato y no cambia el comportamiento.
 
 **Rutas críticas:** `backend/**/liv/tax/**`, `backend/**/liv/ledger/**`, `backend/**/liv/jurisdiction/**`, `backend/**/liv/platform/**/security/**`, `backend/**/db/migration/**`, `backend/contracts/**`, `backend/pom.xml`, `backend/bff/**`, `backend/identity/**`, `docs/funcional/anexos/**`, `ui/**`, `.github/**`.
 
@@ -256,8 +276,8 @@ Cada tarea usa el modelo más económico que la resuelve bien. Los tokens se gas
 | Nivel | Para qué | Tareas |
 |---|---|---|
 | **Alto** (razonamiento profundo) | Decisiones difíciles de revertir y revisiones de cambios críticos | **Diseño:** `spec.md` y `plan.md`; ADR; modelo de amenazas. **Revisión:** adversarial de planes de features críticas y de cambios críticos (§4.3); lente de riesgo de `liv-revision-4r` en cambios críticos. **Diagnóstico** de un fallo que no se entendió en el primer intento |
-| **Estándar** | Construcción guiada por una spec y un plan aprobados | **Construcción:** `tasks.md`; implementar sus tareas con TDD; diseño en Figma sobre patrones ya definidos. **Revisión:** adversarial de planes y cambios normales; lentes de resiliencia y confiabilidad; lente de riesgo en cambios normales. **Documentación:** `ESTADO.md`, mensajes de *commit* y de PR |
-| **Económico** (rápido) | Tareas mecánicas o de solo lectura | Búsquedas e inventarios en el repositorio; resumir archivos o salidas largas; lente de legibilidad antes de cada *commit*; cambios triviales (texto, formato); verificar que una corrección puntual quedó aplicada |
+| **Estándar** | Construcción guiada por una spec y un plan aprobados | **Construcción:** `tasks.md`; implementar sus tareas con TDD; cambios del flujo directo que no son solo texto o formato; diseño en Figma sobre patrones ya definidos. **Revisión:** adversarial de planes y cambios normales; lentes de resiliencia y confiabilidad; lente de riesgo en cambios normales. **Documentación:** `ESTADO.md`, mensajes de *commit* y de PR |
+| **Económico** (rápido) | Tareas mecánicas o de solo lectura | Búsquedas e inventarios en el repositorio; resumir archivos o salidas largas; lente de legibilidad antes de cada *commit*; cambios del flujo directo de texto o formato; verificar que una corrección puntual quedó aplicada |
 
 Reglas:
 
@@ -285,9 +305,10 @@ Reglas:
 
 ## 11. Antes de decir "terminado"
 
-- [ ] La especificación se cumple y cada requisito tiene su prueba en verde (cuando haya código).
+- [ ] La especificación se cumple y cada requisito tiene su prueba en verde (en el SDD, cuando haya código). En el flujo directo, el cambio tiene su prueba si cambia el comportamiento.
 - [ ] Las verificaciones locales y las compuertas de CI están en verde, o se reporta qué falló.
 - [ ] Solo se tocaron los archivos de la tarea.
 - [ ] La documentación afectada está actualizada (funcional, arquitectura, ADR, glosario).
-- [ ] La revisión independiente se ejecutó (`liv-revision-adversarial`, y `liv-revision-4r` si aplica) y sus hallazgos se resolvieron o justificaron.
+- [ ] La revisión independiente se ejecutó y sus hallazgos se resolvieron o justificaron: en el SDD, `liv-revision-adversarial` y `liv-revision-4r` si aplica; en el flujo directo, la lente de legibilidad.
+- [ ] El `CHANGELOG.md` del proyecto que se tocó tiene su entrada (en la raíz no hay).
 - [ ] `ESTADO.md` refleja la tarea y tiene su entrada en la bitácora (`liv-estado`).
