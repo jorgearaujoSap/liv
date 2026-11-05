@@ -1,8 +1,13 @@
 package co.com.sapenlinea.liv.bff.login;
 
+import co.com.sapenlinea.liv.bff.session.EndReason;
 import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
+import co.com.sapenlinea.liv.bff.session.SessionAuthentication;
+import co.com.sapenlinea.liv.bff.session.SessionCloser;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
@@ -18,6 +23,9 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * credentials and never reopens a session by itself (001-01, plan, step 10). The {@code returnTo}
  * of the link is validated and kept in the session of the server, never in the URL of the provider.
  * Any other path is not a sign in: the filter lets it pass.
+ *
+ * <p>If the browser still has an open session, it is ended first, in LIV and in the provider, and
+ * deleted: a new sign in must not overwrite its tokens and leave it open and unaudited.
  */
 public final class LoginAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
@@ -29,8 +37,11 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
   private final RequestMatcher login =
       PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, LOGIN_PATH);
   private final DefaultOAuth2AuthorizationRequestResolver delegate;
+  private final SessionCloser closer;
 
-  public LoginAuthorizationRequestResolver(ClientRegistrationRepository registrations) {
+  public LoginAuthorizationRequestResolver(
+      ClientRegistrationRepository registrations, SessionCloser closer) {
+    this.closer = closer;
     delegate =
         new DefaultOAuth2AuthorizationRequestResolver(
             registrations,
@@ -48,6 +59,7 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
     if (!login.matches(request)) {
       return null;
     }
+    endTheOpenSession(request);
     request
         .getSession()
         .setAttribute(RETURN_TO_ATTRIBUTE, ReturnTo.sanitize(request.getParameter("returnTo")));
@@ -58,5 +70,21 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
   public OAuth2AuthorizationRequest resolve(
       HttpServletRequest request, String clientRegistrationId) {
     return delegate.resolve(request, clientRegistrationId);
+  }
+
+  private void endTheOpenSession(HttpServletRequest request) {
+    if (!(SecurityContextHolder.getContext().getAuthentication()
+        instanceof SessionAuthentication open)) {
+      return;
+    }
+    try {
+      closer.close(request, open, EndReason.LOGOUT);
+    } finally {
+      HttpSession session = request.getSession(false);
+      if (session != null) {
+        session.invalidate();
+      }
+      SecurityContextHolder.clearContext();
+    }
   }
 }

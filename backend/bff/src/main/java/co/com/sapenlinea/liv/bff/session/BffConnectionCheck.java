@@ -40,7 +40,7 @@ public final class BffConnectionCheck implements BeanPostProcessor {
       pool.setConnectionInitSql(SQL);
     } else if (bean instanceof DataSource) {
       throw new IllegalStateException(
-          "The connection check of liv_bff needs a Hikari pool, not " + bean.getClass());
+          "La comprobación de conexión de liv_bff necesita un pool Hikari, no " + bean.getClass());
     }
     return bean;
   }

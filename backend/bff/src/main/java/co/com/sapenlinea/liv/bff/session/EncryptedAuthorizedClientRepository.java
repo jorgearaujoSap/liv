@@ -71,7 +71,9 @@ public final class EncryptedAuthorizedClientRepository implements OAuth2Authoriz
       LOG.error("Los tokens de la sesión no se pueden leer: {}", e.getClass().getSimpleName());
       return null;
     }
-    if (!stored.registrationId().equals(registrationId)) {
+    if (!stored.registrationId().equals(registrationId)
+        || (principal != null && !stored.principalName().equals(principal.getName()))) {
+      // Tokens of another client, or of another person: never returned.
       return null;
     }
     ClientRegistration registration = registrations.findByRegistrationId(registrationId);

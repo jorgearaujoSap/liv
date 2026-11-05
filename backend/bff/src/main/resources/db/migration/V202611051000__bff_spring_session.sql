@@ -5,7 +5,8 @@
 -- liv_bff no tiene un esquema propio en su search_path.
 --
 -- Los datos de la sesión (el contexto de seguridad y los tokens cifrados) van en SPRING_SESSION_ATTRIBUTES. La
--- columna PRINCIPAL_NAME guarda el sub de la persona (hasta 100 caracteres: el de Keycloak es un UUID).
+-- columna PRINCIPAL_NAME guarda el sub de la persona: hasta 255 caracteres, el máximo que permite OIDC y que
+-- acepta EndSession (el de Keycloak es un UUID; con otro proveedor, o una cuenta federada, puede ser más largo).
 
 CREATE TABLE bff.spring_session (
   primary_id            CHAR(36)     NOT NULL,
@@ -14,7 +15,7 @@ CREATE TABLE bff.spring_session (
   last_access_time      BIGINT       NOT NULL,
   max_inactive_interval INT          NOT NULL,
   expiry_time           BIGINT       NOT NULL,
-  principal_name        VARCHAR(100),
+  principal_name        VARCHAR(255),
   CONSTRAINT spring_session_pk PRIMARY KEY (primary_id)
 );
 

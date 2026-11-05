@@ -7,6 +7,7 @@ import co.com.sapenlinea.liv.bff.session.InternalApiClient;
 import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.ServiceTokens;
+import co.com.sapenlinea.liv.bff.session.SessionCloser;
 import co.com.sapenlinea.liv.bff.session.TokenCipher;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -91,6 +92,18 @@ class SessionConfiguration {
     return new InternalApiClient(http, serviceTokens);
   }
 
+  @Bean
+  SessionCloser sessionCloser(
+      OAuth2AuthorizedClientRepository clients,
+      InternalApiClient api,
+      RefreshTokenRevoker revoker) {
+    return new SessionCloser(clients, api, revoker);
+  }
+
+  /**
+   * The revocation reuses the timeouts of the calls to the API: both are short calls inside the
+   * infrastructure.
+   */
   @Bean
   RefreshTokenRevoker refreshTokenRevoker(BffProperties properties) {
     BffProperties.Api api = properties.api();
