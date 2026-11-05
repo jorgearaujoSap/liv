@@ -65,11 +65,26 @@ export const x = http;
     assert.equal((await restricted(IMPORT_HTTP_CLIENT, 'src/app/api/hand.ts')).length, 1);
   });
 
-  it('HttpBackend esquiva al cliente igual que HttpClient', async () => {
-    const code = `import { HttpBackend } from '@angular/common/http';
-export const x = HttpBackend;
+  for (const name of ['HttpBackend', 'HttpHandler']) {
+    it(`${name} esquiva al cliente igual que HttpClient`, async () => {
+      const code = `import { ${name} } from '@angular/common/http';
+export const x = ${name};
 `;
-    assert.equal((await restricted(code, 'src/app/core/a.ts')).length, 1);
+      assert.equal((await restricted(code, 'src/app/core/a.ts')).length, 1);
+    });
+  }
+
+  it('window.fetch, globalThis.fetch y self.XMLHttpRequest también se prohíben', async () => {
+    for (const code of [
+      `export const x = window.fetch('/api/v1/me');
+`,
+      `export const x = globalThis.fetch('/api/v1/me');
+`,
+      `export const x = new self.XMLHttpRequest();
+`,
+    ]) {
+      assert.equal((await restricted(code, 'src/app/core/a.ts')).length, 1, code);
+    }
   });
 
   it('fetch, XMLHttpRequest y el import dinámico de @angular/common/http también se prohíben', async () => {

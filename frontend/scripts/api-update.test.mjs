@@ -176,6 +176,16 @@ describe('updateApiSpec', () => {
     assert.equal(existsSync(join(dir, 'bff.yaml')), false);
   });
 
+  it('reemplaza una copia anterior sin dejar archivos temporales', async () => {
+    writeVersions(versionsFile());
+    writeFileSync(join(dir, 'core.yaml'), 'copia anterior');
+
+    await updateApiSpec({ specDir: dir, fetchFn: fakeFetch(published) });
+
+    assert.equal(readFileSync(join(dir, 'core.yaml'), 'utf8'), CONTENT.core);
+    assert.deepEqual(readdirSync(dir).sort(), ['bff.yaml', 'core.yaml', 'versions.json']);
+  });
+
   it('borra de api-spec/ un contrato que versions.json ya no lista', async () => {
     writeVersions(versionsFile());
     writeFileSync(join(dir, 'viejo.yaml'), 'openapi: 3.0.3\n');
