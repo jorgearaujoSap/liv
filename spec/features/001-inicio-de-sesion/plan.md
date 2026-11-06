@@ -460,6 +460,20 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - la revocación en el final por `invalid_grant`, que el plan pedía;
     - forzar la renovación de `keepalive` sin depender de un margen de 1 hora si los tokens duraran más;
     - serializar las renovaciones si algún día se activa la rotación del *refresh token*.
+- **Ajustes de T21 (PR #84; decisiones y riesgos pendientes del responsable).** Salieron de implementar el núcleo del frontend y de su revisión adversarial y de las cuatro lentes:
+  - **ESLint:** la regla de T20 no se amplió; solo restringe `HttpClient`, `HttpBackend` y `HttpHandler`, y el interceptor no los necesita;
+  - **rutas de las pantallas de T22:** `/sin-permiso`, `/proximamente` y `/error` (`core/app-paths.ts`);
+  - **reintento tras un 401:** una vez, solo lecturas o peticiones con `Idempotency-Key`; con sesión abierta y una mutación sin esa clave, va a iniciar sesión, como dice el plan;
+  - **sin peticiones de fondo:** una consulta a `/bff/session` programada para el aviso, otra al volver a ver la pestaña o restaurarla de la memoria del navegador, y un reintento a los 30 s si no responde; nada va a `/api`;
+  - **aviso del límite absoluto a 5 minutos**, donde «Seguir conectado» no sirve (el plan decía «cerca del máximo»);
+  - **imagen:** `nginx-unprivileged` 1.30.6 fijada por digest, usuario 101, `npm ci --ignore-scripts`;
+  - **pendientes de decisión humana** (listados en el PR #84):
+    - la CSP admite `style-src 'unsafe-inline'` (Angular crea `<style>` al ejecutarse); lo estricto es un nonce por petición y desactivar `inlineCritical`;
+    - todo 403 de `/api/**` que no sea el anti-CSRF lleva a «sin permiso», también el de una mutación;
+    - Angular codifica `/` en las consultas como `%2F` y el BFF rechaza `%2F` en `returnTo`: la persona vuelve a `/`;
+    - `bff.yaml` no declara el 403 con `code: 001-12` del que depende el interceptor;
+    - `ended` se difunde entre pestañas solo con «Salir», no al ir a iniciar sesión por una expiración;
+    - el trabajo de CI de la imagen (construirla, `nginx -t`, Trivy, SBOM y publicarla) cambia CI y requiere aprobación.
 - **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
   - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;
   - **un solo PR** para toda la tarea;

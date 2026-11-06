@@ -404,13 +404,25 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `api:generate` y `api:verify` sin red; `api:update` valida `versions.json` (sin rutas ni URL que se salgan de lo esperado), pone tiempo límite y tope de tamaño a la descarga, y no cambia nada si un SHA-256 no coincide;
     - la regla de ESLint cubre `HttpClient`, `HttpBackend`, `HttpHandler`, `fetch`, `XMLHttpRequest` y el `import()` de `@angular/common/http` fuera de las carpetas de los contratos. Para esta tarea, «servicios de datos» es el cliente generado (doc. 01 §11); si T21 necesita `HttpClient` en otro sitio, se amplía la regla.
   - **Revisión:** adversarial con dos `liv-revisor` ciegos (cambio normal) y la lente de legibilidad. Primera ronda: ningún crítico, 1 alto (la regla de ESLint se eludía por varias vías) y medios, corregidos con prueba en rojo primero; un hallazgo era falso (la prueba del cliente sí existe). Segunda ronda, solo sobre lo corregido: ningún crítico y 2 altos (`HttpHandler` y `window.fetch`, corregidos). Se aceptan y se declaran en el PR: la regla evita el uso accidental, no una elusión deliberada; `api:update` no es transaccional entre `api-spec/` y el cliente (lo detecta `npm test`); no se restringen `WebSocket`, `EventSource` ni `sendBeacon`.
-- [ ] **T21** · Núcleo: `SessionService`, `authGuard`, `capabilityGuard`, interceptor, `IdleService` con `BroadcastChannel`, cierre de sesión con navegación completa y nginx con sus cabeceras.
+- [x] **T21** · Núcleo: `SessionService`, `authGuard`, `capabilityGuard`, interceptor, `IdleService` con `BroadcastChannel`, cierre de sesión con navegación completa y nginx con sus cabeceras. — Hecha: PR #84 (`frontend/`), con las decisiones y los riesgos para el responsable que lista el PR.
   - Archivos: `frontend/src/app/core/**`, `frontend/nginx.conf`, `frontend/Dockerfile`.
   - Prueba primero:
     - 001-01 (`authGuard` con `returnTo`);
     - 001-16 (`capabilityGuard`: 403 y Próximamente);
     - el interceptor reintenta solo en métodos seguros;
     - 001-22 (`IdleService` avisa a los 13 minutos, sincroniza pestañas y no hace peticiones de fondo).
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista: `frontend/src/app/app.config.ts` y `app.config.spec.ts` (registrar `provideLivHttp()`), `frontend/.dockerignore`, `frontend/scripts/nginx-conf.test.mjs` (pruebas de `nginx.conf` y del `Dockerfile`), `frontend/README.md` y `frontend/CHANGELOG.md`;
+    - unas 2.900 líneas (1.830 de pruebas): siete piezas con sus pruebas y dos rondas de revisión;
+    - **la regla de ESLint de T20 no se amplió:** solo restringe `HttpClient`, `HttpBackend` y `HttpHandler`, y el interceptor usa `HttpInterceptorFn`, `HttpHandlerFn` y `HttpErrorResponse`. Ningún servicio escrito a mano usa `HttpClient`;
+    - imagen base nueva, `nginxinc/nginx-unprivileged:1.30.6-alpine` fijada por digest (ADR 0023: «imagen base de nginx»).
+  - **Qué hace, además de lo pedido:**
+    - los 401 simultáneos comparten una sola consulta a `/bff/session` y una sola redirección, con la ruta de la navegación en curso como `returnTo`; `returnTo` nunca es una ruta del BFF ni de la API ni lleva caracteres de control;
+    - las consultas a `/bff/session`, `keepalive` y `logout` tienen un tiempo límite de 10 s (si el cierre no responde, igual navega a `/bff/login`, que cierra la sesión abierta);
+    - aviso aparte a 5 minutos del límite absoluto de 8 horas, donde «Seguir conectado» no sirve; consulta al volver a ver la pestaña o al restaurarla de la memoria del navegador (`pageshow`);
+    - el cierre de sesión en otra pestaña se confirma con `/bff/session` antes de navegar;
+    - la imagen corre con el usuario 101 y sistema de archivos de solo lectura, con `no-store` salvo los archivos con hash (solo respuestas 200 y 304), `/api`, `/bff`, `/internal`, `/login/oauth2` y `/oauth2` responden 404 y el registro de accesos no guarda la consulta de la URL.
+  - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y 2 altos (las consultas de sesión sin tiempo límite y el canal entre pestañas sin pruebas con `BroadcastChannel` real), más medios confirmados por varios revisores; todo corregido con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico y **2 altos** (una bandera de consulta que podía quedar colgada y una ráfaga de consultas cerca del límite, regresiones de la primera ronda), corregidos con prueba en rojo primero. **No hubo tercera ronda** (regla de dos rondas): esos dos altos quedan corregidos pero sin un tercer juicio independiente. Resumen por severidad en el PR #84.
 - [ ] **T22** · Pantallas y catálogo de presentación del menú.
   - Pantallas: estructura general, Inicio, Aviso de sesión, Sin permiso, Próximamente, Cargando y Error.
   - Archivos: `frontend/src/app/features/{shell,home,errors}/**`, `frontend/src/app/core/navigation/menu-presentation.ts`.
