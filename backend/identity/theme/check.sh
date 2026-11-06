@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prueba del tema liv y de la imagen de Keycloak (tarea T08 de la feature 001; criterios 001-03 a 001-07 y
+# Prueba del tema liv y de la imagen de Keycloak (tarea T08 de la feature 001; criterios 001-03 a 001-08 y
 # 001-19). Levanta un entorno propio y desechable con dev/compose.yaml (proyecto liv-identity-check, otros puertos y
 # otra etiqueta de imagen, así que no toca el entorno local), recorre las páginas con curl y lo borra al terminar.
 # La prueba visual contra los frames de Figma y la de accesibilidad con axe son de las e2e (tarea T23).
@@ -157,10 +157,11 @@ esperado='Usuario o contraseña incorrectos. Tras varios intentos fallidos el ac
 clave='Liv-Dev-2026!'
 
 # Control positivo: con la contraseña correcta un usuario activo sí entra (redirige al BFF con un código).
+# dev.liquidador tiene LIQUIDADOR, un rol que no exige segundo factor: entra sin que se le pida (001-08).
 respuesta=$(intento "$tmp/correcto.html" dev.liquidador "$clave")
 case "$respuesta" in
-  "302 $redirect?"*code=*) ok "usuario activo con la contraseña correcta: entra" ;;
-  *) falla "usuario activo con la contraseña correcta: entra (obtuvo: '$respuesta')" ;;
+  "302 $redirect?"*code=*) ok "usuario activo con la contraseña correcta y un rol sin segundo factor: entra sin él (001-08)" ;;
+  *) falla "usuario activo con la contraseña correcta y un rol sin segundo factor: entra sin él (001-08) (obtuvo: '$respuesta')" ;;
 esac
 
 # Cuenta bloqueada: 5 fallos seguidos, espaciados más de 1 s para no activar la protección contra intentos
