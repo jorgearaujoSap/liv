@@ -253,22 +253,27 @@ describe('interceptor de la API', () => {
       expect(navigation.replaced).toHaveLength(1);
     });
 
-    it('sin sesión, va a iniciar sesión sin reintentar', async () => {
+    it('sin sesión, va a iniciar sesión sin reintentar y avisa a las demás pestañas', async () => {
+      const post = vi.spyOn(TestBed.inject(SessionChannel), 'post');
       const result = core.invoke(getCurrentUser);
       http.expectOne('/api/v1/me').flush(null, UNAUTHORIZED);
       (await nextRequest('/bff/session')).flush(null, UNAUTHORIZED);
 
       await expect(result).rejects.toMatchObject({ status: 401 });
       expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+      expect(post).toHaveBeenCalledWith({ type: 'ended' });
     });
 
     it('un método que modifica datos no se reintenta nunca, aunque la sesión siga abierta', async () => {
+      const post = vi.spyOn(TestBed.inject(SessionChannel), 'post');
       const result = call('POST', '/api/v1/pagos');
       (await nextRequest('/api/v1/pagos')).flush(null, UNAUTHORIZED);
       (await nextRequest('/bff/session')).flush(SESSION);
 
       await expect(result).rejects.toMatchObject({ status: 401 });
       expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+      // La sesión seguía abierta: las demás pestañas no se enteran por aquí, sino en su próxima consulta.
+      expect(post).not.toHaveBeenCalled();
     });
 
     it('con Idempotency-Key, un método que modifica datos sí se reintenta una vez', async () => {

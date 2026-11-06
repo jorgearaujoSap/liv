@@ -258,14 +258,105 @@ describe('IdleService', () => {
       http.expectNone(() => true);
     });
 
-    it('si otra pestaña cerró la sesión y ya no hay ninguna, esta vuelve a iniciar sesión', async () => {
+    it('si otra pestaña cerró la sesión y ya no hay ninguna, esta vuelve a iniciar sesión y conserva su ruta', async () => {
       idle.watch(status(900));
 
       channel.handler?.({ type: 'ended' });
       await advance(0);
       await answerSession(null);
 
-      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2F']);
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+    });
+
+    it('oculta, no va a iniciar sesión al recibir el aviso: espera a volver a ser visible, para no pisar el inicio de sesión de la pestaña que lo pidió', async () => {
+      idle.watch(status(900));
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+      channel.handler?.({ type: 'ended' });
+      await advance(0);
+      http.expectNone(() => true);
+      expect(navigation.replaced).toEqual([]);
+
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await advance(0);
+      await answerSession(null);
+
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+    });
+
+    it('oculta, si al volver hay una sesión abierta, recarga la aplicación: no sigue mostrando lo de la sesión anterior', async () => {
+      idle.watch(status(900));
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+      channel.handler?.({ type: 'ended' });
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await advance(0);
+      await answerSession(status(900));
+
+      expect(navigation.replaced).toEqual(['/']);
+    });
+
+    it('si el BFF no responde al aviso y la pestaña se oculta, el reintento espera a que vuelva a verse', async () => {
+      idle.watch(status(900));
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+
+      channel.handler?.({ type: 'ended' });
+      await advance(0);
+      http.expectOne('/bff/session').flush(null, { status: 502, statusText: 'Bad Gateway' });
+      await advance(0);
+      visibility.mockReturnValue('hidden');
+      await advance(30_000);
+
+      http.expectNone(() => true);
+      expect(navigation.replaced).toEqual([]);
+    });
+
+    it('un «Seguir conectado» que llega después del aviso de cierre no reabre el aviso ni deja de preguntar', async () => {
+      idle.watch(status(900));
+      const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+      channel.handler?.({ type: 'ended' });
+      channel.handler?.({ type: 'extended', status: status(100) });
+      await advance(13 * MINUTE);
+
+      expect(idle.warning()).toBeUndefined();
+      http.expectNone(() => true);
+
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await advance(0);
+      await answerSession(null);
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+    });
+
+    it('si el aviso llega con una consulta en vuelo, no lanza otra: esa respuesta decide', async () => {
+      idle.watch(status(120));
+      await advance(0);
+      const inFlight = http.expectOne('/bff/session');
+
+      channel.handler?.({ type: 'ended' });
+      await advance(0);
+      http.expectNone('/bff/session');
+
+      inFlight.flush(null, { status: 401, statusText: 'Unauthorized' });
+      await advance(0);
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+    });
+
+    it('si el BFF no responde al recibir el aviso, no va a iniciar sesión: vuelve a preguntar en 30 segundos', async () => {
+      idle.watch(status(900));
+
+      channel.handler?.({ type: 'ended' });
+      await advance(0);
+      http.expectOne('/bff/session').flush(null, { status: 502, statusText: 'Bad Gateway' });
+      await advance(0);
+      expect(navigation.replaced).toEqual([]);
+
+      await advance(30_000);
+      await answerSession(status(900));
+      expect(navigation.replaced).toEqual(['/']);
     });
 
     it('si hay una sesión abierta (otra persona entró en otra pestaña), no cierra esa sesión: recarga la aplicación', async () => {

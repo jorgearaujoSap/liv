@@ -4,7 +4,10 @@ import type { SessionStatus } from '../../api/bff/models';
 
 /** Lo que las pestañas del mismo navegador se dicen entre sí sobre la sesión. */
 export type SessionMessage =
-  /** La sesión terminó (cierre de sesión): las demás pestañas vuelven a iniciar sesión. */
+  /**
+   * La sesión terminó (al salir o al ir a iniciar sesión sin sesión): las demás pestañas preguntan al BFF
+   * cuando estén a la vista y, según la respuesta, van a iniciar sesión o se recargan.
+   */
   | { type: 'ended' }
   /** La persona eligió seguir conectada: las demás pestañas cierran su aviso. */
   | { type: 'extended'; status: SessionStatus };
@@ -20,9 +23,16 @@ export class SessionChannel implements OnDestroy {
   private readonly channel =
     typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(CHANNEL_NAME);
 
-  /** Avisa a las demás pestañas; la propia no recibe su mensaje. */
+  /**
+   * Avisa a las demás pestañas; la propia no recibe su mensaje. Es lo mejor posible: si el navegador no
+   * deja enviar (p. ej. el canal ya se cerró), no falla, para no frenar lo que venía después.
+   */
   post(message: SessionMessage): void {
-    this.channel?.postMessage(message);
+    try {
+      this.channel?.postMessage(message);
+    } catch {
+      // Sin aviso, cada pestaña se entera en su próxima consulta al BFF.
+    }
   }
 
   /** Escucha lo que dicen las demás pestañas. Devuelve la función que deja de escuchar. */

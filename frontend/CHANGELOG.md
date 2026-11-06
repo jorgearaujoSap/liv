@@ -22,6 +22,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Aviso del cierre de sesión entre pestañas (decisión del responsable sobre T21): al ir a iniciar sesión sin sesión (vencida o tras un 401), `SessionService.redirectToLogin` avisa a las demás pestañas, igual que al salir. Si la sesión sigue abierta, no avisa. Cada pestaña que recibe el aviso pregunta al BFF cuando está a la vista, para no pisar el inicio de sesión de la pestaña que la persona usa. Sin sesión, va a iniciar sesión conservando su ruta; con una sesión abierta, se recarga. Si el BFF no responde, vuelve a preguntar en 30 segundos. El canal no falla si el navegador no deja enviar, y `restart()` no deshace una redirección en curso.
 - `liv-components` sube a la versión exacta 0.2.0 (18 componentes).
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 

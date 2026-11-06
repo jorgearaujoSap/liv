@@ -47,11 +47,17 @@ export class IdleService implements OnDestroy {
   private watching = false;
   private checking = false;
   /**
-   * Cambia cada vez que algo hace obsoleta una consulta en vuelo («Seguir conectado», dejar de vigilar):
-   * su respuesta se descarta en lugar de deshacer lo que pasó después.
+   * Cambia cada vez que algo hace obsoleta una consulta o una renovación en vuelo («Seguir conectado»,
+   * dejar de vigilar, el aviso de cierre de otra pestaña): su respuesta se descarta en lugar de deshacer lo
+   * que pasó después.
    */
   private epoch = 0;
   private extending?: Promise<boolean>;
+  /**
+   * Otra pestaña avisó que la sesión terminó. La próxima consulta decide: sin sesión, iniciar sesión; con
+   * una sesión abierta (quizá de otra persona), recargar para no mostrar nada de la anterior.
+   */
+  private endedElsewhere = false;
   /** Instantes (ms desde 1970) en que vencen la inactividad y el límite absoluto, según el BFF. */
   private idleDeadline = 0;
   private absoluteDeadline = 0;
@@ -136,6 +142,7 @@ export class IdleService implements OnDestroy {
   private stop(): void {
     this.epoch++;
     this.watching = false;
+    this.endedElsewhere = false;
     this.checking = false;
     clearTimeout(this.checkTimer);
     clearInterval(this.countdownTimer);
@@ -152,29 +159,36 @@ export class IdleService implements OnDestroy {
       return;
     }
     if (message.type === 'extended') {
+      if (this.endedElsewhere) {
+        // Ya avisaron que la sesión terminó: decide la próxima consulta, no este mensaje.
+        return;
+      }
       this.epoch++;
       this.apply(message.status);
     } else {
-      void this.onSessionEndedElsewhere();
+      this.onSessionEndedElsewhere();
     }
   }
 
   /**
-   * Otra pestaña cerró la sesión. Esta no navega a ciegas a `/bff/login`, que cerraría una sesión nueva si
-   * la persona (u otra) ya volvió a entrar: pregunta primero.
+   * Otra pestaña avisó que la sesión terminó. Esta no navega a ciegas a `/bff/login`, que cerraría una
+   * sesión nueva si la persona (u otra) ya volvió a entrar: pregunta primero. Y solo pregunta a la vista:
+   * oculta, espera a volver a verse, para no empezar un inicio de sesión que pise el de la pestaña que la
+   * persona está usando (el BFF guarda uno solo por navegador). Si el BFF no responde, vuelve a preguntar,
+   * también solo a la vista. Si ya había una consulta en vuelo, esa respuesta decide.
+   *
+   * Si llega mientras «Seguir conectado» está en vuelo, esa renovación se da por perdida y la consulta
+   * decide: con la sesión abierta, la pestaña se recarga.
    */
-  private async onSessionEndedElsewhere(): Promise<void> {
-    this.stop();
-    let status: SessionStatus | null = null;
-    try {
-      status = await this.session.status();
-    } catch {
-      // Sin respuesta, lo más probable es que la sesión ya no exista.
-    }
-    if (status) {
-      this.session.restart();
-    } else {
-      this.session.redirectToLogin('/');
+  private onSessionEndedElsewhere(): void {
+    this.endedElsewhere = true;
+    this.clearWarning();
+    clearTimeout(this.checkTimer);
+    this.checkTimer = undefined;
+    if (!this.checking) {
+      // Invalida una renovación en vuelo; una consulta en vuelo, en cambio, sigue y decide.
+      this.epoch++;
+      void this.check();
     }
   }
 
@@ -199,6 +213,10 @@ export class IdleService implements OnDestroy {
     if (!this.watching || this.checking) {
       return;
     }
+    if (this.endedElsewhere && document.visibilityState !== 'visible') {
+      // Tras el aviso de otra pestaña solo se pregunta a la vista: `visibilitychange` vuelve a llamar.
+      return;
+    }
     this.checking = true;
     const epoch = this.epoch;
     let status: SessionStatus | null = null;
@@ -218,6 +236,9 @@ export class IdleService implements OnDestroy {
       // Sin respuesta no se sabe nada: ni avisar ni cerrar. Se vuelve a preguntar más tarde.
       clearTimeout(this.checkTimer);
       this.checkTimer = setTimeout(() => void this.check(), RETRY_AFTER_FAILURE_MS);
+    } else if (status && this.endedElsewhere) {
+      this.stop();
+      this.session.restart();
     } else if (status) {
       this.apply(status);
     } else {
