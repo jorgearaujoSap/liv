@@ -110,6 +110,15 @@ describe('SessionChannel', () => {
     });
   });
 
+  it('si el navegador no deja enviar (canal cerrado), post() no falla: el aviso es lo mejor posible', () => {
+    vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(() => {
+      throw new DOMException('closed', 'InvalidStateError');
+    });
+    const channel = open();
+
+    expect(() => channel.post({ type: 'ended' })).not.toThrow();
+  });
+
   it('sin BroadcastChannel (navegador antiguo) no falla: no hace nada', () => {
     vi.stubGlobal('BroadcastChannel', undefined);
     const channel = open();

@@ -176,9 +176,28 @@ describe('SessionService', () => {
     });
 
     it('avisa a las demás pestañas antes de navegar, para que no sigan mostrando datos de la sesión que terminó', () => {
+      const order: string[] = [];
+      vi.spyOn(channel, 'post').mockImplementation(() => order.push('post'));
+      vi.spyOn(navigation, 'replace').mockImplementation(() => order.push('replace'));
+
       service.redirectToLogin('/liquidacion/lista');
 
-      expect(channel.posted).toEqual([{ type: 'ended' }]);
+      expect(order).toEqual(['post', 'replace']);
+    });
+  });
+  describe('aviso a las demás pestañas', () => {
+    it('con la sesión aún abierta (quien llama lo sabe), va a iniciar sesión sin avisar: las demás no tienen por qué recargarse', () => {
+      service.redirectToLogin('/liquidacion/lista', { sessionEnded: false });
+
+      expect(channel.posted).toEqual([]);
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%2Flista']);
+    });
+
+    it('restart() no deshace una redirección a iniciar sesión que ya empezó', () => {
+      service.redirectToLogin('/liquidacion/lista');
+      service.restart();
+
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%2Flista']);
     });
   });
   describe('varias llamadas a la vez', () => {
