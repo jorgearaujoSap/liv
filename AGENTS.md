@@ -100,7 +100,7 @@ Cada feature vive en `spec/features/NNN-nombre-feature/` (copia de la plantilla 
 | 4. Plan | `plan.md`: enfoque, implementación, datos/API/seguridad, diseño de interfaz, decisiones, riesgos | Revisión adversarial independiente (`liv-revision-adversarial`) y **H2**: arquitecto (+ responsable funcional si cambia una regla o hay pantallas) |
 | 5. Tareas | `tasks.md`: tareas pequeñas con los archivos permitidos y la prueba que se escribe primero | — |
 | 6. Implementar | Por tarea: commit `test:` (rojo) → `feat:`/`fix:` (verde) → `refactor:`. Solo los archivos declarados; progreso marcado en `tasks.md` | — |
-| 7. Validar | Revisión adversarial independiente (`liv-revision-adversarial`) y, si es crítico o > 400 líneas, las cuatro lentes de `liv-revision-4r`; cada criterio de `spec.md` marcado `[x]` con la prueba que lo demuestra; CI en verde | **H3**: revisión humana del PR |
+| 7. Validar | Revisión adversarial independiente (`liv-revision-adversarial`) y, si es crítico o > 400 líneas, las cuatro lentes de `liv-revision-4r`; si hay interfaz, las pruebas de navegador de `e2e/` en verde contra el entorno local y la pantalla revisada contra Figma (ADR 0030); cada criterio de `spec.md` marcado `[x]` con la prueba que lo demuestra; CI en verde | **H3**: revisión humana del PR |
 | 8. Cerrar | Feature en "Hecho" en `spec/constitution/roadmap.md`, ADR y glosario al día, `ESTADO.md` actualizado | — |
 
 La constitución manda: si una feature choca con `spec/constitution/`, se replantea la feature; cambiar la constitución exige un ADR aprobado.
