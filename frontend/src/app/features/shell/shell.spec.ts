@@ -228,7 +228,11 @@ describe('estructura general (001-02, 001-15)', () => {
                   {
                     code: '1.5',
                     status: 'AVAILABLE',
-                    children: [leaf('1.5.3', 'AVAILABLE'), leaf('1.5.4')],
+                    children: [
+                      leaf('1.5.3', 'AVAILABLE'),
+                      leaf('1.5.4'),
+                      leaf('1.5.5', 'AVAILABLE'),
+                    ],
                   },
                   { code: '1.6', status: 'COMING_SOON', children: [leaf('1.6.1')] },
                 ],
@@ -262,8 +266,20 @@ describe('estructura general (001-02, 001-15)', () => {
         const nested = Array.from(
           subgroups[0].querySelectorAll('liv-nav-item[data-type="nested"]'),
         );
-        expect(nested.map(text)).toEqual(['Cargar archivo de avalúos', 'Bandeja de lotes']);
-        expect(nested.map((item) => item.hasAttribute('data-disabled'))).toEqual([false, true]);
+        expect(nested.map(text)).toEqual([
+          'Cargar archivo de avalúos',
+          'Bandeja de lotes',
+          'Tarifas por rango',
+        ]);
+        expect(nested.map((item) => item.hasAttribute('data-disabled'))).toEqual([
+          false,
+          true,
+          false,
+        ]);
+
+        // Un subgrupo sin nada construido no se abre.
+        open(fixture, subgroups[1]);
+        expect(subgroups[1].querySelectorAll('liv-nav-item[data-type="nested"]')).toHaveLength(0);
       });
 
       it('una opción de tercer nivel navega con el enrutador', async () => {
@@ -277,6 +293,39 @@ describe('estructura general (001-02, 001-15)', () => {
         (nav.querySelector('a[href="/opcion/1.5.3"]') as HTMLAnchorElement).click();
 
         expect(navigate).toHaveBeenCalledWith('/opcion/1.5.3');
+      });
+
+      const expandedOf = (item: Element | null) =>
+        item?.querySelector('button')?.getAttribute('aria-expanded');
+
+      it('la persona puede contraer el subgrupo de la pantalla actual, y al navegar dentro de él se vuelve a abrir', async () => {
+        withLoads();
+        router.resetConfig([{ path: 'opcion/:code', children: [] }]);
+        await router.navigateByUrl('/opcion/1.5.3');
+        const fixture = await render();
+        const subgroup = () => host(fixture).querySelector('liv-nav-item[data-type="subgroup"]');
+
+        open(fixture, subgroup() as Element);
+        expect(expandedOf(subgroup())).toBe('false');
+
+        await router.navigateByUrl('/opcion/1.5.5');
+        fixture.detectChanges();
+        expect(expandedOf(subgroup())).toBe('true');
+      });
+
+      it('al salir de un subgrupo hacia otra opción del módulo, el subgrupo no se cierra solo (el foco no se pierde)', async () => {
+        withLoads();
+        router.resetConfig([{ path: 'opcion/:code', children: [] }]);
+        await router.navigateByUrl('/opcion/1.5.3');
+        const fixture = await render();
+
+        await router.navigateByUrl('/opcion/1.4');
+        fixture.detectChanges();
+
+        const subgroup = host(fixture).querySelector('liv-nav-item[data-type="subgroup"]');
+        expect(expandedOf(subgroup)).toBe('true');
+        expect(subgroup?.hasAttribute('data-active')).toBe(false);
+        expect(host(fixture).querySelectorAll('[aria-current="page"]')).toHaveLength(1);
       });
 
       it('en una opción de tercer nivel, el módulo y su subgrupo se marcan y se abren, y la opción es la actual', async () => {
