@@ -13,7 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - `WorkspaceService`: carga la persona y las capacidades con un tiempo límite de 10 s y vuelve a pedir la persona cuando cambian las capacidades (p. ej. tras un 403); una rama del menú lleva a su primera opción disponible y los códigos que no son un número de opción se descartan;
   - ruta `opcion/:code`, con `capabilityGuard`, para abrir cualquier opción del menú por URL (001-16);
   - regla de ESLint: las plantillas de `src/app/features/` solo usan `liv-*`, `app-*`, `router-outlet` y contenedores sin estilo, sin `style`, `class` ni controles nativos.
-- `axe-core` 4.14.0 (solo desarrollo): una prueba de accesibilidad por pantalla (001-19). **Pendiente de ADR** (`AGENTS.md` §4.5).
+- `axe-core` 4.14.0 (solo desarrollo): una prueba de accesibilidad por pantalla (001-19). ADR 0029, aceptado por el responsable el 2026-11-05.
 - Núcleo de sesión (`src/app/core/`, feature 001, T21):
   - `SessionService` sobre `BffApi` (estado de la sesión sin extenderla, `keepalive` y cierre de sesión con navegación completa), `authGuard` con `returnTo` (001-01) y `capabilityGuard` sobre `PlatformApi` con 403 y «Próximamente» (001-16). Las rutas a las que llevan (`/sin-permiso`, `/proximamente`, `/error`) están en `app-paths.ts`; sus pantallas son de T22.
   - Interceptor de la API (`provideLivHttp()`): `X-Correlation-Id`, token anti-CSRF (cookie `XSRF-TOKEN` a `X-XSRF-TOKEN`, 001-12), reintento tras un 401 **una vez y solo en lecturas o con `Idempotency-Key`**, y recarga de capacidades tras un 403.
