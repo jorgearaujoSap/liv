@@ -19,6 +19,25 @@ describe('Inicio (001-02, 001-15)', () => {
     return fixture.nativeElement as HTMLElement;
   };
   const cards = (host: HTMLElement) => Array.from(host.querySelectorAll('liv-module-card'));
+  /**
+   * Lo que las hojas de estilo declaran para el elemento: jsdom no calcula el diseño de la cuadrícula.
+   * Toma la última regla que coincide, sin especificidad ni capas: basta para una propiedad que solo
+   * declara `home.css`. Un selector que jsdom no entiende (los de la librería) se ignora.
+   */
+  const declared = (element: Element, property: string) =>
+    Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
+      .filter((rule) => {
+        try {
+          return element.matches(rule.selectorText);
+        } catch {
+          return false;
+        }
+      })
+      .map((rule) => rule.style.getPropertyValue(property))
+      .filter((value) => value !== '')
+      .pop() ?? '';
 
   beforeEach(() => {
     workspace = new FakeWorkspace();
@@ -124,5 +143,14 @@ describe('Inicio (001-02, 001-15)', () => {
 
     expect(cards(host)).toHaveLength(0);
     expect(text(host.querySelector('h1'))).toBe('Hola, Laura');
+  });
+  it('la cuadrícula tiene filas iguales: todas las tarjetas miden lo mismo, como en Figma (Inicio)', () => {
+    // Cubre la parte del frontend. Que cada tarjeta llene su celda es de ModuleCard 0.3.1 (su prueba y su
+    // historia), y la medida real (352×158) queda para las pruebas e2e de T23.
+    const grid = cards(render())[0]?.parentElement as HTMLElement;
+
+    expect(declared(grid, 'display')).toBe('grid');
+    // auto-rows-fr de Tailwind: cada fila mide una fracción igual, la de la tarjeta más alta.
+    expect(declared(grid, 'grid-auto-rows')).toBe('minmax(0, 1fr)');
   });
 });
