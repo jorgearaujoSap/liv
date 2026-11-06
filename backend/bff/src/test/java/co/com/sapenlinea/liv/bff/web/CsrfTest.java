@@ -35,6 +35,9 @@ class CsrfTest extends BffFlowTest {
     Reply reply = browser.postWithoutCsrfToken(bffBase() + "/api/v1/liquidaciones", "x=1");
 
     assertThat(reply.status()).isEqualTo(403);
+    // The frontend tells this refusal apart from any other 403 by its code (bff.yaml, CsrfProblem).
+    assertThat(reply.header("content-type")).startsWith("application/problem+json");
+    assertThat(reply.body()).isEqualTo("{\"status\":403,\"code\":\"001-12\"}");
     assertThat(BACKEND.apiCalls()).isEmpty();
   }
 

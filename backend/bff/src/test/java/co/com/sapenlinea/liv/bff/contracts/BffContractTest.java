@@ -70,6 +70,38 @@ class BffContractTest {
   }
 
   @Test
+  @Tag("001-12")
+  @DisplayName(
+      "001-12 · El rechazo anti-CSRF fija code 001-12, también en /api/**, para que el frontend lo distinga")
+  @SuppressWarnings("unchecked")
+  void theCsrfRefusalIsDeclaredWithItsCode() throws IOException {
+    Map<String, Object> contract = contract();
+    Map<String, Object> components = (Map<String, Object>) contract.get("components");
+    Map<String, Object> refusal =
+        (Map<String, Object>)
+            ((Map<String, Object>) components.get("responses")).get("CsrfRejected");
+    Map<String, Object> media =
+        (Map<String, Object>)
+            ((Map<String, Object>) refusal.get("content")).get("application/problem+json");
+    assertThat(((Map<String, Object>) media.get("schema")).get("$ref"))
+        .isEqualTo("#/components/schemas/CsrfProblem");
+
+    Map<String, Object> problem =
+        (Map<String, Object>) ((Map<String, Object>) components.get("schemas")).get("CsrfProblem");
+    Map<String, Object> properties = (Map<String, Object>) problem.get("properties");
+    assertThat(problem.get("required")).isEqualTo(java.util.List.of("status", "code"));
+    assertThat(((Map<String, Object>) properties.get("status")).get("enum"))
+        .isEqualTo(java.util.List.of(403));
+    assertThat(((Map<String, Object>) properties.get("code")).get("enum"))
+        .isEqualTo(java.util.List.of("001-12"));
+
+    // /api/** is not in this contract, so its description says that the BFF answers the same there.
+    assertThat((String) ((Map<String, Object>) contract.get("info")).get("description"))
+        .contains(
+            "En /api/** una petición que modifica datos sin el token anti-CSRF recibe el mismo 403");
+  }
+
+  @Test
   @DisplayName("001-20 · Cada operación tiene operationId, para el cliente que genera el frontend")
   @SuppressWarnings("unchecked")
   void everyOperationHasAnId() throws IOException {
