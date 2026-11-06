@@ -26,6 +26,11 @@ export class SessionService {
   private pendingStatus?: Promise<SessionStatus | null>;
   private redirecting = false;
 
+  /** Ya se está yendo a iniciar sesión: otra pantalla no debe pisar esa navegación con la suya. */
+  get isRedirecting(): boolean {
+    return this.redirecting;
+  }
+
   /**
    * Lo que le queda a la sesión, sin extenderla (`GET /bff/session`). `null` si no hay sesión abierta.
    * Cualquier otro fallo se propaga: no saber no es lo mismo que no tener sesión. Varias llamadas a la

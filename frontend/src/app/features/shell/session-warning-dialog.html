@@ -1,0 +1,22 @@
+@for (kind of kinds(); track kind) {
+  <liv-dialog
+    [open]="true"
+    [heading]="heading()"
+    [description]="description()"
+    icon="history"
+    [dismissible]="false"
+  >
+    <liv-button variant="secondary" (click)="signOut()">Cerrar sesión</liv-button>
+    @if (kind === 'idle') {
+      <liv-button
+        data-initial-focus
+        [loading]="extending()"
+        loadingLabel="Extendiendo la sesión…"
+        (click)="keepConnected()"
+      >
+        Seguir conectado
+      </liv-button>
+    }
+    <p role="status">{{ failure() }}</p>
+  </liv-dialog>
+}

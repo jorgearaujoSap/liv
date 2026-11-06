@@ -1,0 +1,86 @@
+@if (ready()) {
+  <liv-side-nav footer="LIV · versión 0.1.0">
+    <liv-nav-item icon="house" href="/" [active]="atHome()" (navigate)="go($event)">
+      Inicio
+    </liv-nav-item>
+    <liv-nav-section>Módulos</liv-nav-section>
+    @for (module of menu(); track module.code) {
+      @if (module.children.length > 0) {
+        <liv-nav-item
+          type="group"
+          [icon]="module.icon"
+          [active]="isInModule(module.code)"
+          [expanded]="isInModule(module.code)"
+        >
+          {{ module.label }}
+          @for (option of module.children; track option.code) {
+            <liv-nav-item
+              type="subitem"
+              [href]="option.href"
+              [active]="isCurrent(option.href)"
+              [disabled]="!option.available"
+              (navigate)="go($event)"
+            >
+              {{ option.label }}
+            </liv-nav-item>
+          }
+        </liv-nav-item>
+      } @else {
+        <liv-nav-item
+          [icon]="module.icon"
+          [href]="module.href"
+          [active]="isCurrent(module.href)"
+          [disabled]="!module.available"
+          (navigate)="go($event)"
+        >
+          {{ module.label }}
+        </liv-nav-item>
+      }
+    }
+  </liv-side-nav>
+  <div>
+    @if (user(); as person) {
+      <liv-app-header
+        [administration]="person.administration.name"
+        [userName]="person.fullName"
+        [role]="roles()"
+        (signOut)="signOut()"
+      />
+    }
+    <main>
+      <router-outlet />
+    </main>
+  </div>
+  <app-session-warning-dialog />
+} @else {
+  <p role="status">Cargando tu sesión…</p>
+  <div aria-busy="true">
+    <aside>
+      <liv-logo />
+      @for (width of menuPlaceholders; track $index) {
+        <liv-skeleton [width]="width + 'px'" height="12px" />
+      }
+    </aside>
+    <div>
+      <header>
+        <liv-skeleton width="180px" height="12px" />
+        <div>
+          <liv-skeleton shape="circle" />
+          <liv-skeleton width="140px" height="12px" />
+        </div>
+      </header>
+      <section>
+        <liv-skeleton width="220px" height="20px" />
+        <div>
+          <liv-skeleton width="520px" height="12px" />
+          <liv-skeleton width="101px" height="12px" />
+        </div>
+        <div>
+          @for (card of cardPlaceholders; track card) {
+            <liv-skeleton shape="block" width="100%" height="150px" />
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+}

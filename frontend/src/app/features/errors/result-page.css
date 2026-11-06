@@ -1,0 +1,6 @@
+@reference '../../../styles.css';
+
+/* Un resultado (403, Próximamente) centrado en el área de trabajo de la estructura general. */
+:host {
+  @apply flex min-h-full flex-1 items-center justify-center;
+}

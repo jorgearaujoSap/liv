@@ -18,7 +18,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend
 | Estilos | Tailwind en el `.component.css` de cada componente; sin atributo `style`, sin utilidades en la plantilla, sin `::ng-deep` | Revisión (Stylelint en F0‑07) |
 | Tokens | Colores, tipografías y sombras solo con los tokens de `liv-components/styles/theme.css`. La paleta por defecto de Tailwind está anulada. Un token nuevo o distinto se pide a la librería (y antes a Figma), nunca se define aquí | Compilación |
 | Lógica de negocio | El frontend no calcula impuestos, descuentos ni saldos: muestra lo que calcula el backend | Revisión |
-| Accesibilidad | WCAG 2.1 AA | ESLint (reglas de accesibilidad de plantillas) + axe‑core en e2e |
+| Accesibilidad | WCAG 2.1 AA | ESLint (reglas de accesibilidad de plantillas) + axe‑core en las pruebas de pantalla (`features/accessibility.spec.ts`) y en e2e |
 | Localización | `es-CO`: miles con punto, decimales con coma, COP, `dd/mm/aaaa` | Revisión |
 | Formato | Prettier | `npm run format:check` |
 | TDD | Commit `test:` (prueba en rojo) antes del `feat:`/`fix:` | Revisión del PR |

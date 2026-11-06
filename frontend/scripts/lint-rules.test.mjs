@@ -135,3 +135,164 @@ describe('las fronteras con liv-components y con los otros proyectos siguen vige
     assert.equal((await restricted(ui, 'src/app/core/a.ts')).length, 1);
   });
 });
+
+// T22, feature 001 (AGENTS.md §6.1): las pantallas solo componen componentes de `liv-components`, sin
+// estilos propios. La disposición (flex, rejilla) va en el `.component.css` de la pantalla, no en la plantilla.
+describe('las pantallas solo usan componentes de liv-components', () => {
+  const SCREEN = 'src/app/features/home/home.html';
+
+  const template = async (code, filePath = SCREEN) => {
+    const [result] = await eslint.lintText(code, { filePath: join(projectDir, filePath) });
+    return result.messages.filter((message) => message.ruleId === 'no-restricted-syntax');
+  };
+  const rejects = async (code, pattern) => {
+    const messages = await template(code);
+    assert.equal(messages.length, 1, JSON.stringify(messages));
+    assert.match(messages[0].message, pattern);
+  };
+
+  it('sin atributo style', async () => {
+    await rejects('<liv-badge style="color: red">Hola</liv-badge>', /style/i);
+  });
+
+  it('sin atributo class ni utilidades en la plantilla', async () => {
+    await rejects('<liv-badge class="flex gap-4">Hola</liv-badge>', /class/i);
+  });
+
+  it('sin [style], [class], [ngStyle] ni [ngClass]', async () => {
+    await rejects('<liv-badge [style.color]="color">Hola</liv-badge>', /style/i);
+    await rejects('<liv-badge [class.activo]="activo">Hola</liv-badge>', /class/i);
+    await rejects('<liv-badge [ngStyle]="estilos">Hola</liv-badge>', /style/i);
+    await rejects('<liv-badge [ngClass]="clases">Hola</liv-badge>', /class/i);
+  });
+
+  it('sin etiqueta <style>, con o sin atributos, en una o varias líneas', async () => {
+    await rejects('<style>.x { color: red }</style>', /style/i);
+    await rejects('<style media="print">.x { color: red }</style>', /style/i);
+    await rejects('<style\n  type="text/css">.x { color: red }</style>', /style/i);
+  });
+
+  it('sin [className] ni [innerHTML]', async () => {
+    await rejects('<liv-badge [className]="clases">Hola</liv-badge>', /class/i);
+    await rejects('<div [innerHTML]="html"></div>', /innerHTML/);
+  });
+
+  it('sin controles nativos aunque vengan en mayúsculas o en un espacio de nombres (svg)', async () => {
+    await rejects('<BUTTON type="button">Ir</BUTTON>', /liv-components/);
+    await rejects('<svg viewBox="0 0 1 1"></svg>', /liv-components/);
+  });
+
+  it('sin un div que haga de botón: un rol interactivo en un contenedor nativo', async () => {
+    await rejects('<div role="button" tabindex="0">Ir</div>', /liv-components/);
+    await rejects('<span role="link" tabindex="0">Ir</span>', /liv-components/);
+    await rejects('<div role="Button" tabindex="0">Ir</div>', /liv-components/);
+    await rejects('<div role="presentation button" tabindex="0">Ir</div>', /liv-components/);
+    await rejects('<div role="listbox" tabindex="0"></div>', /liv-components/);
+    await rejects('<div [attr.role]="\'button\'" tabindex="0">Ir</div>', /liv-components/);
+  });
+
+  it('sin [innerHtml] con minúsculas: Angular lo trata como innerHTML', async () => {
+    await rejects('<div [innerHtml]="html"></div>', /innerHTML/);
+  });
+
+  it('sin etiquetas que hacen de control: details, summary, iframe, label', async () => {
+    for (const markup of [
+      '<details></details>',
+      '<iframe src="x"></iframe>',
+      '<label>Nombre</label>',
+    ]) {
+      await rejects(markup, /liv-components/);
+    }
+  });
+
+  it('sin elementos propios que no sean de liv-components ni secciones de la propia pantalla (app-)', async () => {
+    await rejects('<mi-tarjeta></mi-tarjeta>', /liv-components/);
+    await rejects('<tarjeta-modulo></tarjeta-modulo>', /liv-components/);
+  });
+
+  it('sin controles nativos: botón, enlace, campo, tabla…', async () => {
+    for (const markup of [
+      '<button type="button">Ir</button>',
+      '<a href="/">Ir</a>',
+      '<input type="text" />',
+      '<select></select>',
+      '<textarea></textarea>',
+      '<table></table>',
+      '<img src="a.png" alt="" />',
+    ]) {
+      await rejects(markup, /liv-components/);
+    }
+  });
+
+  it('sí: liv-components, secciones app-, router-outlet y contenedores nativos sin estilo', async () => {
+    const code = `<main>
+  <section>
+    <liv-page-header [heading]="titulo" />
+    <div><liv-badge>Hola</liv-badge></div>
+  </section>
+  <app-session-warning-dialog />
+  <router-outlet />
+</main>`;
+    assert.deepEqual(await template(code), []);
+  });
+
+  it('la regla solo rige en src/app/features/', async () => {
+    assert.deepEqual(await template('<div class="x"></div>', 'src/app/app.html'), []);
+  });
+
+  describe('el componente de una pantalla tampoco lleva estilos en su código', () => {
+    const component = (body) =>
+      `import { Component } from '@angular/core';\n@Component({ selector: 'app-x', template: '', ${body} })\nexport class X {}\n`;
+    const screen = async (code, filePath = 'src/app/features/home/x.ts') => {
+      const [result] = await eslint.lintText(code, { filePath: join(projectDir, filePath) });
+      return result.messages.filter((message) => message.ruleId === 'no-restricted-syntax');
+    };
+
+    it('sin `styles` en línea: los estilos van en el .component.css (styleUrl)', async () => {
+      const messages = await screen(component("styles: ['.a { color: red }']"));
+      assert.equal(messages.length, 1);
+      assert.match(messages[0].message, /styleUrl|\.component\.css|css/i);
+    });
+
+    it('sin `host` con class o style', async () => {
+      assert.equal((await screen(component("host: { class: 'flex' }"))).length, 1);
+      assert.equal((await screen(component("host: { '[style.color]': 'c' }"))).length, 1);
+    });
+
+    it('sin `styles` con la clave entre comillas, ni encapsulation None', async () => {
+      assert.equal((await screen(component("'styles': ['.a {}']"))).length, 1);
+      assert.equal((await screen(component('encapsulation: ViewEncapsulation.None'))).length, 1);
+    });
+
+    it('sin host con [attr.class] ni [attr.style]', async () => {
+      assert.equal((await screen(component("host: { '[attr.class]': 'c' }"))).length, 1);
+      assert.equal((await screen(component("host: { '[attr.style]': 's' }"))).length, 1);
+    });
+
+    it('sin @HostBinding de class ni style', async () => {
+      const code = `import { Component, HostBinding } from '@angular/core';
+@Component({ selector: 'app-x', template: '' })
+export class X {
+  @HostBinding('class.activo') activo = true;
+}
+`;
+      assert.equal((await screen(code)).length, 1);
+      const style = code.replace('class.activo', 'style.color');
+      assert.equal((await screen(style)).length, 1);
+    });
+
+    it('conserva las fronteras de HttpClient y del import() dinámico en features/', async () => {
+      const dynamic = "export const x = import('@angular/common/http');\n";
+      assert.equal((await screen(dynamic)).length, 1);
+    });
+
+    it('`styleUrl` sí, y `host` sin class ni style también', async () => {
+      assert.deepEqual(await screen(component("styleUrl: './x.css'")), []);
+      assert.deepEqual(await screen(component("host: { role: 'region' }")), []);
+    });
+
+    it('fuera de src/app/features/ no rige', async () => {
+      assert.deepEqual(await screen(component("styles: ['.a {}']"), 'src/app/core/x.ts'), []);
+    });
+  });
+});

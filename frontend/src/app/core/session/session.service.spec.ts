@@ -148,6 +148,14 @@ describe('SessionService', () => {
   });
 
   describe('redirectToLogin (001-01)', () => {
+    it('dice si ya está yendo a iniciar sesión (para que nadie lo pise)', () => {
+      expect(service.isRedirecting).toBe(false);
+
+      service.redirectToLogin('/liquidacion/lista');
+
+      expect(service.isRedirecting).toBe(true);
+    });
+
     it('navega por completo a /bff/login con la ruta pedida como returnTo', () => {
       service.redirectToLogin('/liquidacion/lista?anio=2026#fila');
 

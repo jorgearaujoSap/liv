@@ -1,0 +1,51 @@
+@reference '../../../styles.css';
+
+/* Menú lateral a todo el alto y, a su derecha, la cabecera sobre el área de trabajo. */
+:host {
+  @apply flex h-screen;
+}
+
+:host > div:not([aria-busy]) {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+
+main {
+  @apply flex flex-1 flex-col overflow-auto p-8;
+}
+
+/* Marco de «Cargando»: el mismo esqueleto, con marcadores en lugar del contenido. */
+[aria-busy] {
+  @apply flex h-full w-full;
+}
+
+[role='status'] {
+  @apply sr-only;
+}
+
+aside {
+  @apply flex w-[272px] shrink-0 flex-col items-start gap-5 overflow-hidden border-r border-border-default bg-bg-surface px-5 pt-4;
+}
+
+[aria-busy] > div {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+
+header {
+  @apply flex h-16 shrink-0 items-center justify-between border-b border-border-default bg-bg-surface px-8;
+}
+
+header > div {
+  @apply flex items-center gap-3;
+}
+
+section {
+  @apply flex flex-1 flex-col items-start gap-6 p-8;
+}
+
+section > div:first-of-type {
+  @apply flex flex-col gap-2;
+}
+
+section > div:last-of-type {
+  @apply grid w-full grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6;
+}

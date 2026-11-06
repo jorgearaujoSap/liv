@@ -1,0 +1,10 @@
+@reference '../../../styles.css';
+
+/* Pantalla completa: el logotipo y el resultado, centrados, sobre el lienzo. */
+:host {
+  @apply block min-h-screen;
+}
+
+main {
+  @apply flex min-h-screen flex-col items-center justify-center gap-12 p-8;
+}
