@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -24,7 +24,13 @@ export async function enviar(page: Page, boton = '#kc-login'): Promise<void> {
     (window as unknown as { livPaginaAnterior?: boolean }).livPaginaAnterior = true;
   });
   await page.locator(boton).click();
-  await page.waitForFunction(() => !(window as unknown as { livPaginaAnterior?: boolean }).livPaginaAnterior);
+  await page
+    .waitForFunction(() => !(window as unknown as { livPaginaAnterior?: boolean }).livPaginaAnterior, undefined, {
+      timeout: 15_000,
+    })
+    .catch(() => {
+      throw new Error(`Al pulsar ${boton} el navegador no cargó ninguna página nueva en 15 s.`);
+    });
   await page.waitForLoadState();
 }
 
@@ -56,9 +62,11 @@ function ultimoIntervalo(secreto: string | Buffer): number {
 
 function anotarIntervalo(secreto: string | Buffer, intervalo: number): void {
   try {
+    mkdirSync(test.info().project.outputDir, { recursive: true });
     writeFileSync(archivoDelIntervalo(secreto), String(intervalo));
-  } catch {
-    // Sin el archivo, una prueba posterior puede repetir el código y fallar; el informe lo dirá.
+  } catch (error) {
+    // Sin el archivo, una prueba posterior puede repetir el código y Keycloak lo rechazaría: se avisa en el informe.
+    test.info().annotations.push({ type: 'aviso', description: `No se pudo anotar el intervalo TOTP: ${error}` });
   }
 }
 
