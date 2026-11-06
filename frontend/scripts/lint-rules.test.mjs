@@ -135,3 +135,71 @@ describe('las fronteras con liv-components y con los otros proyectos siguen vige
     assert.equal((await restricted(ui, 'src/app/core/a.ts')).length, 1);
   });
 });
+
+// T22, feature 001 (AGENTS.md §6.1): las pantallas solo componen componentes de `liv-components`, sin
+// estilos propios. La disposición (flex, rejilla) va en el `.component.css` de la pantalla, no en la plantilla.
+describe('las pantallas solo usan componentes de liv-components', () => {
+  const SCREEN = 'src/app/features/home/home.html';
+
+  const template = async (code, filePath = SCREEN) => {
+    const [result] = await eslint.lintText(code, { filePath: join(projectDir, filePath) });
+    return result.messages.filter((message) => message.ruleId === 'no-restricted-syntax');
+  };
+  const rejects = async (code, pattern) => {
+    const messages = await template(code);
+    assert.equal(messages.length, 1, JSON.stringify(messages));
+    assert.match(messages[0].message, pattern);
+  };
+
+  it('sin atributo style', async () => {
+    await rejects('<liv-badge style="color: red">Hola</liv-badge>', /style/i);
+  });
+
+  it('sin atributo class ni utilidades en la plantilla', async () => {
+    await rejects('<liv-badge class="flex gap-4">Hola</liv-badge>', /class/i);
+  });
+
+  it('sin [style], [class], [ngStyle] ni [ngClass]', async () => {
+    await rejects('<liv-badge [style.color]="color">Hola</liv-badge>', /style/i);
+    await rejects('<liv-badge [class.activo]="activo">Hola</liv-badge>', /class/i);
+    await rejects('<liv-badge [ngStyle]="estilos">Hola</liv-badge>', /style/i);
+    await rejects('<liv-badge [ngClass]="clases">Hola</liv-badge>', /class/i);
+  });
+
+  it('sin etiqueta <style>', async () => {
+    await rejects('<style>.x { color: red }</style>', /style/i);
+  });
+
+  it('sin componentes propios de la aplicación en la plantilla', async () => {
+    await rejects('<app-tarjeta></app-tarjeta>', /liv-components/);
+  });
+
+  it('sin controles nativos: botón, enlace, campo, tabla…', async () => {
+    for (const markup of [
+      '<button type="button">Ir</button>',
+      '<a href="/">Ir</a>',
+      '<input type="text" />',
+      '<select></select>',
+      '<textarea></textarea>',
+      '<table></table>',
+      '<img src="a.png" alt="" />',
+    ]) {
+      await rejects(markup, /liv-components/);
+    }
+  });
+
+  it('sí: componentes de liv-components, router-outlet y contenedores nativos sin estilo', async () => {
+    const code = `<main>
+  <section>
+    <liv-page-header [heading]="titulo" />
+    <div><liv-badge>Hola</liv-badge></div>
+  </section>
+  <router-outlet />
+</main>`;
+    assert.deepEqual(await template(code), []);
+  });
+
+  it('la regla solo rige en src/app/features/', async () => {
+    assert.deepEqual(await template('<div class="x"></div>', 'src/app/app.html'), []);
+  });
+});

@@ -118,4 +118,48 @@ describe('capabilityGuard', () => {
     expect(service.find('1.5.1')).toBeUndefined();
     expect(service.find('1')?.status).toBe('AVAILABLE');
   });
+
+  // Una sola ruta (`opcion/:code`) atiende por URL cualquier opción del menú (001-16): el número de la opción
+  // viaja en la URL y la ruta lo declara con `data: { capabilityParam: 'code' }`.
+  describe('número de la opción en la URL', () => {
+    const runWithParams = async (params: Record<string, unknown>, data: Record<string, unknown>) => {
+      const pending = TestBed.runInInjectionContext(
+        () =>
+          capabilityGuard(
+            { data, params } as unknown as ActivatedRouteSnapshot,
+            {} as RouterStateSnapshot,
+          ) as Promise<boolean | UrlTree>,
+      );
+      const requests = http.match('/api/v1/me/capabilities');
+      requests.forEach((request) => request.flush(CAPABILITIES));
+      return pending;
+    };
+    const BY_PARAM = { capabilityParam: 'code' };
+
+    it('una opción disponible navega', async () => {
+      expect(await runWithParams({ code: '1.5.1' }, BY_PARAM)).toBe(true);
+    });
+
+    it('una opción COMING_SOON lleva a «Próximamente»', async () => {
+      expect(target(await runWithParams({ code: '1.5.9' }, BY_PARAM))).toBe(APP_PATHS.comingSoon);
+    });
+
+    it('una opción que no está en las capacidades lleva a 403, aunque la persona escriba la URL', async () => {
+      expect(target(await runWithParams({ code: '3.2' }, BY_PARAM))).toBe(APP_PATHS.forbidden);
+    });
+
+    it('un número que no es una opción del menú lleva a 403', async () => {
+      expect(target(await runWithParams({ code: '../../admin' }, BY_PARAM))).toBe(
+        APP_PATHS.forbidden,
+      );
+    });
+
+    it('sin el parámetro, se niega: falla cerrado', async () => {
+      expect(target(await runWithParams({}, BY_PARAM))).toBe(APP_PATHS.forbidden);
+    });
+
+    it('si la ruta no declara que el número viene de la URL, el parámetro se ignora', async () => {
+      expect(target(await runWithParams({ code: '1.5.1' }, {}))).toBe(APP_PATHS.forbidden);
+    });
+  });
 });
