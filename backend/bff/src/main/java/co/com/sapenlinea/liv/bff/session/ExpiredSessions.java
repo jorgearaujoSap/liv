@@ -137,6 +137,18 @@ public final class ExpiredSessions {
         .isEmpty();
   }
 
+  /**
+   * A new sign in from a browser whose session expired: that session is ended now, before the
+   * person signs in again in the same session of the provider. Otherwise the sweep would find the
+   * new one with the same {@code sid} and delete the old one without telling LIV. A sign in is a
+   * navigation of the person, one at a time, so it can wait on LIV and the provider.
+   */
+  public void endBeforeANewSignIn(String sessionId) {
+    if (isExpired(sessionId)) {
+      end(sessionId, clock.millis());
+    }
+  }
+
   private void deleteUnfinishedSignIns(long now, long deadline) {
     try {
       int deleted;

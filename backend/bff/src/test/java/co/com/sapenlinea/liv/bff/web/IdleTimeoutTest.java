@@ -42,6 +42,26 @@ class IdleTimeoutTest extends BffFlowTest {
   }
 
   @Test
+  @Tag("001-10")
+  @Tag("001-18")
+  @DisplayName(
+      "001-10 · Volver a /bff/login con la sesión vencida la termina con IDLE antes de empezar otro inicio")
+  void signingInAgainEndsTheExpiredSession() throws SQLException {
+    Browser browser = browser();
+    browser.signIn("/");
+    BACKEND.reset();
+
+    pause(8500);
+    Reply reply = browser.get(bffBase() + "/bff/login");
+
+    assertThat(reply.status()).isEqualTo(302);
+    assertThat(BACKEND.endSessionCalls()).hasSize(1);
+    assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"IDLE\"");
+    assertThat(BACKEND.revocationCalls()).hasSize(1);
+    assertThat(storedSessions()).as("solo la del nuevo inicio").isEqualTo(1);
+  }
+
+  @Test
   @Tag("001-22")
   @DisplayName("001-22 · /bff/session no extiende la sesión: preguntar no la mantiene viva")
   void askingDoesNotExtendTheSession() {

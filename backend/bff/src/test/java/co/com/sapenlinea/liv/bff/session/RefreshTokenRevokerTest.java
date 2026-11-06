@@ -103,4 +103,27 @@ class RefreshTokenRevokerTest {
 
     assertThat(backend.revocationCalls()).as("solo la última llega al proveedor").hasSize(1);
   }
+
+  @Test
+  @Tag("001-10")
+  @DisplayName(
+      "001-10 · Informa si vale la pena reintentar: sí ante un fallo, una credencial rechazada o sin endpoint; no ante un rechazo definitivo")
+  void tellsWhetherToTryAgain() {
+    OAuth2AuthorizedClient withToken =
+        client(Map.of(), new OAuth2RefreshToken("refresco", Instant.now()));
+
+    assertThat(revoker(backend.revocationUri()).revoke(withToken)).as("revocado").isTrue();
+    assertThat(revoker(backend.revocationUri()).revoke(client(Map.of(), null)))
+        .as("nada que revocar")
+        .isTrue();
+    assertThat(revoker(null).revoke(withToken))
+        .as("sin endpoint: se corrige la configuración")
+        .isFalse();
+    backend.revocationAnswers(500);
+    assertThat(revoker(backend.revocationUri()).revoke(withToken)).as("500").isFalse();
+    backend.revocationAnswers(401);
+    assertThat(revoker(backend.revocationUri()).revoke(withToken)).as("401").isFalse();
+    backend.revocationAnswers(400);
+    assertThat(revoker(backend.revocationUri()).revoke(withToken)).as("400").isTrue();
+  }
 }

@@ -92,8 +92,10 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
       if (sweepInterval == null || sweepInterval.isZero() || sweepInterval.isNegative()) {
         throw new IllegalArgumentException("liv.bff.session.sweep-interval debe ser positivo");
       }
-      if (sweepGiveUpAfter.isZero() || sweepGiveUpAfter.isNegative()) {
-        throw new IllegalArgumentException("liv.bff.session.sweep-give-up-after debe ser positivo");
+      if (sweepGiveUpAfter == null || sweepGiveUpAfter.compareTo(sweepInterval) < 0) {
+        throw new IllegalArgumentException(
+            "liv.bff.session.sweep-give-up-after debe ser al menos liv.bff.session.sweep-interval:"
+                + " si no, el barrido borra una sesión al primer fallo");
       }
     }
   }

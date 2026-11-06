@@ -59,9 +59,9 @@ public final class SessionCloser {
   }
 
   /**
-   * The same for a session read straight from its table, that nobody is using (T19): the sweep and
-   * a session found expired when it is read. Deleting it is up to the caller, who does it only if
-   * this succeeded, so that a failure is retried.
+   * The same for a session read straight from its table, that nobody is using (T19): the sweep, and
+   * a new sign in from a browser whose session had expired. Deleting it is up to the caller, who
+   * does it only if this succeeded, so that a failure is retried.
    *
    * @param tokens the attribute with the encrypted tokens of the session
    * @return {@code false} only if trying again may succeed. Tokens that cannot be read can never be

@@ -77,9 +77,9 @@ public final class InternalApiClient {
    * end, so a failure here is a problem of the call, not of the session. It never throws: ending
    * the session of the BFF does not wait for LIV.
    *
-   * @return {@code false} only if trying again may succeed (LIV did not answer, or failed on its
-   *     side); a request LIV refuses (4xx) never succeeds: it is logged as an error and counts as
-   *     done
+   * @return {@code false} only if trying again may succeed (LIV did not answer, failed on its side,
+   *     or refused the credentials); a request LIV refuses for good ({@link Http#refusedForGood})
+   *     is logged as an error and counts as done
    */
   public boolean endSession(SessionIdentity identity, EndReason reason) {
     try {
@@ -97,7 +97,7 @@ public final class InternalApiClient {
       return true;
     } catch (HttpClientErrorException e) {
       LOG.error("LIV rechazó EndSession({}): {}", reason, e.getStatusCode().value());
-      return true;
+      return Http.refusedForGood(e);
     } catch (RuntimeException e) {
       LOG.warn("EndSession({}) falló: {}", reason, e.getClass().getSimpleName());
       return false;

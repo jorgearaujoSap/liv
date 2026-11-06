@@ -35,8 +35,10 @@ public final class RefreshTokenRevoker {
    * Revokes the refresh token of the client. It never throws: a session ends even if the provider
    * does not answer, whatever goes wrong (no refresh token, no endpoint, a failed call).
    *
-   * @return {@code false} only if trying again may succeed (the provider did not answer, or failed
-   *     on its side); a missing endpoint or a refused token are logged as errors and count as done
+   * @return {@code false} only if trying again may succeed: the provider did not answer, failed on
+   *     its side or refused the credentials, or there is no endpoint (a configuration that can be
+   *     fixed). A request it refuses for good ({@link Http#refusedForGood}) is logged as an error
+   *     and counts as done
    */
   public boolean revoke(OAuth2AuthorizedClient client) {
     if (client.getRefreshToken() == null) {
@@ -47,7 +49,7 @@ public final class RefreshTokenRevoker {
     String endpoint = endpointOf(registration);
     if (endpoint == null) {
       LOG.error("El proveedor no publica un endpoint de revocación y no se configuró uno");
-      return true;
+      return false;
     }
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("token", client.getRefreshToken().getTokenValue());
@@ -57,7 +59,7 @@ public final class RefreshTokenRevoker {
       return true;
     } catch (HttpClientErrorException e) {
       LOG.error("El proveedor rechazó la revocación: {}", e.getStatusCode().value());
-      return true;
+      return Http.refusedForGood(e);
     } catch (RuntimeException e) {
       LOG.warn("La revocación en el proveedor falló: {}", e.getClass().getSimpleName());
       return false;

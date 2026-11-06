@@ -3,6 +3,7 @@ package co.com.sapenlinea.liv.bff.web;
 import co.com.sapenlinea.liv.bff.login.LoginAuthorizationRequestResolver;
 import co.com.sapenlinea.liv.bff.login.LoginFailureHandler;
 import co.com.sapenlinea.liv.bff.login.LoginSuccessHandler;
+import co.com.sapenlinea.liv.bff.session.ExpiredSessions;
 import co.com.sapenlinea.liv.bff.session.InternalApiClient;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
@@ -42,10 +43,17 @@ class SecurityConfiguration {
     return new HttpSessionSecurityContextRepository();
   }
 
+  /** What {@code /bff/login} sends to the provider, after ending the session open or expired. */
+  @Bean
+  LoginAuthorizationRequestResolver loginAuthorizationRequestResolver(
+      ClientRegistrationRepository registrations, SessionCloser closer, ExpiredSessions expired) {
+    return new LoginAuthorizationRequestResolver(registrations, closer, expired);
+  }
+
   @Bean
   SecurityFilterChain securityFilterChain(
       HttpSecurity http,
-      ClientRegistrationRepository registrations,
+      LoginAuthorizationRequestResolver loginRequests,
       OAuth2AuthorizedClientRepository clients,
       InternalApiClient api,
       RefreshTokenRevoker revoker,
@@ -86,9 +94,8 @@ class SecurityConfiguration {
         .oauth2Login(login ->
             login
                 .loginPage(LoginAuthorizationRequestResolver.LOGIN_PATH)
-                .authorizationEndpoint(endpoint ->
-                    endpoint.authorizationRequestResolver(
-                        new LoginAuthorizationRequestResolver(registrations, closer)))
+                .authorizationEndpoint(
+                    endpoint -> endpoint.authorizationRequestResolver(loginRequests))
                 .authorizedClientRepository(clients)
                 .successHandler(
                     new CsrfTokenAfterLogin(

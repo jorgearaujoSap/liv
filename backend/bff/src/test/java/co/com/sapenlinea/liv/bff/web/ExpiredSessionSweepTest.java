@@ -122,8 +122,10 @@ class ExpiredSessionSweepTest extends BffFlowTest {
   @Test
   @Tag("001-10")
   @DisplayName(
-      "001-10 · Una sesión que otra réplica está terminando (fila bloqueada) no se toca: no hay doble cierre")
-  void aSessionLockedByAnotherReplicaIsLeftAlone() throws SQLException {
+      "001-10 · Una sesión que otra réplica está terminando (fila bloqueada) se salta sin esperar: las demás siguen")
+  void aSessionLockedByAnotherReplicaIsSkipped() throws SQLException {
+    browser().signIn("/");
+    pause(500);
     browser().signIn("/");
     BACKEND.reset();
 
@@ -132,16 +134,40 @@ class ExpiredSessionSweepTest extends BffFlowTest {
             BffDatabase.jdbcUrl(), BffDatabase.APP, BffDatabase.password(BffDatabase.APP))) {
       other.setAutoCommit(false);
       try (Statement lock = other.createStatement()) {
-        lock.execute("SELECT 1 FROM bff.spring_session FOR UPDATE");
+        // La más antigua, que es la primera que el barrido intenta terminar.
+        lock.execute(
+            "SELECT 1 FROM bff.spring_session WHERE primary_id ="
+                + " (SELECT primary_id FROM bff.spring_session ORDER BY creation_time LIMIT 1)"
+                + " FOR UPDATE");
       }
       pause(5000);
-      assertThat(BACKEND.endSessionCalls()).as("mientras la tiene otra réplica").isEmpty();
-      assertThat(storedSessions()).isEqualTo(1);
+      assertThat(BACKEND.endSessionCalls())
+          .as("la otra sí terminó: el barrido no se quedó esperando la bloqueada")
+          .hasSize(1);
+      assertThat(storedSessions()).as("la bloqueada sigue").isEqualTo(1);
       other.rollback();
     }
     pause(2000);
 
-    assertThat(BACKEND.endSessionCalls()).as("cuando la suelta, termina una sola vez").hasSize(1);
+    assertThat(BACKEND.endSessionCalls()).as("cuando la sueltan, termina una sola vez").hasSize(2);
     assertThat(storedSessions()).isZero();
+  }
+
+  @Test
+  @Tag("001-10")
+  @DisplayName(
+      "001-10 · Un 401 de LIV (credencial del servicio) se reintenta; un 400 se registra como error y no se reintenta")
+  void onlyARefusalForGoodIsNotTriedAgain() throws SQLException {
+    browser().signIn("/");
+    BACKEND.reset();
+    BACKEND.endSessionAnswers(401);
+    pause(5000);
+    int keptAfter401 = storedSessions();
+
+    BACKEND.endSessionAnswers(400);
+    pause(2000);
+
+    assertThat(keptAfter401).as("401: queda para reintentar").isEqualTo(1);
+    assertThat(storedSessions()).as("400: no tiene arreglo, se borra").isZero();
   }
 }
