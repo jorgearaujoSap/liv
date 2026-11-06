@@ -1,0 +1,16 @@
+# Fuera del contexto de la imagen: lo que no se compila ni se copia.
+node_modules
+dist
+.angular
+.git
+.vscode
+.claude
+Dockerfile
+.dockerignore
+*.md
+scripts
+**/.env*
+**/*.pem
+**/*.key
+**/coverage
+**/.npmrc
