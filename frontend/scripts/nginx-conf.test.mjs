@@ -20,8 +20,17 @@ function directives(text) {
   const result = [];
   const stack = [];
   let current = '';
+  let quote = '';
   for (const char of text) {
-    if (char === '{') {
+    if (quote) {
+      current += char;
+      if (char === quote) {
+        quote = '';
+      }
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+    } else if (char === '{') {
       stack.push(current.trim().replace(/\s+/g, ' '));
       current = '';
     } else if (char === '}') {
@@ -122,15 +131,17 @@ describe('nginx.conf: cabeceras de seguridad (doc. 02 §8)', () => {
 describe('nginx.conf: caché', () => {
   it('Cache-Control sale de una tabla: no-store salvo los archivos con hash en el nombre', () => {
     assert.equal(headerValue('Cache-Control'), '$cache_control');
-    const map = conf.match(/map \$uri \$cache_control \{([^}]*)\}/);
-    assert.ok(map, 'falta el map de Cache-Control');
-    assert.match(map[1], /default\s+"no-store"/);
-    assert.match(map[1], /"public, max-age=31536000, immutable"/);
+    const map = all.filter((d) => d.path.at(-1) === 'map $uri $cache_control').map((d) => d.text);
+    assert.ok(map.length > 0, 'falta el map de Cache-Control');
+    assert.ok(map.includes('default "no-store"'));
+    assert.ok(map.some((entry) => entry.endsWith('"public, max-age=31536000, immutable"')));
   });
 
   it('el patrón del archivo con hash coincide con los que genera Angular y no con index.html', () => {
-    const pattern = conf.match(/~(\S+)\s+"public, max-age=31536000, immutable"/)[1];
-    const regex = new RegExp(pattern);
+    const entry = all.find(
+      (d) => d.path.at(-1) === 'map $uri $cache_control' && d.text.endsWith('immutable"'),
+    );
+    const regex = new RegExp(entry.text.match(/^"~([^"]+)"/)[1]);
     assert.ok(regex.test('/main-ON6NZC24.js'));
     assert.ok(regex.test('/styles-ELR7ATZQ.css'));
     assert.ok(!regex.test('/index.html'));
