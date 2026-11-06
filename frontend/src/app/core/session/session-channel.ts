@@ -60,7 +60,10 @@ function parse(data: unknown): SessionMessage | undefined {
   return undefined;
 }
 
-/** Segundos que pueden venir de otra pestaña: un número finito y no negativo. */
+/** Más que la duración máxima de una sesión (8 horas): un valor mayor no puede ser verdadero. */
+const MAX_SECONDS = 24 * 60 * 60;
+
+/** Segundos que pueden venir de otra pestaña: un número finito, no negativo y razonable. */
 function isSeconds(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= MAX_SECONDS;
 }

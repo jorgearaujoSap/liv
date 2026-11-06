@@ -187,9 +187,9 @@ describe('nginx.conf: qué sirve', () => {
     );
     assert.match(format.text, /\$request_path/);
     // La ruta se saca de lo que pidió la persona, no de `$uri`, que tras `try_files` es /index.html.
-    const path = all.find((d) => d.path.at(-1) === 'map $request_uri $request_path');
-    assert.ok(path, 'falta el map de la ruta sin consulta');
-    assert.match(path.text, /\[\^\?\]\*/);
+    const path = all.filter((d) => d.path.at(-1) === 'map $request_uri $request_path');
+    assert.ok(path.length > 0, 'falta el map de la ruta sin consulta');
+    assert.ok(path.some((d) => /\[\^\?\]\*/.test(d.text)), 'el map no corta en el ?');
     const log = all.find((d) => d.text.startsWith('access_log ') && !d.text.includes(' off'));
     assert.ok(log?.text.endsWith(` ${format.text.split(' ')[1]}`), 'access_log sin el formato propio');
   });

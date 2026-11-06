@@ -15,8 +15,9 @@ export class CapabilityService {
   private readonly platform = inject(PlatformApi);
   private pending?: Promise<Capabilities>;
   private reloading?: Promise<Capabilities>;
-  /** Número de la última petición: una respuesta de una anterior no pisa a la más reciente. */
+  /** Número de la última petición hecha, y el de la última cuya respuesta se guardó. */
   private latest = 0;
+  private applied = 0;
 
   private readonly current = signal<Capabilities | undefined>(undefined);
   /** Lo último que se cargó; `undefined` mientras no se haya cargado. */
@@ -52,7 +53,9 @@ export class CapabilityService {
         // Un 403 de esta misma petición no debe volver a pedir las capacidades.
         new HttpContext().set(SKIP_FORBIDDEN_HANDLING, true),
       );
-      if (number === this.latest) {
+      // Una respuesta anterior a la que ya se guardó no la pisa; si la más nueva falló, esta sí vale.
+      if (number > this.applied) {
+        this.applied = number;
         this.current.set(capabilities);
       }
       return capabilities;

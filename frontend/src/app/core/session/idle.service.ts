@@ -111,7 +111,7 @@ export class IdleService implements OnDestroy {
   }
 
   private async renew(): Promise<boolean> {
-    const epoch = ++this.epoch;
+    const epoch = this.epoch;
     let status: SessionStatus | null;
     try {
       status = await this.session.keepAlive();
@@ -126,6 +126,8 @@ export class IdleService implements OnDestroy {
       this.expire();
       return false;
     }
+    // Solo si se logró: las consultas que salieron antes son viejas. Si fallara, siguen valiendo.
+    this.epoch++;
     this.apply(status);
     this.channel.post({ type: 'extended', status });
     return true;
@@ -150,6 +152,7 @@ export class IdleService implements OnDestroy {
       return;
     }
     if (message.type === 'extended') {
+      this.epoch++;
       this.apply(message.status);
     } else {
       void this.onSessionEndedElsewhere();
@@ -198,24 +201,24 @@ export class IdleService implements OnDestroy {
     }
     this.checking = true;
     const epoch = this.epoch;
-    let status: SessionStatus | null;
+    let status: SessionStatus | null = null;
+    let failed = false;
     try {
       status = await this.session.status();
     } catch {
-      // Sin respuesta no se sabe nada: ni avisar ni cerrar. Se vuelve a preguntar más tarde.
-      if (epoch === this.epoch) {
-        this.checking = false;
-        clearTimeout(this.checkTimer);
-        this.checkTimer = setTimeout(() => void this.check(), RETRY_AFTER_FAILURE_MS);
-      }
-      return;
+      failed = true;
     }
     this.checking = false;
     if (epoch !== this.epoch) {
-      // Pasó algo después de preguntar («Seguir conectado»): esta respuesta ya es vieja.
+      // Pasó algo después de preguntar («Seguir conectado», otra pestaña, dejar de vigilar): la respuesta,
+      // buena o mala, ya es vieja.
       return;
     }
-    if (status) {
+    if (failed) {
+      // Sin respuesta no se sabe nada: ni avisar ni cerrar. Se vuelve a preguntar más tarde.
+      clearTimeout(this.checkTimer);
+      this.checkTimer = setTimeout(() => void this.check(), RETRY_AFTER_FAILURE_MS);
+    } else if (status) {
       this.apply(status);
     } else {
       this.expire();
@@ -247,11 +250,16 @@ export class IdleService implements OnDestroy {
     this.checkTimer = undefined;
     this.warningDeadline = Date.now() + secondsLeft * SECOND;
     this.current.set({ kind, secondsLeft });
-    if (kind === 'absolute') {
+    const idleWarnAt = this.idleDeadline - IDLE_WARNING_SECONDS * SECOND;
+    if (
+      kind === 'absolute' &&
+      this.idleDeadline < this.absoluteDeadline &&
+      idleWarnAt > Date.now()
+    ) {
       // Mientras avisa del límite, la inactividad puede vencer primero: se vuelve a preguntar cuando falten
-      // 2 minutos para eso, para avisar también que se puede seguir conectado.
-      const idleWarnAt = this.idleDeadline - IDLE_WARNING_SECONDS * SECOND;
-      this.checkTimer = setTimeout(() => void this.check(), Math.max(0, idleWarnAt - Date.now()));
+      // 2 minutos para eso, para avisar también que se puede seguir conectado. Si esa hora ya pasó, o la
+      // inactividad no vence antes, no hay nada que preguntar: consultar ahora daría la misma respuesta.
+      this.checkTimer = setTimeout(() => void this.check(), idleWarnAt - Date.now());
     }
     // La cuenta regresiva es local: no pide nada al servidor. Al llegar a cero se vuelve a preguntar.
     this.countdownTimer = setInterval(() => {

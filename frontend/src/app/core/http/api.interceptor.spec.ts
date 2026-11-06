@@ -58,6 +58,14 @@ describe('interceptor de la API', () => {
       options.context,
     ) as Promise<HttpResponse<unknown>>;
 
+  /** Los bytes en un ArrayBuffer de este mismo entorno (el de TextEncoder es de otro y Angular no lo reconoce). */
+  const bytesOf = (text: string) => {
+    const bytes = new TextEncoder().encode(text);
+    const buffer = new ArrayBuffer(bytes.length);
+    new Uint8Array(buffer).set(bytes);
+    return buffer;
+  };
+
   const nextRequest = (url: string) => vi.waitFor(() => http.expectOne(url));
 
   beforeEach(() => {
@@ -342,7 +350,7 @@ describe('interceptor de la API', () => {
     it('tampoco cuando la respuesta se esperaba como bytes (arraybuffer)', async () => {
       const result = call('GET', '/api/v1/exportes/2', undefined, { responseType: 'arraybuffer' });
       (await nextRequest('/api/v1/exportes/2')).flush(
-        new TextEncoder().encode(JSON.stringify({ status: 403, code: '001-12' })).buffer,
+        bytesOf(JSON.stringify({ status: 403, code: '001-12' })),
         FORBIDDEN,
       );
 

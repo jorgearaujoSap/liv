@@ -135,14 +135,16 @@ function recoverFromUnauthorized(
 }
 
 /**
- * El cuerpo del 403 es un Problem Details. Si la respuesta se esperaba como archivo (`blob`) o texto, el
- * cuerpo no está leído: se lee para poder distinguir el rechazo anti-CSRF.
+ * El cuerpo del 403 es un Problem Details. Si la respuesta se esperaba como archivo (`blob`), bytes o
+ * texto, el cuerpo no está leído: se lee para poder distinguir el rechazo anti-CSRF.
  */
 async function isCsrfRejection(error: HttpErrorResponse): Promise<boolean> {
   let body: unknown = error.error;
   try {
     if (body instanceof Blob) {
       body = await body.text();
+    } else if (Object.prototype.toString.call(body) === '[object ArrayBuffer]') {
+      body = new TextDecoder().decode(body as ArrayBuffer);
     }
     if (typeof body === 'string') {
       body = JSON.parse(body);
