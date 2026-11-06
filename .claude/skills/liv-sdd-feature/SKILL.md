@@ -67,6 +67,11 @@ Cada pantalla nueva o modificada necesita su *frame* aprobado en la página `03 
 - Ejecuta `liv-revision-adversarial` sobre lo implementado. Si el cambio es crítico o supera 400 líneas, ejecuta también las cuatro lentes de `liv-revision-4r`.
 - Marca cada criterio de `spec.md` con `[x]` y el nombre de la prueba que lo demuestra. Sin prueba no se marca.
 - Ejecuta las verificaciones locales y reporta con honestidad lo que falle.
+- **Si la feature tiene interfaz, pruébala en el navegador** (ADR 0030):
+  - levanta el sistema como dice `README.md` › «Ejecutar LIV en local»;
+  - corre `npm test` en `e2e/`, con las pruebas de navegador que la feature agregó en rojo al implementar: sus flujos, las capturas de referencia y axe. Van en su propio PR de `e2e/` (un PR por proyecto), y su resultado se cita en el PR del frontend;
+  - revisa además cada pantalla contra su *frame* de Figma con el navegador;
+  - pon el resultado en el PR. Una captura de referencia nueva o cambiada la aprueba el responsable.
 - Abre el PR (uno por proyecto) citando la feature. La **aprobación H3** y el merge son siempre de un humano.
 
 ## 8. Cerrar

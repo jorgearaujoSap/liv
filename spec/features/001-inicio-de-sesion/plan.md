@@ -219,6 +219,7 @@ Entre corchetes, el proyecto y su PR (IN‑07).
     - En el menú, las opciones `COMING_SOON` aparecen **deshabilitadas**, como pide 001-15: no navegan.
     - La ruta de cada una existe solo para entrar por URL, que es como se prueba 001-16.
 14. **[raíz · infra y e2e] Pruebas de sistema (F0‑12).**
+    > **ADR 0030 (2026-11-06):** la viñeta `e2e/` se hace ya, contra el entorno local de desarrollo, sin imágenes, TLS ni CI (T23); los usuarios con TOTP los crean las propias pruebas al empezar, con la API de administración de Keycloak. Lo demás de este punto (`infra/compose.yaml`, `infra/keycloak/e2e-users.yaml`, la semilla y Caddy con TLS) se hace antes de producción (T24).
     - **`infra/compose.yaml`:** solo imágenes publicadas (IN‑09):
       - `liv-api`, `liv-bff`, `liv-migrations`, `liv-bff-migrations` y el frontend;
       - Keycloak con tema y `liv-identity-config` (configuración base real).

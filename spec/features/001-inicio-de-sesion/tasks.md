@@ -21,7 +21,7 @@ flowchart LR
     UI -->|0.2.0 publicada| FE[T20–T22 frontend]
     BE -->|contratos publicados| FE
     BFF -->|bff.yaml publicado| FE
-    FE & BFF & ID --> E2E[T23 infra + e2e]
+    FE & BFF & ID --> E2E[T23 e2e local]
 ```
 
 Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo; cada una toca sus propios archivos.
@@ -159,7 +159,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/identity/README.md`, `backend/src/test/java/**/identityconfig/RealmConfigTest.java`.
   - **Desviaciones declaradas:**
     - la prueba está en `backend/src/test/java`, porque Maven no corre pruebas desde `backend/identity/test/`;
-    - la capa de desarrollo quedó en `backend/dev/keycloak/` (no en `identity/config/dev/`) y sin TOTP; los usuarios con TOTP conocido pasan a T23;
+    - la capa de desarrollo quedó en `backend/dev/keycloak/` (no en `identity/config/dev/`) y sin TOTP; los usuarios con TOTP conocido pasan a T23, que los crea al empezar las pruebas (ADR 0030);
     - se tocaron archivos de T09: `backend/dev/compose.yaml` (servicio `keycloak-config`), `check.sh` (verificación del *realm* aplicado), `.env.example` y `README.md`;
     - que un TOTP equivocado cuente para el bloqueo es comportamiento de Keycloak: lo verificará el e2e de T23.
   - Prueba primero: `RealmConfigTest`, en rojo, que verifica:
@@ -492,20 +492,25 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - **Falta:** probarlo en Chrome con el sistema levantado; la prueba e2e de 001-01 va en T23.
 ## Sistema
 
-- [ ] **T23** · `infra/` y `e2e/`.
-  - **Desde T21** (decisión del responsable, 2026-11-05): el trabajo de CI de la imagen del frontend (construirla, `nginx -t`, Trivy, SBOM y publicarla), con su aprobación, porque cambia CI.
-  - Archivos: `infra/compose.yaml` (solo imágenes publicadas), `infra/keycloak/e2e-users.yaml` (usuarios con TOTP conocido; la capa de desarrollo no los trae, ver T07), `infra/e2e/seed.sql`, `infra/caddy/**`, `e2e/**`.
-  - Prueba primero: las especificaciones de Playwright de 001-01 a 001-22, escritas en rojo, incluidas:
-    - el aviso y "Seguir conectado";
-    - volver a entrar tras la expiración;
-    - usuario desactivado y cambio de rol o de administración con la sesión abierta;
-    - la URL de cierre sin *tokens*;
-    - el botón "atrás" tras salir;
-    - el TOTP obligatorio y el código incorrecto;
-    - el bloqueo;
-    - **desde T08** (decisión del responsable, 2026-11-03): la prueba visual de las 8 páginas de acceso contra los *frames* aprobados, con capturas de referencia aprobadas por el responsable, y axe en esas páginas (001-19). Debe cubrir también:
-      - el contraste del texto del panel de marca sobre los círculos decorativos, que axe no calcula;
-      - el comportamiento de `liv.js`: mostrar la contraseña, «Ingresando…», pegar el código y volver con «atrás».
+- [ ] **T23** · Pruebas de navegador (`e2e/`) contra el entorno local. Decisión del responsable del 2026-11-06 (ADR 0030): no hacen falta imágenes, `Dockerfile`, TLS ni CI por ahora.
+  - Archivos: `e2e/**`, un proyecto propio con Playwright, sin herramientas compartidas con otros proyectos.
+  - Usuarios: los ficticios de `backend/dev/keycloak/`. Los que necesitan un TOTP conocido o se bloquean los crean las pruebas al empezar, con la API de administración de Keycloak del entorno local, y los borran al terminar. Así no van a la capa de desarrollo, donde `keycloak-config-cli` duplicaría el TOTP al reaplicarla.
+  - Contra qué corre: `http://localhost:4200`, con el sistema levantado como dice `README.md` › «Ejecutar LIV en local». Usa los proyectos solo por HTTP.
+  - Prueba primero: las especificaciones de Playwright de la feature, escritas en rojo, incluidas:
+    - entrar con y sin segundo factor, el TOTP obligatorio y el código incorrecto;
+    - la contraseña incorrecta, el usuario desactivado y el bloqueo;
+    - Inicio, con la cabecera y las tarjetas iguales;
+    - el menú de tres niveles, «Sin permiso» y «Próximamente»;
+    - salir, la URL de cierre sin *tokens* y el botón «atrás»;
+    - el aviso de inactividad y «Seguir conectado», con la sesión acortada solo en la prueba;
+    - capturas de referencia aprobadas por el responsable y axe en cada pantalla, también en las páginas de acceso (001-19). Esto incluye el comportamiento de `liv.js`: mostrar la contraseña, «Ingresando…», pegar el código y volver con «atrás».
+- [ ] **T24** · **Antes de producción** (ADR 0030, junto con T19): IN‑09 completa.
+  - Contenido:
+    - imágenes publicadas de la API, el BFF y sus migraciones, el frontend y la identidad;
+    - el trabajo de CI de la imagen del frontend (construirla, `nginx -t`, Trivy, SBOM y publicarla), con aprobación, porque cambia CI;
+    - `infra/compose.yaml` solo con imágenes, Caddy con TLS en `liv.test` y `auth.liv.test`, `infra/keycloak/e2e-users.yaml` e `infra/e2e/seed.sql`;
+    - el e2e de T23 contra esas imágenes y en CI (F0‑12);
+    - la prueba visual del panel de marca sobre los círculos decorativos, cuyo contraste axe no calcula.
 
 ## Trazabilidad criterio → tareas
 

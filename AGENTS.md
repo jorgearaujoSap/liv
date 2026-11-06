@@ -100,7 +100,7 @@ Cada feature vive en `spec/features/NNN-nombre-feature/` (copia de la plantilla 
 | 4. Plan | `plan.md`: enfoque, implementación, datos/API/seguridad, diseño de interfaz, decisiones, riesgos | Revisión adversarial independiente (`liv-revision-adversarial`) y **H2**: arquitecto (+ responsable funcional si cambia una regla o hay pantallas) |
 | 5. Tareas | `tasks.md`: tareas pequeñas con los archivos permitidos y la prueba que se escribe primero | — |
 | 6. Implementar | Por tarea: commit `test:` (rojo) → `feat:`/`fix:` (verde) → `refactor:`. Solo los archivos declarados; progreso marcado en `tasks.md` | — |
-| 7. Validar | Revisión adversarial independiente (`liv-revision-adversarial`) y, si es crítico o > 400 líneas, las cuatro lentes de `liv-revision-4r`; cada criterio de `spec.md` marcado `[x]` con la prueba que lo demuestra; CI en verde | **H3**: revisión humana del PR |
+| 7. Validar | Revisión adversarial independiente (`liv-revision-adversarial`) y, si es crítico o > 400 líneas, las cuatro lentes de `liv-revision-4r`; si hay interfaz, las pruebas de navegador de `e2e/` en verde contra el entorno local y la pantalla revisada contra Figma (ADR 0030); cada criterio de `spec.md` marcado `[x]` con la prueba que lo demuestra; CI en verde | **H3**: revisión humana del PR |
 | 8. Cerrar | Feature en "Hecho" en `spec/constitution/roadmap.md`, ADR y glosario al día, `ESTADO.md` actualizado | — |
 
 La constitución manda: si una feature choca con `spec/constitution/`, se replantea la feature; cambiar la constitución exige un ADR aprobado.
@@ -189,7 +189,7 @@ Los documentos funcionales, los ADR, los documentos de arquitectura, la constitu
 - La librería se comparte **solo como paquete npm** (`liv-components`): el frontend la declara con versión exacta y la recibe con `npm install`; para adoptar una versión nueva se cambia el número y se suben `package.json` y `package-lock.json`. El frontend **nunca** lee `../ui`. Solo un humano publica en npm, desde `main` y después de integrar el PR que sube la versión; el proceso paso a paso y sus verificaciones automáticas están en `ui/README.md` › "Publicar una versión".
 - Un PR toca un solo proyecto. Si una feature cambia varios, van en PR separados: primero el backend con el contrato y la librería con su versión publicada, luego el frontend que los adopta.
 - CI, versiones (`backend-vX.Y.Z`, `frontend-vX.Y.Z`, `ui-vX.Y.Z`) y despliegues o publicaciones son independientes.
-- `e2e/`, `perf/` e `infra/` usan los proyectos solo como imágenes publicadas y por HTTP.
+- `e2e/`, `perf/` e `infra/` usan los proyectos solo como imágenes publicadas y por HTTP. Mientras no haya producción, `e2e/` corre contra el entorno local de desarrollo, también solo por HTTP (ADR 0030).
 
 ---
 

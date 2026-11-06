@@ -118,7 +118,7 @@ Son pruebas que fallan el build. Constituyen la principal defensa contra la eros
 | Frontend | Vitest + Angular Testing Library | Servicios, componentes con lógica, formularios | Cada PR | Cobertura ≥ 80 % en código nuevo |
 | Librería `liv-components` | Vitest + Angular Testing Library; Storybook; regresión visual con Playwright sobre cada historia; axe‑core sobre cada historia | Cada componente, variante y estado | Cada PR que toque la librería | Cobertura ≥ 90 %; toda variante con historia, captura de referencia y verificación de accesibilidad |
 | Fidelidad al diseño | Revisión contra el *frame* de Figma aprobado + capturas de la pantalla en los e2e | Pantallas nuevas o modificadas | Cada PR con pantallas | Sin diferencias visuales frente al diseño aprobado |
-| Extremo a extremo | Playwright + axe‑core | Flujos críticos por módulo contra el Compose completo | Humo en cada PR; completa en `main` y nocturna | Cada criterio de aceptación con interfaz tiene un e2e |
+| Extremo a extremo | Playwright + axe‑core | Flujos críticos por módulo contra el Compose completo | Humo en cada PR; completa en `main` y nocturna. Hasta producción, en local al validar cada feature (ADR 0030) | Cada criterio de aceptación con interfaz tiene un e2e |
 | Rendimiento | k6 | Objetivos de doc. 03 §1 | Nocturno y antes de cada versión | Dentro de objetivo |
 | Migraciones | Flyway + datos de la versión anterior | Actualización desde la última versión publicada | Cada PR que toque migraciones | Migración y validación sin errores |
 
@@ -131,6 +131,8 @@ Los ejemplos numéricos de los documentos funcionales son la especificación eje
 - se escriben en la Fase 0, en rojo, antes de que exista el motor (F0‑11).
 
 ### 5.2 Playwright
+
+> **ADR 0030:** hasta antes de producción, Playwright corre en local, contra el entorno de desarrollo (`README.md` › «Ejecutar LIV en local»), sin Compose de imágenes ni CI. Lo de esta sección aplica desde entonces.
 
 | Tema | Definición |
 |---|---|
@@ -167,7 +169,7 @@ Un PR no se integra si falla cualquiera:
 | Q07 | Seguridad (doc. 02 §11 y §13) | Sin críticas ni altas |
 | Q08 | OpenAPI | Sin cambios incompatibles no aprobados |
 | Q09 | Configuraciones de jurisdicción | Válidas contra su esquema y sin errores CJ |
-| Q10 | e2e de humo | En verde |
+| Q10 | e2e de humo | En verde. Hasta producción no corre en CI: el e2e corre en local al validar cada feature (ADR 0030) |
 | Q11 | Trazabilidad SDD | El PR referencia su carpeta `spec/features/NNN-nombre-feature/` con `spec.md` y `plan.md` aprobados (salvo los del flujo directo, cuya descripción dice «Flujo: directo» y por qué no necesitan spec; doc. 05 §3.3). En un PR directo, `sdd-guard` comprueba lo que se puede medir: que no toque rutas críticas (salvo las excepciones de `AGENTS.md` §4.3), contratos, migraciones ni documentos funcionales, ADR, arquitectura o constitución, y que no pase de ~200 líneas. Hasta que exista, lo comprueba la H3 |
 | Q12 | Tamaño del PR | Advertencia sobre 400 líneas cambiadas (sin contar código generado); requiere justificación |
 | Q13 | Commits | Conventional Commits |
