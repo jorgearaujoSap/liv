@@ -10,7 +10,8 @@
           type="group"
           [icon]="module.icon"
           [active]="isInModule(module.code)"
-          [expanded]="isInModule(module.code)"
+          [expanded]="isExpanded(module.code)"
+          (expandedChange)="setExpanded(module.code, $event)"
         >
           {{ module.label }}
           <!--
@@ -24,7 +25,8 @@
                 <liv-nav-item
                   type="subgroup"
                   [active]="isInModule(option.code)"
-                  [expanded]="isInModule(option.code)"
+                  [expanded]="isExpanded(option.code)"
+                  (expandedChange)="setExpanded(option.code, $event)"
                   [disabled]="!option.available"
                 >
                   {{ option.label }}
