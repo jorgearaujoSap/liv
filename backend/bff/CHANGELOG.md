@@ -42,6 +42,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Contrato `bff.yaml` 1.1.0, compatible: el rechazo anti-CSRF (`CsrfRejected`) usa el esquema `CsrfProblem`, que fija `code` en `001-12`, y la descripción dice que en `/api/**` el BFF responde ese mismo 403. El frontend distingue así este rechazo de cualquier otro 403 de la API (decisión del responsable sobre T21).
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 - Las pruebas de T16 se ajustan a la configuración nueva: el arranque sin web usa el entorno `MOCK`, el contrato de migraciones ya no cuenta una sola migración, y la prueba del Gateway abre su ruta de prueba porque todas las demás piden sesión.
 
