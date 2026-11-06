@@ -107,6 +107,36 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
     expect(await violations(page)).toEqual([]);
   });
 
+  it('Menú de tres niveles abierto (1.5.x)', async () => {
+    workspace.menu.set(
+      buildMenu({
+        items: [
+          {
+            code: '1',
+            status: 'AVAILABLE',
+            children: [
+              leaf('1.4', 'AVAILABLE'),
+              {
+                code: '1.5',
+                status: 'AVAILABLE',
+                children: [leaf('1.5.3', 'AVAILABLE'), leaf('1.5.4')],
+              },
+              { code: '1.6', status: 'COMING_SOON', children: [leaf('1.6.1')] },
+            ],
+          },
+        ],
+      }),
+    );
+    const page = await open('/');
+    (page.querySelector('liv-nav-item[data-type="group"] button') as HTMLButtonElement).click();
+    TestBed.tick();
+    (page.querySelector('liv-nav-item[data-type="subgroup"] button') as HTMLButtonElement).click();
+    TestBed.tick();
+
+    expect(page.querySelectorAll('liv-nav-item[data-type="nested"]')).toHaveLength(2);
+    expect(await violations(page)).toEqual([]);
+  });
+
   it('Aviso de sesión por expirar', async () => {
     const page = await open('/');
     idle.warning.set({ kind: 'idle', secondsLeft: 120 });
