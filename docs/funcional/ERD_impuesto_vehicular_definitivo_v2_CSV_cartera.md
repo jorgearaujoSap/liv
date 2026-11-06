@@ -1,6 +1,8 @@
 # ERD definitivo propuesto — Impuesto vehicular
 
-> Basado en el catálogo lógico de 63 tablas y 563 campos. Validación estructural; no supone aprobación jurídica ni despliegue de PostgreSQL.
+> Basado en el catálogo lógico inicial de 63 tablas y 563 campos (65 tablas desde la versión 2.1). Validación estructural; no supone aprobación jurídica ni despliegue de PostgreSQL.
+>
+> **Versión:** 2.1 — registra los ajustes al modelo que el responsable funcional aprobó en H2 de la feature 001 · Inicio de sesión (2026-11-01). Agrega `core.user_session` y `audit.import_cursor`, que dejan el catálogo en 65 tablas. Cambian `core.admin_user` y `audit.audit_event`. Además, documenta los esquemas técnicos `platform` y `bff`, que no son parte del catálogo funcional (ver «Esquemas técnicos»).
 
 ## Hallazgos prioritarios de validación
 
@@ -53,7 +55,7 @@ erDiagram
     enforcement_debtor_asset ||--o{ enforcement_precautionary_measure : affects
 ```
 
-## CORE — Registro automotor y contribuyentes (9 tablas)
+## CORE — Registro automotor y contribuyentes (10 tablas)
 
 ```mermaid
 erDiagram
@@ -152,6 +154,19 @@ erDiagram
         VARCHAR_150 full_name
         VARCHAR_200 email
         VARCHAR_30 status
+        VARCHAR_255 identity_issuer
+        VARCHAR_255 identity_subject
+        TIMESTAMPTZ last_login_at
+    }
+    core_user_session {
+        VARCHAR_100 sid PK
+        UUID user_id FK
+        UUID administration_id FK
+        VARCHAR_255 identity_issuer
+        VARCHAR_255 identity_subject
+        TIMESTAMPTZ started_at
+        TIMESTAMPTZ ended_at
+        VARCHAR_20 end_reason
     }
     core_territorial_entity ||--o{ core_territorial_entity : parent_id
     core_territorial_entity ||--o{ core_tax_administration : territorial_entity_id
@@ -163,6 +178,7 @@ erDiagram
     core_taxpayer ||--o{ core_vehicle_taxpayer_link : taxpayer_id
     core_vehicle ||--o{ core_vehicle_tax_status : vehicle_id
     core_tax_administration ||--o{ core_admin_user : administration_id
+    core_admin_user ||--o{ core_user_session : user_id
 ```
 
 **Tablas y funciones:**
@@ -175,7 +191,12 @@ erDiagram
 - `core.vehicle_registration` — Historial de matrícula, radicación y traslado.
 - `core.vehicle_taxpayer_link` — Historial de propietarios, poseedores y relaciones con vehículo.
 - `core.vehicle_tax_status` — Clasificación histórica de sujeción, exclusión y beneficios por vehículo.
-- `core.admin_user` — Usuarios funcionarios y responsables de actos y auditoría.
+- `core.admin_user` — Usuarios funcionarios y responsables de actos y auditoría. Feature 001:
+  - `status` vale `ACTIVE` o `INACTIVE`; un usuario `INACTIVE` no entra (001-05);
+  - `identity_issuer` e `identity_subject` son el vínculo con el proveedor de identidad (emisor y `sub`), único por usuario. LIV identifica al usuario por su `id`, no por el proveedor (001-21);
+  - `last_login_at` es el último inicio de sesión aceptado.
+- `core.user_session` — Sesiones de los usuarios (feature 001), una por sesión del proveedor (`sid`). Apunta a su usuario con la FK compuesta `(user_id, administration_id, identity_issuer, identity_subject)` → `core.admin_user`. La abre `StartSession` y la cierra `EndSession` con `end_reason`: `LOGOUT` (salir), `IDLE` (inactividad), `ABSOLUTE` (duración máxima) o `PROVIDER` (el proveedor la cerró). Cerrarla dos veces no cambia nada. La FK compuesta impide apuntar a un usuario de otra administración o a otra identidad.
+- `core.territorial_entity.entity_type` (feature 001) vale `DEPARTAMENTO`, `DISTRITO_CAPITAL`, `DISTRITO` o `MUNICIPIO`, los mismos tipos de `jurisdiccion.tipo` de los YAML de jurisdicción.
 
 **Relaciones externas:**
 
@@ -1002,13 +1023,14 @@ erDiagram
 - `enforcement.measure_notification.response_document_id` → `documents.document`
 - `enforcement.measure_release.legal_act_id` → `documents.legal_act`
 
-## AUDIT — Auditoría e integraciones (2 tablas)
+## AUDIT — Auditoría e integraciones (3 tablas)
 
 ```mermaid
 erDiagram
     audit_audit_event {
         UUID id PK
         UUID user_id FK
+        UUID administration_id FK
         VARCHAR_80 entity_name
         UUID entity_id
         VARCHAR_40 operation
@@ -1016,6 +1038,16 @@ erDiagram
         JSONB new_values
         TIMESTAMPTZ occurred_at
         VARCHAR_80 correlation_id
+        VARCHAR_30 source
+        VARCHAR_100 source_event_id
+        VARCHAR_200 actor_ref
+    }
+    audit_import_cursor {
+        VARCHAR_30 source PK
+        TIMESTAMPTZ last_event_at
+        TEXT_ARRAY seen_event_ids
+        BOOLEAN complete
+        TIMESTAMPTZ updated_at
     }
     audit_external_integration_event {
         UUID id PK
@@ -1033,13 +1065,60 @@ erDiagram
 
 **Tablas y funciones:**
 
-- `audit.audit_event` — Bitácora inmutable de cambios administrativos y financieros.
+- `audit.audit_event` — Bitácora inmutable de cambios administrativos y financieros. Feature 001:
+  - `administration_id`: la administración del evento, para el aislamiento por RLS. Puede ser nula: los eventos de plataforma (como un inicio rechazado de alguien sin administración) y los importados del proveedor no la tienen, y la aplicación no los lee. Si hay `user_id`, la administración es obligatoria (CHECK), y la FK compuesta `(user_id, administration_id)` → `core.admin_user` impide mezclar administraciones;
+  - `source` (`LIV` o `IDENTITY_PROVIDER`) y `source_event_id`, obligatorios y únicos juntos, para que un evento importado dos veces quede una sola vez;
+  - `actor_ref`: quién actuó cuando no es un usuario de LIV (por ejemplo, el nombre intentado en un inicio fallido, enmascarado);
+  - los eventos de sesión se guardan con `entity_name` = `session` o `identity_provider`, `operation` = el tipo de evento, y `new_values` = `{result, reason, truncated_ip, masked_attempted_username}`, sin contraseñas ni códigos (001-18).
+- `audit.import_cursor` — Hasta dónde se importaron los eventos del proveedor de identidad a `audit.audit_event` (feature 001); `source` solo vale `IDENTITY_PROVIDER`: el último instante, los ids ya vistos en ese instante y si la última lectura fue completa.
 - `audit.external_integration_event` — Trazabilidad de llamadas a fuentes, RUNT, bancos y pasarelas.
 
 **Relaciones externas:**
 
-- `audit.audit_event.user_id` → `core.admin_user`
+- `audit.audit_event.user_id` → `core.admin_user`, con `administration_id` en una FK compuesta
+- `audit.audit_event.administration_id` → `core.tax_administration`
 - `audit.external_integration_event.administration_id` → `core.tax_administration`
+
+## Esquemas técnicos (plataforma y BFF)
+
+No son parte del catálogo funcional: los usa la plataforma, no el negocio. Los aprobó el responsable en H2 de la feature 001 (2026-11-01). Sus roles de base de datos están en `docs/arquitectura/02` §5.2.
+
+```mermaid
+erDiagram
+    platform_app_role {
+        VARCHAR_40 code PK
+        VARCHAR_200 description
+    }
+    platform_app_permission {
+        VARCHAR_80 code PK
+        VARCHAR_200 description
+    }
+    platform_role_permission {
+        VARCHAR_40 role_code PK
+        VARCHAR_80 permission_code PK
+    }
+    bff_oidc_session {
+        CHAR_36 session_id PK
+        VARCHAR_2048 issuer
+        VARCHAR_255 sid
+        VARCHAR_255 subject
+        BIGINT created_at
+        BIGINT pending_end_since
+    }
+    platform_app_role ||--o{ platform_role_permission : role_code
+    platform_app_permission ||--o{ platform_role_permission : permission_code
+```
+
+**Tablas:**
+
+| Esquema | Tabla | Para qué |
+|---|---|---|
+| `platform` | `app_role`, `app_permission`, `role_permission` | Roles, permisos y qué permisos tiene cada rol (matriz en Doc. 01 §4.1). El rol de una persona llega del proveedor de identidad |
+| `platform` | `event_publication` | Eventos entre módulos que aún no se procesan (Spring Modulith). No se dibuja: su estructura es la de Spring Modulith |
+| `platform` | `shedlock` | Bloqueo de las tareas programadas de la API: con varias réplicas, una sola a la vez. No se dibuja: es la tabla estándar de ShedLock |
+| `bff` | `spring_session`, `spring_session_attributes` | Sesiones del BFF en el servidor; los *tokens* van cifrados en un atributo |
+| `bff` | `oidc_session` | Qué sesión del BFF es de qué sesión del proveedor (`sid`), para el cierre por canal trasero, y los avisos a LIV pendientes |
+| `bff` | `shedlock` | Bloqueo del barrido de las sesiones vencidas del BFF |
 
 ## Reglas de implementación de apertura de cartera histórica
 
@@ -1055,6 +1134,8 @@ erDiagram
 10. **Extensiones para producción:** vincular `source_system`, identificador de obligación origen, comprobantes, actos de determinación, fechas de ejecutoria, notificaciones y mandamientos; agregar índice de conciliación por `(administration_id, fiscal_year)` y controles de tenant.
 
 ## Checklist de aceptación previo a Flyway
+
+_Feature 001: en H2 (2026-11-01) el responsable autorizó migrar, antes de cerrar esta lista, las tablas de `platform`, `bff`, `core.territorial_entity`, `core.tax_administration`, `core.admin_user`, `core.user_session` y `audit`. Ninguna es tributaria. La lista sigue abierta para el resto del modelo._
 
 - [ ] Confirmar que cada FK referencia registros de la misma entidad territorial donde corresponda.
 - [ ] Congelar catálogos de avalúos publicados y registrar correcciones con versión distinta.

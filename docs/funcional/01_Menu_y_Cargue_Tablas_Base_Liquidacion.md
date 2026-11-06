@@ -1,9 +1,9 @@
 # Módulo 1 — Menú del sistema y cargue anual de tablas base de liquidación
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
-> **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (63 tablas, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
+> **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (65 tablas desde su versión 2.1, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
 > **Alcance de esta entrega:** (1) lógica de negocio general y mapa de menú, (2) detalle de **Administración → Cargue de tablas base por vigencia**, (3) consultas con filtros y exportación a Excel del proceso de cargue.
-> **Versión:** 0.2 — ajustada con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
+> **Versión:** 0.3 — agrega la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
 
 ---
 
@@ -121,6 +121,33 @@ SISTEMA DE LIQUIDACIÓN DE IMPUESTO VEHICULAR
 | Habilitar liquidación de la vigencia | ✔ + APROBADOR (doble firma) | | | | |
 | Consultar y exportar | ✔ | ✔ | ✔ | ✔ | ✔ |
 | Descargar archivo original | | ✔ | ✔ | | ✔ |
+
+### 4.1 Permisos de consulta del menú (feature 001)
+
+Qué opciones del menú ve cada rol. La aprobó el responsable en H2 de la feature 001 (2026-11-01), como pide `docs/arquitectura/02` §4.4. Vive en `platform.role_permission`. Una prueba la compara con una tabla esperada escrita en las pruebas, que debe mantenerse igual a esta: si cambia una, cambia la otra. Las acciones de cada opción (cargar, aprobar, publicar…) las definen sus features. «Origen» dice de dónde sale cada fila: de un documento funcional, de una propuesta o es provisional hasta su módulo.
+
+| Opción | Permiso | Roles | Origen |
+|---|---|---|---|
+| 1.1 Entidades y administraciones | `core.administration.read` | ADMIN_SISTEMA, AUDITOR | Propuesta |
+| 1.2 Usuarios, roles y permisos | `core.user.read` | ADMIN_SISTEMA, AUDITOR | Propuesta |
+| 1.3 Normas y soportes | `documents.legal-instrument.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, CONSULTA, AUDITOR | Derivado de §4 («Consultar y exportar») |
+| 1.4 Vigencias fiscales | `tax.fiscal-year.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, CONSULTA, AUDITOR | Derivado de §4 («Consultar y exportar») |
+| 1.5 Cargue de tablas base (1.5.1–1.5.8) | `valuation.batch.read` · `tax.rate.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, CONSULTA, AUDITOR | Derivado de §4 («Consultar y exportar») |
+| 1.5.9 Configuración de jurisdicción | `jurisdiction.config.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, JURIDICO, AUDITOR | Derivado de §4 + propuesta (JURIDICO por Doc. 03 §5.3) |
+| 1.6 Consultas y exportación | `valuation.catalog.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, CONSULTA, AUDITOR | Derivado de §4 («Consultar y exportar») |
+| 1.7 Referencias vehiculares | `valuation.vehicle-reference.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, CONSULTA, AUDITOR | Derivado de §4 («Consultar y exportar») |
+| 1.8 Parámetros generales | `core.parameter.read` | ADMIN_SISTEMA, AUDITOR | Propuesta |
+| 2. Registro automotor y contribuyentes | `core.vehicle.read` | LIQUIDADOR, APROBADOR_LIQUIDACION, RECAUDO, CONSULTA, AUDITOR | Propuesta |
+| 3. Liquidación | `tax.assessment.read` | LIQUIDADOR, APROBADOR_LIQUIDACION, CONSULTA, AUDITOR | Propuesta |
+| 4. Cuenta corriente y recaudo | `ledger.obligation.read` | RECAUDO, TESORERIA, APROBADOR_RECAUDO, CONSULTA, AUDITOR | Doc. 04 §10 + propuesta (AUDITOR por `docs/arquitectura/02` §4.2) |
+| 5. Cartera | `portfolio.balance.read` | RECAUDO, TESORERIA, APROBADOR_RECAUDO, JURIDICO, CONSULTA, AUDITOR | Provisional |
+| 6. Cobro · 7. Medidas cautelares | `collection.case.read` · `enforcement.measure.read` | JURIDICO, AUDITOR | Provisional |
+| 8. Documentos y notificaciones | `documents.document.read` | Todos los roles | Provisional |
+| 9. Auditoría e integraciones | `audit.event.read` | AUDITOR, ADMIN_SISTEMA | `docs/arquitectura/02` §9 (AUDITOR) + propuesta (ADMIN_SISTEMA) |
+
+- Un módulo se muestra si el rol puede ver al menos una de sus opciones. «Inicio» no exige permiso.
+- Una opción que aún no está construida se muestra deshabilitada; abierta por URL, dice «Próximamente».
+- Una opción sin permiso, abierta por URL o por su API, responde «Sin permiso» (403), aunque esté oculta en el menú.
 
 ---
 

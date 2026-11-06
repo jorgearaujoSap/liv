@@ -23,7 +23,7 @@
 
 | Documento | Estado | Versión |
 |---|---|---|
-| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `ERD_…` | ✅ Existente | 0.1–0.4 |
+| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `ERD_…` | ✅ Existente | 0.1–0.4; Doc. 01 en 0.3 y ERD en 2.1 desde el cierre de la feature 001 |
 | `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` | ✅ Existente | Esquema 1.0 |
 | `README.md` | ✅ Creado: mapa del repositorio | — |
 | `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.0 |
@@ -56,7 +56,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑05b | Diseños de *layout*, inicio de sesión y menú | ✅ | Rediseñados en Figma (versión 2) dentro de la feature [001 · Inicio de sesión](spec/features/001-inicio-de-sesion/spec.md): acceso de Keycloak en pantalla dividida con panel de marca, estructura general con menú lateral con iconos, inicio con tarjetas de módulos, aviso de sesión, sin permiso, carga y error. Aprobados por el responsable funcional el 2026-11-01, con sus ajustes |
 | F0‑06 | Docker Compose local | 🔄 | `backend/dev/` con PostgreSQL 18.6 (bases `liv` y `keycloak`, roles de doc. 02 §5.2 y ADR 0025) y Keycloak 26.8.1, verificado con `check.sh` (T09 de la feature 001, PR #20). El *realm* `liv` se aplica como código con keycloak-config-cli y `check.sh` verifica el *realm* aplicado (T07, PR #26). Keycloak se construye desde `backend/identity/Dockerfile` con el tema `liv` (T08, PR #57 y #58). Faltan MinIO, ClamAV y observabilidad |
 | F0‑07 | GitHub Actions con compuertas de calidad | 🔄 | CI de PR mínimo (T02 de la feature 001): `backend-pr` y `frontend-pr` (Q01–Q03) y `ui-pr` (Q01; desde el 2026-11-02 también las pruebas de componentes con axe y la compilación de Storybook, Q02 y Q14), con filtro de ruta, `sistema-pr` (título Conventional Commits y gitleaks) y CODEOWNERS. Desde el 2026-11-04, `bff-pr` (Q01–Q03) para `backend/bff/`, aprobado por el responsable. Contratos del backend (tarea aparte antes de T20, ADR 0027): comparador de cambios incompatibles Q08 (`backend-contracts-pr`) y publicación como *releases* `contract-<nombre>-vX.Y.Z` (`backend-main`), en revisión en los PR #69 (`backend/`) y #70 (`.github/`). Faltan publicación de imágenes (la de la imagen de identidad, con `backend/identity/theme/check.sh` y Trivy, tarea aparte que requiere aprobación del responsable), cobertura, mutación, Sonar, guardián SDD y exigir los *checks* de cada proyecto (al pasar los *workflows* a "correr siempre y omitir trabajos"). Protección de `main` creada |
-| F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway `V202611010900`–`0920` (T10 de la feature 001, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
+| F0‑08 | Roles de BD, RLS y primera migración | 🔄 | Migraciones Flyway de la API `V202611010900`–`V202611031010` y del BFF `V202611032100`–`V202611061100` (feature 001; las primeras, T10, PR #25 y #28): esquemas `platform`, `core` y `audit`; entidades, administraciones, usuarios y sesiones con FK compuestas y RLS por `app.administration_id`; `core.find_user_by_identity` y `audit.record_platform_session_denied` (`SECURITY DEFINER`); roles y permisos de la aplicación; auditoría de solo inserción; ShedLock; Flyway solo en `dev` y `test`. 87 pruebas con Testcontainers como `liv_app`. Faltan las tablas tributarias y el *checklist* previo a Flyway del ERD, y las decisiones humanas listadas en la bitácora (2026-11-02) |
 | F0‑09 | Auditoría, correlación y observabilidad | 🔄 | Correlación: `X-Correlation-Id` solo como UUID, en la respuesta, el MDC y cada línea de log; credenciales enmascaradas en los logs (T12 parte 1, PR #45). Pendientes: auditoría (T15), log estructurado en JSON con enmascarado y datos personales |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
 | F0‑11 | Pruebas *golden* en rojo | ⏳ | — |
@@ -108,7 +108,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
 2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos).
-3. Siguientes entregables: F0‑07 (GitHub Actions por proyecto), F0‑06 (Docker Compose), F0‑08 (base de datos, RLS y primera migración), F0‑10 y F0‑11; en la feature 001 (plan aprobado H2, `tasks.md` con 23 tareas), integrar el PR de documentación (T01) y hacer F0‑07 (T02), que es requisito previo; luego `tasks.md` y la implementación (primero F0‑07, porque las pruebas de seguridad del backend deben correr en CI).
+3. Siguientes entregables de la Fase 0: F0‑02, F0‑03, F0‑07, F0‑10 y F0‑11. La feature 001 está hecha; su T24 queda para antes de producción.
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 5. `liv-components`, en este orden:
    - **T05:** integrada (PR #43) y la 0.2.0 publicada el 2026-11-03; `frontend/` la adopta en el PR #82 (T20). Antes, decidir lo abierto de T05 (bitácora del 2026-11-02): estilo de texto de la etiqueta de sección, recorte de textos y opciones deshabilitadas del menú.
@@ -131,6 +131,18 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
+
+- **Feature 001 · Inicio de sesión: hecha.** Los 24 criterios de la spec están probados y la feature pasa a «Hecho» en el roadmap. El cierre de `tasks.md`:
+  - **ERD versión 2.1:** los ajustes al modelo aprobados en H2:
+    - `core.admin_user` con la identidad del proveedor y `last_login_at`;
+    - las tablas `core.user_session` y `audit.import_cursor`;
+    - las columnas nuevas de `audit.audit_event`;
+    - los valores de `status` y `entity_type`;
+    - los esquemas técnicos `platform` y `bff`.
+  - **Doc. 01 versión 0.3:** la matriz de permisos de consulta del menú (§4.1).
+  - **`AGENTS.md` §3.1** (aprobado por el responsable): el ERD tiene 65 tablas en 9 esquemas funcionales, más los técnicos `platform` y `bff`.
+  - **Glosario (`docs/arquitectura/01` §15):** usuario funcionario, sesión, motivo de fin de sesión, rol y permiso, capacidades, evento de auditoría, proveedor de identidad, cierre por canal trasero, barrido de sesiones vencidas y límite de peticiones.
+  - **Antes de producción, con T24:** imágenes, TLS, el e2e en CI, la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
 
 - Feature 001, **T19 hecha** (endurecimiento del BFF), en tres PR del BFF y uno de e2e:
   - **PR #106:** las sesiones vencidas terminan aunque la persona no vuelva. Un barrido con ShedLock avisa a LIV (`IDLE` o `ABSOLUTE`), revoca y borra, y reintenta si algo falla.

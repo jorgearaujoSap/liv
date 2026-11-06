@@ -8,13 +8,13 @@ _Orden y estado de las features. Es la vista de "qué hay hecho, qué toca ahora
 
 _Features completadas, en orden de implementación._
 
-_(ninguna todavía)_
+- ✅ **[001 · Inicio de sesión](../features/001-inicio-de-sesion/spec.md)** — hecha el 2026-11-06. Inicio de sesión con Keycloak por el BFF (sin *tokens* en el navegador), segundo factor por rol, sesión con inactividad y duración máxima, menú por permisos de tres niveles, *layout* y pantallas de error. Endurecida (T19) y con pruebas de navegador (T23). Los 24 criterios de la spec están probados. Quedan para T24, antes de producción: imágenes, TLS, el e2e en CI y la CSP con *nonce* del frontend. Feature de plataforma y guía de referencia del flujo SDD; incluye el entregable F0‑05b.
 
 ## Siguiente 🔜
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
-- 🔄 **[001 · Inicio de sesión](../features/001-inicio-de-sesion/spec.md)** — en curso: spec (H1, con enmienda 1), diseño y plan (H2) aprobados; `tasks.md` con 23 tareas, lista para implementar. Feature de plataforma (no de negocio) y guía de referencia del flujo SDD; incluye el entregable F0‑05b (diseños de inicio de sesión, *layout* y menú).
+- ⏳ **T24 de la feature 001, antes de producción** — imágenes publicadas, `infra/` con TLS, el e2e en CI (F0‑12 completo), la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue. No se despliega a producción sin ella (ADR 0030).
 - **Fase 0 — Fundaciones** — no son features de negocio: se siguen como entregables F0‑01 a F0‑12 en `ESTADO.md`. Ninguna feature de negocio empieza antes de cerrar la Fase 0.
 
 ## Backlog / ideas 💡
