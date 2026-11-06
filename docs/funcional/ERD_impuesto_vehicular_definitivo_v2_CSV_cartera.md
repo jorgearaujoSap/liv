@@ -1,6 +1,6 @@
 # ERD definitivo propuesto — Impuesto vehicular
 
-> Basado en el catálogo lógico de 63 tablas y 563 campos. Validación estructural; no supone aprobación jurídica ni despliegue de PostgreSQL.
+> Basado en el catálogo lógico inicial de 63 tablas y 563 campos (65 tablas desde la versión 2.1). Validación estructural; no supone aprobación jurídica ni despliegue de PostgreSQL.
 >
 > **Versión:** 2.1 — registra los ajustes al modelo que el responsable funcional aprobó en H2 de la feature 001 · Inicio de sesión (2026-11-01). Agrega `core.user_session` y `audit.import_cursor`, que dejan el catálogo en 65 tablas. Cambian `core.admin_user` y `audit.audit_event`. Además, documenta los esquemas técnicos `platform` y `bff`, que no son parte del catálogo funcional (ver «Esquemas técnicos»).
 
@@ -195,7 +195,7 @@ erDiagram
   - `status` vale `ACTIVE` o `INACTIVE`; un usuario `INACTIVE` no entra (001-05);
   - `identity_issuer` e `identity_subject` son el vínculo con el proveedor de identidad (emisor y `sub`), único por usuario. LIV identifica al usuario por su `id`, no por el proveedor (001-21);
   - `last_login_at` es el último inicio de sesión aceptado.
-- `core.user_session` — Sesiones de los usuarios (feature 001), una por sesión del proveedor (`sid`). La abre `StartSession` y la cierra `EndSession` con `end_reason`: `LOGOUT` (salir), `IDLE` (inactividad), `ABSOLUTE` (duración máxima) o `PROVIDER` (el proveedor la cerró). Cerrarla dos veces no cambia nada. La FK compuesta impide apuntar a un usuario de otra administración o a otra identidad.
+- `core.user_session` — Sesiones de los usuarios (feature 001), una por sesión del proveedor (`sid`). Apunta a su usuario con la FK compuesta `(user_id, administration_id, identity_issuer, identity_subject)` → `core.admin_user`. La abre `StartSession` y la cierra `EndSession` con `end_reason`: `LOGOUT` (salir), `IDLE` (inactividad), `ABSOLUTE` (duración máxima) o `PROVIDER` (el proveedor la cerró). Cerrarla dos veces no cambia nada. La FK compuesta impide apuntar a un usuario de otra administración o a otra identidad.
 - `core.territorial_entity.entity_type` (feature 001) vale `DEPARTAMENTO`, `DISTRITO_CAPITAL`, `DISTRITO` o `MUNICIPIO`, los mismos tipos de `jurisdiccion.tipo` de los YAML de jurisdicción.
 
 **Relaciones externas:**
@@ -1066,16 +1066,17 @@ erDiagram
 **Tablas y funciones:**
 
 - `audit.audit_event` — Bitácora inmutable de cambios administrativos y financieros. Feature 001:
-  - `administration_id`: la administración del evento, para el aislamiento por RLS;
-  - `source` (`LIV` o `IDENTITY_PROVIDER`) y `source_event_id`, únicos juntos, para que un evento importado dos veces quede una sola vez;
+  - `administration_id`: la administración del evento, para el aislamiento por RLS. Puede ser nula: los eventos de plataforma (como un inicio rechazado de alguien sin administración) y los importados del proveedor no la tienen, y la aplicación no los lee. Si hay `user_id`, la administración es obligatoria (CHECK), y la FK compuesta `(user_id, administration_id)` → `core.admin_user` impide mezclar administraciones;
+  - `source` (`LIV` o `IDENTITY_PROVIDER`) y `source_event_id`, obligatorios y únicos juntos, para que un evento importado dos veces quede una sola vez;
   - `actor_ref`: quién actuó cuando no es un usuario de LIV (por ejemplo, el nombre intentado en un inicio fallido, enmascarado);
   - los eventos de sesión se guardan con `entity_name` = `session` o `identity_provider`, `operation` = el tipo de evento, y `new_values` = `{result, reason, truncated_ip, masked_attempted_username}`, sin contraseñas ni códigos (001-18).
-- `audit.import_cursor` — Hasta dónde se importaron los eventos del proveedor de identidad a `audit.audit_event` (feature 001): el último instante, los ids ya vistos en ese instante y si la última lectura fue completa.
+- `audit.import_cursor` — Hasta dónde se importaron los eventos del proveedor de identidad a `audit.audit_event` (feature 001); `source` solo vale `IDENTITY_PROVIDER`: el último instante, los ids ya vistos en ese instante y si la última lectura fue completa.
 - `audit.external_integration_event` — Trazabilidad de llamadas a fuentes, RUNT, bancos y pasarelas.
 
 **Relaciones externas:**
 
-- `audit.audit_event.user_id` → `core.admin_user`
+- `audit.audit_event.user_id` → `core.admin_user`, con `administration_id` en una FK compuesta
+- `audit.audit_event.administration_id` → `core.tax_administration`
 - `audit.external_integration_event.administration_id` → `core.tax_administration`
 
 ## Esquemas técnicos (plataforma y BFF)
@@ -1113,8 +1114,8 @@ erDiagram
 | Esquema | Tabla | Para qué |
 |---|---|---|
 | `platform` | `app_role`, `app_permission`, `role_permission` | Roles, permisos y qué permisos tiene cada rol (matriz en Doc. 01 §4.1). El rol de una persona llega del proveedor de identidad |
-| `platform` | `event_publication` | Eventos entre módulos que aún no se procesan (Spring Modulith) |
-| `platform` | `shedlock` | Bloqueo de las tareas programadas de la API: con varias réplicas, una sola a la vez |
+| `platform` | `event_publication` | Eventos entre módulos que aún no se procesan (Spring Modulith). No se dibuja: su estructura es la de Spring Modulith |
+| `platform` | `shedlock` | Bloqueo de las tareas programadas de la API: con varias réplicas, una sola a la vez. No se dibuja: es la tabla estándar de ShedLock |
 | `bff` | `spring_session`, `spring_session_attributes` | Sesiones del BFF en el servidor; los *tokens* van cifrados en un atributo |
 | `bff` | `oidc_session` | Qué sesión del BFF es de qué sesión del proveedor (`sid`), para el cierre por canal trasero, y los avisos a LIV pendientes |
 | `bff` | `shedlock` | Bloqueo del barrido de las sesiones vencidas del BFF |
