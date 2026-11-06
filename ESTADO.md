@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-05
+> **Última actualización:** 2026-11-06
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -129,6 +129,10 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-06
+
+- `README.md` de la raíz: nueva sección «Ejecutar LIV en local», con el paso a paso para levantar todo el sistema. Cubre entorno, API, BFF y frontend, cómo entrar, cómo crear un usuario, cómo detener y los problemas conocidos de la primera prueba completa. Los `README.md` de cada proyecto no cambian; la sección enlaza a ellos. Flujo directo (documentación).
 
 ### 2026-11-05
 
