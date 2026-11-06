@@ -110,6 +110,13 @@ describe('ModuleCard', () => {
     ).toBe(true);
   });
 
+  it('ocupa todo el alto de su celda: en una cuadrícula, todas las tarjetas miden lo mismo (Figma, Inicio)', () => {
+    const { card, link } = render();
+    expect(declaredStyle(card, 'display')).toBe('block');
+    expect(declaredStyle(card, 'height')).toBe('100%');
+    expect(declaredStyle(link, 'height')).toBe('100%');
+  });
+
   it('Default usa los tokens de Figma: fondo, borde, radio y sombra sm', () => {
     const { card, link } = render();
     expect(getComputedStyle(link).backgroundColor).toContain('var(--color-bg-surface');
