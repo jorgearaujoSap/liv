@@ -132,6 +132,18 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-05
 
+- Feature 001, decisiones del responsable sobre los 8 pendientes de T21 (PR #84):
+  - **Aceptadas:**
+    - la CSP con `style-src 'unsafe-inline'` para validar con usuarios;
+    - el aviso a 5 minutos del límite absoluto;
+    - las rutas de T22;
+    - que todo 403 de `/api/**` que no sea anti-CSRF lleve a «sin permiso».
+  - **Corregidas:**
+    - `bff.yaml` 1.1.0 declara el 403 anti-CSRF con `code` 001-12, también en `/api/**` (PR #86);
+    - `redirectToLogin` avisa el cierre a las demás pestañas (PR #87).
+  - **Pasan a T19:** el *nonce* de la CSP y `returnTo` con `%2F`.
+  - **Pasa a T23:** el CI de la imagen del frontend, que necesita aprobación.
+
 - Feature 001, T21 (PR #84, `frontend/`): núcleo de sesión del frontend e imagen con nginx.
   - **Qué hace:**
     - `SessionService` sobre `BffApi`, `authGuard` con `returnTo` y `capabilityGuard` (403 y «Próximamente») sobre `PlatformApi`;

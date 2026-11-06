@@ -381,7 +381,10 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - barrido programado con ShedLock;
     - cierre por canal trasero en `/bff/backchannel-logout` con `bff.oidc_session`. Hay que fijar el puerto del BFF en `LIV_BFF_BACKCHANNEL_URL` de `backend/dev/.env.example`, que hoy apunta a `host.docker.internal:4200`, el proxy del frontend;
     - limitación de tasa por usuario e IP;
-    - cabeceras de doc. 02 §8.
+    - cabeceras de doc. 02 §8;
+    - **desde T21** (decisiones del responsable, 2026-11-05):
+      - `returnTo` con `%2F`: el BFF lo acepta cuando, decodificado, sigue siendo una ruta propia de LIV;
+      - en el frontend, la CSP estricta con un *nonce* por petición y `inlineCritical` desactivado, en lugar de `style-src 'unsafe-inline'`. Va en un PR aparte del frontend.
   - Archivos: `backend/bff/src/main/**` (paquetes de sesión y web), `backend/bff/src/main/resources/db/migration/**`, `backend/bff/src/test/**`, `backend/dev/.env.example`.
   - Prueba primero:
     - 001-10, sin que el usuario vuelva: la sesión vencida queda auditada y revocada;
@@ -435,6 +438,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 ## Sistema
 
 - [ ] **T23** · `infra/` y `e2e/`.
+  - **Desde T21** (decisión del responsable, 2026-11-05): el trabajo de CI de la imagen del frontend (construirla, `nginx -t`, Trivy, SBOM y publicarla), con su aprobación, porque cambia CI.
   - Archivos: `infra/compose.yaml` (solo imágenes publicadas), `infra/keycloak/e2e-users.yaml` (usuarios con TOTP conocido; la capa de desarrollo no los trae, ver T07), `infra/e2e/seed.sql`, `infra/caddy/**`, `e2e/**`.
   - Prueba primero: las especificaciones de Playwright de 001-01 a 001-22, escritas en rojo, incluidas:
     - el aviso y "Seguir conectado";
