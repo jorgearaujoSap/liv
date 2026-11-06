@@ -244,7 +244,11 @@ public final class ExpiredSessions {
     }
     if (sharesTheProviderSession(row, person, now)) {
       // The person signed in again in the same session of the provider: ending this one there,
-      // or in LIV, would end the one in use. Only the session of the BFF goes.
+      // or in LIV, would end the one in use. Only the session of the BFF goes. Its end is not in
+      // LIV (/bff/login could not end it before the new sign in): the log says so, to match it.
+      LOG.error(
+          "Una sesión vencida comparte el sid {} con otra abierta: se borra sin avisar a LIV",
+          fingerprint(person.getPrincipal().sessionId()));
       return delete(row);
     }
     EndReason reason = absoluteEnd <= row.idleEnd() ? EndReason.ABSOLUTE : EndReason.IDLE;

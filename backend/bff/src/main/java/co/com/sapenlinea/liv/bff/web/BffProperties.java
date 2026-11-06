@@ -92,10 +92,14 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
       if (sweepInterval == null || sweepInterval.isZero() || sweepInterval.isNegative()) {
         throw new IllegalArgumentException("liv.bff.session.sweep-interval debe ser positivo");
       }
-      if (sweepGiveUpAfter == null || sweepGiveUpAfter.compareTo(sweepInterval) < 0) {
+      // The wait counts from when the session expired, and the first try can come up to an
+      // interval later: with less than two, a session could go at its first failure.
+      if (sweepGiveUpAfter == null
+          || sweepGiveUpAfter.compareTo(sweepInterval.multipliedBy(2)) < 0) {
         throw new IllegalArgumentException(
-            "liv.bff.session.sweep-give-up-after debe ser al menos liv.bff.session.sweep-interval:"
-                + " si no, el barrido borra una sesión al primer fallo");
+            "liv.bff.session.sweep-give-up-after debe ser al menos dos veces"
+                + " liv.bff.session.sweep-interval: si no, el barrido puede borrar una sesión al"
+                + " primer fallo");
       }
     }
   }
