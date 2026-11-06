@@ -118,7 +118,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - si la imagen `node` que compila el tema queda cubierta por "Tailwind CLI" en el ADR 0023;
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
-7. BFF (tras T18): integrar el PR #80 con `bff · verify` en verde; luego T20 (hecha, PR #82), T21 (hecha, PR #84; decisiones pendientes en el PR: la CSP con `style-src 'unsafe-inline'`, el 403 de una mutación, `returnTo` con `%2F`, el cierre entre pestañas por expiración y el CI de la imagen), T22 (hecha, PR #89; decisiones pendientes en el PR: `axe-core` sin ADR (ADR 0029 propuesto), el texto del aviso del límite de 8 horas, el tercer nivel del menú y el grupo de módulo habilitado en el menú lateral) y, antes de producción, T19. Decisiones pendientes del responsable: las de T18 (el prefijo `__Host-` de la cookie CSRF, los códigos de error del proveedor que terminan la sesión y la revocación con `invalid_grant`; plan › «Ajustes de T18»), las de T16 (la publicación de la imagen del BFF, Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z`; plan › Decisiones, «Ajustes de T16») y las de T17 (la equivalencia de `spring-boot-starter-session-jdbc` con el ADR 0023, los motivos de `EndSession`, las sesiones que pueden quedar abiertas en LIV hasta T19 y el sitio común del proveedor; «Ajustes de T17»).
+7. BFF (tras T18): integrar el PR #80 con `bff · verify` en verde; luego T20 (hecha, PR #82), T21 (hecha, PR #84; decisiones pendientes en el PR: la CSP con `style-src 'unsafe-inline'`, el 403 de una mutación, `returnTo` con `%2F`, el cierre entre pestañas por expiración y el CI de la imagen), T22 (hecha, PR #89 y #90; decisiones del responsable del 2026-11-05 en la bitácora; queda por diseñar el tercer nivel del menú) y, antes de producción, T19. Decisiones pendientes del responsable: las de T18 (el prefijo `__Host-` de la cookie CSRF, los códigos de error del proveedor que terminan la sesión y la revocación con `invalid_grant`; plan › «Ajustes de T18»), las de T16 (la publicación de la imagen del BFF, Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z`; plan › Decisiones, «Ajustes de T16») y las de T17 (la equivalencia de `spring-boot-starter-session-jdbc` con el ADR 0023, los motivos de `EndSession`, las sesiones que pueden quedar abiertas en LIV hasta T19 y el sitio común del proveedor; «Ajustes de T17»).
 8. Contratos (F0‑07, ADR 0027): integrar el PR #69 y después el #70, volviendo a correr sus *checks*. Comprobar que la primera ejecución de `backend-main` publica `contract-core-v1.0.0`, `contract-core-internal-v1.0.0` y `contract-platform-v1.0.0`. Luego, T20 (hecha, PR #82). Quedan por decidir:
    - activar las *releases* inmutables y un *ruleset* para las etiquetas `contract-*`;
    - exigir Q08 como *check*;
@@ -131,6 +131,14 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-05
+
+- Feature 001, decisiones del responsable sobre T22 (PR #89 y #90):
+  - **Aceptadas:**
+    - el ADR 0029: `axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`, para la prueba de accesibilidad de cada pantalla (el contraste, en T23);
+    - el texto del aviso del límite de 8 horas, que no estaba en Figma;
+    - el grupo de módulo del menú lateral habilitado aunque todo lo suyo esté sin construir, como en Figma.
+  - **Pasa a una tarea aparte:** diseñar el tercer nivel del menú (1.5.x y 1.6.x), primero en Figma y, si hace falta, en `ui/`. Mientras tanto se pintan dos niveles.
+  - **Sigue sin hacerse:** la pantalla local de «sesión terminada» (no está en los diseños aprobados).
 
 - Feature 001, T22 (PR [#89](https://github.com/jorgearaujoSap/liv/pull/89), `frontend/`): estructura general y pantallas del frontend.
   - **Qué hace:**

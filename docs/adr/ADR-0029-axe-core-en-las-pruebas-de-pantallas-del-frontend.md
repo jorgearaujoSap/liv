@@ -1,8 +1,8 @@
 # ADR-0029 · `axe-core` en las pruebas de pantallas del frontend
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 2026-11-05
-- **Decisores:** pendiente: el responsable del proyecto (equipo de una persona, `AGENTS.md` §4.3)
+- **Decisores:** responsable del proyecto, el 2026-11-05, al revisar las decisiones de T22 (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** ADR 0023, ADR 0026; `AGENTS.md` §4.5 y §6; `frontend/AGENTS.md` (regla de accesibilidad); `docs/arquitectura/04` §6 (pruebas) y §7; feature 001, criterio 001-19 y tarea T22 (PR #89)
 
 ## Contexto
@@ -16,7 +16,7 @@ Lo aprobado hasta hoy:
 - ADR 0023, fila de `infra/` y `e2e/`: `@axe-core/playwright`, para el e2e de T23.
 - `frontend/AGENTS.md` fija la verificación de accesibilidad como «axe‑core en e2e».
 
-`AGENTS.md` §4.5 exige un ADR para agregar una dependencia. El PR #89 agregó `axe-core` 4.14.0 como dependencia de desarrollo de `frontend/` para poder escribir esa prueba, y lo declara como pendiente de este ADR: **no debe integrarse sin decidirlo**.
+`AGENTS.md` §4.5 exige un ADR para agregar una dependencia. El PR #89 agregó `axe-core` 4.14.0 como dependencia de desarrollo de `frontend/` para poder escribir esa prueba, y lo declaró pendiente de este ADR.
 
 ## Opciones consideradas
 
@@ -32,9 +32,8 @@ Lo aprobado hasta hoy:
 
 ## Decisión
 
-Propuesta: **opción 1**, sin quitar la 2. `axe-core` 4.14.0, solo en `devDependencies` de `frontend/` y con versión exacta, para la prueba `features/accessibility.spec.ts` (una por pantalla, sin la regla `color-contrast`, que jsdom no calcula). El contraste lo cubre el e2e de T23 con `@axe-core/playwright`, ya aprobado.
+**Opción 1**, sin quitar la 2. `axe-core` 4.14.0, solo en `devDependencies` de `frontend/` y con versión exacta, para la prueba `features/accessibility.spec.ts` (una por pantalla, sin la regla `color-contrast`, que jsdom no calcula). El contraste lo cubre el e2e de T23 con `@axe-core/playwright`, ya aprobado.
 
-Si el responsable no la aprueba, se quita la dependencia del PR #89 y la prueba de 001-19 pasa a T23 (opción 2).
 
 ## Consecuencias
 

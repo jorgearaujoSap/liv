@@ -443,19 +443,19 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
       - `features/testing/fixtures.ts` y `features/accessibility.spec.ts`;
       - `package.json` y `package-lock.json` (`axe-core`);
       - `README.md` y `CHANGELOG.md` del frontend;
-    - **`axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`**: no está en el ADR 0023 y `AGENTS.md` §4.5 exige un ADR. Va como **ADR 0029 propuesto**; el PR #89 no debe integrarse sin decidirlo;
+    - **`axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`**: no estaba en el ADR 0023 y `AGENTS.md` §4.5 exige un ADR. **ADR 0029, aceptado por el responsable el 2026-11-05**;
     - unas 2.900 líneas (1.700 de pruebas): dos rondas de revisión y tres ciclos test→fix.
   - **Qué hace, además de lo pedido:**
     - la regla de ESLint cubre las plantillas y el código de los componentes de `features/`: sin `style`, `class`, `[className]`, `[innerHTML]`, `<style>`, `styles` ni `host.class`/`host.style`, sin `@HostBinding` de clase o estilo, sin `ViewEncapsulation.None`, sin controles nativos ni roles de control, y solo elementos `liv-*`, `app-*` y `router-outlet`;
     - `WorkspaceService` carga la persona y las capacidades con un tiempo límite de 10 s y vuelve a pedir la persona cuando cambian las capacidades (el rol y la administración de la cabecera no quedan viejos tras un 403);
     - una rama del menú lleva a su primera opción disponible, y los códigos que no son un número de opción se descartan;
     - el aviso dice si «Seguir conectado» falla y lo anuncia en una región viva; un 401 al cargar solo se calla si ya se va a iniciar sesión.
-  - **Pendientes de decisión humana** (listados en el PR):
-    - `axe-core` y el ADR 0029;
-    - el texto del aviso del límite de 8 horas, que no está en Figma;
-    - el tercer nivel del menú (1.5.x y 1.6.x), sin diseño: hoy se pintan dos niveles;
-    - el grupo de módulo habilitado en el menú lateral aunque todo lo suyo esté sin construir (como en Figma), frente a la tarjeta deshabilitada de Inicio;
-    - la pantalla local de «sesión terminada», que no se inventó.
+  - **Decisiones del responsable (2026-11-05):**
+    - **`axe-core`:** ADR 0029 aceptado; la prueba de accesibilidad de cada pantalla queda en el frontend y el contraste, en T23;
+    - **aviso del límite de 8 horas:** se aprueba el texto actual (solo «Cerrar sesión»);
+    - **grupo de módulo en el menú lateral:** se deja habilitado, como en Figma, aunque todo lo suyo esté sin construir;
+    - **tercer nivel del menú (1.5.x y 1.6.x):** se diseña ahora, primero en Figma y, si hace falta un componente o variante, en `ui/`, en otro PR. Hasta entonces se pintan dos niveles. Antes de que una hoja de tercer nivel pase a `AVAILABLE`, el diseño debe estar aprobado;
+    - **pantalla local de «sesión terminada»:** sigue sin inventarse; si hace falta, se propone aparte.
   - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y altos de `axe-core` sin ADR, la carga sin tiempo límite, la persona que no se refrescaba y «Seguir conectado» que fallaba en silencio; además una regla de ESLint para `<style>` que buscaba la letra «s» (error propio), ramas del menú con una ruta sin pantalla y un 401 pisado por «Error». Segunda ronda, solo sobre lo corregido: ningún crítico y **1 alto** (callar el 401 dejaba «Cargando» colgado si `/bff/session` también fallaba, una regresión de la primera corrección), corregido con prueba en rojo primero junto con el resto de los medios. **No hubo tercera ronda** (regla de dos rondas): esas correcciones quedan sin un tercer juicio independiente. Resumen por severidad en el PR.
 
 ## Sistema

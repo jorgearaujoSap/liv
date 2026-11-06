@@ -467,8 +467,12 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **aviso de sesión:** el del límite de 8 horas solo deja «Cerrar sesión»; **su texto no está en Figma**. Si «Seguir conectado» falla, se dice y se anuncia;
   - **un 401 al cargar** solo se calla si ya se va a iniciar sesión (`SessionService.isRedirecting`); si no, va a «Error»;
   - **regla de ESLint:** las pantallas no llevan estilos propios, y su disposición (flex, rejilla) va en el `.component.css` con los tokens del tema. «Cargando» reproduce con esa disposición el marco que Figma dibuja con `Skeleton` y `Logo`; el menú queda 2 px más abajo (el tema no tiene el espaciado de 14 px);
-  - **`axe-core` 4.14.0** como dependencia de desarrollo de `frontend/`: sin ADR aprobado (`AGENTS.md` §4.5). **ADR 0029 propuesto**; si no se aprueba, se quita y 001-19 pasa a T23;
-  - **pendientes de decisión humana:** `axe-core` (ADR 0029); el texto del aviso del límite de 8 horas; el diseño del tercer nivel del menú; el grupo de módulo habilitado en el menú lateral aunque todo lo suyo esté sin construir (como en Figma) frente a la tarjeta deshabilitada de Inicio; y la pantalla local de «sesión terminada», que no está en los diseños aprobados.
+  - **`axe-core` 4.14.0** como dependencia de desarrollo de `frontend/`: **ADR 0029, aceptado por el responsable el 2026-11-05** (la prueba de cada pantalla en el frontend; el contraste, en T23);
+  - **decisiones del responsable (2026-11-05):**
+    - se aprueba el texto del aviso del límite de 8 horas;
+    - el grupo de módulo del menú lateral se deja habilitado, como en Figma, frente a la tarjeta deshabilitada de Inicio;
+    - el **tercer nivel del menú** (1.5.x y 1.6.x) se diseña ahora: primero en Figma y, si hace falta, en `ui/` (otro PR). Hasta entonces, dos niveles;
+    - la pantalla local de «sesión terminada» sigue sin inventarse (no está en los diseños aprobados).
 - **Ajustes de T21 (PR #84; decisiones y riesgos pendientes del responsable).** Salieron de implementar el núcleo del frontend y de su revisión adversarial y de las cuatro lentes:
   - **ESLint:** la regla de T20 no se amplió; solo restringe `HttpClient`, `HttpBackend` y `HttpHandler`, y el interceptor no los necesita;
   - **rutas de las pantallas de T22:** `/sin-permiso`, `/proximamente` y `/error` (`core/app-paths.ts`);
