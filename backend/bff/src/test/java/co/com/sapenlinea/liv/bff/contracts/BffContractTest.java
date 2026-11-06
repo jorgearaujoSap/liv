@@ -90,10 +90,11 @@ class BffContractTest {
         (Map<String, Object>) ((Map<String, Object>) components.get("schemas")).get("CsrfProblem");
     Map<String, Object> properties = (Map<String, Object>) problem.get("properties");
     assertThat(problem.get("required")).isEqualTo(java.util.List.of("status", "code"));
-    assertThat(((Map<String, Object>) properties.get("status")).get("enum"))
-        .isEqualTo(java.util.List.of(403));
-    assertThat(((Map<String, Object>) properties.get("code")).get("enum"))
-        .isEqualTo(java.util.List.of("001-12"));
+    // An enum would be the strict way, but openapi-diff takes adding one to a response as an
+    // incompatible change (ADR 0027), so the code is fixed by its description and example.
+    Map<String, Object> code = (Map<String, Object>) properties.get("code");
+    assertThat(code.get("example")).isEqualTo("001-12");
+    assertThat((String) code.get("description")).startsWith("Siempre 001-12.");
 
     // /api/** is not in this contract, so its description says that the BFF answers the same there.
     assertThat((String) ((Map<String, Object>) contract.get("info")).get("description"))

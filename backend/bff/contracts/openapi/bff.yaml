@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LIV · BFF
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Rutas propias del BFF que usa el navegador (ADR 0010, ADR 0005): inicio y cierre de sesión y
     estado de la sesión. Contract-first: el BFF se escribe contra este archivo y el frontend usa una
@@ -12,7 +12,9 @@ info:
     frontend trata todo 502 como un error que se puede reintentar. El navegador nunca recibe un token: la única cookie que autentica es LIV_SESSION
     (HttpOnly, Secure, SameSite=Strict). Toda petición que modifica datos, incluidas las de este
     contrato, lleva el token anti-CSRF: el frontend copia la cookie XSRF-TOKEN a la cabecera
-    X-XSRF-TOKEN, y sin él responde 403. Feature 001 · Inicio de sesión.
+    X-XSRF-TOKEN, y sin él responde 403. En /api/** una petición que modifica datos sin el token
+    anti-CSRF recibe el mismo 403 del propio BFF (CsrfRejected, code: 001-12), sin llegar a la API;
+    cualquier otro 403 de /api/** viene de la API. Feature 001 · Inicio de sesión.
 tags:
   - name: Session
     description: Inicio y cierre de sesión y estado de la sesión.
@@ -138,11 +140,12 @@ components:
   responses:
     CsrfRejected:
       description: >-
-        Falta el token anti-CSRF o no es el de la cookie XSRF-TOKEN (001-12). code: 001-12.
+        Falta el token anti-CSRF o no es el de la cookie XSRF-TOKEN (001-12). Lo responde el BFF,
+        también en /api/**, siempre con code 001-12.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/Problem'
+            $ref: '#/components/schemas/CsrfProblem'
   schemas:
     SessionStatus:
       type: object
@@ -165,6 +168,19 @@ components:
         redirectTo:
           type: string
           description: Ruta de LIV a la que navegar para iniciar sesión de nuevo (/bff/login).
+    CsrfProblem:
+      type: object
+      description: Rechazo anti-CSRF del BFF (001-12), con el formato de Problem.
+      required: [status, code]
+      properties:
+        status:
+          type: integer
+          format: int32
+        code:
+          type: string
+          maxLength: 32
+          description: Siempre 001-12. No va como enum porque el comparador (openapi-diff) marca como incompatible agregar un enum a una respuesta.
+          example: '001-12'
     Problem:
       type: object
       description: Problem Details (RFC 9457) con el código del criterio (doc. 01 §10).
