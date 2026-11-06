@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
+import java.sql.SQLException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -21,8 +22,8 @@ class IdleTimeoutTest extends BffFlowTest {
   @Test
   @Tag("001-10")
   @DisplayName(
-      "001-10 · Tras la inactividad, la persona que intenta una acción recibe 401 y la API no se llama")
-  void anIdleSessionHasExpired() {
+      "001-10 · Tras la inactividad, la persona que intenta una acción recibe 401, la API no se llama y la sesión termina con IDLE")
+  void anIdleSessionHasExpired() throws SQLException {
     Browser browser = browser();
     browser.signIn("/");
     BACKEND.reset();
@@ -32,6 +33,12 @@ class IdleTimeoutTest extends BffFlowTest {
 
     assertThat(reply.status()).isEqualTo(401);
     assertThat(BACKEND.apiCalls()).isEmpty();
+    assertThat(BACKEND.endSessionCalls())
+        .as("Spring Session ya no la borra en silencio: se avisa a LIV")
+        .hasSize(1);
+    assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"IDLE\"");
+    assertThat(BACKEND.revocationCalls()).hasSize(1);
+    assertThat(storedSessions()).isZero();
   }
 
   @Test
