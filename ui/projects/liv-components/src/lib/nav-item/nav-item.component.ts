@@ -22,12 +22,16 @@ let nextId = 0;
  *   alineada con el texto del módulo y con chevron; se expande como un `group`);
  * - `subitem` (opción de un módulo, alineada con el texto, sin icono);
  * - `nested` (opción de tercer nivel, 1.5.x y 1.6.x: como un `subitem`, sangrada 16 px más).
+ *
+ * Anidación válida: `group` contiene `subitem` y `subgroup`; `subgroup` contiene `nested`. Los hijos son
+ * `liv-nav-item` directos (no se envuelven en otro elemento) y la sangría es fija por tipo, no por
+ * profundidad: otra anidación se ve plana. `type` se fija al crear la opción.
  */
 export type NavItemType = 'item' | 'group' | 'subgroup' | 'subitem' | 'nested';
 
 /** Los tipos que se expanden para mostrar las opciones que contienen. */
 const BRANCH_TYPES: readonly NavItemType[] = ['group', 'subgroup'];
-/** Los tipos que dibujan icono: los de segundo y tercer nivel se alinean con el texto del módulo. */
+/** Los tipos que dibujan icono. `subgroup`, `subitem` y `nested` no: se alinean con el texto del módulo. */
 const ICON_TYPES: readonly NavItemType[] = ['item', 'group'];
 
 /**
@@ -42,7 +46,9 @@ const ICON_TYPES: readonly NavItemType[] = ['item', 'group'];
  * `active` marca la pantalla actual con `aria-current="page"`. `group` y `subgroup` son botones con
  * `aria-expanded`; en ellos, `active` solo los pinta (el grupo que contiene la pantalla actual) y no
  * declara `aria-current`: el `group` con el fondo de la pantalla actual y el `subgroup` solo con el color
- * del texto, para no apilar tres barras (módulo, grupo y opción actual).
+ * y el peso del texto (`body/md-strong` en `action-primary`), sin relleno, para no apilar tres barras
+ * (módulo, grupo y opción actual). Si la rama activa está contraída, la opción actual no está en el DOM:
+ * la aplicación debe mantenerla expandida (`[expanded]`) mientras contenga la pantalla actual.
  *
  * `disabled` es una opción aún no construida: no tiene `href`, no navega ni se expande, declara
  * `aria-disabled="true"`, explica por qué con `disabledHint` y el clic no llega a quien escuche el

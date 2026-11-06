@@ -42,8 +42,8 @@
 }
 
 /*
- * Subgroup: opción de segundo nivel con subopciones (1.5 y 1.6). Alineado con el texto del módulo (44 px),
- * sin icono, con chevron y énfasis medio pero más suave que el módulo (text-secondary).
+ * Subgroup: opción de segundo nivel con subopciones (1.5 y 1.6). Alineado con el texto del módulo (44 px, el
+ * mismo de un subitem), sin icono, con chevron y énfasis medio pero más suave que el módulo (text-secondary).
  */
 
 :host([data-type='subgroup']) > .nav-item__control {
@@ -68,9 +68,11 @@
 }
 
 /*
- * Active en un Subgroup (el grupo que contiene la pantalla actual): solo el texto en action-primary, sin
- * relleno, y el chevron en text-muted como en Figma; así la pantalla actual es la única barra de color de
- * su rama, además de la del módulo.
+ * Active en un Subgroup (el grupo que contiene la pantalla actual): texto en action-primary y body/md-strong
+ * (lo que ya pinta Active), sin relleno, y el chevron en text-muted como en Figma; así la pantalla actual es
+ * la única barra de color de su rama, además de la del módulo. Estas reglas van después de las de Active y
+ * con más especificidad para ganarles; `>` las limita al control del propio subgrupo y no al de sus opciones.
+ * Sin Hover mientras está activo (como el resto de los estados Active).
  */
 
 :host([data-type='subgroup'][data-active]) > .nav-item__control {

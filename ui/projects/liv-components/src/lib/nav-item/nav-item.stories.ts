@@ -98,13 +98,19 @@ export const SubitemActivo: Story = {
 
 export const Subgroup: Story = {
   name: 'Subgroup · opción de segundo nivel',
-  args: { type: 'subgroup', href: undefined, label: 'Cargue de tablas base por vigencia' },
+  args: {
+    type: 'subgroup',
+    icon: undefined,
+    href: undefined,
+    label: 'Cargue de tablas base por vigencia',
+  },
 };
 
 export const SubgroupActivo: Story = {
   name: 'Subgroup · activo (solo el texto)',
   args: {
     type: 'subgroup',
+    icon: undefined,
     href: undefined,
     active: true,
     label: 'Cargue de tablas base por vigencia',
@@ -115,6 +121,7 @@ export const SubgroupDeshabilitado: Story = {
   name: 'Subgroup · deshabilitado',
   args: {
     type: 'subgroup',
+    icon: undefined,
     href: undefined,
     disabled: true,
     label: 'Consultas y exportación de tablas base',
@@ -123,17 +130,32 @@ export const SubgroupDeshabilitado: Story = {
 
 export const Nested: Story = {
   name: 'Nested · opción de tercer nivel',
-  args: { type: 'nested', label: 'Cargar archivo de avalúos' },
+  args: { type: 'nested', icon: undefined, label: 'Cargar archivo de avalúos' },
 };
 
 export const NestedActivo: Story = {
   name: 'Nested · activo',
-  args: { type: 'nested', active: true, label: 'Cargar archivo de avalúos' },
+  args: { type: 'nested', icon: undefined, active: true, label: 'Cargar archivo de avalúos' },
 };
 
 export const NestedDeshabilitado: Story = {
   name: 'Nested · deshabilitado',
-  args: { type: 'nested', disabled: true, href: undefined, label: 'Calendario tributario' },
+  args: { type: 'nested', icon: undefined, disabled: true, label: 'Calendario tributario' },
+};
+
+export const SubgroupExpandido: Story = {
+  name: 'Subgroup · expandido con opciones de tercer nivel',
+  render: () => ({
+    template: `
+      <div class="w-[240px]">
+        <liv-nav-item type="subgroup" [expanded]="true">
+          Cargue de tablas base por vigencia
+          <liv-nav-item type="nested" href="#asistente">Asistente de preparación de vigencia</liv-nav-item>
+          <liv-nav-item type="nested" href="#catalogos">Catálogos de avalúos</liv-nav-item>
+        </liv-nav-item>
+      </div>
+    `,
+  }),
 };
 
 export const TresNiveles: Story = {
@@ -150,7 +172,10 @@ export const TresNiveles: Story = {
             <liv-nav-item type="nested" href="#carga" [active]="true">Cargar archivo de avalúos</liv-nav-item>
             <liv-nav-item type="nested" [disabled]="true">Calendario tributario</liv-nav-item>
           </liv-nav-item>
-          <liv-nav-item type="subgroup">Consultas y exportación de tablas base</liv-nav-item>
+          <liv-nav-item type="subgroup">
+            Consultas y exportación de tablas base
+            <liv-nav-item type="nested" href="#lotes">Consulta de lotes de importación</liv-nav-item>
+          </liv-nav-item>
           <liv-nav-item type="subitem" [disabled]="true">Parámetros generales</liv-nav-item>
         </liv-nav-item>
       </div>
