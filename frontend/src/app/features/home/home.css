@@ -12,7 +12,10 @@ h2 {
   @apply m-0 text-heading-h3 text-text-primary;
 }
 
-/* Rejilla de tarjetas: tres columnas de 352 px en un área de 1104 px, y menos si no caben. */
+/*
+ * Rejilla de tarjetas: tres columnas de 352 px en un área de 1104 px, y menos si no caben. Las filas son
+ * iguales (auto-rows-fr): todas las tarjetas miden lo que la más alta, como en Figma.
+ */
 section > div {
-  @apply grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6;
+  @apply grid auto-rows-fr grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6;
 }

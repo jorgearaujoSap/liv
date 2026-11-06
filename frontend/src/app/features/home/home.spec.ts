@@ -138,6 +138,7 @@ describe('Inicio (001-02, 001-15)', () => {
     const grid = cards(render())[0]?.parentElement as HTMLElement;
 
     expect(declared(grid, 'display')).toBe('grid');
-    expect(declared(grid, 'grid-auto-rows')).toBe('1fr');
+    // auto-rows-fr de Tailwind: cada fila mide una fracción igual, la de la tarjeta más alta.
+    expect(declared(grid, 'grid-auto-rows')).toBe('minmax(0, 1fr)');
   });
 });
