@@ -480,6 +480,11 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - **Resultado:** `auto-rows-fr`, que Tailwind 4 escribe como `minmax(0, 1fr)`. El cambio de `NavItemType` de la 0.3.0 no afecta al menú, que sigue con dos niveles; el tercero va en otro PR. La medida real (352×158) queda para las pruebas e2e de T23.
   - **Para decidir:** a una sola columna, todas las tarjetas miden lo que la más alta; por debajo de unos 368 px la columna desborda, como ya pasaba antes. Figma no tiene diseño móvil.
 
+- [x] **T22b** · Menú lateral de tres niveles (1.5.x y 1.6.x), con el diseño aprobado (Figma, «Menú · tres niveles», nodo 51-1519) y `NavItem` `subgroup`/`nested` de la 0.3.0 (001-15). — Hecha: PR [#99](https://github.com/jorgearaujoSap/liv/pull/99) (`frontend/`).
+  - Archivos: `frontend/src/app/features/shell/**`, `frontend/src/app/features/accessibility.spec.ts`, `frontend/CHANGELOG.md`.
+  - Prueba primero: subgrupo con sus anidadas, navegación de tercer nivel, ramas activas y abiertas, contraer y volver a navegar, y axe con el menú abierto.
+  - **Además:** la estructura guarda qué ramas están abiertas (`[(expanded)]`). La persona puede contraerlas y ninguna se cierra sola; esto corrige también el módulo, que antes se cerraba al salir de él.
+  - **Para decidir:** si un subgrupo con todas sus opciones sin construir debe poder abrirse para mostrarlas deshabilitadas, como un módulo. Hoy queda cerrado y deshabilitado.
 - [x] **T21b** · La aplicación no arranca durante la precarga del navegador (001-01). Al escribir la dirección, Chrome y Edge precargan la página; Angular redirigía a `/bff/login` y el BFF, que no abre un inicio de sesión desde una precarga, respondía 404. Lo encontró el responsable en la prueba local de Inicio (2026-11-05). — Hecha: PR [#97](https://github.com/jorgearaujoSap/liv/pull/97) (`frontend/`).
   - Archivos: `frontend/src/main.ts`, `frontend/src/app/core/browser/when-opened.*`, `frontend/CHANGELOG.md`.
   - Prueba primero: `startWhenOpened` no arranca antes de `prerenderingchange`, y arranca de inmediato sin precarga.
