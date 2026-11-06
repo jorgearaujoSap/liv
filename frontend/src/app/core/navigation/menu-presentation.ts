@@ -150,7 +150,9 @@ function toModule(capability: Capability): MenuModule {
  */
 function toOption(capability: Capability, label = labelOf(capability.code)): MenuOption {
   const children = capability.children.filter(isOption).map((child) => toOption(child));
-  const isBranch = children.length > 0;
+  // Es rama por lo que manda el backend, no por lo que sobrevive al filtro: una rama sin opciones válidas no
+  // se vuelve una hoja con ruta.
+  const isBranch = capability.children.length > 0;
   const available = isBranch
     ? children.some((child) => child.available)
     : capability.status === 'AVAILABLE';

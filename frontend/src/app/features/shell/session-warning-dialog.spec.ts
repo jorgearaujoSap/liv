@@ -159,7 +159,7 @@ describe('aviso de sesión por expirar (001-22)', () => {
     idle.extend = vi.fn().mockResolvedValue(false);
     idle.warning.set({ kind: 'idle', secondsLeft: 90 });
     const fixture = render();
-    const region = dialog(fixture)?.querySelector('[role="status"]');
+    const region = dialog(fixture)?.querySelector('p[role="status"]');
     expect(region).not.toBeNull();
     expect(text(region)).toBe('');
 

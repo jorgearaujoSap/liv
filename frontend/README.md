@@ -56,16 +56,35 @@ El navegador nunca recibe *tokens* (001-11): la sesión es la cookie `HttpOnly` 
 | `provideLivHttp()` | `HttpClient` con el interceptor y el token anti-CSRF. El interceptor agrega `X-Correlation-Id`; ante un 401 de `/api/**` consulta `/bff/session` y **reintenta una vez, solo lecturas o peticiones con `Idempotency-Key`**; si no, va a iniciar sesión; ante un 403 recarga las capacidades y lleva a `/sin-permiso` (no si es el rechazo anti-CSRF, `001-12`) |
 | `IdleService` | Avisa 2 minutos antes de que venza la sesión (a los 13 de 15) y 5 minutos antes de las 8 horas (`warning`, `extend()`, `logout()`). **Sin sondeo:** una sola consulta a `/bff/session`, programada para cuando toque avisar, y otra al volver a ver la pestaña; nunca toca `/api`. Las pestañas se sincronizan con `BroadcastChannel` |
 
-Las pantallas que atienden `/sin-permiso`, `/proximamente` y `/error`, y el aviso de sesión, son de la tarea T22. Las rutas están en `app-paths.ts`.
+## Pantallas (`src/app/features/`)
+
+Feature 001, T22. Cada pantalla sigue su diseño de Figma (LIV-Diseño, `03 Pantallas`) y se arma **solo** con `liv-components`: la disposición (flex, rejilla) va en el `.component.css` de la pantalla, con los tokens del tema. Una regla de ESLint lo exige en las plantillas y en el código de `features/`: sin `style`, `class`, `[className]`, `[innerHTML]`, `<style>`, controles nativos, roles de control ni elementos que no sean `liv-*`, `app-*` o `router-outlet`.
+
+| Pantalla | Ruta | Carpeta | Figma |
+|---|---|---|---|
+| Estructura general (menú lateral, cabecera, aviso de sesión) | envuelve a las demás | `shell/` | Inicio, `26:793` |
+| Inicio | `/` | `home/` | `26:793` |
+| Aviso de sesión por expirar | diálogo de la estructura general | `shell/` | `26:1157` |
+| Sin permiso (403) | `/sin-permiso` | `errors/` | `26:1454` |
+| Próximamente | `/proximamente` | `errors/` | `29:1689` |
+| Cargando | marco de la estructura mientras carga | `shell/` | `26:1640` |
+| Error al cargar la sesión | `/error` (sin sesión, pantalla completa) | `errors/` | `26:1672` |
+
+- **Menú:** `core/navigation/menu-presentation.ts` pone nombre, icono y ruta a lo que el backend permite (`/api/v1/me/capabilities`). Las opciones `COMING_SOON` salen deshabilitadas y no navegan. Una rama (módulo o grupo) lleva a su primera opción disponible. Se pintan dos niveles; el tercero (1.5.x y 1.6.x) no tiene diseño todavía.
+- **Opción por URL (001-16):** `/opcion/<número>` (p. ej. `/opcion/1.5.9`) pasa por `capabilityGuard` (`data: { capabilityParam: 'code' }`): sin la opción en las capacidades, `/sin-permiso`; sin construir, `/proximamente`. Cada feature registra la ruta de su opción antes de esta.
+- **Aviso de sesión (001-22):** por inactividad deja «Seguir conectado» o «Cerrar sesión»; el del límite de 8 horas solo deja cerrar sesión (su texto no está en Figma). Si «Seguir conectado» falla, el aviso lo dice.
+- **Quién es la persona:** `WorkspaceService` carga `/api/v1/me` y las capacidades con un tiempo límite de 10 s, y vuelve a pedir la persona cuando cambian las capacidades (p. ej. tras un 403).
+- **Accesibilidad (001-19):** `features/accessibility.spec.ts` pasa axe-core por cada pantalla (sin la regla de contraste, que jsdom no calcula; la cubre el e2e de T23).
 
 ## Estructura
 
 ```
 frontend/
 ├── src/
-│   ├── app/          ← raíz y rutas; más adelante features/
+│   ├── app/          ← raíz y rutas
 │   │   ├── api/      ← cliente generado de los contratos (no se edita)
-│   │   └── core/     ← sesión, guardas, interceptor e inactividad (feature 001, T21)
+│   │   ├── core/     ← sesión, guardas, interceptor, inactividad y catálogo del menú (feature 001, T21 y T22)
+│   │   └── features/ ← pantallas: shell, home y errors (feature 001, T22)
 │   └── styles.css    ← importa Tailwind y los tokens de liv-components; solo estilos reutilizados en toda la interfaz
 ├── api-spec/         ← copias fijadas de los contratos y versions.json
 ├── scripts/          ← api-update.mjs, pruebas de las reglas de ESLint y de nginx.conf
@@ -94,4 +113,4 @@ Verificación en un contenedor real, al cambiar `nginx.conf`, el `Dockerfile` o 
 
 ## Estado
 
-Esqueleto de la Fase 0 (entregable F0‑05): Tailwind, *tokens* desde `liv-components`, ESLint con reglas de frontera, Prettier y Vitest. El núcleo de sesión está hecho (T21); todavía no hay pantallas: cada una necesita antes su diseño aprobado en Figma.
+Esqueleto de la Fase 0 (entregable F0‑05): Tailwind, *tokens* desde `liv-components`, ESLint con reglas de frontera, Prettier y Vitest. El núcleo de sesión (T21) y las pantallas de la feature 001 (T22) están hechos; cada pantalla nueva necesita antes su diseño aprobado en Figma.

@@ -1,0 +1,6 @@
+@reference '../../../styles.css';
+
+/* El fallo de «Seguir conectado» ya está en la descripción del diálogo; esta región viva solo lo anuncia. */
+[role='status'] {
+  @apply sr-only;
+}

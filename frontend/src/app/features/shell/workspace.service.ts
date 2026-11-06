@@ -35,6 +35,8 @@ export class WorkspaceService {
 
   /** Las capacidades con las que se cargó la persona: si cambian (p. ej. tras un 403), la persona también. */
   private seen: Capabilities | undefined;
+  /** Número del último refresco pedido: la respuesta de uno anterior no pisa la de uno más nuevo. */
+  private refreshes = 0;
 
   constructor() {
     effect(() => {
@@ -66,8 +68,12 @@ export class WorkspaceService {
    * la cabecera no puede quedarse con los de antes. Si falla, se conserva la anterior.
    */
   private async refresh(): Promise<void> {
+    const number = ++this.refreshes;
     try {
-      this.current.set(await this.requestUser());
+      const user = await this.requestUser();
+      if (number === this.refreshes) {
+        this.current.set(user);
+      }
     } catch {
       // Se conserva la persona anterior; el próximo cambio de capacidades vuelve a intentarlo.
     }

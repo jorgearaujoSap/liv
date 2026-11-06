@@ -136,23 +136,29 @@ module.exports = defineConfig([
           message: 'Sin etiqueta <style> en las pantallas: los estilos van en el .component.css.',
         },
         {
-          selector: 'BoundAttribute[keySpan.details=/^(innerHTML|outerHTML)$/]',
+          selector: 'BoundAttribute[keySpan.details=/^(innerHTML|outerHTML)$/i]',
           message:
             'Sin [innerHTML] ni [outerHTML] en las pantallas: el contenido va por interpolación o por las entradas de un componente.',
         },
         {
           // Angular nombra un `<svg>` como `:svg:svg`; el HTML no distingue mayúsculas, el nombre sí.
           selector:
-            'Element[name=/^(:svg:)?(button|a|input|select|textarea|table|img|svg|dialog|form)$/i]',
+            'Element[name=/^(:svg:)?(button|a|input|select|textarea|table|img|svg|dialog|form|details|summary|iframe|label)$/i]',
           message:
             'Los controles vienen de liv-components (liv-button, liv-text-field, liv-nav-item…); si falta uno, primero va en la librería.',
         },
         {
           // Un contenedor con rol interactivo es un control hecho a mano.
           selector:
-            "Element[name!=/^(liv|app|ng)-/] > TextAttribute[name='role'][value=/^(button|link|checkbox|switch|tab|menuitem|radio|textbox|combobox|option|slider|spinbutton)$/]",
+            "Element[name!=/^(liv|app|ng)-/] > TextAttribute[name='role'][value=/(^|\\s)(button|link|checkbox|switch|tab|tablist|menu|menuitem|menuitemcheckbox|menuitemradio|radio|textbox|searchbox|combobox|listbox|option|slider|spinbutton|treeitem|gridcell|dialog|alertdialog)(\\s|$)/i]",
           message:
             'Los controles vienen de liv-components: un contenedor con rol de botón, enlace o campo es un control hecho a mano.',
+        },
+        {
+          // Un rol enlazado no se puede revisar: en un contenedor nativo no se permite.
+          selector: "Element[name!=/^(liv|app|ng)-/] > BoundAttribute[keySpan.details='attr.role']",
+          message:
+            'Los controles vienen de liv-components: no se enlaza el rol de un contenedor nativo; usa el componente de la librería.',
         },
         {
           selector:
@@ -173,7 +179,8 @@ module.exports = defineConfig([
         'error',
         ...bypassRules['no-restricted-syntax'].slice(1),
         {
-          selector: "Decorator[expression.callee.name='Component'] Property[key.name='styles']",
+          selector:
+            "Decorator[expression.callee.name='Component'] Property:matches([key.name='styles'], [key.value='styles'])",
           message:
             'Sin `styles` en línea en una pantalla: los estilos van en su .component.css (`styleUrl`).',
         },
@@ -185,9 +192,21 @@ module.exports = defineConfig([
         },
         {
           selector:
-            "Decorator[expression.callee.name='Component'] Property[key.name='host'] > ObjectExpression > Property[key.value=/^(class|style|\\[(class|style|ngClass|ngStyle|className))/]",
+            "Decorator[expression.callee.name='Component'] Property[key.name='host'] > ObjectExpression > Property[key.value=/^(class|style|\\[(attr\\.)?(class|style|ngClass|ngStyle|className))/]",
           message:
             'Sin `host.class` ni `host.style` en una pantalla: los estilos van en su .component.css.',
+        },
+        {
+          selector:
+            "Decorator[expression.callee.name='HostBinding'][expression.arguments.0.value=/^(class|style|attr\\.(class|style))/]",
+          message:
+            'Sin @HostBinding de class ni style en una pantalla: los estilos van en su .component.css.',
+        },
+        {
+          selector:
+            "Decorator[expression.callee.name='Component'] Property[key.name='encapsulation'] > MemberExpression[property.name='None']",
+          message:
+            'Sin ViewEncapsulation.None en una pantalla: dejaría que su .component.css redefina los componentes de liv-components.',
         },
       ],
     },

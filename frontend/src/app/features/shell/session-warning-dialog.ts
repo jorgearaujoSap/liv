@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ButtonComponent, DialogComponent } from 'liv-components';
 
 import { IdleService } from '../../core/session/idle.service';
@@ -18,6 +18,7 @@ import { IdleService } from '../../core/session/idle.service';
   selector: 'app-session-warning-dialog',
   imports: [DialogComponent, ButtonComponent],
   templateUrl: './session-warning-dialog.html',
+  styleUrl: './session-warning-dialog.css',
 })
 export class SessionWarningDialog {
   private readonly idle = inject(IdleService);
@@ -37,13 +38,20 @@ export class SessionWarningDialog {
     return kind ? [kind] : [];
   });
 
+  /** El tipo de aviso vigente; no cambia mientras el aviso sea del mismo tipo. */
+  private readonly kind = computed(() => this.warning()?.kind);
+
   constructor() {
+    // Un aviso nuevo, o de otro tipo, empieza sin el fallo del anterior.
     effect(() => {
-      if (!this.warning()) {
-        this.failed.set(false);
-      }
+      this.kind();
+      untracked(() => this.failed.set(false));
     });
   }
+
+  protected readonly failure = computed(() =>
+    this.failed() ? 'No pudimos extender tu sesión. Inténtalo de nuevo.' : '',
+  );
 
   protected readonly heading = computed(() =>
     this.warning()?.kind === 'absolute'
@@ -64,7 +72,7 @@ export class SessionWarningDialog {
       warning.kind === 'absolute'
         ? `Por seguridad, ninguna sesión dura más de 8 horas. Cerraremos la tuya en ${time}. Guarda lo que estés haciendo y vuelve a iniciar sesión.`
         : `Por seguridad cerraremos tu sesión en ${time} por inactividad. ¿Quieres seguir conectado?`;
-    return this.failed() ? `${text} No pudimos extender tu sesión. Inténtalo de nuevo.` : text;
+    return this.failed() ? `${text} ${this.failure()}` : text;
   });
 
   protected async keepConnected(): Promise<void> {
@@ -72,8 +80,14 @@ export class SessionWarningDialog {
       return;
     }
     this.extending.set(true);
+    const kind = this.kind();
     try {
-      this.failed.set(!(await this.idle.extend()));
+      const renewed = await this.idle.extend();
+      // Solo vale si sigue abierto el mismo aviso: si otra pestaña extendió o el aviso cambió, este
+      // resultado ya es de otro momento.
+      if (this.kind() === kind) {
+        this.failed.set(!renewed);
+      }
     } finally {
       this.extending.set(false);
     }

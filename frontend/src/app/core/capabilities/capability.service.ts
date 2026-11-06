@@ -5,6 +5,10 @@ import { getCapabilities } from '../../api/platform/functions';
 import type { Capabilities, Capability } from '../../api/platform/models';
 import { PlatformApi } from '../../api/platform/platform-api';
 import { SKIP_FORBIDDEN_HANDLING } from '../http/api-context';
+import { withTimeout } from '../http/with-timeout';
+
+/** Lo que se espera al servidor antes de darlo por caído. */
+const CAPABILITIES_TIMEOUT_MS = 10_000;
 
 /**
  * Las opciones de menú que el backend permite al usuario (`/api/v1/me/capabilities`). El backend decide
@@ -47,11 +51,15 @@ export class CapabilityService {
   private async request(): Promise<Capabilities> {
     const number = ++this.latest;
     try {
-      const capabilities = await this.platform.invoke(
-        getCapabilities,
-        undefined,
-        // Un 403 de esta misma petición no debe volver a pedir las capacidades.
-        new HttpContext().set(SKIP_FORBIDDEN_HANDLING, true),
+      // `HttpClient` no tiene tiempo límite: sin esto, la guarda de una opción abierta por URL quedaría colgada.
+      const capabilities = await withTimeout(
+        this.platform.invoke(
+          getCapabilities,
+          undefined,
+          // Un 403 de esta misma petición no debe volver a pedir las capacidades.
+          new HttpContext().set(SKIP_FORBIDDEN_HANDLING, true),
+        ),
+        CAPABILITIES_TIMEOUT_MS,
       );
       // Una respuesta anterior a la que ya se guardó no la pisa; si la más nueva falló, esta sí vale.
       if (number > this.applied) {

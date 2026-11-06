@@ -10,6 +10,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - estructura general (`SideNav`, `AppHeader`) con el menú que arma `core/navigation/menu-presentation.ts` a partir de las capacidades: solo lo permitido, las opciones `COMING_SOON` deshabilitadas (001-02, 001-15);
   - Inicio, Sin permiso (403), Próximamente, Cargando y Error (rutas `/`, `/sin-permiso`, `/proximamente` y `/error`);
   - aviso de sesión por expirar sobre `IdleService.warning` (001-22): «Seguir conectado» o «Cerrar sesión»; el aviso del límite de 8 horas solo deja cerrar sesión (su texto no está en el diseño);
+  - `WorkspaceService`: carga la persona y las capacidades con un tiempo límite de 10 s y vuelve a pedir la persona cuando cambian las capacidades (p. ej. tras un 403); una rama del menú lleva a su primera opción disponible y los códigos que no son un número de opción se descartan;
   - ruta `opcion/:code`, con `capabilityGuard`, para abrir cualquier opción del menú por URL (001-16);
   - regla de ESLint: las plantillas de `src/app/features/` solo usan `liv-*`, `app-*`, `router-outlet` y contenedores sin estilo, sin `style`, `class` ni controles nativos.
 - `axe-core` 4.14.0 (solo desarrollo): una prueba de accesibilidad por pantalla (001-19). **Pendiente de ADR** (`AGENTS.md` §4.5).
@@ -29,6 +30,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- `capabilityGuard`: la ruta puede declarar `data: { capabilityParam: 'code' }` para tomar el número de la opción de la URL; declarar a la vez `capability` y `capabilityParam` se niega.
 - Contrato `bff` 1.1.0 (antes 1.0.0): declara el 403 anti-CSRF con `code` `001-12` (`CsrfProblem`). Compatible: el cliente generado cambia `Problem` por `CsrfProblem` en el BFF y nada de la aplicación lo usaba.
 - Aviso del cierre de sesión entre pestañas (decisión del responsable sobre T21): al ir a iniciar sesión sin sesión (vencida o tras un 401), `SessionService.redirectToLogin` avisa a las demás pestañas, igual que al salir. Si la sesión sigue abierta, no avisa. Cada pestaña que recibe el aviso pregunta al BFF cuando está a la vista, para no pisar el inicio de sesión de la pestaña que la persona usa. Sin sesión, va a iniciar sesión conservando su ruta; con una sesión abierta, se recarga. Si el BFF no responde, vuelve a preguntar en 30 segundos. El canal no falla si el navegador no deja enviar, y `restart()` no deshace una redirección en curso.
 - `liv-components` sube a la versión exacta 0.2.0 (18 componentes).

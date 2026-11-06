@@ -15,6 +15,7 @@ import { APP_PATHS } from '../../core/app-paths';
 import { hasStatus } from '../../core/http/http-errors';
 import { optionPath } from '../../core/navigation/menu-presentation';
 import { IdleService } from '../../core/session/idle.service';
+import { SessionService } from '../../core/session/session.service';
 import { roleLabels } from './role-labels';
 import { SessionWarningDialog } from './session-warning-dialog';
 import { WorkspaceService } from './workspace.service';
@@ -47,6 +48,7 @@ export class Shell implements OnInit {
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
   private readonly idle = inject(IdleService);
+  private readonly session = inject(SessionService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly ready = signal(false);
@@ -75,9 +77,11 @@ export class Shell implements OnInit {
     this.workspace.load().then(
       () => this.ready.set(true),
       (error: unknown) => {
-        // Sin sesión (401) el interceptor ya navega por completo a iniciar sesión: «Error» no debe pisarlo. Y
-        // si la estructura ya se destruyó, hay otra navegación en curso que tampoco se pisa.
-        if (!destroyed && !hasStatus(error, 401)) {
+        // Sin sesión (401) el interceptor lleva por completo a iniciar sesión, y «Error» no debe pisarlo; pero
+        // si no pudo averiguar si hay sesión no redirige, y sin «Error» la persona se quedaría en «Cargando».
+        // Y si la estructura ya se destruyó, hay otra navegación en curso que tampoco se pisa.
+        const toLogin = hasStatus(error, 401) && this.session.isRedirecting;
+        if (!destroyed && !toLogin) {
           void this.router.navigateByUrl(APP_PATHS.error);
         }
       },
