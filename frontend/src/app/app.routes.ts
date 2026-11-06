@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { APP_PATHS } from './core/app-paths';
+import { APP_PATHS, OPTION_ROUTE } from './core/app-paths';
 import { capabilityGuard } from './core/capabilities/capability.guard';
 import { authGuard } from './core/session/auth.guard';
 import { ComingSoon } from './features/errors/coming-soon';
@@ -27,7 +27,7 @@ export const routes: Routes = [
       // Una opción sin pantalla propia (aún sin construir) cae aquí y la guarda decide: 403 si no está en
       // las capacidades, «Próximamente» si todavía no existe.
       {
-        path: 'opcion/:code',
+        path: `${OPTION_ROUTE}/:code`,
         canActivate: [capabilityGuard],
         data: { capabilityParam: 'code' },
         component: ComingSoon,

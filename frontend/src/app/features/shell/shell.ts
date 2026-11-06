@@ -12,6 +12,8 @@ import {
 import { filter } from 'rxjs';
 
 import { APP_PATHS } from '../../core/app-paths';
+import { hasStatus } from '../../core/http/http-errors';
+import { optionPath } from '../../core/navigation/menu-presentation';
 import { IdleService } from '../../core/session/idle.service';
 import { roleLabels } from './role-labels';
 import { SessionWarningDialog } from './session-warning-dialog';
@@ -68,9 +70,17 @@ export class Shell implements OnInit {
       )
       .subscribe(() => this.url.set(this.router.url));
 
+    let destroyed = false;
+    this.destroyRef.onDestroy(() => (destroyed = true));
     this.workspace.load().then(
       () => this.ready.set(true),
-      () => void this.router.navigateByUrl(APP_PATHS.error),
+      (error: unknown) => {
+        // Sin sesión (401) el interceptor ya navega por completo a iniciar sesión: «Error» no debe pisarlo. Y
+        // si la estructura ya se destruyó, hay otra navegación en curso que tampoco se pisa.
+        if (!destroyed && !hasStatus(error, 401)) {
+          void this.router.navigateByUrl(APP_PATHS.error);
+        }
+      },
     );
   }
 
@@ -81,7 +91,8 @@ export class Shell implements OnInit {
 
   /** La pantalla actual es una opción de este módulo (`/opcion/1.4` es del módulo `1`). */
   protected isInModule(code: string): boolean {
-    return this.path().startsWith(`/opcion/${code}.`) || this.path() === `/opcion/${code}`;
+    const own = optionPath(code);
+    return this.path() === own || this.path().startsWith(`${own}.`);
   }
 
   protected go(href: string): void {

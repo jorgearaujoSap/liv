@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 
 import type { CurrentUser } from '../../api/core/models';
 import type { Capabilities, Capability } from '../../api/platform/models';
@@ -38,6 +38,7 @@ export const ALL_MODULES: Capabilities = {
 /** Lo que `WorkspaceService` ofrece a las pantallas, con la carga que la prueba controla. */
 export class FakeWorkspace {
   readonly user = signal<CurrentUser | undefined>(USER);
+  readonly administrationName = computed(() => this.user()?.administration.name ?? 'tu entidad');
   readonly menu = signal<MenuModule[]>(buildMenu(ALL_MODULES));
   loading: Promise<void> = Promise.resolve();
 

@@ -60,7 +60,11 @@ describe('rutas', () => {
   describe('al navegar por URL', () => {
     const CAPABILITIES = {
       items: [
-        { code: '1', status: 'COMING_SOON', children: [{ code: '1.5.9', status: 'COMING_SOON', children: [] }] },
+        {
+          code: '1',
+          status: 'COMING_SOON',
+          children: [{ code: '1.5.9', status: 'COMING_SOON', children: [] }],
+        },
         { code: '3', status: 'COMING_SOON', children: [] },
       ],
     };
@@ -78,7 +82,10 @@ describe('rutas', () => {
         providers: [
           provideRouter(routes),
           { provide: WorkspaceService, useValue: new FakeWorkspace() },
-          { provide: IdleService, useValue: { warning: signal(undefined), watch: () => undefined } },
+          {
+            provide: IdleService,
+            useValue: { warning: signal(undefined), watch: () => undefined },
+          },
           {
             provide: SessionService,
             useValue: {

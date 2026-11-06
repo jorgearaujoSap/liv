@@ -26,10 +26,10 @@ export class Home {
     return firstName ? `Hola, ${firstName}` : 'Hola';
   });
 
-  protected readonly description = computed(() => {
-    const administration = this.workspace.user()?.administration.name ?? 'tu entidad';
-    return `Estas son las opciones disponibles para tu rol en ${administration}. Los módulos se habilitan a medida que se publican.`;
-  });
+  protected readonly description = computed(
+    () =>
+      `Estas son las opciones disponibles para tu rol en ${this.workspace.administrationName()}. Los módulos se habilitan a medida que se publican.`,
+  );
 
   protected open(href: string): void {
     void this.router.navigateByUrl(href);

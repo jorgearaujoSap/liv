@@ -41,9 +41,10 @@ export const capabilityGuard: CanActivateFn & CanActivateChildFn = async (route)
  */
 function capabilityCode(route: ActivatedRouteSnapshot): unknown {
   const declared: unknown = route.data['capability'];
-  if (declared !== undefined) {
+  const param: unknown = route.data['capabilityParam'];
+  if (param === undefined) {
     return declared;
   }
-  const param: unknown = route.data['capabilityParam'];
-  return typeof param === 'string' ? route.params[param] : undefined;
+  // Declarar las dos formas es ambiguo (y `data` se hereda): no se elige una por precedencia, se niega.
+  return declared === undefined && typeof param === 'string' ? route.params[param] : undefined;
 }

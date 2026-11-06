@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ButtonComponent, DialogComponent } from 'liv-components';
 
 import { IdleService } from '../../core/session/idle.service';
@@ -24,6 +24,26 @@ export class SessionWarningDialog {
 
   protected readonly warning = this.idle.warning;
   protected readonly extending = signal(false);
+  /** El último intento de seguir conectado no se pudo: se dice en el aviso y se deja reintentar. */
+  protected readonly failed = signal(false);
+
+  /**
+   * El tipo de aviso vigente, como lista de cero o un elemento. La plantilla crea el diálogo por cada tipo:
+   * si la inactividad pasa al límite de 8 horas con el aviso abierto, el botón enfocado desaparece y un
+   * diálogo nuevo vuelve a poner el foco adentro.
+   */
+  protected readonly kinds = computed(() => {
+    const kind = this.warning()?.kind;
+    return kind ? [kind] : [];
+  });
+
+  constructor() {
+    effect(() => {
+      if (!this.warning()) {
+        this.failed.set(false);
+      }
+    });
+  }
 
   protected readonly heading = computed(() =>
     this.warning()?.kind === 'absolute'
@@ -37,11 +57,14 @@ export class SessionWarningDialog {
       return '';
     }
     // Los minutos se redondean hacia arriba: el texto solo cambia una vez por minuto, no cada segundo.
-    const minutes = Math.max(1, Math.ceil(warning.secondsLeft / 60));
-    const time = `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
-    return warning.kind === 'absolute'
-      ? `Por seguridad, ninguna sesión dura más de 8 horas. Cerraremos la tuya en ${time}. Guarda lo que estés haciendo y vuelve a iniciar sesión.`
-      : `Por seguridad cerraremos tu sesión en ${time} por inactividad. ¿Quieres seguir conectado?`;
+    const minutes = Math.ceil(warning.secondsLeft / 60);
+    const time =
+      minutes <= 0 ? 'unos segundos' : `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+    const text =
+      warning.kind === 'absolute'
+        ? `Por seguridad, ninguna sesión dura más de 8 horas. Cerraremos la tuya en ${time}. Guarda lo que estés haciendo y vuelve a iniciar sesión.`
+        : `Por seguridad cerraremos tu sesión en ${time} por inactividad. ¿Quieres seguir conectado?`;
+    return this.failed() ? `${text} No pudimos extender tu sesión. Inténtalo de nuevo.` : text;
   });
 
   protected async keepConnected(): Promise<void> {
@@ -50,7 +73,7 @@ export class SessionWarningDialog {
     }
     this.extending.set(true);
     try {
-      await this.idle.extend();
+      this.failed.set(!(await this.idle.extend()));
     } finally {
       this.extending.set(false);
     }

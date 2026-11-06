@@ -109,8 +109,7 @@ describe('WorkspaceService', () => {
     TestBed.tick();
 
     http.expectOne('/api/v1/me').flush({ ...USER, roles: ['AUDITOR'] });
-    await Promise.resolve();
-    expect(workspace.user()?.roles).toEqual(['AUDITOR']);
+    await vi.waitFor(() => expect(workspace.user()?.roles).toEqual(['AUDITOR']));
     expect(workspace.menu()).toEqual([]);
   });
 

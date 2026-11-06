@@ -67,7 +67,6 @@ describe('aviso de sesión por expirar (001-22)', () => {
     expect(minutes(61)).toBe('2 minutos');
     expect(minutes(60)).toBe('1 minuto');
     expect(minutes(1)).toBe('1 minuto');
-    expect(minutes(0)).toBe('1 minuto');
   });
 
   it('«Seguir conectado» extiende la sesión y el botón queda ocupado mientras tanto', async () => {

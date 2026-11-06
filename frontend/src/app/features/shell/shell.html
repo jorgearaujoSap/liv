@@ -53,8 +53,8 @@
   </div>
   <app-session-warning-dialog />
 } @else {
+  <p role="status">Cargando tu sesión…</p>
   <div aria-busy="true">
-    <p role="status">Cargando tu sesión…</p>
     <aside>
       <liv-logo />
       @for (width of menuPlaceholders; track $index) {

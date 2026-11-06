@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonComponent, ResultStateComponent } from 'liv-components';
 
+import { APP_PATHS } from '../../core/app-paths';
 import { WorkspaceService } from '../shell/workspace.service';
 
 /**
@@ -18,12 +19,12 @@ export class Forbidden {
   private readonly router = inject(Router);
   private readonly workspace = inject(WorkspaceService);
 
-  protected readonly description = computed(() => {
-    const administration = this.workspace.user()?.administration.name ?? 'tu entidad';
-    return `Tu rol no incluye esta opción en ${administration}. Si necesitas acceso, solicítalo al administrador de tu entidad.`;
-  });
+  protected readonly description = computed(
+    () =>
+      `Tu rol no incluye esta opción en ${this.workspace.administrationName()}. Si necesitas acceso, solicítalo al administrador de tu entidad.`,
+  );
 
   protected goHome(): void {
-    void this.router.navigateByUrl('/');
+    void this.router.navigateByUrl(APP_PATHS.home);
   }
 }

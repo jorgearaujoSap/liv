@@ -1,6 +1,7 @@
 import type { IconName } from 'liv-components';
 
 import type { Capabilities, Capability } from '../../api/platform/models';
+import { OPTION_ROUTE } from '../app-paths';
 
 /**
  * Cómo se ve el menú (001-15). El backend decide **qué** opciones ve la persona y cuáles están aún sin
@@ -111,36 +112,56 @@ const OPTION_LABELS: Readonly<Record<string, string>> = {
 /** Icono de un módulo que este catálogo aún no conoce (el backend puede ir adelante del frontend). */
 const UNKNOWN_MODULE_ICON: IconName = 'file-text';
 
+/** Forma de un número de opción (contrato `platform`): `1`, `1.5` o `1.5.9`. */
+const OPTION_CODE = /^[0-9]+(\.[0-9]+)*$/;
+
 /**
- * Ruta de una opción del menú. Lleva el número de Doc. 01 §3 para que la ruta y la documentación
- * hablen de lo mismo. Cada feature que construya una opción registra su ruta antes que esta.
+ * Ruta de una opción del menú: `/opcion/1.5.9`. Cada feature que construya una opción registra su ruta antes
+ * que la genérica de `app.routes.ts`.
  */
 export function optionPath(code: string): string {
-  return `/opcion/${code}`;
+  return `/${OPTION_ROUTE}/${code}`;
 }
 
-/** El menú de la persona, a partir de sus capacidades: solo lo permitido, en el orden del backend. */
+/**
+ * El menú de la persona, a partir de sus capacidades: solo lo permitido, en el orden del backend. Lo que
+ * llega con un código que no tiene la forma de un número de opción se descarta: no se pinta ni se enlaza.
+ */
 export function buildMenu(capabilities: Capabilities): MenuModule[] {
-  return capabilities.items.map(toModule);
+  return capabilities.items.filter(isOption).map(toModule);
+}
+
+function isOption(capability: Capability): boolean {
+  return OPTION_CODE.test(capability.code);
 }
 
 function toModule(capability: Capability): MenuModule {
-  const known = MODULES[capability.code];
+  const known = Object.hasOwn(MODULES, capability.code) ? MODULES[capability.code] : undefined;
   return {
-    ...toOption(capability, `Módulo ${capability.code}`),
-    label: known?.label ?? `Módulo ${capability.code}`,
+    ...toOption(capability, known?.label ?? `Módulo ${capability.code}`),
     icon: known?.icon ?? UNKNOWN_MODULE_ICON,
     description: known?.description ?? '',
   };
 }
 
-function toOption(capability: Capability, fallbackLabel = `Opción ${capability.code}`): MenuOption {
-  const available = capability.status === 'AVAILABLE';
-  return {
-    code: capability.code,
-    label: OPTION_LABELS[capability.code] ?? fallbackLabel,
-    href: available ? optionPath(capability.code) : undefined,
-    available,
-    children: capability.children.map((child) => toOption(child)),
-  };
+/**
+ * Una rama (módulo o grupo de opciones) no tiene pantalla propia: está disponible si lo está alguna de sus
+ * opciones y lleva a la primera de ellas. Una hoja está disponible si el backend la da por construida.
+ */
+function toOption(capability: Capability, label = labelOf(capability.code)): MenuOption {
+  const children = capability.children.filter(isOption).map((child) => toOption(child));
+  const isBranch = children.length > 0;
+  const available = isBranch
+    ? children.some((child) => child.available)
+    : capability.status === 'AVAILABLE';
+  const href = isBranch
+    ? children.find((child) => child.available)?.href
+    : available
+      ? optionPath(capability.code)
+      : undefined;
+  return { code: capability.code, label, href, available, children };
+}
+
+function labelOf(code: string): string {
+  return Object.hasOwn(OPTION_LABELS, code) ? OPTION_LABELS[code] : `Opción ${code}`;
 }

@@ -247,10 +247,7 @@ describe('las pantallas solo usan componentes de liv-components', () => {
     });
 
     it('fuera de src/app/features/ no rige', async () => {
-      assert.deepEqual(
-        await screen(component("styles: ['.a {}']"), 'src/app/core/x.ts'),
-        [],
-      );
+      assert.deepEqual(await screen(component("styles: ['.a {}']"), 'src/app/core/x.ts'), []);
     });
   });
 });

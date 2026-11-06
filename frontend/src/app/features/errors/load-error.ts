@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { ButtonComponent, LogoComponent, ResultStateComponent } from 'liv-components';
 
+import { APP_PATHS } from '../../core/app-paths';
 import { BrowserNavigation } from '../../core/browser/browser-navigation.service';
 import { SessionService } from '../../core/session/session.service';
 
@@ -21,9 +22,10 @@ export class LoadError {
 
   /** Vuelve a cargar la aplicación desde el inicio: la guarda de sesión vuelve a preguntar. */
   protected retry(): void {
-    this.navigation.replace('/');
+    this.navigation.replace(APP_PATHS.home);
   }
 
+  /** Aquí no hay `IdleService` (nadie vigila una sesión que no se pudo cargar): se cierra con `SessionService`. */
   protected signOut(): void {
     void this.session.logout();
   }
