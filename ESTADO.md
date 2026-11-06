@@ -132,6 +132,20 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- Feature 001, **T19 hecha** (endurecimiento del BFF), en tres PR del BFF y uno de e2e:
+  - **PR #106:** las sesiones vencidas terminan aunque la persona no vuelva. Un barrido con ShedLock avisa a LIV (`IDLE` o `ABSOLUTE`), revoca y borra, y reintenta si algo falla.
+  - **PR #107:** cierre por canal trasero. Cuando el proveedor cierra una sesión, el BFF la termina al instante, también desde otra réplica.
+  - **PR #108:** límite de peticiones (429), cabeceras de seguridad y `returnTo` con `%2F`.
+  - **e2e:** el aviso de inactividad y el vencimiento en el navegador, con el BFF en una sesión corta.
+  - **Enmienda 3 de la spec** (decisión del responsable):
+    - 001-18: tres excepciones que se borran sin auditoría, con un error en el registro;
+    - 001-21: volver a vincular a un usuario con otro proveedor queda fuera de alcance;
+    - criterios nuevos 001-23 (límite de peticiones) y 001-24 (cabeceras).
+  - **Spec:** quedan marcados los **24 criterios**.
+  - **Pasan a T24:** la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
+  - **Pendiente:** el límite de las exportaciones, con la primera feature que exporte.
+  - **Falta para «Hecho»:** el cierre de `tasks.md`: ERD, matriz de permisos, glosario y roadmap.
+
 - Feature 001: el proyecto `e2e/` (T23, PR #104) quedó integrado. Tiene 18 pruebas de Playwright con axe, todas en verde contra el entorno local, y 5 capturas de referencia aprobadas por el responsable.
   - **Segundo factor:** las pruebas crean y borran sus propios usuarios con la API de administración de Keycloak, y calculan el código TOTP. El segundo factor de los usuarios de desarrollo no cambia.
   - **Spec:** quedan marcados **19 de 22** criterios. Se suman 001-01, 001-02, 001-09, 001-11, 001-12, 001-15, 001-16 y 001-19.

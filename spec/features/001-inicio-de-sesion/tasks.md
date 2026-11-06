@@ -391,7 +391,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - salir o volver a `/bff/login` pasado el límite se audita como `ABSOLUTE`;
     - si el proveedor falla un momento y al *token* aún le queda vida, la petición sigue con él; sin *refresh token* o con `invalid_grant` o `invalid_token`, la sesión termina.
   - **Revisión:** adversarial con dos revisores críticos ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico ni alto; los medios coincidentes (el `scope` del navegador, el *token* CSRF como parámetro, la auditoría `LOGOUT` en lugar de `ABSOLUTE`, la API con cookies, el 502 sin contrato, `keepalive` sin prueba de extensión) se corrigieron con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico ni alto. Resumen por severidad en el PR #80.
-- [ ] **T19** · Endurecimiento del BFF. **Antes de producción**, no antes de validar con usuarios.
+- [x] **T19** · Endurecimiento del BFF. **Antes de producción**, no antes de validar con usuarios.
   - Contenido:
     - `SessionTerminator` con repositorio decorado: una sesión vencida que nadie vuelve a leer se revoca en el proveedor y se avisa a LIV (`EndSession` con `IDLE` o `ABSOLUTE`), para que la expiración quede auditada (001-18);
     - barrido programado con ShedLock;
@@ -400,8 +400,14 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - cabeceras de doc. 02 §8;
     - **desde T21** (decisiones del responsable, 2026-11-05):
       - `returnTo` con `%2F`: el BFF lo acepta cuando, decodificado, sigue siendo una ruta propia de LIV;
-      - en el frontend, la CSP estricta con un *nonce* por petición y `inlineCritical` desactivado, en lugar de `style-src 'unsafe-inline'`. Va en un PR aparte del frontend.
-  - Archivos: `backend/bff/src/main/**` (paquetes de sesión y web), `backend/bff/src/main/resources/db/migration/**`, `backend/bff/src/test/**`, `backend/dev/.env.example`.
+      - en el frontend, la CSP estricta con un *nonce* por petición y `inlineCritical` desactivado, en lugar de `style-src 'unsafe-inline'`. **Pasa a T24** (decisión del responsable, 2026-11-06): el *nonce* lo escribe en cada respuesta el servidor de la imagen del frontend, que todavía no existe.
+  - Archivos: `backend/bff/src/main/**` (paquetes de sesión y web), `backend/bff/src/main/resources/db/migration/**`, `backend/bff/src/test/**`, `backend/dev/.env.example`, `backend/bff/pom.xml`, `backend/bff/contracts/openapi/bff.yaml`, `backend/bff/README.md` y `backend/bff/CHANGELOG.md`.
+  - **Hecho** en cuatro partes, cada una con revisión adversarial de nivel alto y las cuatro lentes:
+    - PR #106, sesiones vencidas sin que la persona vuelva: barrido con ShedLock, reintento, abandono a `sweep-give-up-after` y cierre de la sesión vencida en `/bff/login`;
+    - PR #107, cierre por canal trasero: `bff.oidc_session`, validación del *logout token* sin API propia del proveedor y aviso pendiente a LIV;
+    - PR #108, límite de peticiones (001-23), cabeceras (001-24) y `returnTo` con `%2F`.
+  - **Decisiones del responsable (2026-11-06):** las tres excepciones de 001-18 (enmienda 3); si `EndSession` falla en `/bff/login`, el inicio sigue; un 503 del canal trasero deja la sesión abierta; el *logout token* debe traer `sid`; el artefacto `bucket4j_jdk17-core` 8.21.0 como `bucket4j-core` del ADR 0023; los valores 300, 600 y 20 por minuto.
+  - **Pendiente:** el límite más estricto de las exportaciones (doc. 02 §8), con la primera feature que exporte.
   - Prueba primero:
     - 001-10, sin que el usuario vuelva: la sesión vencida queda auditada y revocada;
     - canal trasero con dos instancias;
@@ -514,6 +520,8 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - `infra/compose.yaml` solo con imágenes, Caddy con TLS en `liv.test` y `auth.liv.test`, `infra/keycloak/e2e-users.yaml` e `infra/e2e/seed.sql`;
     - el e2e de T23 contra esas imágenes y en CI (F0‑12);
     - la prueba visual del panel de marca sobre los círculos decorativos, cuyo contraste axe no calcula.
+    - la CSP estricta de las páginas del frontend, con un *nonce* por petición y `inlineCritical` desactivado, en lugar de `style-src 'unsafe-inline'` (desde T19), y su prueba en el e2e;
+    - `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue (T19).
 
 ## Trazabilidad criterio → tareas
 
@@ -528,8 +536,9 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 | 001-07 | T07, T23 | 001-18 | T15, T19 |
 | 001-08 | T07, T23 | 001-19 | T08, T22, T23 |
 | 001-09 | T17, T21, T23 | 001-20 | T12, T16, T17 |
-| 001-10 | T07, T18, T19, T23 | 001-21 | T13 |
+| 001-10 | T07, T18, T19, T23 | 001-21 | T13 (enmienda 3) |
 | 001-11 | T17, T23 | 001-22 | T18, T21, T23 |
+| 001-23 | T19 | 001-24 | T19 |
 
 ## Cierre
 
