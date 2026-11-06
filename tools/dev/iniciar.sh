@@ -1,13 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Levanta LIV completo en local con un solo comando: entorno (PostgreSQL y Keycloak), API, BFF y frontend.
 # Es un atajo de los pasos 1 a 4 de README.md › «Ejecutar LIV en local»: cada proyecto se levanta con sus propios
-# comandos y ninguno depende de este script. Se ejecuta desde Git Bash (Windows), macOS o Linux:
+# comandos y ninguno depende de este script. Desde la raíz del repositorio, en Git Bash (Windows), macOS o Linux:
 #
 #   sh tools/dev/iniciar.sh                 # todo
 #   sh tools/dev/iniciar.sh --sesion-corta  # el BFF con una sesión de 150 s, para la prueba e2e de 001-22
 #
-# Los registros de la API, el BFF y el frontend quedan en tools/dev/registros/. Para detener todo:
-#   sh tools/dev/detener.sh
+# Los servicios siguen corriendo al cerrar la terminal. Sus registros quedan en tools/dev/registros/. Si algo falla
+# o se interrumpe con Ctrl+C, se detiene lo que ya había arrancado. Para detener todo: sh tools/dev/detener.sh
 set -eu
 
 RAIZ=$(cd "$(dirname "$0")/../.." && pwd)
@@ -22,14 +22,30 @@ done
 
 . "$RAIZ/tools/dev/comun.sh"
 
+# Si algo falla o se interrumpe antes de terminar, se detiene lo que ya había arrancado (el entorno se queda).
+LISTO=no
+limpiar() {
+  if [ "$LISTO" = no ]; then
+    printf '\nSe detiene lo que ya había arrancado…\n' >&2
+    detener_servicio 4200 frontend >&2
+    detener_servicio 8081 BFF >&2
+    detener_servicio 8080 API >&2
+  fi
+}
+trap limpiar EXIT
+trap 'exit 130' INT TERM
+
 paso "Requisitos"
-command -v docker >/dev/null || falla "Falta Docker. Instala Docker Desktop y ábrelo."
+requiere_herramientas
+command -v docker >/dev/null 2>&1 || falla "Falta Docker. Instala Docker Desktop y ábrelo."
 docker info >/dev/null 2>&1 || falla "Docker no responde. Abre Docker Desktop y vuelve a intentarlo."
-command -v java >/dev/null || falla "Falta Java 21 (JDK)."
+command -v java >/dev/null 2>&1 || falla "Falta Java 21 (JDK)."
 java -version 2>&1 | grep -q 'version "21' || falla "Hace falta el JDK 21; java -version dice otra versión."
-command -v node >/dev/null || falla "Falta Node (22.12 o superior dentro de la línea 22, o 24 o superior)."
-for puerto in 4200 8080 8081; do
-  if pid_en_puerto "$puerto" >/dev/null; then
+command -v node >/dev/null 2>&1 || falla "Falta Node (22.12 o superior dentro de la línea 22, o 24 o superior)."
+for puerto in $PUERTOS; do
+  if [ -n "$(pid_en_puerto "$puerto")" ]; then
+    # Nada de esto lo levantó este script: no hay que detener nada al salir.
+    LISTO=si
     falla "El puerto $puerto ya está en uso. Si es LIV, detenlo con sh tools/dev/detener.sh; si es otro programa, ciérralo."
   fi
 done
@@ -41,34 +57,34 @@ fi
 
 paso "1/4 · Entorno local: PostgreSQL y Keycloak"
 (cd "$RAIZ/backend" && docker compose -f dev/compose.yaml --env-file dev/.env up -d --build)
+touch "$REGISTROS/entorno.lanzado"
 (cd "$RAIZ/backend" && sh dev/check.sh) || falla "El entorno no quedó listo: mira la salida de check.sh arriba."
 
 paso "2/4 · API (puerto 8080)"
-(
-  cd "$RAIZ/backend"
-  set -a; . dev/.env; set +a
-  exec ./mvnw -B -ntp -q spring-boot:run -Dspring-boot.run.profiles=dev
-) > "$REGISTROS/api.log" 2>&1 &
-esperar "la API" "$REGISTROS/api.log" "Started LivApplication" 8080 600
+nohup sh -c 'cd "$1/backend" && set -a && . dev/.env && set +a && exec ./mvnw -B -ntp -q spring-boot:run -Dspring-boot.run.profiles=dev' \
+  api "$RAIZ" > "$REGISTROS/api.log" 2>&1 &
+printf '%s\n' "$!" > "$REGISTROS/8080.lanzado"
+esperar "la API" "$REGISTROS/api.log" "Started LivApplication" 8080 600 "$!"
 
 paso "3/4 · BFF (puerto 8081)"
-(
-  cd "$RAIZ/backend/bff"
-  set -a; . ../dev/.env; set +a
-  if [ "$SESION_CORTA" = si ]; then
-    export SPRING_SESSION_TIMEOUT=150s
-  fi
-  exec ./mvnw -B -ntp -q spring-boot:run -Dspring-boot.run.profiles=dev
-) > "$REGISTROS/bff.log" 2>&1 &
-esperar "el BFF" "$REGISTROS/bff.log" "Started LivBffApplication" 8081 600
+SESION=""
+if [ "$SESION_CORTA" = si ]; then
+  SESION=150s
+fi
+nohup sh -c 'cd "$1/backend/bff" && set -a && . ../dev/.env && set +a && if [ -n "$2" ]; then export SPRING_SESSION_TIMEOUT="$2"; fi && exec ./mvnw -B -ntp -q spring-boot:run -Dspring-boot.run.profiles=dev' \
+  bff "$RAIZ" "$SESION" > "$REGISTROS/bff.log" 2>&1 &
+printf '%s\n' "$!" > "$REGISTROS/8081.lanzado"
+esperar "el BFF" "$REGISTROS/bff.log" "Started LivBffApplication" 8081 600 "$!"
 
 paso "4/4 · Frontend (puerto 4200)"
 if [ ! -d "$RAIZ/frontend/node_modules" ]; then
   (cd "$RAIZ/frontend" && npm install)
 fi
-(cd "$RAIZ/frontend" && exec npm start) > "$REGISTROS/frontend.log" 2>&1 &
-esperar "el frontend" "$REGISTROS/frontend.log" "Watch mode enabled" 4200 300
+nohup sh -c 'cd "$1/frontend" && exec npm start' frontend "$RAIZ" > "$REGISTROS/frontend.log" 2>&1 &
+printf '%s\n' "$!" > "$REGISTROS/4200.lanzado"
+esperar "el frontend" "$REGISTROS/frontend.log" "Watch mode enabled" 4200 300 "$!"
 
+LISTO=si
 printf '\n✓ LIV está listo en http://localhost:4200\n'
 printf '  Usuario de prueba: dev.consulta, contraseña Liv-Dev-2026! (los demás, en backend/dev/README.md).\n'
 if [ "$SESION_CORTA" = si ]; then

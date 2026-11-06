@@ -62,13 +62,13 @@ Paso a paso para levantar todo el sistema en tu equipo: entorno (PostgreSQL y Ke
 
 ### Atajo: un solo comando
 
-Desde la raíz del repositorio, en Git Bash, con `main` al día y Docker Desktop abierto:
+Desde la raíz del repositorio (en Windows, con Git Bash; también en macOS o Linux), con `main` al día y Docker Desktop abierto:
 
 ```bash
 sh tools/dev/iniciar.sh
 ```
 
-Hace los pasos 1 a 4 de abajo, en orden: verifica los requisitos y que los puertos estén libres, levanta cada servicio y espera a que esté listo. Si algo falla, muestra el final de su registro. La primera vez tarda varios minutos. Los registros quedan en `tools/dev/registros/`. Al terminar, abre <http://localhost:4200> (paso 5).
+Hace los pasos 1 a 4 de abajo, en orden: verifica los requisitos y que los puertos estén libres, levanta cada servicio y espera a que esté listo. Si algo falla, o lo interrumpes con Ctrl+C, muestra el final del registro y detiene lo que ya había arrancado. La primera vez tarda varios minutos. Los servicios siguen corriendo aunque cierres la terminal. Los registros quedan en `tools/dev/registros/`. Al terminar, abre <http://localhost:4200> (paso 5).
 
 Para detener todo, conservando los datos:
 
@@ -76,7 +76,7 @@ Para detener todo, conservando los datos:
 sh tools/dev/detener.sh
 ```
 
-Con `--borrar-datos` también borra los volúmenes, y la próxima vez todo empieza de cero. `detener.sh` solo termina lo que levantó `iniciar.sh`, nunca otro programa que use el mismo puerto. Para la prueba de navegador del aviso de inactividad, `sh tools/dev/iniciar.sh --sesion-corta` levanta el BFF con una sesión de 150 s (`e2e/README.md`).
+Con `--borrar-datos` también borra los volúmenes (pide confirmación), y la próxima vez todo empieza de cero. `detener.sh` solo termina lo que levantó `iniciar.sh`: nunca otro programa que use el mismo puerto, ni un entorno que levantaste a mano. Para la prueba de navegador del aviso de inactividad, `sh tools/dev/iniciar.sh --sesion-corta` levanta el BFF con una sesión de 150 s (`e2e/README.md`).
 
 ### Paso a paso
 
