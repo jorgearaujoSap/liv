@@ -132,6 +132,17 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- **Feature 001 · Inicio de sesión: hecha.** Los 24 criterios de la spec están probados y la feature pasa a «Hecho» en el roadmap. El cierre de `tasks.md`:
+  - **ERD versión 2.1:** los ajustes al modelo aprobados en H2:
+    - `core.admin_user` con la identidad del proveedor y `last_login_at`;
+    - las tablas `core.user_session` y `audit.import_cursor`;
+    - las columnas nuevas de `audit.audit_event`;
+    - los valores de `status` y `entity_type`;
+    - los esquemas técnicos `platform` y `bff`.
+  - **Doc. 01 versión 0.3:** la matriz de permisos de consulta del menú (§4.1).
+  - **Glosario (`docs/arquitectura/01` §15):** usuario funcionario, sesión, motivo de fin de sesión, rol y permiso, capacidades, evento de auditoría, proveedor de identidad, cierre por canal trasero, barrido de sesiones vencidas y límite de peticiones.
+  - **Antes de producción, con T24:** imágenes, TLS, el e2e en CI, la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
+
 - Feature 001, **T19 hecha** (endurecimiento del BFF), en tres PR del BFF y uno de e2e:
   - **PR #106:** las sesiones vencidas terminan aunque la persona no vuelva. Un barrido con ShedLock avisa a LIV (`IDLE` o `ABSOLUTE`), revoca y borra, y reintenta si algo falla.
   - **PR #107:** cierre por canal trasero. Cuando el proveedor cierra una sesión, el BFF la termina al instante, también desde otra réplica.

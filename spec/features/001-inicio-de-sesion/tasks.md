@@ -542,8 +542,8 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 
 ## Cierre
 
-- [ ] Actualizar documentación si aplica: el ERD con los ajustes al modelo aprobados en H2 y la matriz de permisos aprobada en Doc. 01 §4 (cambio aparte), además del glosario.
-- [ ] Revisión adversarial independiente de lo implementado, PR por PR; hallazgos resueltos o justificados.
-- [ ] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
-- [ ] Compuertas de CI en verde y PR aprobado por un humano (H3, dos aprobaciones por ser crítico).
-- [ ] Mover la feature a "Hecho" en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
+- [x] Actualizar documentación si aplica: el ERD (versión 2.1) con los ajustes al modelo aprobados en H2, la matriz de permisos en Doc. 01 §4.1 (versión 0.3) y el glosario (`docs/arquitectura/01` §15). Los roles de BD ya estaban en `docs/arquitectura/02` §5.2.
+- [x] Revisión adversarial independiente de lo implementado, PR por PR; hallazgos resueltos o justificados (resumen en cada PR).
+- [x] Validar contra los criterios de aceptación de `spec.md`: los 24 marcados `[x]` con la prueba que los demuestra.
+- [x] Compuertas de CI en verde y PR integrado por un humano (H3). Las dos aprobaciones de los cambios críticos se suplieron con las revisiones de nivel alto, por la excepción del equipo de una persona (`AGENTS.md` §4.3).
+- [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.

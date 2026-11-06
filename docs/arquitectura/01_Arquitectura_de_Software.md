@@ -544,3 +544,13 @@ El código usa los nombres en inglés del ERD; la interfaz, la documentación y 
 | Cartera | `portfolio` |
 | Administración tributaria | `tax_administration` |
 | Configuración de jurisdicción | `jurisdiction_config` |
+| Usuario funcionario | `admin_user` |
+| Sesión (del usuario en LIV) | `user_session`, identificada por el `sid` del proveedor |
+| Motivo de fin de sesión: salir, inactividad, duración máxima, cerrada por el proveedor | `end_reason`: `LOGOUT`, `IDLE`, `ABSOLUTE`, `PROVIDER` |
+| Rol / permiso | `app_role` / `app_permission` |
+| Capacidades (lo que el menú le muestra a cada persona) | `capabilities` |
+| Evento de auditoría | `audit_event` |
+| Proveedor de identidad (Keycloak u otro OIDC) | `identity provider` (`identity_issuer`, `identity_subject`) |
+| Cierre por canal trasero | *back-channel logout* (`logout token`) |
+| Barrido de sesiones vencidas | `ExpiredSessions` (*sweep*) |
+| Límite de peticiones | *rate limit* (429) |
