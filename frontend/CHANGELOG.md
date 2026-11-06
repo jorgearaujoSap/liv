@@ -22,6 +22,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Al ir a iniciar sesión (sesión vencida, 401 o sin sesión), `SessionService.redirectToLogin` avisa a las demás pestañas igual que al salir, para que no sigan mostrando datos de la sesión que terminó hasta su próxima consulta. Cada pestaña pregunta al BFF antes de irse, así que el aviso no cierra una sesión abierta (decisión del responsable sobre T21).
 - `liv-components` sube a la versión exacta 0.2.0 (18 componentes).
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 
