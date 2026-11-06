@@ -467,13 +467,14 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **sin peticiones de fondo:** una consulta a `/bff/session` programada para el aviso, otra al volver a ver la pestaña o restaurarla de la memoria del navegador, y un reintento a los 30 s si no responde; nada va a `/api`;
   - **aviso del límite absoluto a 5 minutos**, donde «Seguir conectado» no sirve (el plan decía «cerca del máximo»);
   - **imagen:** `nginx-unprivileged` 1.30.6 fijada por digest, usuario 101, `npm ci --ignore-scripts`;
-  - **pendientes de decisión humana** (listados en el PR #84):
-    - la CSP admite `style-src 'unsafe-inline'` (Angular crea `<style>` al ejecutarse); lo estricto es un nonce por petición y desactivar `inlineCritical`;
-    - todo 403 de `/api/**` que no sea el anti-CSRF lleva a «sin permiso», también el de una mutación;
-    - Angular codifica `/` en las consultas como `%2F` y el BFF rechaza `%2F` en `returnTo`: la persona vuelve a `/`;
-    - `bff.yaml` no declara el 403 con `code: 001-12` del que depende el interceptor;
-    - `ended` se difunde entre pestañas solo con «Salir», no al ir a iniciar sesión por una expiración;
-    - el trabajo de CI de la imagen (construirla, `nginx -t`, Trivy, SBOM y publicarla) cambia CI y requiere aprobación.
+  - **decisiones del responsable (2026-11-05)** sobre los pendientes del PR #84:
+    - **CSP:** se acepta `style-src 'unsafe-inline'` para validar con usuarios, porque Angular crea `<style>` al ejecutarse; `script-src` sigue estricto. El *nonce* por petición, con `inlineCritical` desactivado, pasa a T19, antes de producción;
+    - **aviso del límite absoluto a 5 minutos** y **rutas de T22:** aceptados;
+    - **403 de `/api/**`:** todo el que no sea el anti-CSRF lleva a «sin permiso», también el de una mutación. Se revisa cuando lleguen las reglas de segregación de funciones de los módulos de negocio;
+    - **`%2F` en `returnTo`:** Angular codifica `/` en las consultas y el BFF lo rechaza, así que la persona vuelve a `/`. Pasa a T19, porque es un cambio del BFF;
+    - **`bff.yaml`:** declara el 403 anti-CSRF con `code` 001-12, también para `/api/**` (PR #86, contrato 1.1.0, compatible). El código queda fijado por descripción y ejemplo, porque `openapi-diff` toma un `enum` nuevo en una respuesta como cambio incompatible. El frontend adopta la 1.1.0 con T22;
+    - **cierre entre pestañas:** `redirectToLogin` también difunde `ended` (PR #87), y cada pestaña pregunta al BFF antes de irse. Queda un caso: una pestaña que no recibió el aviso muestra datos viejos hasta su próxima consulta. Cerrarlo del todo pide un identificador de sesión en `/bff/session`, que hoy no existe. Las pestañas ocultas esperan a verse para no pisar el inicio de sesión de la que la persona usa. **Decisión del responsable (2026-11-05): se deja así** al ir a iniciar sesión con la sesión aún abierta: no se avisa, y `/bff/login` la cierra sin que las demás se enteren hasta su próxima consulta;
+    - **CI de la imagen** (construirla, `nginx -t`, Trivy, SBOM y publicarla): con T23, y con la aprobación del responsable cuando llegue, porque cambia CI.
 - **Ajustes de T15 (aprobados por el responsable el 2026-11-03, PR #60).** Salieron al implementar la auditoría y de su revisión adversarial:
   - **sin actor** en un rechazo de un usuario que LIV no conoce: la auditoría no guarda nada que identifique a quien lo intentó;
   - **un solo PR** para toda la tarea;
