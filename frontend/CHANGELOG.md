@@ -30,7 +30,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
-- Durante la precarga del navegador (p. ej. mientras se escribe la dirección en la barra), `BrowserNavigation` no navega a iniciar sesión: espera a que la persona abra la página (`prerenderingchange`). Antes se veía un 404 en `/bff/login`, porque el BFF no abre un inicio de sesión desde una precarga (feature 001, 001-01).
 - `liv-components` 0.3.1, desde la 0.2.0; trae también la 0.3.0. Las tarjetas de módulo se estiran con su celda, y la cuadrícula de Inicio tiene filas iguales (`auto-rows-fr`): todas las tarjetas miden lo que la más alta, como en Figma (feature 001, T22a). El menú sigue con dos niveles; el tercero (1.5.x y 1.6.x) va en otro PR.
 - `capabilityGuard`: la ruta puede declarar `data: { capabilityParam: 'code' }` para tomar el número de la opción de la URL; declarar a la vez `capability` y `capabilityParam` se niega.
 - Contrato `bff` 1.1.0 (antes 1.0.0): declara el 403 anti-CSRF con `code` `001-12` (`CsrfProblem`). Compatible: el cliente generado cambia `Problem` por `CsrfProblem` en el BFF y nada de la aplicación lo usaba.
@@ -38,3 +37,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - `liv-components` sube a la versión exacta 0.2.0 (18 componentes).
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 
+### Corregido
+
+- Durante la precarga del navegador (p. ej. mientras se escribe la dirección en la barra), la aplicación no arranca: espera a que la persona abra la página (`prerenderingchange`, `core/browser/when-opened.ts`). Así decide si hay sesión con lo que hay al abrirla, y la precarga no pide nada al BFF ni avisa a otras pestañas. Antes se veía un 404 en `/bff/login`, porque el BFF no abre un inicio de sesión desde una precarga (feature 001, 001-01).
