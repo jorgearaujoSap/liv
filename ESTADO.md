@@ -137,10 +137,10 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
   - **Spec:** quedan marcados **19 de 22** criterios. Se suman 001-01, 001-02, 001-09, 001-11, 001-12, 001-15, 001-16 y 001-19.
   - **Siguen abiertos:**
     - 001-10: espera a T19;
-    - 001-21: falta cómo volver a vincular a un usuario con otro emisor;
+    - 001-21: falta definir cómo se vuelve a vincular a un usuario con otro emisor;
     - 001-22: su e2e necesita una sesión corta del BFF.
   - **F0‑12:** queda hecho con este e2e local (ADR 0030).
-  - **Para dar la feature por «Hecho»:** cerrar o reasignar esos tres criterios y el cierre de `tasks.md`: ERD, matriz de permisos y glosario.
+  - **Para dar la feature por «Hecho»:** falta cerrar o reasignar esos tres criterios, y hacer el cierre de `tasks.md` (ERD, matriz de permisos y glosario).
 
 - ADR 0030, aceptado por el responsable: las pruebas de navegador (`e2e/`, Playwright) corren contra el entorno local, sin imágenes, `Dockerfile`, TLS ni CI.
   - **T23** pasa a ser el e2e local de la feature 001: funcionalidad, capturas de referencia y axe.
