@@ -26,6 +26,15 @@ public final class OidcProvider {
           .withoutPadding()
           .encodeToString("{\"alg\":\"none\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
+  /** Kinds of logout token: the right one, and others that must be refused or change nothing. */
+  public static final String LOGOUT = "logout";
+
+  public static final String LOGOUT_OTHER_SESSION = "logout-otra-sesion";
+  public static final String LOGOUT_WITHOUT_EVENT = "logout-sin-evento";
+  public static final String LOGOUT_OTHER_CLIENT = "logout-otro-cliente";
+  public static final String LOGOUT_WITH_NONCE = "logout-con-nonce";
+  public static final String LOGOUT_OLD = "logout-viejo";
+
   private static final String ISSUER_ID = "liv";
   private static final String ISSUER_WITHOUT_SID = "liv-sin-sid";
   private static final String ISSUER_SHORT_TOKENS = "liv-tokens-cortos";
@@ -94,6 +103,53 @@ public final class OidcProvider {
                 USER_CLIENT,
                 "aud",
                 List.of("liv-api", USER_CLIENT)));
+    // Logout tokens (OpenID Connect Back-Channel Logout 1.0), as the provider sends them to
+    // /bff/backchannel-logout: signed with the key of the issuer, for the client of the sign in. A
+    // test gets one with logoutToken(kind); each kind is a token request with that scope.
+    Map<String, Object> event =
+        Map.of("http://schemas.openid.net/event/backchannel-logout", Map.of());
+    Map<String, Object> logout =
+        logoutMapping(
+            LOGOUT, Map.of("sub", SUBJECT, "sid", SESSION_ID, "aud", USER_CLIENT, "events", event));
+    Map<String, Object> logoutOtherSession =
+        logoutMapping(
+            LOGOUT_OTHER_SESSION,
+            Map.of("sub", SUBJECT, "sid", "otro-sid", "aud", USER_CLIENT, "events", event));
+    Map<String, Object> logoutWithoutEvent =
+        logoutMapping(
+            LOGOUT_WITHOUT_EVENT, Map.of("sub", SUBJECT, "sid", SESSION_ID, "aud", USER_CLIENT));
+    Map<String, Object> logoutOtherClient =
+        logoutMapping(
+            LOGOUT_OTHER_CLIENT,
+            Map.of("sub", SUBJECT, "sid", SESSION_ID, "aud", "otro-cliente", "events", event));
+    Map<String, Object> logoutWithNonce =
+        logoutMapping(
+            LOGOUT_WITH_NONCE,
+            Map.of(
+                "sub",
+                SUBJECT,
+                "sid",
+                SESSION_ID,
+                "aud",
+                USER_CLIENT,
+                "events",
+                event,
+                "nonce",
+                "n-1"));
+    Map<String, Object> logoutOld =
+        logoutMapping(
+            LOGOUT_OLD,
+            Map.of(
+                "sub",
+                SUBJECT,
+                "sid",
+                SESSION_ID,
+                "aud",
+                USER_CLIENT,
+                "events",
+                event,
+                "iat",
+                1_700_000_000L));
     Map<String, Object> service =
         Map.of(
             "requestParam",
@@ -121,7 +177,15 @@ public final class OidcProvider {
                         "tokenExpiry",
                         300,
                         "requestMappings",
-                        List.of(user, service)),
+                        List.of(
+                            logout,
+                            logoutOtherSession,
+                            logoutWithoutEvent,
+                            logoutOtherClient,
+                            logoutWithNonce,
+                            logoutOld,
+                            user,
+                            service)),
                     Map.of(
                         "issuerId",
                         ISSUER_WITHOUT_SID,
@@ -144,5 +208,36 @@ public final class OidcProvider {
             .waitingFor(Wait.forHttp("/" + ISSUER_ID + "/.well-known/openid-configuration"));
     container.start();
     return container;
+  }
+
+  private static Map<String, Object> logoutMapping(String kind, Map<String, Object> claims) {
+    return Map.of("requestParam", "scope", "match", kind, "claims", claims);
+  }
+
+  /**
+   * A logout token of the given kind, signed by the provider of {@link #issuer()}, as it would send
+   * it to the BFF when the session ends there.
+   */
+  public static String logoutToken(String kind) {
+    try {
+      java.net.http.HttpResponse<String> response =
+          java.net.http.HttpClient.newHttpClient()
+              .send(
+                  java.net.http.HttpRequest.newBuilder(java.net.URI.create(issuer() + "/token"))
+                      .header("Content-Type", "application/x-www-form-urlencoded")
+                      .POST(
+                          java.net.http.HttpRequest.BodyPublishers.ofString(
+                              "grant_type=client_credentials&client_id=proveedor"
+                                  + "&client_secret=prueba&scope="
+                                  + kind))
+                      .build(),
+                  java.net.http.HttpResponse.BodyHandlers.ofString());
+      return (String) JSONObjectUtils.parse(response.body()).get("access_token");
+    } catch (java.io.IOException | java.text.ParseException e) {
+      throw new IllegalStateException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
   }
 }

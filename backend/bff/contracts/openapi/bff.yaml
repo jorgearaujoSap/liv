@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LIV · BFF
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     Rutas propias del BFF que usa el navegador (ADR 0010, ADR 0005): inicio y cierre de sesión y
     estado de la sesión. Contract-first: el BFF se escribe contra este archivo y el frontend usa una
@@ -18,6 +18,10 @@ info:
 tags:
   - name: Session
     description: Inicio y cierre de sesión y estado de la sesión.
+  - name: Provider
+    description: >-
+      Rutas que llama el proveedor de identidad, no el navegador. Solo por la red interna: no se
+      publican en internet.
 paths:
   /bff/login:
     get:
@@ -71,6 +75,61 @@ paths:
                 $ref: '#/components/schemas/LogoutResult'
         '403':
           $ref: '#/components/responses/CsrfRejected'
+  /bff/backchannel-logout:
+    post:
+      tags: [Provider]
+      operationId: backchannelLogout
+      summary: El proveedor cierra una sesión por el canal trasero (001-09).
+      description: >-
+        OpenID Connect Back-Channel Logout 1.0. Lo llama el proveedor de identidad cuando una sesión
+        termina allí (la cierra un administrador, se desactiva a la persona o cambian sus permisos),
+        por la red interna; el navegador no la usa. Sin cookie de sesión ni token anti-CSRF: el
+        logout token, firmado por el proveedor, es la prueba. Debe traer sid, el evento del
+        estándar, jti y ningún nonce, para el cliente del inicio de sesión y emitido hace menos de 2
+        minutos. Termina con PROVIDER las sesiones del BFF de ese sid.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [logout_token]
+              properties:
+                logout_token:
+                  type: string
+                  description: >-
+                    JWT firmado por el proveedor (typ logout+jwt o JWT, RS256). El cuerpo entero no
+                    pasa de 16 KB.
+      responses:
+        '200':
+          description: Las sesiones de ese sid terminaron, o no había ninguna.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
+        '400':
+          description: El logout token falta o no es válido.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackchannelLogoutError'
+        '503':
+          description: >-
+            No se pudo terminar en este momento: no se leyeron las claves del proveedor, una sesión
+            siguió bloqueada más de 5 segundos, falló la base o llegaron demasiados a la vez. La
+            sesión del BFF sigue abierta: el proveedor debe volver a enviarlo.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
   /bff/session:
     get:
       tags: [Session]
@@ -168,6 +227,18 @@ components:
         redirectTo:
           type: string
           description: Ruta de LIV a la que navegar para iniciar sesión de nuevo (/bff/login).
+    BackchannelLogoutError:
+      type: object
+      description: Error del cierre por canal trasero (OpenID Connect Back-Channel Logout 1.0, §2.8).
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Siempre invalid_request.
+          example: invalid_request
+        error_description:
+          type: string
+          description: Qué falló, sin decir si el sid existe.
     CsrfProblem:
       type: object
       description: Rechazo anti-CSRF del BFF (001-12), en formato Problem Details (RFC 9457).

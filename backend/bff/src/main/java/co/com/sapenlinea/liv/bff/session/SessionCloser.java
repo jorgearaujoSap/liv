@@ -59,27 +59,51 @@ public final class SessionCloser {
   }
 
   /**
-   * The same for a session read straight from its table, that nobody is using (T19): the sweep, and
-   * a new sign in from a browser whose session had expired. Deleting it is up to the caller, who
-   * does it only if this succeeded, so that a failure is retried.
+   * The same for a session read straight from its table, that nobody is using (T19): one that
+   * expired ({@link ExpiredSessions}) or one the provider closed ({@link ProviderLogout}). Deleting
+   * it is up to the caller.
    *
    * @param tokens the attribute with the encrypted tokens of the session
-   * @return {@code false} only if trying again may succeed. Tokens that cannot be read can never be
-   *     revoked: they count as done, with an error in the log
+   * @return what was done: LIV was told, and the refresh token revoked, each one tried whatever
+   *     happened to the other. Tokens that cannot be read can never be revoked: they count as
+   *     revoked, with an error in the log
    */
-  public boolean closeExpired(SessionAuthentication person, Object tokens, EndReason reason) {
+  public Closed closeStored(SessionAuthentication person, Object tokens, EndReason reason) {
     OAuth2AuthorizedClient client = null;
     try {
       client = clients.loadFrom(tokens, person);
     } catch (RuntimeException e) {
       LOG.warn("No se pudieron leer los tokens de la sesión: {}", e.getClass().getSimpleName());
     }
-    boolean ended = api.endSession(person.getPrincipal(), reason);
+    boolean toldLiv = api.endSession(person.getPrincipal(), reason);
     if (client == null) {
-      LOG.error("Una sesión vencida no tiene tokens legibles: no se puede revocar en el proveedor");
-      return ended;
+      LOG.error("Una sesión terminada sin petición no tiene tokens legibles: no se puede revocar");
+      return new Closed(toldLiv, true);
     }
-    return ended && revoker.revoke(client);
+    return new Closed(toldLiv, revoker.revoke(client));
+  }
+
+  /**
+   * What {@link #closeStored} could do; each is {@code false} only if trying again may succeed.
+   *
+   * @param toldLiv LIV recorded the end
+   * @param revoked the refresh token was revoked, or there was nothing to revoke
+   */
+  public record Closed(boolean toldLiv, boolean revoked) {
+
+    public boolean done() {
+      return toldLiv && revoked;
+    }
+  }
+
+  /**
+   * Only tells LIV that a session ended, for one whose session of the BFF is already gone (an end
+   * the provider ordered that LIV did not accept at the time).
+   *
+   * @return {@code false} only if trying again may succeed
+   */
+  public boolean endInLiv(SessionIdentity identity, EndReason reason) {
+    return api.endSession(identity, reason);
   }
 
   private void endAndRevoke(
