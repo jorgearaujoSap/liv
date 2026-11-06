@@ -132,6 +132,8 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- Feature 001, T22b (PR #99): el menú lateral pinta el tercer nivel (1.5.x y 1.6.x) como en Figma. Guarda qué ramas están abiertas: la persona puede contraerlas y ninguna se cierra sola. Revisión adversarial en dos rondas, sin críticos ni altos.
+
 - Feature 001, T22a (PR #95): el frontend adopta `liv-components` 0.3.1, que el responsable publicó, y la cuadrícula de Inicio tiene filas iguales: todas las tarjetas miden lo mismo, como en Figma. T05b queda hecha con la 0.3.1 publicada.
   - **Revisión:** dos revisores adversariales ciegos, sin críticos ni altos; se hizo más robusta la prueba que lee las hojas de estilo.
   - **Sigue en la feature 001:**
