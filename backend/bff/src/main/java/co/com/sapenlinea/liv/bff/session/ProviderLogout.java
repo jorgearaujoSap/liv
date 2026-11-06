@@ -81,14 +81,18 @@ public final class ProviderLogout {
     }
     SessionAuthentication person =
         taken.person() != null ? taken.person() : new SessionAuthentication(session.identity());
-    if (closer.closeStored(person, taken.tokens(), EndReason.PROVIDER)) {
+    // The revocation is tried once, whatever LIV answers: the session of the provider is closed
+    // already. The end in LIV stays pending until LIV accepts it.
+    if (closer.closeStored(person, taken.tokens(), EndReason.PROVIDER).toldLiv()) {
       oidc.forget(session.sessionId());
-    } else {
-      oidc.markEndPending(session.sessionId());
     }
   }
 
-  /** In a transaction: the session locked, read and deleted; {@code null} if it is gone. */
+  /**
+   * In a transaction: the session locked, read and deleted, and its end in LIV marked as pending in
+   * the same commit, so that nothing (another replica, the same token sent again) forgets it before
+   * LIV is told; {@code null} if the session is gone.
+   */
   private Taken take(String sessionId) {
     Optional<Row> locked = stored.lockWaiting(sessionId, LOCK_WAIT);
     if (locked.isEmpty()) {
@@ -107,24 +111,32 @@ public final class ProviderLogout {
     }
     Object tokens = person == null ? null : stored.tokensOf(attributes);
     stored.delete(row.primaryId());
+    oidc.markEndPending(sessionId);
     return new Taken(person, tokens);
   }
 
   /**
    * Tells LIV the ends of sessions the provider closed that it did not accept at the time, up to
-   * {@link #BATCH}; after {@code giveUpAfter} it gives up, with an error in the log.
+   * {@link #BATCH} and within {@code budget}; it stops at the first one LIV does not accept, which
+   * says LIV is failing. After {@code giveUpAfter} an end is dropped, with an error in the log.
    */
-  public void tellThePendingEnds() {
+  public void tellThePendingEnds(Duration budget) {
+    long deadline = clock.millis() + budget.toMillis();
     for (OidcSession pending : oidc.pendingEnds(BATCH)) {
-      if (closer.endInLiv(pending.identity(), EndReason.PROVIDER)) {
-        oidc.forget(pending.sessionId());
-      } else if (clock.millis() - pending.pendingEndSince() >= giveUpAfter.toMillis()) {
+      if (clock.millis() >= deadline) {
+        return;
+      }
+      if (clock.millis() - pending.pendingEndSince() >= giveUpAfter.toMillis()) {
         LOG.error(
             "LIV no acepta el fin de una sesión que el proveedor cerró hace más de {}: se deja"
                 + " (sid {})",
             giveUpAfter,
             StoredSessions.fingerprint(pending.identity().sessionId()));
         oidc.forget(pending.sessionId());
+      } else if (closer.endInLiv(pending.identity(), EndReason.PROVIDER)) {
+        oidc.forget(pending.sessionId());
+      } else {
+        return;
       }
     }
   }

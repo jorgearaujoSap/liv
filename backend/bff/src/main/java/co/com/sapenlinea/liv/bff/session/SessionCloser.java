@@ -64,22 +64,36 @@ public final class SessionCloser {
    * it is up to the caller.
    *
    * @param tokens the attribute with the encrypted tokens of the session
-   * @return {@code false} only if trying again may succeed. Tokens that cannot be read can never be
-   *     revoked: they count as done, with an error in the log
+   * @return what was done: LIV was told, and the refresh token revoked, each one tried whatever
+   *     happened to the other. Tokens that cannot be read can never be revoked: they count as
+   *     revoked, with an error in the log
    */
-  public boolean closeStored(SessionAuthentication person, Object tokens, EndReason reason) {
+  public Closed closeStored(SessionAuthentication person, Object tokens, EndReason reason) {
     OAuth2AuthorizedClient client = null;
     try {
       client = clients.loadFrom(tokens, person);
     } catch (RuntimeException e) {
       LOG.warn("No se pudieron leer los tokens de la sesión: {}", e.getClass().getSimpleName());
     }
-    boolean ended = api.endSession(person.getPrincipal(), reason);
+    boolean toldLiv = api.endSession(person.getPrincipal(), reason);
     if (client == null) {
       LOG.error("Una sesión terminada sin petición no tiene tokens legibles: no se puede revocar");
-      return ended;
+      return new Closed(toldLiv, true);
     }
-    return ended && revoker.revoke(client);
+    return new Closed(toldLiv, revoker.revoke(client));
+  }
+
+  /**
+   * What {@link #closeStored} could do; each is {@code false} only if trying again may succeed.
+   *
+   * @param toldLiv LIV recorded the end
+   * @param revoked the refresh token was revoked, or there was nothing to revoke
+   */
+  public record Closed(boolean toldLiv, boolean revoked) {
+
+    public boolean done() {
+      return toldLiv && revoked;
+    }
   }
 
   /**

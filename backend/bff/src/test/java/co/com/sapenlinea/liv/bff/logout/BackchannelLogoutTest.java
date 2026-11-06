@@ -35,6 +35,13 @@ class BackchannelLogoutTest extends BffFlowTest {
         .postWithoutCsrfToken(bffBase() + "/bff/backchannel-logout", "logout_token=" + logoutToken);
   }
 
+  /** A logout token the provider did issue: a test that gets none proves nothing. */
+  private static String tokenOf(String kind) {
+    String token = OidcProvider.logoutToken(kind);
+    assertThat(token).as(kind).startsWith("eyJ");
+    return token;
+  }
+
   private static int oidcSessions() throws SQLException {
     return Integer.parseInt(
         BffDatabase.queryValue(
@@ -52,7 +59,7 @@ class BackchannelLogoutTest extends BffFlowTest {
     assertThat(oidcSessions()).as("el inicio registra el sid de la sesión").isEqualTo(1);
     BACKEND.reset();
 
-    Reply reply = backchannel(OidcProvider.logoutToken(OidcProvider.LOGOUT));
+    Reply reply = backchannel(tokenOf(OidcProvider.LOGOUT));
 
     assertThat(reply.status()).isEqualTo(200);
     assertThat(reply.header("Cache-Control")).contains("no-store");
@@ -75,7 +82,7 @@ class BackchannelLogoutTest extends BffFlowTest {
     BACKEND.reset();
     BACKEND.endSessionAnswers(503);
 
-    Reply reply = backchannel(OidcProvider.logoutToken(OidcProvider.LOGOUT));
+    Reply reply = backchannel(tokenOf(OidcProvider.LOGOUT));
 
     assertThat(reply.status()).isEqualTo(200);
     assertThat(storedSessions()).as("no se puede volver a usar").isZero();
@@ -94,7 +101,7 @@ class BackchannelLogoutTest extends BffFlowTest {
   void aSessionLockedByARequestIsWaitedFor() throws SQLException {
     browser().signIn("/");
     BACKEND.reset();
-    String token = OidcProvider.logoutToken(OidcProvider.LOGOUT);
+    String token = tokenOf(OidcProvider.LOGOUT);
 
     Reply reply;
     try (Connection request =
@@ -124,6 +131,32 @@ class BackchannelLogoutTest extends BffFlowTest {
     assertThat(reply.status()).isEqualTo(200);
     assertThat(BACKEND.endSessionCalls()).hasSize(1);
     assertThat(storedSessions()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "001-09 · Si la sesión sigue bloqueada más de 5 segundos, responde 503 y no toca nada, para que el proveedor reintente")
+  void aSessionLockedForTooLongIsLeftForARetry() throws SQLException {
+    browser().signIn("/");
+    BACKEND.reset();
+    String token = tokenOf(OidcProvider.LOGOUT);
+
+    Reply reply;
+    try (Connection request =
+        DriverManager.getConnection(
+            BffDatabase.jdbcUrl(), BffDatabase.APP, BffDatabase.password(BffDatabase.APP))) {
+      request.setAutoCommit(false);
+      try (Statement lock = request.createStatement()) {
+        lock.execute("SELECT 1 FROM bff.spring_session FOR UPDATE");
+      }
+      reply = backchannel(token);
+      request.rollback();
+    }
+
+    assertThat(reply.status()).isEqualTo(503);
+    assertThat(BACKEND.calls()).isEmpty();
+    assertThat(storedSessions()).isEqualTo(1);
+    assertThat(oidcSessions()).as("el sid sigue, para el reintento").isEqualTo(1);
   }
 
   @Test
@@ -177,7 +210,7 @@ class BackchannelLogoutTest extends BffFlowTest {
     browser().signIn("/");
     BACKEND.reset();
 
-    Reply reply = backchannel(OidcProvider.logoutToken(OidcProvider.LOGOUT_OTHER_SESSION));
+    Reply reply = backchannel(tokenOf(OidcProvider.LOGOUT_OTHER_SESSION));
 
     assertThat(reply.status()).isEqualTo(200);
     assertThat(BACKEND.calls()).isEmpty();
@@ -190,7 +223,7 @@ class BackchannelLogoutTest extends BffFlowTest {
   void aTokenThatIsNotValidIsRefused() throws SQLException {
     browser().signIn("/");
     BACKEND.reset();
-    String valid = OidcProvider.logoutToken(OidcProvider.LOGOUT);
+    String valid = tokenOf(OidcProvider.LOGOUT);
     String[] parts = valid.split("\\.");
     String otherPayload =
         Base64.getUrlEncoder()
@@ -204,10 +237,10 @@ class BackchannelLogoutTest extends BffFlowTest {
     for (String token :
         new String[] {
           tampered,
-          OidcProvider.logoutToken(OidcProvider.LOGOUT_WITHOUT_EVENT),
-          OidcProvider.logoutToken(OidcProvider.LOGOUT_OTHER_CLIENT),
-          OidcProvider.logoutToken(OidcProvider.LOGOUT_WITH_NONCE),
-          OidcProvider.logoutToken(OidcProvider.LOGOUT_OLD),
+          tokenOf(OidcProvider.LOGOUT_WITHOUT_EVENT),
+          tokenOf(OidcProvider.LOGOUT_OTHER_CLIENT),
+          tokenOf(OidcProvider.LOGOUT_WITH_NONCE),
+          tokenOf(OidcProvider.LOGOUT_OLD),
           "x".repeat(20_000),
           "no-es-un-jwt",
           ""

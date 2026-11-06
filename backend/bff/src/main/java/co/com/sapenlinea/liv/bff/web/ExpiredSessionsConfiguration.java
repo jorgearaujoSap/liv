@@ -42,8 +42,14 @@ class ExpiredSessionsConfiguration {
   /** How long the lock of a sweep lasts at most, if its replica dies holding it. */
   static final String LOCK_AT_MOST_FOR = "PT10M";
 
-  /** How long one sweep may last: half its lock, so that it always ends before the lock does. */
+  /**
+   * How long the expired sessions of one sweep may take: half its lock, so that the whole sweep
+   * always ends before the lock does.
+   */
   static final Duration SWEEP_BUDGET = Duration.parse(LOCK_AT_MOST_FOR).dividedBy(2);
+
+  /** How long the pending ends of one sweep may take: with the above, under the lock. */
+  static final Duration PENDING_BUDGET = Duration.parse(LOCK_AT_MOST_FOR).dividedBy(5);
 
   @Bean
   LockProvider lockProvider(DataSource dataSource) {
@@ -165,7 +171,7 @@ class ExpiredSessionsConfiguration {
     @SchedulerLock(name = LOCK, lockAtMostFor = LOCK_AT_MOST_FOR)
     public void sweep() {
       run("las sesiones vencidas", expired::sweep);
-      run("los fines pendientes", providerLogout::tellThePendingEnds);
+      run("los fines pendientes", () -> providerLogout.tellThePendingEnds(PENDING_BUDGET));
       run("las sesiones del proveedor sin sesión", () -> oidc.forgetTheGone(FORGET_BATCH));
     }
 

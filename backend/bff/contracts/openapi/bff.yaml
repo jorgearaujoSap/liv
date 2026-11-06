@@ -98,8 +98,9 @@ paths:
               properties:
                 logout_token:
                   type: string
-                  maxLength: 16384
-                  description: JWT firmado por el proveedor (typ logout+jwt o JWT, RS256).
+                  description: >-
+                    JWT firmado por el proveedor (typ logout+jwt o JWT, RS256). El cuerpo entero no
+                    pasa de 16 KB.
       responses:
         '200':
           description: Las sesiones de ese sid terminaron, o no había ninguna.
@@ -122,7 +123,8 @@ paths:
         '503':
           description: >-
             No se pudo terminar en este momento: no se leyeron las claves del proveedor, una sesión
-            siguió bloqueada o llegaron demasiados a la vez. El proveedor puede volver a enviarlo.
+            siguió bloqueada más de 5 segundos, falló la base o llegaron demasiados a la vez. La
+            sesión del BFF sigue abierta: el proveedor debe volver a enviarlo.
           headers:
             Cache-Control:
               schema:

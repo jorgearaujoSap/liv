@@ -189,7 +189,7 @@ public final class ExpiredSessions {
       return delete(row, sessionId);
     }
     EndReason reason = absoluteEnd <= row.idleEnd() ? EndReason.ABSOLUTE : EndReason.IDLE;
-    if (closer.closeStored(person, stored.tokensOf(attributes), reason)) {
+    if (closer.closeStored(person, stored.tokensOf(attributes), reason).done()) {
       return delete(row, sessionId);
     }
     if (now - endedAt >= giveUpAfter.toMillis()) {

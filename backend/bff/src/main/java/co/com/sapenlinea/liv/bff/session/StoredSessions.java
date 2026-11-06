@@ -77,7 +77,8 @@ public final class StoredSessions {
    * @throws org.springframework.dao.DataAccessException if it is still locked after the timeout
    */
   Optional<Row> lockWaiting(String sessionId, Duration timeout) {
-    jdbc.execute("SET LOCAL lock_timeout = '" + timeout.toMillis() + "ms'");
+    jdbc.queryForObject(
+        "SELECT set_config('lock_timeout', ?, true)", String.class, timeout.toMillis() + "ms");
     return jdbc
         .query(
             "SELECT primary_id, principal_name, expiry_time FROM "
