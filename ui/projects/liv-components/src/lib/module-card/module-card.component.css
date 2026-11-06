@@ -1,11 +1,12 @@
 @reference '../tailwind-reference.css';
 
+/* Ocupa todo el alto de su celda: en una cuadrícula, todas las tarjetas miden lo mismo (Figma, Inicio). */
 :host {
-  @apply block;
+  @apply block h-full;
 }
 
 .module-card__link {
-  @apply box-border flex w-full cursor-pointer flex-col gap-4 p-5 text-left no-underline outline-none;
+  @apply box-border flex h-full w-full cursor-pointer flex-col gap-4 p-5 text-left no-underline outline-none;
   @apply rounded-xl border border-solid border-border-default bg-bg-surface shadow-elevation-sm;
 }
 
