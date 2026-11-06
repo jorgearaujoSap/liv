@@ -189,7 +189,7 @@ Los documentos funcionales, los ADR, los documentos de arquitectura, la constitu
 - La librería se comparte **solo como paquete npm** (`liv-components`): el frontend la declara con versión exacta y la recibe con `npm install`; para adoptar una versión nueva se cambia el número y se suben `package.json` y `package-lock.json`. El frontend **nunca** lee `../ui`. Solo un humano publica en npm, desde `main` y después de integrar el PR que sube la versión; el proceso paso a paso y sus verificaciones automáticas están en `ui/README.md` › "Publicar una versión".
 - Un PR toca un solo proyecto. Si una feature cambia varios, van en PR separados: primero el backend con el contrato y la librería con su versión publicada, luego el frontend que los adopta.
 - CI, versiones (`backend-vX.Y.Z`, `frontend-vX.Y.Z`, `ui-vX.Y.Z`) y despliegues o publicaciones son independientes.
-- `e2e/`, `perf/` e `infra/` usan los proyectos solo como imágenes publicadas y por HTTP.
+- `e2e/`, `perf/` e `infra/` usan los proyectos solo como imágenes publicadas y por HTTP. Mientras no haya producción, `e2e/` corre contra el entorno local de desarrollo, también solo por HTTP (ADR 0030).
 
 ---
 

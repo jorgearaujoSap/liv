@@ -455,7 +455,7 @@ El repositorio es un **monorepo temporal**: backend, frontend y la librería de 
 │   ├── adr/                    ← ADR-NNNN-*.md (Fase 0)
 │   └── operacion/runbooks/     ← cuando exista operación
 ├── spec/                       ← SDD: constitución y features (spec/README.md)
-├── e2e/                        ← Playwright contra el sistema completo (solo HTTP e imágenes)
+├── e2e/                        ← Playwright contra el sistema completo (solo HTTP e imágenes; en local hasta producción, ADR 0030)
 ├── perf/                       ← escenarios k6
 ├── infra/                      ← compose del sistema completo, realm de Keycloak para e2e, IaC compartida de AWS
 ├── tools/                      ← verificaciones de documentación y SDD (trazabilidad de reglas)

@@ -119,7 +119,7 @@ Por la independencia entre proyectos (doc. 01 §14.1), este entorno se reparte a
 
 - `backend/dev/` tiene el compose de **sus** dependencias (PostgreSQL, Keycloak, MinIO, ClamAV) y datos de prueba;
 - el frontend se desarrolla contra un servidor simulado generado desde su copia del OpenAPI, o contra una imagen publicada del backend;
-- `infra/` (raíz) tiene el compose del **sistema completo**, que usa las imágenes publicadas por etiqueta, nunca `build: ../backend`. Es el que usa Playwright en CI y el que cualquiera levanta localmente para probar todo junto.
+- `infra/` (raíz) tiene el compose del **sistema completo**, que usa las imágenes publicadas por etiqueta, nunca `build: ../backend`. Es el que usa Playwright en CI y el que cualquiera levanta localmente para probar todo junto. Antes de producción; mientras tanto, `e2e/` corre en local, contra el entorno de desarrollo (ADR 0030).
 
 Cada `Dockerfile` vive en su proyecto y usa su carpeta como contexto de construcción.
 

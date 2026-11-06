@@ -60,7 +60,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑09 | Auditoría, correlación y observabilidad | 🔄 | Correlación: `X-Correlation-Id` solo como UUID, en la respuesta, el MDC y cada línea de log; credenciales enmascaradas en los logs (T12 parte 1, PR #45). Pendientes: auditoría (T15), log estructurado en JSON con enmascarado y datos personales |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
 | F0‑11 | Pruebas *golden* en rojo | ⏳ | — |
-| F0‑12 | Prueba Playwright de humo en CI | 🔄 | Por decisión del responsable (ADR 0030), hasta antes de producción `e2e/` corre en local, contra el entorno de desarrollo, sin imágenes ni CI (T23 de la feature 001). En CI y con imágenes, antes de producción (T24) |
+| F0‑12 | Prueba Playwright de humo en CI | ⏳ | Por decisión del responsable (ADR 0030), en la Fase 0 se cumple con el e2e local de T23 de la feature 001, contra el entorno de desarrollo y sin imágenes ni CI. En CI y con imágenes, antes de producción (T24) |
 
 ---
 
@@ -134,7 +134,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 - ADR 0030, aceptado por el responsable: las pruebas de navegador (`e2e/`, Playwright) corren contra el entorno local, sin imágenes, `Dockerfile`, TLS ni CI.
   - **T23** pasa a ser el e2e local de la feature 001: funcionalidad, capturas de referencia y axe.
-  - **T24, antes de producción:** las imágenes, `infra/` con TLS y el CI de e2e.
+  - **T24, antes de producción:** las imágenes, `infra/` con TLS y el CI de e2e. No se despliega a producción sin T19 ni T24.
   - **Cambia también:** `AGENTS.md` §4.2 (paso 7) y la *skill* `liv-sdd-feature`. Cada feature con interfaz trae sus pruebas de navegador, y el agente las corre y revisa la pantalla contra Figma al validar.
 
 - Feature 001, criterios de `spec.md`: quedan marcados **11 de 22**.

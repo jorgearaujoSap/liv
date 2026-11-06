@@ -159,7 +159,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - Archivos: `backend/identity/config/base/liv-realm.yaml`, `backend/identity/README.md`, `backend/src/test/java/**/identityconfig/RealmConfigTest.java`.
   - **Desviaciones declaradas:**
     - la prueba está en `backend/src/test/java`, porque Maven no corre pruebas desde `backend/identity/test/`;
-    - la capa de desarrollo quedó en `backend/dev/keycloak/` (no en `identity/config/dev/`) y sin TOTP; los usuarios con TOTP conocido pasan a T23;
+    - la capa de desarrollo quedó en `backend/dev/keycloak/` (no en `identity/config/dev/`) y sin TOTP; los usuarios con TOTP conocido pasan a T23, que los crea al empezar las pruebas (ADR 0030);
     - se tocaron archivos de T09: `backend/dev/compose.yaml` (servicio `keycloak-config`), `check.sh` (verificación del *realm* aplicado), `.env.example` y `README.md`;
     - que un TOTP equivocado cuente para el bloqueo es comportamiento de Keycloak: lo verificará el e2e de T23.
   - Prueba primero: `RealmConfigTest`, en rojo, que verifica:
@@ -493,9 +493,8 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
 ## Sistema
 
 - [ ] **T23** · Pruebas de navegador (`e2e/`) contra el entorno local. Decisión del responsable del 2026-11-06 (ADR 0030): no hacen falta imágenes, `Dockerfile`, TLS ni CI por ahora.
-  - Archivos:
-    - `e2e/**`: proyecto propio con Playwright, sin herramientas compartidas con otros proyectos;
-    - `backend/dev/keycloak/liv-realm-dev.yaml`: un usuario ficticio con secreto TOTP fijo, en un PR aparte de `backend/`.
+  - Archivos: `e2e/**`, un proyecto propio con Playwright, sin herramientas compartidas con otros proyectos.
+  - Usuarios: los ficticios de `backend/dev/keycloak/`. Los que necesitan un TOTP conocido o se bloquean los crean las pruebas al empezar, con la API de administración de Keycloak del entorno local, y los borran al terminar. Así no van a la capa de desarrollo, donde `keycloak-config-cli` duplicaría el TOTP al reaplicarla.
   - Contra qué corre: `http://localhost:4200`, con el sistema levantado como dice `README.md` › «Ejecutar LIV en local». Usa los proyectos solo por HTTP.
   - Prueba primero: las especificaciones de Playwright de la feature, escritas en rojo, incluidas:
     - entrar con y sin segundo factor, el TOTP obligatorio y el código incorrecto;
