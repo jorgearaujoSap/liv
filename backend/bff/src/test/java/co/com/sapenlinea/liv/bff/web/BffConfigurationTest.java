@@ -45,7 +45,12 @@ class BffConfigurationTest {
         .hasMessageContaining("service-client-secret");
     assertThatThrownBy(() -> new BffProperties.Api(null, null, null))
         .hasMessageContaining("base-url");
-    assertThatThrownBy(() -> new BffProperties.Session("", java.time.Duration.ofHours(8)))
+    assertThatThrownBy(() ->
+            new BffProperties.Session(
+                "",
+                java.time.Duration.ofHours(8),
+                java.time.Duration.ofMinutes(1),
+                java.time.Duration.ofDays(1)))
         .hasMessageContaining("encryption-key");
     assertThatThrownBy(() -> new BffProperties(null, null, null))
         .isInstanceOf(IllegalArgumentException.class);
@@ -79,5 +84,19 @@ class BffConfigurationTest {
     assertThat(registrations.findByRegistrationId("liv")).isSameAs(registration);
     assertThat(attempts).as("el éxito sí se guarda").hasValue(2);
     assertThat(registrations.findByRegistrationId("otro")).isNull();
+  }
+
+  @Test
+  @Tag("001-10")
+  @DisplayName(
+      "001-10 · El BFF no arranca con la limpieza de Spring Session encendida: borraría sesiones sin avisar a LIV")
+  void theOwnCleanUpOfSpringSessionMustBeOff() {
+    ExpiredSessionsConfiguration.requireOwnCleanUpOff("-");
+
+    assertThatThrownBy(() -> ExpiredSessionsConfiguration.requireOwnCleanUpOff("0 * * * * *"))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("cleanup-cron");
+    assertThatThrownBy(() -> ExpiredSessionsConfiguration.requireOwnCleanUpOff(""))
+        .isInstanceOf(IllegalStateException.class);
   }
 }

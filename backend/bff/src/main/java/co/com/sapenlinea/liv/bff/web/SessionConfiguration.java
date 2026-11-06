@@ -82,7 +82,7 @@ class SessionConfiguration {
   }
 
   @Bean
-  OAuth2AuthorizedClientRepository authorizedClientRepository(
+  EncryptedAuthorizedClientRepository authorizedClientRepository(
       TokenCipher cipher, ClientRegistrationRepository registrations) {
     return new EncryptedAuthorizedClientRepository(cipher, registrations);
   }
@@ -154,7 +154,7 @@ class SessionConfiguration {
 
   @Bean
   SessionCloser sessionCloser(
-      OAuth2AuthorizedClientRepository clients,
+      EncryptedAuthorizedClientRepository clients,
       InternalApiClient api,
       RefreshTokenRevoker revoker) {
     return new SessionCloser(clients, api, revoker);

@@ -73,13 +73,33 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
   /**
    * @param encryptionKey the key that encrypts the tokens in the session: 32 bytes in base64
    * @param absoluteTimeout the maximum duration of a session, whatever its activity (001-10)
+   * @param sweepInterval how often the expired sessions that nobody came back to are ended (T19);
+   *     its value is in {@code application.yml}, which the schedule of the sweep reads too
+   * @param sweepGiveUpAfter how long the sweep keeps trying to end a session whose end LIV or the
+   *     provider keep failing (T19); then it deletes it, with an error in the log
    */
-  public record Session(String encryptionKey, @DefaultValue("8h") Duration absoluteTimeout) {
+  public record Session(
+      String encryptionKey,
+      @DefaultValue("8h") Duration absoluteTimeout,
+      Duration sweepInterval,
+      @DefaultValue("1d") Duration sweepGiveUpAfter) {
 
     public Session {
       required(encryptionKey, "liv.bff.session.encryption-key");
       if (absoluteTimeout.isZero() || absoluteTimeout.isNegative()) {
         throw new IllegalArgumentException("liv.bff.session.absolute-timeout debe ser positiva");
+      }
+      if (sweepInterval == null || sweepInterval.isZero() || sweepInterval.isNegative()) {
+        throw new IllegalArgumentException("liv.bff.session.sweep-interval debe ser positivo");
+      }
+      // The wait counts from when the session expired, and the first try can come up to an
+      // interval later: with less than two, a session could go at its first failure.
+      if (sweepGiveUpAfter == null
+          || sweepGiveUpAfter.compareTo(sweepInterval.multipliedBy(2)) < 0) {
+        throw new IllegalArgumentException(
+            "liv.bff.session.sweep-give-up-after debe ser al menos dos veces"
+                + " liv.bff.session.sweep-interval: si no, el barrido puede borrar una sesión al"
+                + " primer fallo");
       }
     }
   }

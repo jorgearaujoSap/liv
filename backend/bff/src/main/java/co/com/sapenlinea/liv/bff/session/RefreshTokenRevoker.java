@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -33,25 +34,35 @@ public final class RefreshTokenRevoker {
   /**
    * Revokes the refresh token of the client. It never throws: a session ends even if the provider
    * does not answer, whatever goes wrong (no refresh token, no endpoint, a failed call).
+   *
+   * @return {@code false} only if trying again may succeed: the provider did not answer, failed on
+   *     its side or refused the credentials, or there is no endpoint (a configuration that can be
+   *     fixed). A request it refuses for good ({@link Http#refusedForGood}) is logged as an error
+   *     and counts as done
    */
-  public void revoke(OAuth2AuthorizedClient client) {
+  public boolean revoke(OAuth2AuthorizedClient client) {
     if (client.getRefreshToken() == null) {
       LOG.warn("La sesión no tiene refresh token: no hay nada que revocar en el proveedor");
-      return;
+      return true;
     }
     ClientRegistration registration = client.getClientRegistration();
     String endpoint = endpointOf(registration);
     if (endpoint == null) {
       LOG.error("El proveedor no publica un endpoint de revocación y no se configuró uno");
-      return;
+      return false;
     }
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("token", client.getRefreshToken().getTokenValue());
     form.add("token_type_hint", "refresh_token");
     try {
       post(registration, endpoint, form);
+      return true;
+    } catch (HttpClientErrorException e) {
+      LOG.error("El proveedor rechazó la revocación: {}", e.getStatusCode().value());
+      return Http.refusedForGood(e);
     } catch (RuntimeException e) {
       LOG.warn("La revocación en el proveedor falló: {}", e.getClass().getSimpleName());
+      return false;
     }
   }
 

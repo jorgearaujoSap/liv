@@ -61,7 +61,25 @@ public final class EncryptedAuthorizedClientRepository implements OAuth2Authoriz
   public <T extends OAuth2AuthorizedClient> T loadAuthorizedClient(
       String registrationId, Authentication principal, HttpServletRequest request) {
     HttpSession session = request.getSession(false);
-    if (session == null || !(session.getAttribute(ATTRIBUTE) instanceof byte[] encrypted)) {
+    return session == null
+        ? null
+        : (T) load(session.getAttribute(ATTRIBUTE), registrationId, principal);
+  }
+
+  /**
+   * The tokens of a session read straight from its table, without a request: the ones of a session
+   * that nobody came back to, when it is ended (T19). Only those of the sign in client ({@link
+   * OidcRegistrations#USER}).
+   *
+   * @param attribute the value of the attribute {@value #ATTRIBUTE} of the session
+   */
+  public OAuth2AuthorizedClient loadFrom(Object attribute, Authentication principal) {
+    return load(attribute, OidcRegistrations.USER, principal);
+  }
+
+  private OAuth2AuthorizedClient load(
+      Object attribute, String registrationId, Authentication principal) {
+    if (!(attribute instanceof byte[] encrypted)) {
       return null;
     }
     Stored stored;
@@ -77,7 +95,7 @@ public final class EncryptedAuthorizedClientRepository implements OAuth2Authoriz
       return null;
     }
     ClientRegistration registration = registrations.findByRegistrationId(registrationId);
-    return registration == null ? null : (T) toClient(registration, stored);
+    return registration == null ? null : toClient(registration, stored);
   }
 
   @Override

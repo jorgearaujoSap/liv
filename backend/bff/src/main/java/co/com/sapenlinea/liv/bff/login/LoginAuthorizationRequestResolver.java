@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.bff.login;
 
 import co.com.sapenlinea.liv.bff.session.EndReason;
+import co.com.sapenlinea.liv.bff.session.ExpiredSessions;
 import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
 import co.com.sapenlinea.liv.bff.session.SessionAuthentication;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
@@ -38,10 +39,12 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
       PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, LOGIN_PATH);
   private final DefaultOAuth2AuthorizationRequestResolver delegate;
   private final SessionCloser closer;
+  private final ExpiredSessions expired;
 
   public LoginAuthorizationRequestResolver(
-      ClientRegistrationRepository registrations, SessionCloser closer) {
+      ClientRegistrationRepository registrations, SessionCloser closer, ExpiredSessions expired) {
     this.closer = closer;
+    this.expired = expired;
     delegate =
         new DefaultOAuth2AuthorizationRequestResolver(
             registrations,
@@ -92,6 +95,12 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
   private void endTheOpenSession(HttpServletRequest request) {
     if (!(SecurityContextHolder.getContext().getAuthentication()
         instanceof SessionAuthentication open)) {
+      // A session that expired is not read (ClosingSessionRepository): it ends here, with IDLE or
+      // ABSOLUTE, before the person signs in again.
+      String requested = request.getRequestedSessionId();
+      if (requested != null) {
+        expired.endBeforeANewSignIn(requested);
+      }
       return;
     }
     try {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
+import java.sql.SQLException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -21,8 +22,8 @@ class IdleTimeoutTest extends BffFlowTest {
   @Test
   @Tag("001-10")
   @DisplayName(
-      "001-10 · Tras la inactividad, la persona que intenta una acción recibe 401 y la API no se llama")
-  void anIdleSessionHasExpired() {
+      "001-10 · Tras la inactividad, la persona que intenta una acción recibe 401, la API no se llama y la sesión queda para el barrido")
+  void anIdleSessionHasExpired() throws SQLException {
     Browser browser = browser();
     browser.signIn("/");
     BACKEND.reset();
@@ -32,6 +33,32 @@ class IdleTimeoutTest extends BffFlowTest {
 
     assertThat(reply.status()).isEqualTo(401);
     assertThat(BACKEND.apiCalls()).isEmpty();
+    assertThat(BACKEND.calls())
+        .as("la petición no espera a LIV ni al proveedor: la termina el barrido")
+        .isEmpty();
+    assertThat(storedSessions())
+        .as("Spring Session no la borró en silencio al leerla")
+        .isEqualTo(1);
+  }
+
+  @Test
+  @Tag("001-10")
+  @Tag("001-18")
+  @DisplayName(
+      "001-10 · Volver a /bff/login con la sesión vencida la termina con IDLE antes de empezar otro inicio")
+  void signingInAgainEndsTheExpiredSession() throws SQLException {
+    Browser browser = browser();
+    browser.signIn("/");
+    BACKEND.reset();
+
+    pause(8500);
+    Reply reply = browser.get(bffBase() + "/bff/login");
+
+    assertThat(reply.status()).isEqualTo(302);
+    assertThat(BACKEND.endSessionCalls()).hasSize(1);
+    assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"IDLE\"");
+    assertThat(BACKEND.revocationCalls()).hasSize(1);
+    assertThat(storedSessions()).as("solo la del nuevo inicio").isEqualTo(1);
   }
 
   @Test
