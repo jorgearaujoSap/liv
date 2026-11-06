@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.bff.contracts;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import co.com.sapenlinea.liv.bff.web.CsrfRejection;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -90,16 +91,25 @@ class BffContractTest {
         (Map<String, Object>) ((Map<String, Object>) components.get("schemas")).get("CsrfProblem");
     Map<String, Object> properties = (Map<String, Object>) problem.get("properties");
     assertThat(problem.get("required")).isEqualTo(java.util.List.of("status", "code"));
-    // An enum would be the strict way, but openapi-diff takes adding one to a response as an
-    // incompatible change (ADR 0027), so the code is fixed by its description and example.
-    Map<String, Object> code = (Map<String, Object>) properties.get("code");
-    assertThat(code.get("example")).isEqualTo("001-12");
-    assertThat((String) code.get("description")).startsWith("Siempre 001-12.");
+    // The code the contract shows is the one the BFF writes. An enum would be the strict way, but
+    // openapi-diff takes adding one to a response as an incompatible change (ADR 0027).
+    assertThat(((Map<String, Object>) properties.get("code")).get("example"))
+        .isEqualTo(CsrfRejection.CODE);
 
-    // /api/** is not in this contract, so its description says that the BFF answers the same there.
-    assertThat((String) ((Map<String, Object>) contract.get("info")).get("description"))
-        .contains(
-            "En /api/** una petición que modifica datos sin el token anti-CSRF recibe el mismo 403");
+    // Every 403 of the BFF's own routes is this refusal.
+    Map<String, Object> paths = (Map<String, Object>) contract.get("paths");
+    for (Map.Entry<String, Object> path : paths.entrySet()) {
+      for (Object operation : ((Map<String, Object>) path.getValue()).values()) {
+        Map<String, Object> responses =
+            (Map<String, Object>) ((Map<String, Object>) operation).get("responses");
+        Object forbidden = responses.get("403");
+        if (forbidden != null) {
+          assertThat(((Map<String, Object>) forbidden).get("$ref"))
+              .as(path.getKey())
+              .isEqualTo("#/components/responses/CsrfRejected");
+        }
+      }
+    }
   }
 
   @Test
