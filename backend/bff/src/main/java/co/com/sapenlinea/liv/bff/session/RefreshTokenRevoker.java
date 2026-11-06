@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -34,7 +35,8 @@ public final class RefreshTokenRevoker {
    * Revokes the refresh token of the client. It never throws: a session ends even if the provider
    * does not answer, whatever goes wrong (no refresh token, no endpoint, a failed call).
    *
-   * @return whether nothing is left alive in the provider: revoked, or there was nothing to revoke
+   * @return {@code false} only if trying again may succeed (the provider did not answer, or failed
+   *     on its side); a missing endpoint or a refused token are logged as errors and count as done
    */
   public boolean revoke(OAuth2AuthorizedClient client) {
     if (client.getRefreshToken() == null) {
@@ -45,13 +47,16 @@ public final class RefreshTokenRevoker {
     String endpoint = endpointOf(registration);
     if (endpoint == null) {
       LOG.error("El proveedor no publica un endpoint de revocación y no se configuró uno");
-      return false;
+      return true;
     }
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("token", client.getRefreshToken().getTokenValue());
     form.add("token_type_hint", "refresh_token");
     try {
       post(registration, endpoint, form);
+      return true;
+    } catch (HttpClientErrorException e) {
+      LOG.error("El proveedor rechazó la revocación: {}", e.getStatusCode().value());
       return true;
     } catch (RuntimeException e) {
       LOG.warn("La revocación en el proveedor falló: {}", e.getClass().getSimpleName());

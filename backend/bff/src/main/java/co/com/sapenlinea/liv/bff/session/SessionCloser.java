@@ -64,8 +64,8 @@ public final class SessionCloser {
    * this succeeded, so that a failure is retried.
    *
    * @param tokens the attribute with the encrypted tokens of the session
-   * @return whether LIV recorded the end and nothing is left alive in the provider. Tokens that
-   *     cannot be read can never be revoked: they count as done, with an error in the log
+   * @return {@code false} only if trying again may succeed. Tokens that cannot be read can never be
+   *     revoked: they count as done, with an error in the log
    */
   public boolean closeExpired(SessionAuthentication person, Object tokens, EndReason reason) {
     OAuth2AuthorizedClient client = null;

@@ -75,9 +75,14 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
    * @param absoluteTimeout the maximum duration of a session, whatever its activity (001-10)
    * @param sweepInterval how often the expired sessions that nobody came back to are ended (T19);
    *     its value is in {@code application.yml}, which the schedule of the sweep reads too
+   * @param sweepGiveUpAfter how long the sweep keeps trying to end a session whose end LIV or the
+   *     provider keep failing (T19); then it deletes it, with an error in the log
    */
   public record Session(
-      String encryptionKey, @DefaultValue("8h") Duration absoluteTimeout, Duration sweepInterval) {
+      String encryptionKey,
+      @DefaultValue("8h") Duration absoluteTimeout,
+      Duration sweepInterval,
+      @DefaultValue("1d") Duration sweepGiveUpAfter) {
 
     public Session {
       required(encryptionKey, "liv.bff.session.encryption-key");
@@ -86,6 +91,9 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
       }
       if (sweepInterval == null || sweepInterval.isZero() || sweepInterval.isNegative()) {
         throw new IllegalArgumentException("liv.bff.session.sweep-interval debe ser positivo");
+      }
+      if (sweepGiveUpAfter.isZero() || sweepGiveUpAfter.isNegative()) {
+        throw new IllegalArgumentException("liv.bff.session.sweep-give-up-after debe ser positivo");
       }
     }
   }

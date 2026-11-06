@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.bff.persistence.BffDatabase;
 import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.OidcProvider;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -112,7 +115,33 @@ class ExpiredSessionSweepTest extends BffFlowTest {
                 BffDatabase.OWNER,
                 "SELECT count(*) FROM bff.shedlock WHERE name = 'bff-expired-sessions'"
                     + " AND locked_at > timezone('utc', now()) - interval '3 seconds'"))
-        .as("lo tomó este contexto, como liv_bff, hace menos de 3 segundos")
+        .as("lo tomó este contexto hace menos de 3 segundos")
         .isEqualTo("1");
+  }
+
+  @Test
+  @Tag("001-10")
+  @DisplayName(
+      "001-10 · Una sesión que otra réplica está terminando (fila bloqueada) no se toca: no hay doble cierre")
+  void aSessionLockedByAnotherReplicaIsLeftAlone() throws SQLException {
+    browser().signIn("/");
+    BACKEND.reset();
+
+    try (Connection other =
+        DriverManager.getConnection(
+            BffDatabase.jdbcUrl(), BffDatabase.APP, BffDatabase.password(BffDatabase.APP))) {
+      other.setAutoCommit(false);
+      try (Statement lock = other.createStatement()) {
+        lock.execute("SELECT 1 FROM bff.spring_session FOR UPDATE");
+      }
+      pause(5000);
+      assertThat(BACKEND.endSessionCalls()).as("mientras la tiene otra réplica").isEmpty();
+      assertThat(storedSessions()).isEqualTo(1);
+      other.rollback();
+    }
+    pause(2000);
+
+    assertThat(BACKEND.endSessionCalls()).as("cuando la suelta, termina una sola vez").hasSize(1);
+    assertThat(storedSessions()).isZero();
   }
 }

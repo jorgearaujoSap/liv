@@ -22,7 +22,7 @@ class IdleTimeoutTest extends BffFlowTest {
   @Test
   @Tag("001-10")
   @DisplayName(
-      "001-10 · Tras la inactividad, la persona que intenta una acción recibe 401, la API no se llama y la sesión termina con IDLE")
+      "001-10 · Tras la inactividad, la persona que intenta una acción recibe 401, la API no se llama y la sesión queda para el barrido")
   void anIdleSessionHasExpired() throws SQLException {
     Browser browser = browser();
     browser.signIn("/");
@@ -33,12 +33,12 @@ class IdleTimeoutTest extends BffFlowTest {
 
     assertThat(reply.status()).isEqualTo(401);
     assertThat(BACKEND.apiCalls()).isEmpty();
-    assertThat(BACKEND.endSessionCalls())
-        .as("Spring Session ya no la borra en silencio: se avisa a LIV")
-        .hasSize(1);
-    assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"IDLE\"");
-    assertThat(BACKEND.revocationCalls()).hasSize(1);
-    assertThat(storedSessions()).isZero();
+    assertThat(BACKEND.calls())
+        .as("la petición no espera a LIV ni al proveedor: la termina el barrido")
+        .isEmpty();
+    assertThat(storedSessions())
+        .as("Spring Session no la borró en silencio al leerla")
+        .isEqualTo(1);
   }
 
   @Test

@@ -1,8 +1,12 @@
 package co.com.sapenlinea.liv.bff.session;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -22,16 +26,20 @@ import org.springframework.transaction.support.TransactionTemplate;
  * back (001-10, 001-18; T19). Each one ends as at the sign out: LIV is told (EndSession with {@code
  * IDLE} or {@code ABSOLUTE}), the refresh token is revoked in the provider, and only then the
  * session is deleted. If LIV or the provider fail, the session stays and the next sweep tries
- * again; after {@link #GIVE_UP_AFTER} it is deleted anyway, with an error in the log. Spring
- * Session would delete them without telling anyone, both its own clean up (turned off, {@code
- * spring.session.jdbc.cleanup-cron}) and when a session is read once expired; that is why the
- * repository asks here first ({@link ClosingSessionRepository}).
+ * again; after {@code liv.bff.session.sweep-give-up-after} it is deleted anyway, with an error in
+ * the log. Spring Session would delete them without telling anyone, both its own clean up (turned
+ * off, {@code spring.session.jdbc.cleanup-cron}) and when a session is read once expired; that is
+ * why the repository asks here first ({@link ClosingSessionRepository}).
  *
- * <p>The sessions are read straight from the tables of Spring Session, each one locked while it is
- * ended ({@code FOR UPDATE SKIP LOCKED}): neither two replicas nor two requests end the same
- * session at once, and one that cannot be deserialized (a class changed in a deployment) is still
- * deleted. Its {@code expiry_time} is the end by inactivity; the maximum duration counts from the
- * moment LIV let the person in, never before the session was created.
+ * <p>Only the sweep calls LIV and the provider: a request that finds its session expired leaves it
+ * here and gets no session, so no request waits on them holding a connection. The sessions are read
+ * straight from the tables of Spring Session, each one locked while it is ended ({@code FOR UPDATE
+ * SKIP LOCKED}), so two replicas never end the same one at once, and one that cannot be
+ * deserialized (a class changed in a deployment) is still deleted. The sign out and the maximum
+ * duration checked on a request ({@code SessionCloser.closeAndDelete}) do not take that lock: if
+ * one of them meets the sweep, LIV hears the end twice, which it accepts (EndSession is
+ * idempotent). Its {@code expiry_time} is the end by inactivity; the maximum duration counts from
+ * the moment LIV let the person in, never before the session was created.
  */
 public final class ExpiredSessions {
 
@@ -39,9 +47,6 @@ public final class ExpiredSessions {
 
   /** Sessions read per query of the sweep; it goes on with the next ones while there are more. */
   static final int BATCH = 200;
-
-  /** How long a session whose end LIV or the provider keep failing is kept to try again. */
-  static final Duration GIVE_UP_AFTER = Duration.ofDays(1);
 
   private static final String SECURITY_CONTEXT =
       HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
@@ -51,6 +56,7 @@ public final class ExpiredSessions {
   private final SessionCloser closer;
   private final Duration absolute;
   private final Duration budget;
+  private final Duration giveUpAfter;
   private final Clock clock;
   private final String table;
   private final DeserializingConverter deserializer =
@@ -59,6 +65,8 @@ public final class ExpiredSessions {
   /**
    * @param budget how long one sweep may last; less than its lock, so that no other replica starts
    *     on the same sessions while this one is still at it
+   * @param giveUpAfter how long a session whose end LIV or the provider keep failing is kept to try
+   *     again; then it is deleted, with an error in the log
    * @param table the table of Spring Session, {@code spring.session.jdbc.table-name}; its
    *     attributes are in the one with the suffix {@code _ATTRIBUTES}
    */
@@ -67,6 +75,7 @@ public final class ExpiredSessions {
       SessionCloser closer,
       Duration absolute,
       Duration budget,
+      Duration giveUpAfter,
       Clock clock,
       String table) {
     this.jdbc = new JdbcTemplate(dataSource);
@@ -74,6 +83,7 @@ public final class ExpiredSessions {
     this.closer = closer;
     this.absolute = absolute;
     this.budget = budget;
+    this.giveUpAfter = giveUpAfter;
     this.clock = clock;
     this.table = table;
   }
@@ -112,27 +122,19 @@ public final class ExpiredSessions {
   }
 
   /**
-   * Before a session is read: if it is already expired by inactivity, it is ended here (or left to
-   * the sweep, if this fails or someone else is ending it), so that reading it does not delete it
-   * silently.
-   *
-   * @return whether it is expired: then it must not be read
+   * Before a session is read: whether it is already expired by inactivity. Then it must not be read
+   * (Spring Session would delete it without telling anyone) and the request gets no session; the
+   * sweep ends it, without the request waiting on LIV or the provider.
    */
-  public boolean endIfExpired(String sessionId) {
-    long now = clock.millis();
-    List<Integer> expired =
-        jdbc.query(
+  public boolean isExpired(String sessionId) {
+    return !jdbc.query(
             "SELECT 1 FROM "
                 + table
                 + " WHERE session_id = ? AND principal_name IS NOT NULL AND expiry_time < ?",
             (row, i) -> 1,
             sessionId,
-            now);
-    if (expired.isEmpty()) {
-      return false;
-    }
-    end(sessionId, now);
-    return true;
+            clock.millis())
+        .isEmpty();
   }
 
   private void deleteUnfinishedSignIns(long now, long deadline) {
@@ -209,8 +211,10 @@ public final class ExpiredSessions {
         return Outcome.KEPT;
       }
       LOG.error(
-          "Una sesión vencida no se puede leer ({}): se borra sin avisar a LIV ni revocarla",
-          unreadable.getClass().getSimpleName());
+          "Una sesión vencida no se puede leer ({}): se borra sin avisar a LIV ni revocarla"
+              + " (sesión {})",
+          unreadable.getClass().getSimpleName(),
+          fingerprint(sessionId));
       return delete(row);
     }
     // Without the moment LIV let the person in, a session of a person is past the limit, as for
@@ -232,14 +236,15 @@ public final class ExpiredSessions {
       return delete(row);
     }
     EndReason reason = absoluteEnd <= row.idleEnd() ? EndReason.ABSOLUTE : EndReason.IDLE;
-    Object tokens = read(attributes, EncryptedAuthorizedClientRepository.ATTRIBUTE);
-    if (closer.closeExpired(person, tokens, reason)) {
+    if (closer.closeExpired(person, tokensOf(attributes), reason)) {
       return delete(row);
     }
-    if (now - endedAt >= GIVE_UP_AFTER.toMillis()) {
+    if (now - endedAt >= giveUpAfter.toMillis()) {
       LOG.error(
-          "LIV o el proveedor no aceptan el fin de una sesión vencida hace más de {}: se borra",
-          GIVE_UP_AFTER);
+          "LIV o el proveedor no aceptan el fin de una sesión vencida hace más de {}: se borra"
+              + " (sid {})",
+          giveUpAfter,
+          fingerprint(person.getPrincipal().sessionId()));
       return delete(row);
     }
     return Outcome.KEPT;
@@ -293,6 +298,29 @@ public final class ExpiredSessions {
             && context.getAuthentication() instanceof SessionAuthentication person
         ? person
         : null;
+  }
+
+  /** The encrypted tokens, or {@code null} if they cannot be read: then they cannot be revoked. */
+  private Object tokensOf(Map<String, byte[]> attributes) {
+    try {
+      return read(attributes, EncryptedAuthorizedClientRepository.ATTRIBUTE);
+    } catch (RuntimeException unreadable) {
+      return null;
+    }
+  }
+
+  /**
+   * A short fingerprint of an identifier, for the log: enough to match it by hand with the audit,
+   * without writing the identifier itself.
+   */
+  static String fingerprint(String identifier) {
+    try {
+      byte[] hash =
+          MessageDigest.getInstance("SHA-256").digest(identifier.getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(hash, 0, 6);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /** An attribute as Spring Session stores it, serialized; {@code null} if the session lacks it. */

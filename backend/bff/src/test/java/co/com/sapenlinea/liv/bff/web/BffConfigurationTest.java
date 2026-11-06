@@ -47,7 +47,10 @@ class BffConfigurationTest {
         .hasMessageContaining("base-url");
     assertThatThrownBy(() ->
             new BffProperties.Session(
-                "", java.time.Duration.ofHours(8), java.time.Duration.ofMinutes(1)))
+                "",
+                java.time.Duration.ofHours(8),
+                java.time.Duration.ofMinutes(1),
+                java.time.Duration.ofDays(1)))
         .hasMessageContaining("encryption-key");
     assertThatThrownBy(() -> new BffProperties(null, null, null))
         .isInstanceOf(IllegalArgumentException.class);

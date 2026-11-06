@@ -7,9 +7,10 @@ import org.springframework.session.Session;
 import org.springframework.util.function.SingletonSupplier;
 
 /**
- * The repository of Spring Session, except that a session read once expired is ended as it should
- * (T19, {@link ExpiredSessions}) instead of being deleted without telling anyone. Everything else
- * goes to the repository of Spring Session as it is.
+ * The repository of Spring Session, except that a session already expired is not read: Spring
+ * Session would delete it without telling anyone. The request gets no session, and the sweep ends
+ * it as it should (T19, {@link ExpiredSessions}). Everything else goes to the repository of Spring
+ * Session as it is.
  *
  * <p>The check is one query by the session id, which has a unique index. Between it and the read
  * there are milliseconds: a session that expires right then is still deleted by Spring Session, and
@@ -34,7 +35,7 @@ public final class ClosingSessionRepository<S extends Session>
 
   @Override
   public S findById(String id) {
-    if (expired.get().endIfExpired(id)) {
+    if (expired.get().isExpired(id)) {
       return null;
     }
     return sessions.findById(id);

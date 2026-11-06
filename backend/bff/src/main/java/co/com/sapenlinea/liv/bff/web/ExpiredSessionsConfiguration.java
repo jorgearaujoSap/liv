@@ -23,7 +23,7 @@ import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 /**
  * The sessions that are over end as they should, whether or not the person comes back (001-10,
  * 001-18; T19): a sweep every {@code liv.bff.session.sweep-interval}, and the repository of Spring
- * Session wrapped so that reading an expired session ends it too ({@link
+ * Session wrapped so that an expired session is not read and deleted silently ({@link
  * ClosingSessionRepository}). With several replicas only one sweeps at a time (ShedLock on {@code
  * bff.shedlock}, migration V202611061000), with the clock of the database, as the jobs of the API.
  */
@@ -77,8 +77,15 @@ class ExpiredSessionsConfiguration {
       @Value("${spring.session.jdbc.table-name}") String table,
       @Value("${spring.session.jdbc.cleanup-cron:}") String cleanupCron) {
     requireOwnCleanUpOff(cleanupCron);
+    BffProperties.Session session = properties.session();
     return new ExpiredSessions(
-        dataSource, closer, properties.session().absoluteTimeout(), SWEEP_BUDGET, clock, table);
+        dataSource,
+        closer,
+        session.absoluteTimeout(),
+        SWEEP_BUDGET,
+        session.sweepGiveUpAfter(),
+        clock,
+        table);
   }
 
   /**
