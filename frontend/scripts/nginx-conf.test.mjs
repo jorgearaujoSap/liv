@@ -156,6 +156,10 @@ describe('nginx.conf: caché', () => {
   it('un archivo con hash que no existe (404) no se guarda un año: dejaría la pantalla en blanco', () => {
     assert.ok(!hashedPattern().test('404:/chunk-ON6NZC24.js'));
   });
+
+  it('una respuesta 304 (validación de lo que el navegador ya tiene) conserva la caché del archivo con hash', () => {
+    assert.ok(hashedPattern().test('304:/main-ON6NZC24.js'));
+  });
 });
 
 describe('nginx.conf: qué sirve', () => {
@@ -168,7 +172,7 @@ describe('nginx.conf: qué sirve', () => {
 
   it('la API y el BFF no son del frontend: responden 404 y no caen en index.html', () => {
     const block = all.find((d) =>
-      d.path.at(-1)?.startsWith('location ~ ^/(api|bff|internal|login/oauth2)(/|$)'),
+      d.path.at(-1)?.startsWith('location ~ ^/(api|bff|internal|login/oauth2|oauth2)(/|$)'),
     );
     assert.ok(block, 'falta el location de /api, /bff, /internal y /login/oauth2');
     assert.equal(block.text, 'return 404');
@@ -181,7 +185,11 @@ describe('nginx.conf: qué sirve', () => {
       format.text,
       /\$request\b|\$request_uri|\$args|\$query_string|\$http_referer/,
     );
-    assert.match(format.text, /\$uri/);
+    assert.match(format.text, /\$request_path/);
+    // La ruta se saca de lo que pidió la persona, no de `$uri`, que tras `try_files` es /index.html.
+    const path = all.find((d) => d.path.at(-1) === 'map $request_uri $request_path');
+    assert.ok(path, 'falta el map de la ruta sin consulta');
+    assert.match(path.text, /\[\^\?\]\*/);
     const log = all.find((d) => d.text.startsWith('access_log ') && !d.text.includes(' off'));
     assert.ok(log?.text.endsWith(` ${format.text.split(' ')[1]}`), 'access_log sin el formato propio');
   });
@@ -237,7 +245,7 @@ describe('Dockerfile', () => {
 
   it('.dockerignore deja fuera los secretos y la salida de pruebas', () => {
     const ignore = read('.dockerignore').split('\n');
-    for (const pattern of ['.env*', '*.pem', '*.key', 'coverage', '.npmrc']) {
+    for (const pattern of ['**/.env*', '**/*.pem', '**/*.key', '**/coverage', '**/.npmrc']) {
       assert.ok(ignore.includes(pattern), `.dockerignore sin ${pattern}`);
     }
   });

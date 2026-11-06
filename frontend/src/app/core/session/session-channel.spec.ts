@@ -89,6 +89,10 @@ describe('SessionChannel', () => {
         { type: 'extended', status: { idleSecondsLeft: NaN, absoluteSecondsLeft: 5 } },
       ],
       [
+        'segundos de más de un día',
+        { type: 'extended', status: { idleSecondsLeft: 1e9, absoluteSecondsLeft: 5 } },
+      ],
+      [
         'segundos infinitos',
         { type: 'extended', status: { idleSecondsLeft: 5, absoluteSecondsLeft: Infinity } },
       ],

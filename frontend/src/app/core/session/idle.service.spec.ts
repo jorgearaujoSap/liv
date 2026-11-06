@@ -386,6 +386,64 @@ describe('IdleService', () => {
       expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 120 });
     });
 
+    it('una consulta que fallaba cuando se extendió la sesión no deja de vigilar para siempre', async () => {
+      await warn();
+      await advance(120 * 1000);
+      const stale = http.expectOne('/bff/session');
+
+      const extending = idle.extend();
+      http.expectOne('/bff/session/keepalive').flush(status(900));
+      await extending;
+      stale.flush(null, { status: 502, statusText: 'Bad Gateway' });
+      await advance(0);
+
+      await advance(13 * MINUTE);
+      await answerSession(status(120));
+      expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 120 });
+    });
+
+    it('si «Seguir conectado» falla, la consulta que seguía en vuelo se aplica y no deja el aviso en cero', async () => {
+      await warn();
+      await advance(120 * 1000);
+      const inFlight = http.expectOne('/bff/session');
+
+      const extending = idle.extend();
+      http
+        .expectOne('/bff/session/keepalive')
+        .flush(null, { status: 502, statusText: 'Bad Gateway' });
+      expect(await extending).toBe(false);
+      inFlight.flush(status(100));
+      await advance(0);
+
+      expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 100 });
+    });
+
+    it('cuando el límite vence a la vez que la inactividad, no consulta sin pausa', async () => {
+      idle.watch(status(110, 100));
+      await advance(0);
+      await answerSession(status(110, 100));
+      expect(idle.warning()).toEqual({ kind: 'absolute', secondsLeft: 100 });
+
+      await advance(0);
+      http.expectNone(() => true);
+      await advance(60 * 1000);
+      http.expectNone(() => true);
+      expect(idle.warning()).toEqual({ kind: 'absolute', secondsLeft: 40 });
+    });
+
+    it('«Seguir conectado» en otra pestaña también deja vieja la consulta que estaba en vuelo', async () => {
+      await warn();
+      await advance(120 * 1000);
+      const stale = http.expectOne('/bff/session');
+
+      channel.handler?.({ type: 'extended', status: status(900) });
+      stale.flush(status(0, 0));
+      await advance(0);
+
+      expect(navigation.replaced).toEqual([]);
+      expect(idle.warning()).toBeUndefined();
+    });
+
     it('«Seguir conectado» tras salir de la sesión no la reanuda ni navega', async () => {
       await warn();
 

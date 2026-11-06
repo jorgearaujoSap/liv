@@ -61,6 +61,20 @@ describe('CapabilityService', () => {
     await reloading;
   });
 
+  it('si la recarga más nueva falla, la respuesta anterior que sí llegó no se pierde', async () => {
+    const loading = service.load();
+    const old = http.expectOne('/api/v1/me/capabilities');
+    const reloading = service.reload();
+    const recent = http.expectOne('/api/v1/me/capabilities');
+
+    recent.flush(null, { status: 500, statusText: 'Server Error' });
+    await expect(reloading).rejects.toMatchObject({ status: 500 });
+    old.flush(only('1'));
+    await loading;
+
+    expect(service.find('1')).toBeDefined();
+  });
+
   it('tras un fallo, la siguiente carga vuelve a pedirlas', async () => {
     const failed = service.load();
     http

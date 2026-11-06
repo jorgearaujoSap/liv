@@ -42,7 +42,7 @@ describe('interceptor de la API', () => {
       method: string,
       url: string,
       headers: Record<string, string> = {},
-      responseType: 'json' | 'blob' = 'json',
+      responseType: 'json' | 'blob' | 'arraybuffer' = 'json',
     ) =>
     (client: HttpClient, _root: string, _params?: unknown, context?: HttpContext) =>
       client.request(method, url, { observe: 'response', headers, context, responseType }) as never;
@@ -50,7 +50,7 @@ describe('interceptor de la API', () => {
     method: string,
     url: string,
     headers?: Record<string, string>,
-    options: { context?: HttpContext; responseType?: 'json' | 'blob' } = {},
+    options: { context?: HttpContext; responseType?: 'json' | 'blob' | 'arraybuffer' } = {},
   ) =>
     core.invoke$Response(
       send(method, url, headers, options.responseType),
@@ -331,6 +331,18 @@ describe('interceptor de la API', () => {
         new Blob([JSON.stringify({ status: 403, code: '001-12' })], {
           type: 'application/problem+json',
         }),
+        FORBIDDEN,
+      );
+
+      await expect(result).rejects.toMatchObject({ status: 403 });
+      http.expectNone('/api/v1/me/capabilities');
+      expect(navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('tampoco cuando la respuesta se esperaba como bytes (arraybuffer)', async () => {
+      const result = call('GET', '/api/v1/exportes/2', undefined, { responseType: 'arraybuffer' });
+      (await nextRequest('/api/v1/exportes/2')).flush(
+        new TextEncoder().encode(JSON.stringify({ status: 403, code: '001-12' })).buffer,
         FORBIDDEN,
       );
 
