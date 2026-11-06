@@ -42,6 +42,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Contrato `bff.yaml` 1.1.0, compatible (decisión del responsable sobre T21). El rechazo anti-CSRF (`CsrfRejected`) usa el esquema `CsrfProblem`, que documenta `code` 001-12 con su ejemplo, y la descripción dice que en `/api/**` el BFF responde ese mismo 403, antes que el 401. No va como `enum`, porque `openapi-diff` 2.1.7 toma como incompatible agregarlo a una respuesta; `BffContractTest` comprueba que el ejemplo es el código que escribe el BFF. Se quita el esquema `Problem`, que ya no usaba nada.
+- El 403 con `code` 001-12, en `application/problem+json;charset=UTF-8`, solo responde a un rechazo anti-CSRF (`CsrfRejection`). Cualquier otra denegación del BFF da un 403 sin ese código, para que el frontend no la confunda con la falta del token.
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 - Las pruebas de T16 se ajustan a la configuración nueva: el arranque sin web usa el entorno `MOCK`, el contrato de migraciones ya no cuenta una sola migración, y la prueba del Gateway abre su ruta de prueba porque todas las demás piden sesión.
 

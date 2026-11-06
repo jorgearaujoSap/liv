@@ -34,7 +34,8 @@ class CsrfTest extends BffFlowTest {
 
     Reply reply = browser.postWithoutCsrfToken(bffBase() + "/api/v1/liquidaciones", "x=1");
 
-    assertThat(reply.status()).isEqualTo(403);
+    // The frontend tells this refusal apart from any other 403 by its code (bff.yaml, CsrfProblem).
+    assertCsrfRefusal(reply);
     assertThat(BACKEND.apiCalls()).isEmpty();
   }
 
@@ -48,8 +49,8 @@ class CsrfTest extends BffFlowTest {
         browser.post(
             bffBase() + "/api/v1/liquidaciones", "x=1", java.util.Map.of("X-XSRF-TOKEN", "otro"));
 
-    assertThat(reply.status()).isEqualTo(403);
-    assertThat(wrong.status()).isEqualTo(403);
+    assertCsrfRefusal(reply);
+    assertCsrfRefusal(wrong);
     assertThat(BACKEND.apiCalls()).isEmpty();
   }
 
@@ -60,7 +61,7 @@ class CsrfTest extends BffFlowTest {
 
     Reply reply = browser.postWithoutCsrfToken(bffBase() + "/bff/logout", "");
 
-    assertThat(reply.status()).isEqualTo(403);
+    assertCsrfRefusal(reply);
     assertThat(storedSessions()).isEqualTo(1);
     assertThat(BACKEND.endSessionCalls()).isEmpty();
     assertThat(BACKEND.revocationCalls()).isEmpty();
@@ -119,7 +120,25 @@ class CsrfTest extends BffFlowTest {
     Reply reply =
         browser.postWithoutCsrfToken(bffBase() + "/api/v1/liquidaciones", "_csrf=" + token);
 
-    assertThat(reply.status()).isEqualTo(403);
+    assertCsrfRefusal(reply);
     assertThat(BACKEND.apiCalls()).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "001-12 · Sin sesión y sin el token anti-CSRF, una mutación recibe el 403 antes que el 401")
+  void theRefusalComesBeforeTheMissingSession() {
+    Browser browser = browser();
+
+    assertCsrfRefusal(browser.postWithoutCsrfToken(bffBase() + "/api/v1/liquidaciones", "x=1"));
+    assertCsrfRefusal(browser.postWithoutCsrfToken(bffBase() + "/bff/session/keepalive", ""));
+    assertThat(BACKEND.apiCalls()).isEmpty();
+  }
+
+  /** The refusal of the BFF, as {@code bff.yaml} declares it ({@code CsrfRejected}). */
+  private static void assertCsrfRefusal(Reply reply) {
+    assertThat(reply.status()).isEqualTo(403);
+    assertThat(reply.header("content-type")).isEqualTo("application/problem+json;charset=UTF-8");
+    assertThat(reply.body()).isEqualTo("{\"status\":403,\"code\":\"001-12\"}");
   }
 }

@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.bff.contracts;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import co.com.sapenlinea.liv.bff.web.CsrfRejection;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -67,6 +68,48 @@ class BffContractTest {
     assertThat(statuses("/bff/session", "get")).containsExactly("200", "401");
     assertThat(statuses("/bff/session/keepalive", "post"))
         .containsExactly("200", "401", "403", "502");
+  }
+
+  @Test
+  @Tag("001-12")
+  @DisplayName(
+      "001-12 · El rechazo anti-CSRF fija code 001-12, también en /api/**, para que el frontend lo distinga")
+  @SuppressWarnings("unchecked")
+  void theCsrfRefusalIsDeclaredWithItsCode() throws IOException {
+    Map<String, Object> contract = contract();
+    Map<String, Object> components = (Map<String, Object>) contract.get("components");
+    Map<String, Object> refusal =
+        (Map<String, Object>)
+            ((Map<String, Object>) components.get("responses")).get("CsrfRejected");
+    Map<String, Object> media =
+        (Map<String, Object>)
+            ((Map<String, Object>) refusal.get("content")).get("application/problem+json");
+    assertThat(((Map<String, Object>) media.get("schema")).get("$ref"))
+        .isEqualTo("#/components/schemas/CsrfProblem");
+
+    Map<String, Object> problem =
+        (Map<String, Object>) ((Map<String, Object>) components.get("schemas")).get("CsrfProblem");
+    Map<String, Object> properties = (Map<String, Object>) problem.get("properties");
+    assertThat(problem.get("required")).isEqualTo(java.util.List.of("status", "code"));
+    // The code the contract shows is the one the BFF writes. An enum would be the strict way, but
+    // openapi-diff takes adding one to a response as an incompatible change (ADR 0027).
+    assertThat(((Map<String, Object>) properties.get("code")).get("example"))
+        .isEqualTo(CsrfRejection.CODE);
+
+    // Every 403 of the BFF's own routes is this refusal.
+    Map<String, Object> paths = (Map<String, Object>) contract.get("paths");
+    for (Map.Entry<String, Object> path : paths.entrySet()) {
+      for (Object operation : ((Map<String, Object>) path.getValue()).values()) {
+        Map<String, Object> responses =
+            (Map<String, Object>) ((Map<String, Object>) operation).get("responses");
+        Object forbidden = responses.get("403");
+        if (forbidden != null) {
+          assertThat(((Map<String, Object>) forbidden).get("$ref"))
+              .as(path.getKey())
+              .isEqualTo("#/components/responses/CsrfRejected");
+        }
+      }
+    }
   }
 
   @Test
