@@ -85,6 +85,9 @@ class BackchannelLogoutTest extends BffFlowTest {
     Reply reply = backchannel(tokenOf(OidcProvider.LOGOUT));
 
     assertThat(reply.status()).isEqualTo(200);
+    assertThat(BACKEND.revocationCalls())
+        .as("la revocación se intenta aunque LIV falle")
+        .hasSize(1);
     assertThat(storedSessions()).as("no se puede volver a usar").isZero();
     assertThat(
             BffDatabase.queryValue(

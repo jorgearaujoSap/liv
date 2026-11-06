@@ -77,16 +77,43 @@ public final class OidcSessions {
         limit);
   }
 
-  /** The end of that session is still to be told to LIV. */
+  /**
+   * The end of that session is still to be told to LIV.
+   *
+   * @throws IllegalStateException if the row is not there: the end would be lost
+   */
   public void markEndPending(String sessionId) {
-    jdbc.update(
-        "UPDATE bff.oidc_session SET pending_end_since = ? WHERE session_id = ?",
-        clock.millis(),
-        sessionId);
+    int marked =
+        jdbc.update(
+            "UPDATE bff.oidc_session SET pending_end_since = ? WHERE session_id = ?",
+            clock.millis(),
+            sessionId);
+    if (marked != 1) {
+      throw new IllegalStateException("La sesión del proveedor no está registrada");
+    }
   }
 
   public void forget(String sessionId) {
     jdbc.update("DELETE FROM bff.oidc_session WHERE session_id = ?", sessionId);
+  }
+
+  /** Forgets the row unless its end is still to be told to LIV (someone else marked it). */
+  public void forgetUnlessPending(String sessionId) {
+    jdbc.update(
+        "DELETE FROM bff.oidc_session WHERE session_id = ? AND pending_end_since IS NULL",
+        sessionId);
+  }
+
+  /** Whether another session of the BFF, not ended, belongs to that session of the provider. */
+  public boolean anotherOpenSession(OidcSession session) {
+    return !jdbc.queryForList(
+            "SELECT 1 FROM bff.oidc_session WHERE issuer = ? AND sid = ? AND session_id <> ?"
+                + " AND pending_end_since IS NULL",
+            Integer.class,
+            session.identity().issuer(),
+            session.identity().sessionId(),
+            session.sessionId())
+        .isEmpty();
   }
 
   /**

@@ -75,8 +75,9 @@ public final class ProviderLogout {
   private void endOne(OidcSession session) {
     Taken taken = stored.inTransaction(() -> take(session.sessionId()));
     if (taken == null) {
-      // Gone already: there is nothing to end.
-      oidc.forget(session.sessionId());
+      // Gone already: there is nothing to end. If another replica took it a moment ago, its row is
+      // pending and stays.
+      oidc.forgetUnlessPending(session.sessionId());
       return;
     }
     SessionAuthentication person =
@@ -131,6 +132,13 @@ public final class ProviderLogout {
             "LIV no acepta el fin de una sesión que el proveedor cerró hace más de {}: se deja"
                 + " (sid {})",
             giveUpAfter,
+            StoredSessions.fingerprint(pending.identity().sessionId()));
+        oidc.forget(pending.sessionId());
+      } else if (oidc.anotherOpenSession(pending)) {
+        // The person signed in again in the same session of the provider: telling LIV now would
+        // end the one in use, as for an expired session (ExpiredSessions).
+        LOG.error(
+            "Un fin pendiente comparte el sid {} con otra sesión abierta: se deja sin avisar a LIV",
             StoredSessions.fingerprint(pending.identity().sessionId()));
         oidc.forget(pending.sessionId());
       } else if (closer.endInLiv(pending.identity(), EndReason.PROVIDER)) {
