@@ -504,6 +504,9 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - salir, la URL de cierre sin *tokens* y el botón «atrás»;
     - el aviso de inactividad y «Seguir conectado», con la sesión acortada solo en la prueba;
     - capturas de referencia aprobadas por el responsable y axe en cada pantalla, también en las páginas de acceso (001-19). Esto incluye el comportamiento de `liv.js`: mostrar la contraseña, «Ingresando…», pegar el código y volver con «atrás».
+  - **Hecho** (PR #104): 18 pruebas en verde y 5 capturas aprobadas por el responsable el 2026-11-06. Incluye también configurar el segundo factor en el primer ingreso (001-06).
+  - **Falta:** el aviso de inactividad y «Seguir conectado» (001-22), con el BFF levantado con una sesión corta (`SPRING_SESSION_TIMEOUT`).
+  - **Lo prueba `check.sh`, no el e2e:** que un código inválido cuente para el bloqueo.
 - [ ] **T24** · **Antes de producción** (ADR 0030, junto con T19): IN‑09 completa.
   - Contenido:
     - imágenes publicadas de la API, el BFF y sus migraciones, el frontend y la identidad;

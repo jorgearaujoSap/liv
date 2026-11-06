@@ -60,7 +60,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑09 | Auditoría, correlación y observabilidad | 🔄 | Correlación: `X-Correlation-Id` solo como UUID, en la respuesta, el MDC y cada línea de log; credenciales enmascaradas en los logs (T12 parte 1, PR #45). Pendientes: auditoría (T15), log estructurado en JSON con enmascarado y datos personales |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ⏳ | — |
 | F0‑11 | Pruebas *golden* en rojo | ⏳ | — |
-| F0‑12 | Prueba Playwright de humo en CI | ⏳ | Por decisión del responsable (ADR 0030), en la Fase 0 se cumple con el e2e local de T23 de la feature 001, contra el entorno de desarrollo y sin imágenes ni CI. En CI y con imágenes, antes de producción (T24) |
+| F0‑12 | Prueba Playwright de humo en CI | ✅ | Por decisión del responsable (ADR 0030), en la Fase 0 se cumple con el e2e local de T23 de la feature 001 (`e2e/`, PR #104), contra el entorno de desarrollo y sin imágenes ni CI. En CI y con imágenes, antes de producción (T24) |
 
 ---
 
@@ -131,6 +131,16 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
+
+- Feature 001: el proyecto `e2e/` (T23, PR #104) quedó integrado. Tiene 18 pruebas de Playwright con axe, todas en verde contra el entorno local, y 5 capturas de referencia aprobadas por el responsable.
+  - **Segundo factor:** las pruebas crean y borran sus propios usuarios con la API de administración de Keycloak, y calculan el código TOTP. El segundo factor de los usuarios de desarrollo no cambia.
+  - **Spec:** quedan marcados **19 de 22** criterios. Se suman 001-01, 001-02, 001-09, 001-11, 001-12, 001-15, 001-16 y 001-19.
+  - **Siguen abiertos:**
+    - 001-10: espera a T19;
+    - 001-21: falta definir cómo se vuelve a vincular a un usuario con otro emisor;
+    - 001-22: su e2e necesita una sesión corta del BFF.
+  - **F0‑12:** queda hecho con este e2e local (ADR 0030).
+  - **Para dar la feature por «Hecho»:** falta cerrar o reasignar esos tres criterios, y hacer el cierre de `tasks.md` (ERD, matriz de permisos y glosario).
 
 - ADR 0030, aceptado por el responsable: las pruebas de navegador (`e2e/`, Playwright) corren contra el entorno local, sin imágenes, `Dockerfile`, TLS ni CI.
   - **T23** pasa a ser el e2e local de la feature 001: funcionalidad, capturas de referencia y axe.
