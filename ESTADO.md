@@ -132,6 +132,15 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- Feature 001, T22a (PR #95): el frontend adopta `liv-components` 0.3.1, que el responsable publicó, y la cuadrícula de Inicio tiene filas iguales: todas las tarjetas miden lo mismo, como en Figma. T05b queda hecha con la 0.3.1 publicada.
+  - **Revisión:** dos revisores adversariales ciegos, sin críticos ni altos; se hizo más robusta la prueba que lee las hojas de estilo.
+  - **Sigue en la feature 001:**
+    - el tercer nivel del menú en el frontend (1.5.x y 1.6.x);
+    - T23 (`infra/` y e2e);
+    - T19 antes de producción;
+    - aceptar el ADR 0029;
+    - los arreglos directos del 404 por la precarga y de `check.sh`.
+
 - `README.md` de la raíz: nueva sección «Ejecutar LIV en local», con el paso a paso para levantar todo el sistema. Cubre entorno, API, BFF y frontend, cómo entrar, cómo crear un usuario, cómo detener y los problemas conocidos de la primera prueba completa. Los `README.md` de cada proyecto no cambian; la sección enlaza a ellos. Flujo directo (documentación).
 - Feature 001, T05b (PR #92): `ModuleCard` se estira con su celda (`liv-components` 0.3.1), por la prueba de Inicio del responsable: las tarjetas de módulo medían lo que su texto, y el diseño las pide iguales.
   - **Cómo:** el anfitrión pasa a `flex` y el enlace a `flex-1`, sin altura fija, así que quien usa el componente conserva el control. Hay una historia nueva, «Cuadrícula de Inicio».
