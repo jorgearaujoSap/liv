@@ -4,6 +4,7 @@ import co.com.sapenlinea.liv.bff.session.ClosingSessionRepository;
 import co.com.sapenlinea.liv.bff.session.ExpiredSessions;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
 import java.time.Clock;
+import java.time.Duration;
 import javax.sql.DataSource;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
@@ -17,8 +18,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.session.FindByIndexNameSessionRepository;
-import org.springframework.session.Session;
 import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 
 /**
@@ -30,10 +29,16 @@ import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
  */
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
-@EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
+@EnableSchedulerLock(defaultLockAtMostFor = ExpiredSessionsConfiguration.LOCK_AT_MOST_FOR)
 class ExpiredSessionsConfiguration {
 
   static final String LOCK = "bff-expired-sessions";
+
+  /** How long the lock of a sweep lasts at most, if its replica dies holding it. */
+  static final String LOCK_AT_MOST_FOR = "PT10M";
+
+  /** How long one sweep may last: half its lock, so that it always ends before the lock does. */
+  static final Duration SWEEP_BUDGET = Duration.parse(LOCK_AT_MOST_FOR).dividedBy(2);
 
   @Bean
   LockProvider lockProvider(DataSource dataSource) {
@@ -46,11 +51,11 @@ class ExpiredSessionsConfiguration {
   }
 
   /**
-   * The repository of Spring Session itself, as Spring Session builds it, before it is wrapped. The
-   * wrapper reaches {@link ExpiredSessions} lazily, so this does not depend on itself.
+   * Wraps the repository of Spring Session, as Spring Session builds it. The wrapper reaches {@link
+   * ExpiredSessions} at its first use: a post processor is created before the other beans.
    */
   @Bean
-  static BeanPostProcessor closingSessionRepository(ObjectProvider<ExpiredSessions> expired) {
+  static BeanPostProcessor wrapSessionRepository(ObjectProvider<ExpiredSessions> expired) {
     return new BeanPostProcessor() {
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -66,38 +71,46 @@ class ExpiredSessionsConfiguration {
   @Bean
   ExpiredSessions expiredSessions(
       DataSource dataSource,
-      FindByIndexNameSessionRepository<? extends Session> sessions,
       SessionCloser closer,
       BffProperties properties,
       Clock clock,
-      @Value("${spring.session.jdbc.table-name}") String table) {
+      @Value("${spring.session.jdbc.table-name}") String table,
+      @Value("${spring.session.jdbc.cleanup-cron:}") String cleanupCron) {
+    requireOwnCleanUpOff(cleanupCron);
     return new ExpiredSessions(
-        new JdbcTemplate(dataSource),
-        sessions,
-        closer,
-        properties.session().absoluteTimeout(),
-        clock,
-        table);
+        dataSource, closer, properties.session().absoluteTimeout(), SWEEP_BUDGET, clock, table);
+  }
+
+  /**
+   * The clean up of Spring Session deletes the expired sessions without telling anyone: with it on,
+   * the BFF does not start.
+   */
+  static void requireOwnCleanUpOff(String cleanupCron) {
+    if (!"-".equals(cleanupCron)) {
+      throw new IllegalStateException(
+          "spring.session.jdbc.cleanup-cron debe ser \"-\": la limpieza de Spring Session borra las"
+              + " sesiones vencidas sin avisar a LIV (T19)");
+    }
   }
 
   @Bean
-  ExpiredSessionsSweep expiredSessionsSweep(ExpiredSessions expired) {
-    return new ExpiredSessionsSweep(expired);
+  ExpiredSessionsSweeper expiredSessionsSweeper(ExpiredSessions expired) {
+    return new ExpiredSessionsSweeper(expired);
   }
 
-  /** The sweep itself, one replica at a time. */
-  static class ExpiredSessionsSweep {
+  /** What runs the sweep on schedule, one replica at a time. */
+  static class ExpiredSessionsSweeper {
 
     private final ExpiredSessions expired;
 
-    ExpiredSessionsSweep(ExpiredSessions expired) {
+    ExpiredSessionsSweeper(ExpiredSessions expired) {
       this.expired = expired;
     }
 
     @Scheduled(
-        fixedDelayString = "${liv.bff.session.sweep-interval:1m}",
-        initialDelayString = "${liv.bff.session.sweep-interval:1m}")
-    @SchedulerLock(name = LOCK, lockAtMostFor = "PT10M")
+        fixedDelayString = "${liv.bff.session.sweep-interval}",
+        initialDelayString = "${liv.bff.session.sweep-interval}")
+    @SchedulerLock(name = LOCK, lockAtMostFor = LOCK_AT_MOST_FOR)
     public void sweep() {
       expired.sweep();
     }

@@ -15,7 +15,6 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
-import org.springframework.session.Session;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -68,11 +67,14 @@ public final class EncryptedAuthorizedClientRepository implements OAuth2Authoriz
   }
 
   /**
-   * The tokens of a session read from the repository, without a request: the one a session that
-   * nobody came back to holds when it is ended (T19). Only the sign in client's.
+   * The tokens of a session read straight from its table, without a request: the ones of a session
+   * that nobody came back to, when it is ended (T19). Only those of the sign in client ({@link
+   * OidcRegistrations#USER}).
+   *
+   * @param attribute the value of the attribute {@value #ATTRIBUTE} of the session
    */
-  public OAuth2AuthorizedClient loadFrom(Session session, Authentication principal) {
-    return load(session.getAttribute(ATTRIBUTE), OidcRegistrations.USER, principal);
+  public OAuth2AuthorizedClient loadFrom(Object attribute, Authentication principal) {
+    return load(attribute, OidcRegistrations.USER, principal);
   }
 
   private OAuth2AuthorizedClient load(

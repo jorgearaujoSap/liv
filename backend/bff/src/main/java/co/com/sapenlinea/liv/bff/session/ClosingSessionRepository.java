@@ -4,15 +4,17 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
+import org.springframework.util.function.SingletonSupplier;
 
 /**
  * The repository of Spring Session, except that a session read once expired is ended as it should
  * (T19, {@link ExpiredSessions}) instead of being deleted without telling anyone. Everything else
  * goes to the repository of Spring Session as it is.
  *
- * <p>The check is one query by the primary key of the session. Between it and the read there are
- * milliseconds: a session that expires right then is still deleted by Spring Session, and the
- * person finds it closed as always; only its EndSession is missing.
+ * <p>The check is one query by the session id, which has a unique index. Between it and the read
+ * there are milliseconds: a session that expires right then is still deleted by Spring Session, and
+ * the person finds it closed as always; only its EndSession and its revocation are missing. That is
+ * the one case left of a session deleted without telling anyone.
  */
 public final class ClosingSessionRepository<S extends Session>
     implements FindByIndexNameSessionRepository<S> {
@@ -27,7 +29,7 @@ public final class ClosingSessionRepository<S extends Session>
   public ClosingSessionRepository(
       FindByIndexNameSessionRepository<S> sessions, Supplier<ExpiredSessions> expired) {
     this.sessions = sessions;
-    this.expired = expired;
+    this.expired = SingletonSupplier.of(expired);
   }
 
   @Override

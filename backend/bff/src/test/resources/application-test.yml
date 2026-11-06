@@ -24,3 +24,7 @@ liv:
       base-url: http://localhost:1
     session:
       encryption-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      # El barrido de las sesiones vencidas no corre en las pruebas: todos los contextos comparten la base y el
+      # backend falso, y uno en caché barrería las sesiones de otra prueba con sus propios límites. Lo encienden
+      # solo las pruebas del barrido, con un contexto propio que se cierra al terminar.
+      sweep-interval: 1h

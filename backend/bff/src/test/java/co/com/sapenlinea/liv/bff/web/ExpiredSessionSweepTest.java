@@ -9,13 +9,16 @@ import java.sql.SQLException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
  * A session that nobody comes back to also ends as it should (001-10, 001-18; T19): the sweep finds
  * it expired, tells LIV (EndSession with {@code IDLE}), revokes it in the provider and deletes it.
- * Here the inactivity is 3 seconds and the sweep runs every second.
+ * Here the inactivity is 3 seconds and the sweep runs every second; the context closes at the end,
+ * so its sweep does not touch the sessions of other tests.
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestPropertySource(properties = {"spring.session.timeout=3s", "liv.bff.session.sweep-interval=1s"})
 class ExpiredSessionSweepTest extends BffFlowTest {
 
@@ -56,16 +59,60 @@ class ExpiredSessionSweepTest extends BffFlowTest {
 
   @Test
   @Tag("001-10")
+  @Tag("001-18")
+  @DisplayName(
+      "001-10 · Si LIV no responde, la sesión vencida no se borra: el barrido siguiente lo vuelve a intentar")
+  void aFailedEndIsTriedAgain() throws SQLException {
+    browser().signIn("/");
+    BACKEND.reset();
+    BACKEND.endSessionAnswers(503);
+
+    pause(5000);
+    int attempts = BACKEND.endSessionCalls().size();
+    int keptWhileFailing = storedSessions();
+    BACKEND.endSessionAnswers(204);
+    pause(2500);
+
+    assertThat(attempts).as("lo intentó y falló").isGreaterThan(0);
+    assertThat(keptWhileFailing).as("mientras LIV falla, la sesión queda").isEqualTo(1);
+    assertThat(storedSessions()).as("con LIV de vuelta, termina").isZero();
+    assertThat(BACKEND.endSessionCalls()).hasSizeGreaterThan(attempts);
+  }
+
+  @Test
+  @Tag("001-10")
+  @DisplayName(
+      "001-10 · Una sesión vencida que no se puede leer (otra versión de una clase) se borra igual, sin llamar a LIV")
+  void anUnreadableExpiredSessionIsDeleted() throws SQLException {
+    browser().signIn("/");
+    BffDatabase.execute(
+        BffDatabase.jdbcUrl(),
+        BffDatabase.OWNER,
+        "UPDATE bff.spring_session_attributes SET attribute_bytes = decode('00', 'hex')"
+            + " WHERE attribute_name = 'SPRING_SECURITY_CONTEXT'");
+    BACKEND.reset();
+
+    pause(6000);
+
+    assertThat(storedSessions()).isZero();
+    assertThat(BACKEND.calls()).isEmpty();
+  }
+
+  @Test
+  @Tag("001-10")
   @DisplayName(
       "001-10 · El barrido toma su bloqueo en bff.shedlock: con varias réplicas, una sola barre a la vez")
   void theSweepTakesItsLock() throws SQLException {
+    // The row is not deleted first: ShedLock remembers it exists and would take the lock as held.
     pause(2500);
 
     assertThat(
             BffDatabase.queryValue(
                 BffDatabase.jdbcUrl(),
                 BffDatabase.OWNER,
-                "SELECT count(*) FROM bff.shedlock WHERE name = 'bff-expired-sessions'"))
+                "SELECT count(*) FROM bff.shedlock WHERE name = 'bff-expired-sessions'"
+                    + " AND locked_at > timezone('utc', now()) - interval '3 seconds'"))
+        .as("lo tomó este contexto, como liv_bff, hace menos de 3 segundos")
         .isEqualTo("1");
   }
 }

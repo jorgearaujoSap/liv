@@ -33,25 +33,29 @@ public final class RefreshTokenRevoker {
   /**
    * Revokes the refresh token of the client. It never throws: a session ends even if the provider
    * does not answer, whatever goes wrong (no refresh token, no endpoint, a failed call).
+   *
+   * @return whether nothing is left alive in the provider: revoked, or there was nothing to revoke
    */
-  public void revoke(OAuth2AuthorizedClient client) {
+  public boolean revoke(OAuth2AuthorizedClient client) {
     if (client.getRefreshToken() == null) {
       LOG.warn("La sesión no tiene refresh token: no hay nada que revocar en el proveedor");
-      return;
+      return true;
     }
     ClientRegistration registration = client.getClientRegistration();
     String endpoint = endpointOf(registration);
     if (endpoint == null) {
       LOG.error("El proveedor no publica un endpoint de revocación y no se configuró uno");
-      return;
+      return false;
     }
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("token", client.getRefreshToken().getTokenValue());
     form.add("token_type_hint", "refresh_token");
     try {
       post(registration, endpoint, form);
+      return true;
     } catch (RuntimeException e) {
       LOG.warn("La revocación en el proveedor falló: {}", e.getClass().getSimpleName());
+      return false;
     }
   }
 

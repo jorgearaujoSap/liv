@@ -75,8 +75,10 @@ public final class InternalApiClient {
    * EndSession: LIV ends the session with the reason. It answers 204 even when there is nothing to
    * end, so a failure here is a problem of the call, not of the session. It never throws: ending
    * the session of the BFF does not wait for LIV.
+   *
+   * @return whether LIV answered: only then is the end of the session recorded there
    */
-  public void endSession(SessionIdentity identity, EndReason reason) {
+  public boolean endSession(SessionIdentity identity, EndReason reason) {
     try {
       http.post()
           .uri("/internal/v1/sessions/{sid}/end", identity.sessionId())
@@ -89,8 +91,10 @@ public final class InternalApiClient {
                   "reason", reason.name()))
           .retrieve()
           .toBodilessEntity();
+      return true;
     } catch (RuntimeException e) {
       LOG.warn("EndSession({}) falló: {}", reason, e.getClass().getSimpleName());
+      return false;
     }
   }
 }

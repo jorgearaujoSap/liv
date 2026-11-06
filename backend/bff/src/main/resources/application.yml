@@ -64,3 +64,5 @@ liv:
     session:
       # 32 bytes en base64 (AES-256-GCM). En AWS sale de Secrets Manager.
       encryption-key: ${LIV_BFF_SESSION_KEY}
+      # Cada cuánto se terminan las sesiones vencidas a las que nadie volvió (T19, ExpiredSessions).
+      sweep-interval: 1m

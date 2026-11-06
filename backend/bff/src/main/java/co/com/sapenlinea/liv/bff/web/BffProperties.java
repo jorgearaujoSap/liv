@@ -73,19 +73,18 @@ public record BffProperties(Oidc oidc, Api api, Session session) {
   /**
    * @param encryptionKey the key that encrypts the tokens in the session: 32 bytes in base64
    * @param absoluteTimeout the maximum duration of a session, whatever its activity (001-10)
-   * @param sweepInterval how often the expired sessions that nobody came back to are ended (T19)
+   * @param sweepInterval how often the expired sessions that nobody came back to are ended (T19);
+   *     its value is in {@code application.yml}, which the schedule of the sweep reads too
    */
   public record Session(
-      String encryptionKey,
-      @DefaultValue("8h") Duration absoluteTimeout,
-      @DefaultValue("1m") Duration sweepInterval) {
+      String encryptionKey, @DefaultValue("8h") Duration absoluteTimeout, Duration sweepInterval) {
 
     public Session {
       required(encryptionKey, "liv.bff.session.encryption-key");
       if (absoluteTimeout.isZero() || absoluteTimeout.isNegative()) {
         throw new IllegalArgumentException("liv.bff.session.absolute-timeout debe ser positiva");
       }
-      if (sweepInterval.isZero() || sweepInterval.isNegative()) {
+      if (sweepInterval == null || sweepInterval.isZero() || sweepInterval.isNegative()) {
         throw new IllegalArgumentException("liv.bff.session.sweep-interval debe ser positivo");
       }
     }

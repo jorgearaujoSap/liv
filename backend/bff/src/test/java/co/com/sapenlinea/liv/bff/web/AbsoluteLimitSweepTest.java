@@ -7,12 +7,15 @@ import java.sql.SQLException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
  * A session past its maximum duration ends even if nobody uses it again (001-10, 001-18; T19). Here
- * the limit is 3 seconds, the inactivity a minute and the sweep runs every second.
+ * the limit is 3 seconds, the inactivity a minute and the sweep runs every second; the context
+ * closes at the end, so its sweep does not touch the sessions of other tests.
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestPropertySource(
     properties = {
       "liv.bff.session.absolute-timeout=3s",
