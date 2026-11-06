@@ -161,7 +161,7 @@ clave='Liv-Dev-2026!'
 respuesta=$(intento "$tmp/correcto.html" dev.liquidador "$clave")
 case "$respuesta" in
   "302 $redirect?"*code=*) ok "usuario activo con la contraseña correcta y un rol sin segundo factor: entra sin él (001-08)" ;;
-  *) falla "usuario activo con la contraseña correcta y un rol sin segundo factor: entra sin él (001-08) (obtuvo: '$respuesta')" ;;
+  *) falla "usuario activo con la contraseña correcta y un rol sin segundo factor: entra sin él (001-08; obtuvo: '$respuesta')" ;;
 esac
 
 # Cuenta bloqueada: 5 fallos seguidos, espaciados más de 1 s para no activar la protección contra intentos
