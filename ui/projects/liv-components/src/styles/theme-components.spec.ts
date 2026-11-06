@@ -16,6 +16,7 @@ describe('theme.css · contraste de las parejas de los componentes de estructura
     ['texto de NavItem en hover', 'text-secondary', 'bg-subtle'],
     ['título de grupo de NavItem en hover', 'text-primary', 'bg-subtle'],
     ['texto de NavItem Active', 'action-primary', 'action-primary-subtle'],
+    ['texto de NavItem Subgroup Active (sin relleno)', 'action-primary', 'bg-surface'],
     ['icono de ModuleCard', 'action-primary', 'action-primary-subtle'],
     ['icono de Dialog', 'status-warning', 'status-warning-subtle'],
     ['icono de ResultState Danger', 'status-danger', 'status-danger-subtle'],

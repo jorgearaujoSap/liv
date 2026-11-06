@@ -8,6 +8,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 
+## [0.3.0] — 2026-11-05
+
+Tercer nivel del menú lateral (feature 001, diseño aprobado por el responsable funcional el 2026-11-05: Figma `NavItem`, `Type=Subgroup` y `Type=Nested`, y el marco «Menú · tres niveles»). Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión").
+
+### Agregado
+
+- `NavItem` con dos tipos nuevos, compatibles con lo anterior en tiempo de ejecución (`NavItemType` pasa de `'item' | 'group' | 'subitem'` a `'item' | 'group' | 'subgroup' | 'subitem' | 'nested'`; un `switch` exhaustivo o un `Record<NavItemType, …>` de una aplicación deberá cubrir los valores nuevos al adoptar esta versión):
+  - `subgroup`: opción de segundo nivel que agrupa opciones de tercer nivel (1.5 y 1.6 del módulo 1). Se expande como un `group` (botón con `aria-expanded`; expandido, `aria-controls` y la lista de sus opciones como `role="group"`), pero sin icono, alineada con el texto del módulo (44 px) y con énfasis medio más suave (`label/md` en `text-secondary`). En Active (el grupo que contiene la pantalla actual) el texto pasa a `body/md-strong` en `action-primary`, sin relleno y con el chevron en `text-muted`, para no apilar tres barras con el módulo y la opción actual; no tiene Hover mientras está activo. Deshabilitado no se expande ni muestra el chevron;
+  - `nested`: opción de tercer nivel (1.5.x y 1.6.x). Es un enlace como un `subitem`, sangrado 16 px más (60 px), con el mismo Hover, Active (`aria-current="page"`), Disabled y foco.
+- Historias de Storybook de `Subgroup`, `Nested` y del menú completo de tres niveles, enlazadas al diseño en Figma, y pruebas de Default, Active, Disabled, foco y accesibilidad con axe de los tipos nuevos. Hover no tiene prueba automática y axe no calcula el contraste en jsdom: el contraste del texto de `Subgroup` Active se mide con los valores de `theme.css` en `theme-components.spec.ts` y el aspecto se revisa en el catálogo de Storybook.
+
 ## [0.2.0] — 2026-11-02
 
 Primera versión con componentes (feature 001, tareas T03, T04, T04a —contraste de tokens— y T05). Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión").

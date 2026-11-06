@@ -3,7 +3,7 @@
     <liv-icon class="nav-item__icon" [name]="name" [size]="20" />
   }
   <span class="nav-item__label"><ng-content /></span>
-  @if (type() === 'group' && !disabled()) {
+  @if (isBranch() && !disabled()) {
     <liv-icon
       class="nav-item__chevron"
       [name]="expanded() ? 'chevron-down' : 'chevron-right'"
@@ -12,7 +12,7 @@
   }
 </ng-template>
 
-@if (type() === 'group') {
+@if (isBranch()) {
   <button
     type="button"
     class="nav-item__control"
