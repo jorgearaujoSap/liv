@@ -360,6 +360,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
 | Próximamente (**pendiente de aprobación en H2**) | [Próximamente](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=29-1689) | ResultState (Info), Button, Icon y la estructura general |
 | Cargando sesión | [Cargando](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1640) | Skeleton, Logo |
 | Error al cargar la sesión | [Error](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1672) | ResultState, Logo, Button, Icon |
+| Menú de tres niveles (**✅ aprobado 2026-11-05**) | [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519) | SideNav, NavItem con los tipos nuevos `Subgroup` y `Nested` ([NavItem](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=22-147)), AppHeader, PageHeader |
 
 ## Decisiones
 
@@ -460,6 +461,19 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
     - la revocación en el final por `invalid_grant`, que el plan pedía;
     - forzar la renovación de `keepalive` sin depender de un margen de 1 hora si los tokens duraran más;
     - serializar las renovaciones si algún día se activa la rotación del *refresh token*.
+- **Ajustes de T22 (PR [#89](https://github.com/jorgearaujoSap/liv/pull/89); decisiones y riesgos pendientes del responsable).** Salieron de implementar las pantallas y de su revisión adversarial y de las cuatro lentes:
+  - **ruta por URL de cualquier opción (001-16):** `opcion/:code`, con `capabilityGuard` y `data: { capabilityParam: 'code' }`. La ruta declara solo una de las dos formas (`capability` o `capabilityParam`): si declara las dos, la guarda niega. Cada feature registra la ruta de su opción antes de esta; una opción disponible sin pantalla propia cae en «Próximamente»;
+  - **menú:** `core/navigation/menu-presentation.ts` pone nombre, icono y ruta (`/opcion/<número>`). Una rama (módulo o grupo) está disponible si lo está alguna de sus opciones y lleva a la primera; los códigos que no son un número de opción se descartan. Se pintan **dos niveles**: el tercero (1.5.x y 1.6.x) **no tiene diseño** y queda para el responsable funcional;
+  - **`WorkspaceService`:** `/api/v1/me` y las capacidades con un tiempo límite de 10 s, `/me` sin el manejo del 403 del interceptor y la persona se vuelve a pedir cuando cambian las capacidades, para que el rol y la administración de la cabecera no queden viejos;
+  - **aviso de sesión:** el del límite de 8 horas solo deja «Cerrar sesión»; **su texto no está en Figma**. Si «Seguir conectado» falla, se dice y se anuncia;
+  - **un 401 al cargar** solo se calla si ya se va a iniciar sesión (`SessionService.isRedirecting`); si no, va a «Error»;
+  - **regla de ESLint:** las pantallas no llevan estilos propios, y su disposición (flex, rejilla) va en el `.component.css` con los tokens del tema. «Cargando» reproduce con esa disposición el marco que Figma dibuja con `Skeleton` y `Logo`; el menú queda 2 px más abajo (el tema no tiene el espaciado de 14 px);
+  - **`axe-core` 4.14.0** como dependencia de desarrollo de `frontend/`: **ADR 0029, aceptado por el responsable el 2026-11-05** (la prueba de cada pantalla en el frontend; el contraste, en T23);
+  - **decisiones del responsable (2026-11-05):**
+    - se aprueba el texto del aviso del límite de 8 horas;
+    - el grupo de módulo del menú lateral se deja habilitado, como en Figma, frente a la tarjeta deshabilitada de Inicio;
+    - el **tercer nivel del menú** (1.5.x y 1.6.x) se diseña ahora. **Diseño aprobado por el responsable funcional el 2026-11-05:** `NavItem` gana `Type=Subgroup` (opción de segundo nivel con chevron, que se expande) y `Type=Nested` (tercer nivel, sangrado 16 px más que `Subitem`), con los mismos cuatro estados; el marco de referencia es [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519), con Administración abierta y 1.5 expandido. La variante en `liv-components` es la tarea T05a (PR [#91](https://github.com/jorgearaujoSap/liv/pull/91), versión 0.3.0, la publica un humano); sigue su uso en el frontend (otro PR). Hasta entonces, dos niveles;
+    - la pantalla local de «sesión terminada» sigue sin inventarse (no está en los diseños aprobados).
 - **Ajustes de T21 (PR #84; decisiones y riesgos pendientes del responsable).** Salieron de implementar el núcleo del frontend y de su revisión adversarial y de las cuatro lentes:
   - **ESLint:** la regla de T20 no se amplió; solo restringe `HttpClient`, `HttpBackend` y `HttpHandler`, y el interceptor no los necesita;
   - **rutas de las pantallas de T22:** `/sin-permiso`, `/proximamente` y `/error` (`core/app-paths.ts`);

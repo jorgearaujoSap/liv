@@ -128,6 +128,18 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - opciones deshabilitadas del menú: hoy explican el motivo solo con `title` y no son enfocables (`item` y `subitem`; el `group` sí). Un `Tooltip` accesible está en el *backlog*;
     - foco inicial por defecto de `Dialog`: el primer enfocable. La pantalla del aviso de sesión debe marcar la acción segura con `data-initial-focus`.
   - **Revisión:** adversarial con dos revisores ciegos y lente de riesgo a nivel alto; resiliencia y confiabilidad a nivel estándar; legibilidad a nivel económico (`AGENTS.md` §10.1). Ningún crítico y 3 altos: dos de la adversarial, corregidos con prueba en rojo primero (estilos del grupo de `NavItem` que se filtraban a sus subopciones; disputa de foco entre dos `Dialog`), y uno de confiabilidad, las capturas de referencia (Q14), que queda como desviación. Segunda ronda de la adversarial, solo sobre lo corregido, sin críticos ni altos. Resumen por severidad en el PR #43.
+- [x] **T05a** · `NavItem` de tres niveles: tipos `subgroup` y `nested` en `liv-components`. Versión 0.3.0 y `CHANGELOG.md`. **Un humano publica.** Sale de la decisión del responsable sobre el tercer nivel del menú (T22, 2026-11-05). — Hecha: PR [#91](https://github.com/jorgearaujoSap/liv/pull/91) (`ui/`), con las decisiones y los riesgos para el responsable que lista el PR.
+  - Diseño: aprobado por el responsable funcional el 2026-11-05 (Figma, `NavItem` `Type=Subgroup` y `Type=Nested`, y el marco [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519)).
+  - Archivos: `ui/projects/liv-components/src/lib/nav-item/**`, `ui/projects/liv-components/src/styles/theme-components.spec.ts`, `ui/projects/liv-components/package.json`, `ui/CHANGELOG.md`, `ui/README.md`.
+  - Prueba primero: `Subgroup` (botón con `aria-expanded`, sin icono, Active sin relleno, Disabled sin chevron) y `Nested` (enlace a 60 px con `aria-current`), con axe por estado.
+  - **Desviaciones declaradas:**
+    - `ui/README.md` y `theme-components.spec.ts` (el par de contraste del texto de `Subgroup` Active) estaban fuera de la lista;
+    - sin capturas de referencia de regresión visual (Q14): el repositorio aún no tiene el mecanismo, como en T05; las historias de Storybook son la referencia;
+    - unas 470 líneas (la mayoría, pruebas e historias).
+  - **Qué hace, además de lo pedido:** `NavItemType` pasa a `'item' | 'group' | 'subgroup' | 'subitem' | 'nested'` (compatible en ejecución; un `switch` exhaustivo o un `Record<NavItemType, …>` debe cubrir los valores nuevos). El JSDoc documenta la anidación válida y que la rama activa debe estar expandida (`[(expanded)]`).
+  - **Pendientes de decisión humana** (listados en el PR): el peso del texto de `Subgroup` Active como única señal sin color (y una señal en `forced-colors`), el Hover del subgrupo activo y Active+Disabled, que Figma no define.
+  - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico ni alto; medios y bajos coincidentes de pruebas que no habrían fallado con el código roto, historias y documentación, corregidos con prueba primero. Segunda ronda, solo sobre lo corregido: ningún crítico ni alto; 3 medios y 6 bajos, entre ellos dos errores de la propia corrección (una nota duplicada en el `CHANGELOG.md` y un `href` heredado en una historia). **No hubo tercera ronda** (regla de dos rondas): esas últimas correcciones quedan sin un tercer juicio independiente.
+  - **Falta:** el uso en `frontend/` (otro PR) una vez que un humano publique la 0.3.0.
 
 ## `backend/identity/`
 
@@ -426,7 +438,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el cierre de sesión en otra pestaña se confirma con `/bff/session` antes de navegar;
     - la imagen corre con el usuario 101 y sistema de archivos de solo lectura, con `no-store` salvo los archivos con hash (solo respuestas 200 y 304), `/api`, `/bff`, `/internal`, `/login/oauth2` y `/oauth2` responden 404 y el registro de accesos no guarda la consulta de la URL.
   - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y 2 altos (las consultas de sesión sin tiempo límite y el canal entre pestañas sin pruebas con `BroadcastChannel` real), más medios confirmados por varios revisores; todo corregido con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico y **2 altos** (una bandera de consulta que podía quedar colgada y una ráfaga de consultas cerca del límite, regresiones de la primera ronda), corregidos con prueba en rojo primero. **No hubo tercera ronda** (regla de dos rondas): esos dos altos quedan corregidos pero sin un tercer juicio independiente. Resumen por severidad en el PR #84.
-- [ ] **T22** · Pantallas y catálogo de presentación del menú.
+- [x] **T22** · Pantallas y catálogo de presentación del menú. — Hecha: PR [#89](https://github.com/jorgearaujoSap/liv/pull/89) (`frontend/`), con las decisiones y los riesgos para el responsable que lista el PR.
   - Pantallas: estructura general, Inicio, Aviso de sesión, Sin permiso, Próximamente, Cargando y Error.
   - Archivos: `frontend/src/app/features/{shell,home,errors}/**`, `frontend/src/app/core/navigation/menu-presentation.ts`.
   - Prueba primero:
@@ -434,6 +446,29 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - 001-15 (menú filtrado y opciones `COMING_SOON` deshabilitadas);
     - axe por pantalla (001-19);
     - las pantallas solo usan componentes de `liv-components` (ESLint).
+  - **Hecha:** las seis pantallas se leyeron de Figma (nodos `26:793`, `26:1157`, `26:1454`, `29:1689`, `26:1640` y `26:1672`) y se compararon a mano con los diseños en el navegador, con un servidor simulado. El contrato `bff` 1.1.0 está adoptado (`api:update`, SHA-256 verificado contra la *release*).
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista:
+      - `core/capabilities/capability.guard.ts` (`capabilityParam`: una sola ruta, `opcion/:code`, abre cualquier opción por URL, 001-16), `capability.service.ts` (tiempo límite de 10 s) y `core/session/session.service.ts` (`isRedirecting`), con sus pruebas;
+      - `core/app-paths.ts`, `app.routes.ts` y su prueba;
+      - `eslint.config.js` y `scripts/lint-rules.test.mjs` (la regla que pide la tarea);
+      - `features/testing/fixtures.ts` y `features/accessibility.spec.ts`;
+      - `package.json` y `package-lock.json` (`axe-core`);
+      - `README.md` y `CHANGELOG.md` del frontend;
+    - **`axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`**: no estaba en el ADR 0023 y `AGENTS.md` §4.5 exige un ADR. **ADR 0029, aceptado por el responsable el 2026-11-05**;
+    - unas 2.900 líneas (1.700 de pruebas): dos rondas de revisión y tres ciclos test→fix.
+  - **Qué hace, además de lo pedido:**
+    - la regla de ESLint cubre las plantillas y el código de los componentes de `features/`: sin `style`, `class`, `[className]`, `[innerHTML]`, `<style>`, `styles` ni `host.class`/`host.style`, sin `@HostBinding` de clase o estilo, sin `ViewEncapsulation.None`, sin controles nativos ni roles de control, y solo elementos `liv-*`, `app-*` y `router-outlet`;
+    - `WorkspaceService` carga la persona y las capacidades con un tiempo límite de 10 s y vuelve a pedir la persona cuando cambian las capacidades (el rol y la administración de la cabecera no quedan viejos tras un 403);
+    - una rama del menú lleva a su primera opción disponible, y los códigos que no son un número de opción se descartan;
+    - el aviso dice si «Seguir conectado» falla y lo anuncia en una región viva; un 401 al cargar solo se calla si ya se va a iniciar sesión.
+  - **Decisiones del responsable (2026-11-05):**
+    - **`axe-core`:** ADR 0029 aceptado; la prueba de accesibilidad de cada pantalla queda en el frontend y el contraste, en T23;
+    - **aviso del límite de 8 horas:** se aprueba el texto actual (solo «Cerrar sesión»);
+    - **grupo de módulo en el menú lateral:** se deja habilitado, como en Figma, aunque todo lo suyo esté sin construir;
+    - **tercer nivel del menú (1.5.x y 1.6.x):** se diseña ahora, primero en Figma y, si hace falta un componente o variante, en `ui/`, en otro PR. **Diseño aprobado por el responsable funcional el 2026-11-05 en Figma:** `NavItem` con `Type=Subgroup` y `Type=Nested`, y el marco [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519). Siguen la variante en `ui/` (otro PR, con versión nueva) y su uso en el frontend (otro PR); hasta entonces se pintan dos niveles;
+    - **pantalla local de «sesión terminada»:** sigue sin inventarse; si hace falta, se propone aparte.
+  - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y altos de `axe-core` sin ADR, la carga sin tiempo límite, la persona que no se refrescaba y «Seguir conectado» que fallaba en silencio; además una regla de ESLint para `<style>` que buscaba la letra «s» (error propio), ramas del menú con una ruta sin pantalla y un 401 pisado por «Error». Segunda ronda, solo sobre lo corregido: ningún crítico y **1 alto** (callar el 401 dejaba «Cargando» colgado si `/bff/session` también fallaba, una regresión de la primera corrección), corregido con prueba en rojo primero junto con el resto de los medios. **No hubo tercera ronda** (regla de dos rondas): esas correcciones quedan sin un tercer juicio independiente. Resumen por severidad en el PR.
 
 ## Sistema
 
