@@ -1,0 +1,2 @@
+# Los scripts de la raíz se ejecutan con Bash, también en Git Bash: con CRLF fallarían.
+tools/**/*.sh text eol=lf
