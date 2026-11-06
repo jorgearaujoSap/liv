@@ -151,6 +151,7 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 | 0026 | Dependencias de desarrollo de `ui/` (Tailwind, axe-core, complementos de Storybook y los pares obligatorios de `@storybook/angular`) y excepción acotada de vulnerabilidades de desarrollo (vence el 2027-01-31) | Aceptado (2026-11-02) | `docs/adr/ADR-0026-…`, ADR 0023, 02 §11 |
 | 0027 | Comparador de cambios incompatibles de los contratos OpenAPI (`openapi-diff-maven` 2.1.7, solo en CI) y su publicación como *releases* `contract-<nombre>-vX.Y.Z`; aprobación con la etiqueta `contrato-incompatible` y versión mayor | Aceptado (2026-11-04) | `docs/adr/ADR-0027-…`, 01 §10, 04 §8–§9 |
 | 0028 | SDD adaptativo: evaluación previa antes de la especificación; el flujo directo reemplaza al tipo «trivial» y el SDD sigue siendo la metodología principal (complementa al ADR 0014) | Aceptado (2026-11-05) | `docs/adr/ADR-0028-…`, 05 §3.3, `AGENTS.md` §4.3 |
+| 0029 | `axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`, para la prueba de accesibilidad de cada pantalla (001-19); el contraste lo cubre el e2e de T23 | Propuesto (2026-11-05) | `docs/adr/ADR-0029-…`, `AGENTS.md` §4.5, feature 001 T22 |
 
 ---
 

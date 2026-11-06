@@ -426,7 +426,7 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - el cierre de sesión en otra pestaña se confirma con `/bff/session` antes de navegar;
     - la imagen corre con el usuario 101 y sistema de archivos de solo lectura, con `no-store` salvo los archivos con hash (solo respuestas 200 y 304), `/api`, `/bff`, `/internal`, `/login/oauth2` y `/oauth2` responden 404 y el registro de accesos no guarda la consulta de la URL.
   - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y 2 altos (las consultas de sesión sin tiempo límite y el canal entre pestañas sin pruebas con `BroadcastChannel` real), más medios confirmados por varios revisores; todo corregido con prueba en rojo primero. Segunda ronda, solo sobre lo corregido: ningún crítico y **2 altos** (una bandera de consulta que podía quedar colgada y una ráfaga de consultas cerca del límite, regresiones de la primera ronda), corregidos con prueba en rojo primero. **No hubo tercera ronda** (regla de dos rondas): esos dos altos quedan corregidos pero sin un tercer juicio independiente. Resumen por severidad en el PR #84.
-- [ ] **T22** · Pantallas y catálogo de presentación del menú.
+- [x] **T22** · Pantallas y catálogo de presentación del menú. — Hecha: PR [#89](https://github.com/jorgearaujoSap/liv/pull/89) (`frontend/`), con las decisiones y los riesgos para el responsable que lista el PR.
   - Pantallas: estructura general, Inicio, Aviso de sesión, Sin permiso, Próximamente, Cargando y Error.
   - Archivos: `frontend/src/app/features/{shell,home,errors}/**`, `frontend/src/app/core/navigation/menu-presentation.ts`.
   - Prueba primero:
@@ -434,6 +434,29 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - 001-15 (menú filtrado y opciones `COMING_SOON` deshabilitadas);
     - axe por pantalla (001-19);
     - las pantallas solo usan componentes de `liv-components` (ESLint).
+  - **Hecha:** las seis pantallas se leyeron de Figma (nodos `26:793`, `26:1157`, `26:1454`, `29:1689`, `26:1640` y `26:1672`) y se compararon a mano con los diseños en el navegador, con un servidor simulado. El contrato `bff` 1.1.0 está adoptado (`api:update`, SHA-256 verificado contra la *release*).
+  - **Desviaciones declaradas:**
+    - archivos fuera de la lista:
+      - `core/capabilities/capability.guard.ts` (`capabilityParam`: una sola ruta, `opcion/:code`, abre cualquier opción por URL, 001-16), `capability.service.ts` (tiempo límite de 10 s) y `core/session/session.service.ts` (`isRedirecting`), con sus pruebas;
+      - `core/app-paths.ts`, `app.routes.ts` y su prueba;
+      - `eslint.config.js` y `scripts/lint-rules.test.mjs` (la regla que pide la tarea);
+      - `features/testing/fixtures.ts` y `features/accessibility.spec.ts`;
+      - `package.json` y `package-lock.json` (`axe-core`);
+      - `README.md` y `CHANGELOG.md` del frontend;
+    - **`axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`**: no está en el ADR 0023 y `AGENTS.md` §4.5 exige un ADR. Va como **ADR 0029 propuesto**; el PR #89 no debe integrarse sin decidirlo;
+    - unas 2.900 líneas (1.700 de pruebas): dos rondas de revisión y tres ciclos test→fix.
+  - **Qué hace, además de lo pedido:**
+    - la regla de ESLint cubre las plantillas y el código de los componentes de `features/`: sin `style`, `class`, `[className]`, `[innerHTML]`, `<style>`, `styles` ni `host.class`/`host.style`, sin `@HostBinding` de clase o estilo, sin `ViewEncapsulation.None`, sin controles nativos ni roles de control, y solo elementos `liv-*`, `app-*` y `router-outlet`;
+    - `WorkspaceService` carga la persona y las capacidades con un tiempo límite de 10 s y vuelve a pedir la persona cuando cambian las capacidades (el rol y la administración de la cabecera no quedan viejos tras un 403);
+    - una rama del menú lleva a su primera opción disponible, y los códigos que no son un número de opción se descartan;
+    - el aviso dice si «Seguir conectado» falla y lo anuncia en una región viva; un 401 al cargar solo se calla si ya se va a iniciar sesión.
+  - **Pendientes de decisión humana** (listados en el PR):
+    - `axe-core` y el ADR 0029;
+    - el texto del aviso del límite de 8 horas, que no está en Figma;
+    - el tercer nivel del menú (1.5.x y 1.6.x), sin diseño: hoy se pintan dos niveles;
+    - el grupo de módulo habilitado en el menú lateral aunque todo lo suyo esté sin construir (como en Figma), frente a la tarjeta deshabilitada de Inicio;
+    - la pantalla local de «sesión terminada», que no se inventó.
+  - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y altos de `axe-core` sin ADR, la carga sin tiempo límite, la persona que no se refrescaba y «Seguir conectado» que fallaba en silencio; además una regla de ESLint para `<style>` que buscaba la letra «s» (error propio), ramas del menú con una ruta sin pantalla y un 401 pisado por «Error». Segunda ronda, solo sobre lo corregido: ningún crítico y **1 alto** (callar el 401 dejaba «Cargando» colgado si `/bff/session` también fallaba, una regresión de la primera corrección), corregido con prueba en rojo primero junto con el resto de los medios. **No hubo tercera ronda** (regla de dos rondas): esas correcciones quedan sin un tercer juicio independiente. Resumen por severidad en el PR.
 
 ## Sistema
 
