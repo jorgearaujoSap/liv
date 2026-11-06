@@ -13,8 +13,8 @@ class RateLimiterTest {
   private static final Limit TWO_PER_HOUR = new Limit(2, Duration.ofHours(1));
 
   @Test
-  @DisplayName("T19 · Un balde nuevo, que nadie usó, se olvida: es igual a no tenerlo")
-  void forgetsAnUnusedBucket() {
+  @DisplayName("T19 · Un balde que se recargó hasta su capacidad se olvida: es igual a uno nuevo")
+  void forgetsABucketRefilledToItsCapacity() {
     RateLimiter limiter = new RateLimiter();
     // A bucket refilled to its capacity is full, whatever the kind of key.
     limiter.takeForAnAddress("sign-in:1", new Limit(20, Duration.ofMillis(1)));
