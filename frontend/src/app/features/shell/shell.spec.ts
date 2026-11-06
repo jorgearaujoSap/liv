@@ -215,6 +215,90 @@ describe('estructura general (001-02, 001-15)', () => {
       ).toHaveLength(1);
     });
 
+    describe('tercer nivel (1.5.x y 1.6.x)', () => {
+      const withLoads = () =>
+        workspace.menu.set(
+          buildMenu({
+            items: [
+              {
+                code: '1',
+                status: 'AVAILABLE',
+                children: [
+                  leaf('1.4', 'AVAILABLE'),
+                  {
+                    code: '1.5',
+                    status: 'AVAILABLE',
+                    children: [leaf('1.5.3', 'AVAILABLE'), leaf('1.5.4')],
+                  },
+                  { code: '1.6', status: 'COMING_SOON', children: [leaf('1.6.1')] },
+                ],
+              },
+            ],
+          }),
+        );
+      const open = (fixture: { detectChanges(): void }, item: Element) => {
+        (item.querySelector('button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+      };
+
+      it('una opción con subopciones es un subgrupo con las suyas en el tercer nivel, también deshabilitadas', async () => {
+        withLoads();
+        const fixture = await render();
+        const nav = host(fixture).querySelector('liv-side-nav') as HTMLElement;
+        open(fixture, nav.querySelector('liv-nav-item[data-type="group"]') as HTMLElement);
+
+        const subgroups = Array.from(nav.querySelectorAll('liv-nav-item[data-type="subgroup"]'));
+        expect(subgroups.map((item) => text(item.querySelector('button')))).toEqual([
+          'Cargue de tablas base por vigencia',
+          'Consultas y exportación de tablas base',
+        ]);
+        expect(subgroups.map((item) => item.hasAttribute('data-disabled'))).toEqual([false, true]);
+        // 1.4 sigue siendo una opción de segundo nivel.
+        expect(
+          Array.from(nav.querySelectorAll('liv-nav-item[data-type="subitem"]')).map(text),
+        ).toEqual(['Vigencias fiscales']);
+
+        open(fixture, subgroups[0]);
+        const nested = Array.from(
+          subgroups[0].querySelectorAll('liv-nav-item[data-type="nested"]'),
+        );
+        expect(nested.map(text)).toEqual(['Cargar archivo de avalúos', 'Bandeja de lotes']);
+        expect(nested.map((item) => item.hasAttribute('data-disabled'))).toEqual([false, true]);
+      });
+
+      it('una opción de tercer nivel navega con el enrutador', async () => {
+        const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+        withLoads();
+        const fixture = await render();
+        const nav = host(fixture).querySelector('liv-side-nav') as HTMLElement;
+        open(fixture, nav.querySelector('liv-nav-item[data-type="group"]') as HTMLElement);
+        open(fixture, nav.querySelector('liv-nav-item[data-type="subgroup"]') as HTMLElement);
+
+        (nav.querySelector('a[href="/opcion/1.5.3"]') as HTMLAnchorElement).click();
+
+        expect(navigate).toHaveBeenCalledWith('/opcion/1.5.3');
+      });
+
+      it('en una opción de tercer nivel, el módulo y su subgrupo se marcan y se abren, y la opción es la actual', async () => {
+        withLoads();
+        router.resetConfig([{ path: 'opcion/:code', children: [] }]);
+        await router.navigateByUrl('/opcion/1.5.3');
+        const fixture = await render();
+        const nav = host(fixture).querySelector('liv-side-nav') as HTMLElement;
+        const group = nav.querySelector('liv-nav-item[data-type="group"]') as HTMLElement;
+        const subgroups = Array.from(nav.querySelectorAll('liv-nav-item[data-type="subgroup"]'));
+
+        expect(group.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
+        expect(
+          subgroups.map((item) => item.querySelector('button')?.getAttribute('aria-expanded')),
+        ).toEqual(['true', 'false']);
+        expect(subgroups.map((item) => item.hasAttribute('data-active'))).toEqual([true, false]);
+        const current = nav.querySelectorAll('[aria-current="page"]');
+        expect(current).toHaveLength(1);
+        expect(current[0].closest('liv-nav-item')?.getAttribute('data-type')).toBe('nested');
+      });
+    });
+
     it('«Inicio» marca la pantalla actual, y solo en la ruta raíz', async () => {
       await router.navigateByUrl('/');
       const fixture = await render();
