@@ -19,6 +19,15 @@ describe('Inicio (001-02, 001-15)', () => {
     return fixture.nativeElement as HTMLElement;
   };
   const cards = (host: HTMLElement) => Array.from(host.querySelectorAll('liv-module-card'));
+  /** Lo que las hojas de estilo declaran para el elemento (jsdom no calcula el diseño de la cuadrícula). */
+  const declared = (element: Element, property: string) =>
+    Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
+      .filter((rule) => element.matches(rule.selectorText))
+      .map((rule) => rule.style.getPropertyValue(property))
+      .filter((value) => value !== '')
+      .pop() ?? '';
 
   beforeEach(() => {
     workspace = new FakeWorkspace();
@@ -124,5 +133,11 @@ describe('Inicio (001-02, 001-15)', () => {
 
     expect(cards(host)).toHaveLength(0);
     expect(text(host.querySelector('h1'))).toBe('Hola, Laura');
+  });
+  it('la cuadrícula tiene filas iguales: todas las tarjetas miden lo mismo, como en Figma (Inicio)', () => {
+    const grid = cards(render())[0]?.parentElement as HTMLElement;
+
+    expect(declared(grid, 'display')).toBe('grid');
+    expect(declared(grid, 'grid-auto-rows')).toBe('1fr');
   });
 });
