@@ -1,5 +1,5 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import AxeBuilder from '@axe-core/playwright';
@@ -15,16 +15,16 @@ export async function enPaginaDeAcceso(page: Page): Promise<void> {
 }
 
 /**
- * Envía un formulario de Keycloak y espera su respuesta. Así lo que se compruebe después es la página nueva, no el
- * mensaje que quedó del intento anterior.
+ * Envía un formulario de Keycloak y espera a que el navegador cargue la página que responde, sea la misma con un
+ * error o la redirección a LIV. Así lo que se compruebe después es la página nueva, no lo que quedó del intento
+ * anterior: la marca que se pone en la página actual desaparece solo cuando la reemplaza otra.
  */
 export async function enviar(page: Page, boton = '#kc-login'): Promise<void> {
-  await Promise.all([
-    page.waitForResponse(
-      (r) => r.request().method() === 'POST' && r.url().startsWith(`${KEYCLOAK_URL}/realms/liv/login-actions/`),
-    ),
-    page.locator(boton).click(),
-  ]);
+  await page.evaluate(() => {
+    (window as unknown as { livPaginaAnterior?: boolean }).livPaginaAnterior = true;
+  });
+  await page.locator(boton).click();
+  await page.waitForFunction(() => !(window as unknown as { livPaginaAnterior?: boolean }).livPaginaAnterior);
   await page.waitForLoadState();
 }
 
@@ -37,17 +37,28 @@ export async function ingresar(page: Page, usuario: string, clave = CLAVE): Prom
 }
 
 /**
- * Intervalo de 30 s del último código que se usó: Keycloak no acepta el mismo código dos veces. Va en un archivo, no
- * en memoria, porque Playwright reinicia el proceso de las pruebas después de un fallo, y también lo leen las
- * corridas que se hacen una tras otra.
+ * Intervalo de 30 s del último código que se usó con cada clave: Keycloak no acepta el mismo código dos veces. Va en
+ * un archivo de `resultados/`, no en memoria, porque Playwright reinicia el proceso de las pruebas después de un
+ * fallo; Playwright vacía esa carpeta al empezar cada corrida, cuando los usuarios ya son otros.
  */
-const ARCHIVO_ULTIMO_INTERVALO = join(tmpdir(), 'liv-e2e-ultimo-intervalo-totp');
+function archivoDelIntervalo(secreto: string | Buffer): string {
+  const huella = createHash('sha256').update(secreto).digest('hex').slice(0, 12);
+  return join(test.info().project.outputDir, `.ultimo-intervalo-totp-${huella}`);
+}
 
-function ultimoIntervalo(): number {
+function ultimoIntervalo(secreto: string | Buffer): number {
   try {
-    return Number(readFileSync(ARCHIVO_ULTIMO_INTERVALO, 'utf8'));
+    return Number(readFileSync(archivoDelIntervalo(secreto), 'utf8'));
   } catch {
     return -1;
+  }
+}
+
+function anotarIntervalo(secreto: string | Buffer, intervalo: number): void {
+  try {
+    writeFileSync(archivoDelIntervalo(secreto), String(intervalo));
+  } catch {
+    // Sin el archivo, una prueba posterior puede repetir el código y fallar; el informe lo dirá.
   }
 }
 
@@ -59,11 +70,11 @@ function ultimoIntervalo(): number {
 export async function codigoVigente(page: Page, secreto: string | Buffer = TOTP_SECRETO): Promise<string> {
   const intervalo = () => Math.floor(Date.now() / 30_000);
   const restante = 30_000 - (Date.now() % 30_000);
-  if (restante < 3_000 || intervalo() === ultimoIntervalo()) {
+  if (restante < 3_000 || intervalo() === ultimoIntervalo(secreto)) {
     test.info().setTimeout(test.info().timeout + restante + 1_000);
     await page.waitForTimeout(restante + 200);
   }
-  writeFileSync(ARCHIVO_ULTIMO_INTERVALO, String(intervalo()));
+  anotarIntervalo(secreto, intervalo());
   return codigoTotp(secreto);
 }
 

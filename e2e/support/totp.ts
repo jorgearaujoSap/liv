@@ -15,7 +15,11 @@ export function codigoTotp(secreto: string | Buffer, instante = Date.now()): str
   return numero.toString().padStart(6, '0');
 }
 
-/** Un código de 6 dígitos que con seguridad no es el que vale ahora: el válido con cada cifra cambiada. */
+/**
+ * Un código de 6 dígitos que no es el válido: el mismo con cada cifra cambiada. Keycloak también acepta el código del
+ * intervalo anterior y el del siguiente; que coincida con uno de ellos es tan improbable (unas 2 en un millón) que no
+ * se descarta.
+ */
 export function codigoIncorrecto(valido: string): string {
   return [...valido].map((cifra) => String((Number(cifra) + 5) % 10)).join('');
 }
