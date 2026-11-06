@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 import { enPaginaDeAcceso, entrarComo } from '../support/acceso';
+import { BASE_URL } from '../support/entorno';
 
 test.describe('Sesión en el navegador', () => {
-  test('001-11 · El navegador no guarda ningún token: solo la cookie de sesión, HttpOnly y SameSite=Strict', async ({
+  test('001-11 · El navegador no guarda ningún token: solo la cookie de sesión, HttpOnly, Secure y SameSite=Strict', async ({
     page,
     context,
   }) => {
@@ -16,16 +17,18 @@ test.describe('Sesión en el navegador', () => {
     expect(almacenado.local).not.toMatch(/eyJ/);
     expect(almacenado.sesion).not.toMatch(/eyJ/);
 
-    const cookies = await context.cookies('http://localhost:4200');
+    const cookies = await context.cookies(BASE_URL);
+    expect(cookies.length).toBeGreaterThan(0);
     for (const cookie of cookies) {
       expect(cookie.value, cookie.name).not.toMatch(/^eyJ/);
     }
     const sesion = cookies.find((cookie) => cookie.name === 'LIV_SESSION');
     expect(sesion?.httpOnly).toBe(true);
+    expect(sesion?.secure).toBe(true);
     expect(sesion?.sameSite).toBe('Strict');
   });
 
-  test('001-09 · «Salir» cierra la sesión, la URL de cierre no lleva tokens y «atrás» no muestra datos', async ({
+  test('001-09 · «Salir» cierra la sesión, la URL de cierre no lleva tokens, «atrás» no muestra datos y lo demás pide entrar', async ({
     page,
   }) => {
     await entrarComo(page, 'dev.consulta');
@@ -45,6 +48,9 @@ test.describe('Sesión en el navegador', () => {
     await page.goBack();
     await enPaginaDeAcceso(page);
     await expect(page.getByText('Hola,')).toHaveCount(0);
+
+    await page.goto('/opcion/1.4');
+    await enPaginaDeAcceso(page);
   });
 
   test('001-12 · Una petición que modifica datos sin el token anti-CSRF se rechaza con 403 y code 001-12', async ({

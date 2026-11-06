@@ -23,6 +23,8 @@ export const USUARIOS_E2E = {
   totp: 'e2e.totp',
   /** Se bloquea a propósito en la prueba del bloqueo (001-04). */
   bloqueo: 'e2e.bloqueo',
+  /** Administrador sin segundo factor: lo configura en su primer ingreso (001-06). */
+  alta: 'e2e.alta',
 } as const;
 
 /** Secreto TOTP ficticio del usuario `e2e.totp`, solo para estas pruebas. */

@@ -22,7 +22,7 @@ test.describe('Inicio y estructura general', () => {
     await expect(page).toHaveScreenshot('inicio-consulta.png', { fullPage: true });
   });
 
-  test('001-02 · Las tarjetas de módulos miden todas lo mismo, como en Figma (352×158)', async ({ page }) => {
+  test('001-02 · Las tarjetas de módulos miden todas lo mismo, como en Figma', async ({ page }) => {
     await entrarComo(page, 'dev.consulta');
 
     const altos = await page

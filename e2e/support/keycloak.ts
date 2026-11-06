@@ -71,7 +71,11 @@ async function crear(token: string, cuerpo: ReturnType<typeof usuario>, rol: str
     throw new Error(`No se pudo crear ${cuerpo.username} en Keycloak (${creado.status}): ${await creado.text()}`);
   }
   const id = await idDe(token, cuerpo.username);
-  const rolRep = await (await admin(token, 'GET', `/roles/${rol}`)).json();
+  const respuestaRol = await admin(token, 'GET', `/roles/${rol}`);
+  if (!respuestaRol.ok) {
+    throw new Error(`No existe el rol ${rol} en el realm liv (${respuestaRol.status})`);
+  }
+  const rolRep = await respuestaRol.json();
   const asignado = await admin(token, 'POST', `/users/${id}/role-mappings/realm`, [rolRep]);
   if (!asignado.ok) {
     throw new Error(`No se pudo dar el rol ${rol} a ${cuerpo.username} (${asignado.status})`);
@@ -80,10 +84,22 @@ async function crear(token: string, cuerpo: ReturnType<typeof usuario>, rol: str
 
 const clave = { type: 'password', value: CLAVE, temporary: false };
 
-/** Crea de nuevo los usuarios de las pruebas: si quedaron de una corrida anterior, los borra antes. */
+/**
+ * Crea de nuevo los usuarios de las pruebas: si quedaron de una corrida anterior, los borra antes. Si algo falla, los
+ * borra todos, porque Playwright no corre `limpiar.ts` cuando falla `preparar.ts`.
+ */
 export async function prepararUsuarios(): Promise<void> {
   const token = await tokenAdmin();
   await limpiarConToken(token);
+  try {
+    await crearUsuarios(token);
+  } catch (error) {
+    await limpiarConToken(token);
+    throw error;
+  }
+}
+
+async function crearUsuarios(token: string): Promise<void> {
   await crear(
     token,
     usuario(USUARIOS_E2E.totp, 'Tomás', [
@@ -104,6 +120,7 @@ export async function prepararUsuarios(): Promise<void> {
     'ADMIN_SISTEMA',
   );
   await crear(token, usuario(USUARIOS_E2E.bloqueo, 'Berta', [clave]), 'CONSULTA');
+  await crear(token, usuario(USUARIOS_E2E.alta, 'Ana', [clave]), 'ADMIN_SISTEMA');
 }
 
 async function limpiarConToken(token: string): Promise<void> {
