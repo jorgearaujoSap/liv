@@ -6,6 +6,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Núcleo de sesión (`src/app/core/`, feature 001, T21):
+  - `SessionService` sobre `BffApi` (estado de la sesión sin extenderla, `keepalive` y cierre de sesión con navegación completa), `authGuard` con `returnTo` (001-01) y `capabilityGuard` sobre `PlatformApi` con 403 y «Próximamente» (001-16). Las rutas a las que llevan (`/sin-permiso`, `/proximamente`, `/error`) están en `app-paths.ts`; sus pantallas son de T22.
+  - Interceptor de la API (`provideLivHttp()`): `X-Correlation-Id`, token anti-CSRF (cookie `XSRF-TOKEN` a `X-XSRF-TOKEN`, 001-12), reintento tras un 401 **una vez y solo en lecturas o con `Idempotency-Key`**, y recarga de capacidades tras un 403.
+  - `IdleService` (001-22): avisa 2 minutos antes de que venza la sesión (a los 13 de 15) con una sola consulta a `/bff/session`, sin sondeo y sin tocar `/api`; aviso aparte a 5 minutos de las 8 horas; sincroniza las pestañas con `BroadcastChannel`.
+- `nginx.conf` (CSP, HSTS, `Referrer-Policy`, `nosniff`, `Cache-Control: no-store` salvo los archivos con hash; la API y el BFF responden 404) y `Dockerfile` en dos etapas con `nginx-unprivileged` fijado por digest. `.dockerignore`.
 - Contratos `core`, `platform` y `bff` 1.0.0, publicados como *releases* de GitHub (ADR 0027), fijados con su SHA-256 en `api-spec/versions.json`. `npm run api:update` los descarga y verifica, y genera con `ng-openapi-gen` 1.1.0 el cliente de `src/app/api/{core,platform,bff}/`. El detalle está en el `README.md`.
 - `proxy.conf.json` para `npm start`: `/bff`, `/api` y `/login/oauth2` van al BFF en `localhost:8081`.
 - Regla de ESLint: `HttpClient`, `HttpBackend`, `fetch`, `XMLHttpRequest` y el `import()` de `@angular/common/http` solo en las carpetas de los contratos de `src/app/api/`.
