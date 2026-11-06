@@ -500,6 +500,34 @@ describe('NavItem', () => {
       fixture.destroy();
     });
 
+    it('no dibuja icono aunque se le dé uno', () => {
+      const { control } = render({ type: 'subgroup', icon: 'car', href: undefined });
+      expect(control.querySelector('.nav-item__icon')).toBeNull();
+      expect(control.querySelector('liv-icon[class*="nav-item__icon"]')).toBeNull();
+    });
+
+    it('cerrado no declara aria-controls: no apunta a una lista que no está en el DOM', () => {
+      const { branch, root } = renderLevels();
+      expect(branch.hasAttribute('aria-controls')).toBe(false);
+      expect(root.querySelector('#branch .nav-item__children')).toBeNull();
+    });
+
+    it('no hereda el fondo de Active del módulo que lo contiene', () => {
+      const { branch, control } = renderLevels();
+      for (const element of [branch, control('plain')]) {
+        expect(
+          usesToken(getComputedStyle(element).backgroundColor, '--color-action-primary-subtle'),
+        ).toBe(false);
+      }
+    });
+
+    it('Default usa el texto label/md; Active, body/md-strong', () => {
+      const { branch } = renderLevels();
+      expect(declaredStyle(branch, 'font-size')).toContain('--text-label-md');
+      const active = renderLevels({ branchActive: true }).branch;
+      expect(declaredStyle(active, 'font-size')).toContain('--text-body-md-strong');
+    });
+
     it('Default usa text-secondary (no el text-primary de un módulo) y el chevron text-muted', () => {
       const { branch } = renderLevels();
       const label = branch.querySelector('.nav-item__label') as HTMLElement;
@@ -517,7 +545,7 @@ describe('NavItem', () => {
       expect(branch.hasAttribute('aria-current')).toBe(false);
       const style = getComputedStyle(branch);
       expect(usesToken(style.backgroundColor, '--color-action-primary-subtle')).toBe(false);
-      expect(declaredStyle(branch, 'background-color')).not.toContain('action-primary-subtle');
+      expect(declaredStyle(branch, 'background-color')).toContain('transparent');
       const label = branch.querySelector('.nav-item__label') as HTMLElement;
       expect(usesToken(getComputedStyle(label).color, '--color-action-primary')).toBe(true);
     });
@@ -528,13 +556,28 @@ describe('NavItem', () => {
       expect(usesToken(getComputedStyle(chevron).color, '--color-text-muted')).toBe(true);
     });
 
-    it('Active no pinta a sus opciones de tercer nivel', () => {
+    it('Active no pinta a sus opciones de tercer nivel, pero la actual conserva su fondo', () => {
       const { control } = renderLevels({ branchActive: true, branchExpanded: true });
       for (const id of ['n1', 'n6']) {
         const style = getComputedStyle(control(id));
         expect(usesToken(style.backgroundColor, '--color-action-primary-subtle')).toBe(false);
         expect(usesToken(style.color, '--color-action-primary')).toBe(false);
       }
+      // La regla de Active del subgrupo es solo para su propio control (`>`): no quita el fondo de la actual.
+      expect(control('n3').getAttribute('aria-current')).toBe('page');
+      expect(
+        usesToken(getComputedStyle(control('n3')).backgroundColor, '--color-action-primary-subtle'),
+      ).toBe(true);
+      const label = control('n3').querySelector('.nav-item__label') as HTMLElement;
+      expect(usesToken(getComputedStyle(label).color, '--color-action-primary')).toBe(true);
+    });
+
+    it('Active y Disabled a la vez: texto text-disabled, sin chevron ni aria-current', () => {
+      const { branch } = renderLevels({ branchActive: true, branchDisabled: true });
+      expect(branch.hasAttribute('aria-current')).toBe(false);
+      expect(branch.querySelector('.nav-item__chevron')).toBeNull();
+      const label = branch.querySelector('.nav-item__label') as HTMLElement;
+      expect(usesToken(getComputedStyle(label).color, '--color-text-disabled')).toBe(true);
     });
 
     it('Disabled no se expande, no muestra el chevron y declara aria-disabled', () => {
@@ -593,6 +636,22 @@ describe('NavItem', () => {
       ).toBe(true);
       const current = control('n3').querySelector('.nav-item__label') as HTMLElement;
       expect(usesToken(getComputedStyle(current).color, '--color-action-primary')).toBe(true);
+    });
+
+    it('pinta el anillo focus/ring solo con el foco del teclado', () => {
+      const { control } = renderLevels({ branchExpanded: true });
+      const ring = cssVariable(theme, '--shadow-focus-ring');
+      expect(paintsShadow(control('n1'), ring)).toBe(false);
+      focusWithKeyboard(control('n1'));
+      expect(paintsShadow(control('n1'), ring)).toBe(true);
+    });
+
+    it('Active y Disabled a la vez: texto text-disabled y sin aria-current (no hay destino)', () => {
+      const { control } = render({ type: 'nested', active: true, disabled: true });
+      expect(control.hasAttribute('aria-current')).toBe(false);
+      expect(control.hasAttribute('href')).toBe(false);
+      const label = control.querySelector('.nav-item__label') as HTMLElement;
+      expect(usesToken(getComputedStyle(label).color, '--color-text-disabled')).toBe(true);
     });
 
     it('Disabled declara aria-disabled, no tiene href, no navega y usa text-disabled', () => {
