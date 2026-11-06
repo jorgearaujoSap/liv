@@ -42,7 +42,7 @@ Se elige la opción 3.
   - axe en cada pantalla;
   - las medidas del diseño que importan.
 - **Cómo se usa:** las pruebas se escriben primero, en rojo, con la feature. El agente las corre al validar la feature y pone el resultado en el PR, y además revisa la pantalla en el navegador contra el diseño de Figma (*skill* `liv-sdd-feature`, paso 7). No hay CI de e2e por ahora.
-- **Dependencias:** `@playwright/test`, `@axe-core/playwright` y `otplib`, ya aprobadas en el ADR 0023 para `e2e/`.
+- **Dependencias:** `@playwright/test` y `@axe-core/playwright`, ya aprobadas en el ADR 0023 para `e2e/`. `otplib`, aprobada también allí, no hizo falta: el código TOTP se calcula con `node:crypto` de Node (RFC 6238).
 - **Datos de prueba:** los usuarios ficticios de `backend/dev/keycloak/`. Los que necesitan un TOTP conocido o se bloquean los crean las pruebas al empezar, con la API de administración de Keycloak del entorno local, y los borran al terminar. No van a la capa de desarrollo, donde `keycloak-config-cli` duplicaría el TOTP al reaplicarla.
 - **Antes de producción:** IN‑09 se cumple completa. Eso incluye las imágenes publicadas, el `compose` de `infra/` con Caddy y TLS, los usuarios de e2e de `infra/keycloak/` y el CI de e2e. Queda como T24 de la feature 001, junto a T19. **No se despliega a producción sin T19 ni T24.**
 - **F0‑12:** en la Fase 0 se cumple con el e2e local de T23; la versión en CI llega con T24.
