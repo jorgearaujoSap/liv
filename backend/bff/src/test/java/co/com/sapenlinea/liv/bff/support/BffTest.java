@@ -50,6 +50,11 @@ public abstract class BffTest {
   void startClean() throws SQLException {
     BACKEND.reset();
     BffDatabase.execute(BffDatabase.jdbcUrl(), BffDatabase.OWNER, "DELETE FROM bff.spring_session");
+    BffDatabase.execute(
+        BffDatabase.jdbcUrl(),
+        BffDatabase.OWNER,
+        "DO $$ BEGIN IF to_regclass('bff.oidc_session') IS NOT NULL THEN"
+            + " DELETE FROM bff.oidc_session; END IF; END $$");
   }
 
   /** Waits: the tests of the session limits run on real time, with limits of a few seconds. */
