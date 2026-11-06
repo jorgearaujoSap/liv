@@ -140,6 +140,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
     - los valores de `status` y `entity_type`;
     - los esquemas técnicos `platform` y `bff`.
   - **Doc. 01 versión 0.3:** la matriz de permisos de consulta del menú (§4.1).
+  - **`AGENTS.md` §3.1** (aprobado por el responsable): el ERD tiene 65 tablas en 9 esquemas funcionales, más los técnicos `platform` y `bff`.
   - **Glosario (`docs/arquitectura/01` §15):** usuario funcionario, sesión, motivo de fin de sesión, rol y permiso, capacidades, evento de auditoría, proveedor de identidad, cierre por canal trasero, barrido de sesiones vencidas y límite de peticiones.
   - **Antes de producción, con T24:** imágenes, TLS, el e2e en CI, la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
 
