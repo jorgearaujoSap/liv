@@ -52,18 +52,15 @@ function parse(data: unknown): SessionMessage | undefined {
     return { type: 'ended' };
   }
   const status = message['status'] as Record<string, unknown> | undefined;
-  if (
-    message['type'] === 'extended' &&
-    typeof status?.['idleSecondsLeft'] === 'number' &&
-    typeof status['absoluteSecondsLeft'] === 'number'
-  ) {
-    return {
-      type: 'extended',
-      status: {
-        idleSecondsLeft: status['idleSecondsLeft'],
-        absoluteSecondsLeft: status['absoluteSecondsLeft'],
-      },
-    };
+  const idle = status?.['idleSecondsLeft'];
+  const absolute = status?.['absoluteSecondsLeft'];
+  if (message['type'] === 'extended' && isSeconds(idle) && isSeconds(absolute)) {
+    return { type: 'extended', status: { idleSecondsLeft: idle, absoluteSecondsLeft: absolute } };
   }
   return undefined;
+}
+
+/** Segundos que pueden venir de otra pestaña: un número finito y no negativo. */
+function isSeconds(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }

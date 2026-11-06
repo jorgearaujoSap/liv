@@ -1,10 +1,18 @@
-import { HttpErrorResponse, HttpEvent, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
+import {
+  HttpContext,
+  HttpErrorResponse,
+  HttpEvent,
+  HttpInterceptorFn,
+  HttpRequest,
+} from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, from, Observable, switchMap, throwError } from 'rxjs';
 
 import { APP_PATHS } from '../app-paths';
 import { CapabilityService } from '../capabilities/capability.service';
+import { currentUrl } from '../current-url';
+import { isOwnPath } from '../own-path';
 import { SessionService } from '../session/session.service';
 import { RETRIED_AFTER_UNAUTHORIZED, SKIP_FORBIDDEN_HANDLING } from './api-context';
 import { hasStatus } from './http-errors';
@@ -14,14 +22,12 @@ const CSRF_REJECTED = '001-12';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/** Una petición a una ruta de este mismo sitio (`/api/...`, `/bff/...`), nunca a otro origen. */
-function isOwnRequest(request: HttpRequest<unknown>): boolean {
-  return /^\/(?![/\\])/.test(request.url);
-}
+type Send = (request: HttpRequest<unknown>) => Observable<HttpEvent<unknown>>;
 
-/** Solo se reintenta lo que no cambia nada si llega dos veces: lecturas o peticiones con `Idempotency-Key`. */
-function canRetry(request: HttpRequest<unknown>): boolean {
-  return SAFE_METHODS.has(request.method) || request.headers.has('Idempotency-Key');
+interface Dependencies {
+  readonly session: SessionService;
+  readonly capabilities: CapabilityService;
+  readonly router: Router;
 }
 
 /**
@@ -38,77 +44,132 @@ function canRetry(request: HttpRequest<unknown>): boolean {
  * `XSRF-TOKEN` a `X-XSRF-TOKEN` en toda petición que modifica datos.
  */
 export const apiInterceptor: HttpInterceptorFn = (original, next) => {
-  const session = inject(SessionService);
-  const capabilities = inject(CapabilityService);
-  const router = inject(Router);
+  const dependencies: Dependencies = {
+    session: inject(SessionService),
+    capabilities: inject(CapabilityService),
+    router: inject(Router),
+  };
 
-  if (!isOwnRequest(original)) {
+  if (!isOwnPath(original.url)) {
     return next(original);
   }
   const isApi = original.url.startsWith('/api/');
 
-  const toLogin = (error: unknown): Observable<never> => {
-    session.redirectToLogin(router.url);
-    return throwError(() => error);
-  };
-
-  const recoverFromUnauthorized = (
-    request: HttpRequest<unknown>,
-    error: HttpErrorResponse,
-  ): Observable<HttpEvent<unknown>> => {
-    if (request.context.get(RETRIED_AFTER_UNAUTHORIZED)) {
-      return toLogin(error);
-    }
-    return from(session.status().catch(() => undefined)).pipe(
-      switchMap((status) => {
-        if (status === undefined) {
-          // No se pudo averiguar: no se inicia sesión ni se reintenta a ciegas.
-          return throwError(() => error);
-        }
-        if (status === null || !canRetry(request)) {
-          return toLogin(error);
-        }
-        return send(
-          request.clone({ context: request.context.set(RETRIED_AFTER_UNAUTHORIZED, true) }),
-        );
-      }),
-    );
-  };
-
-  const recoverFromForbidden = (
-    request: HttpRequest<unknown>,
-    error: HttpErrorResponse,
-  ): Observable<never> => {
-    const rejectedByCsrf = (error.error as { code?: unknown } | null)?.code === CSRF_REJECTED;
-    if (rejectedByCsrf || request.context.get(SKIP_FORBIDDEN_HANDLING)) {
-      return throwError(() => error);
-    }
-    return from(
-      (async () => {
-        await capabilities.reload().catch(() => undefined);
-        if (router.url !== APP_PATHS.forbidden) {
-          await router.navigateByUrl(APP_PATHS.forbidden).catch(() => undefined);
-        }
-      })(),
-    ).pipe(switchMap(() => throwError(() => error)));
-  };
-
-  const send = (request: HttpRequest<unknown>): Observable<HttpEvent<unknown>> =>
+  const send: Send = (request) =>
     next(request).pipe(
       catchError((error: unknown) => {
         if (isApi && hasStatus(error, 401)) {
-          return recoverFromUnauthorized(request, error as HttpErrorResponse);
+          return recoverFromUnauthorized(dependencies, request, error as HttpErrorResponse, send);
         }
         if (isApi && hasStatus(error, 403)) {
-          return recoverFromForbidden(request, error as HttpErrorResponse);
+          return recoverFromForbidden(dependencies, request, error as HttpErrorResponse);
         }
         return throwError(() => error);
       }),
     );
 
-  return send(
-    original.headers.has('X-Correlation-Id')
-      ? original
-      : original.clone({ setHeaders: { 'X-Correlation-Id': crypto.randomUUID() } }),
-  );
+  return send(withCorrelationId(original));
 };
+
+function withCorrelationId(request: HttpRequest<unknown>): HttpRequest<unknown> {
+  const id = request.headers.has('X-Correlation-Id') ? undefined : newCorrelationId();
+  return id ? request.clone({ setHeaders: { 'X-Correlation-Id': id } }) : request;
+}
+
+/**
+ * Un UUID v4. `crypto.randomUUID` solo existe en páginas seguras (HTTPS o localhost): en otro contexto se
+ * arma con `getRandomValues`. El identificador es solo de trazabilidad y nunca debe impedir la petición.
+ */
+function newCorrelationId(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Solo se reintenta lo que no cambia nada si llega dos veces: lecturas o peticiones con `Idempotency-Key`. */
+function canRetry(request: HttpRequest<unknown>): boolean {
+  return SAFE_METHODS.has(request.method) || request.headers.has('Idempotency-Key');
+}
+
+/** Lo mismo, pero marcada como ya reintentada. Con un contexto nuevo: el de quien llamó no se toca. */
+function markedAsRetried(request: HttpRequest<unknown>): HttpRequest<unknown> {
+  const context = new HttpContext();
+  for (const key of request.context.keys()) {
+    context.set(key, request.context.get(key));
+  }
+  return request.clone({ context: context.set(RETRIED_AFTER_UNAUTHORIZED, true) });
+}
+
+function toLogin({ session, router }: Dependencies, error: unknown): Observable<never> {
+  session.redirectToLogin(currentUrl(router));
+  return throwError(() => error);
+}
+
+function recoverFromUnauthorized(
+  dependencies: Dependencies,
+  request: HttpRequest<unknown>,
+  error: HttpErrorResponse,
+  send: Send,
+): Observable<HttpEvent<unknown>> {
+  if (request.context.get(RETRIED_AFTER_UNAUTHORIZED)) {
+    return toLogin(dependencies, error);
+  }
+  // `undefined`: no se pudo averiguar si hay sesión. `null`: se averiguó y no hay.
+  return from(dependencies.session.status().catch(() => undefined)).pipe(
+    switchMap((status) => {
+      if (status === undefined) {
+        // No se inicia sesión ni se reintenta a ciegas.
+        return throwError(() => error);
+      }
+      if (status === null || !canRetry(request)) {
+        return toLogin(dependencies, error);
+      }
+      return send(markedAsRetried(request));
+    }),
+  );
+}
+
+/**
+ * El cuerpo del 403 es un Problem Details. Si la respuesta se esperaba como archivo (`blob`) o texto, el
+ * cuerpo no está leído: se lee para poder distinguir el rechazo anti-CSRF.
+ */
+async function isCsrfRejection(error: HttpErrorResponse): Promise<boolean> {
+  let body: unknown = error.error;
+  try {
+    if (body instanceof Blob) {
+      body = await body.text();
+    }
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
+  } catch {
+    return false;
+  }
+  return (body as { code?: unknown } | null)?.code === CSRF_REJECTED;
+}
+
+function recoverFromForbidden(
+  { capabilities, router }: Dependencies,
+  request: HttpRequest<unknown>,
+  error: HttpErrorResponse,
+): Observable<never> {
+  if (request.context.get(SKIP_FORBIDDEN_HANDLING)) {
+    return throwError(() => error);
+  }
+  return from(
+    (async () => {
+      if (await isCsrfRejection(error)) {
+        return;
+      }
+      await capabilities.reload().catch(() => undefined);
+      if (router.url !== APP_PATHS.forbidden) {
+        await router.navigateByUrl(APP_PATHS.forbidden).catch(() => undefined);
+      }
+    })(),
+  ).pipe(switchMap(() => throwError(() => error)));
+}

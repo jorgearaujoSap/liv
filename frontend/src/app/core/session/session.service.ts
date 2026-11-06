@@ -6,15 +6,12 @@ import type { SessionStatus } from '../../api/bff/models';
 import { LOGIN_PATH } from '../app-paths';
 import { BrowserNavigation } from '../browser/browser-navigation.service';
 import { hasStatus } from '../http/http-errors';
+import { withTimeout } from '../http/with-timeout';
+import { isOwnPath, isReturnTarget } from '../own-path';
 import { SessionChannel } from './session-channel';
 
-/**
- * Una ruta propia de LIV: empieza por una sola `/` y no lleva `\`, con lo que ningún navegador la toma
- * por otro sitio. El BFF repite la validación de `returnTo`; esta evita siquiera pedirle otra cosa.
- */
-function isOwnPath(path: string): boolean {
-  return /^\/(?![/\\])[^\\]*$/.test(path);
-}
+/** Lo que se espera al BFF antes de darlo por caído. */
+const BFF_TIMEOUT_MS = 10_000;
 
 /**
  * La sesión del BFF vista desde el navegador (feature 001): lo que le queda, seguir conectado, salir
@@ -26,25 +23,23 @@ export class SessionService {
   private readonly navigation = inject(BrowserNavigation);
   private readonly channel = inject(SessionChannel);
 
+  private pendingStatus?: Promise<SessionStatus | null>;
+  private redirecting = false;
+
   /**
    * Lo que le queda a la sesión, sin extenderla (`GET /bff/session`). `null` si no hay sesión abierta.
-   * Cualquier otro fallo se propaga: no saber no es lo mismo que no tener sesión.
+   * Cualquier otro fallo se propaga: no saber no es lo mismo que no tener sesión. Varias llamadas a la
+   * vez (p. ej. varios 401) comparten una sola petición.
    */
-  async status(): Promise<SessionStatus | null> {
-    try {
-      return await this.bff.invoke(getSession);
-    } catch (error) {
-      if (hasStatus(error, 401)) {
-        return null;
-      }
-      throw error;
-    }
+  status(): Promise<SessionStatus | null> {
+    this.pendingStatus ??= this.fetchStatus().finally(() => (this.pendingStatus = undefined));
+    return this.pendingStatus;
   }
 
   /** La persona elige seguir conectada (001-22). `null` si la sesión ya no existe. */
   async keepAlive(): Promise<SessionStatus | null> {
     try {
-      return await this.bff.invoke(keepAliveSession);
+      return await withTimeout(this.bff.invoke(keepAliveSession), BFF_TIMEOUT_MS);
     } catch (error) {
       if (hasStatus(error, 401)) {
         return null;
@@ -61,7 +56,7 @@ export class SessionService {
   async logout(): Promise<void> {
     let target: string = LOGIN_PATH;
     try {
-      const result = await this.bff.invoke(logout);
+      const result = await withTimeout(this.bff.invoke(logout), BFF_TIMEOUT_MS);
       if (isOwnPath(result.redirectTo)) {
         target = result.redirectTo;
       }
@@ -72,9 +67,32 @@ export class SessionService {
     this.navigation.replace(target);
   }
 
-  /** Lleva a iniciar sesión y, al autenticarse, de vuelta a `returnTo` (001-01). */
+  /**
+   * Lleva a iniciar sesión y, al autenticarse, de vuelta a `returnTo` (001-01). Solo actúa la primera
+   * vez: si varias cosas lo piden a la vez (la guarda y un 401), vale la ruta del primero.
+   */
   redirectToLogin(returnTo: string): void {
-    const safe = isOwnPath(returnTo) ? returnTo : '/';
-    this.navigation.replace(`${LOGIN_PATH}?returnTo=${encodeURIComponent(safe)}`);
+    if (this.redirecting) {
+      return;
+    }
+    this.redirecting = true;
+    const target = isReturnTarget(returnTo) ? returnTo : '/';
+    this.navigation.replace(`${LOGIN_PATH}?returnTo=${encodeURIComponent(target)}`);
+  }
+
+  /** Recarga la aplicación desde el inicio, con la sesión que haya. */
+  restart(): void {
+    this.navigation.replace('/');
+  }
+
+  private async fetchStatus(): Promise<SessionStatus | null> {
+    try {
+      return await withTimeout(this.bff.invoke(getSession), BFF_TIMEOUT_MS);
+    } catch (error) {
+      if (hasStatus(error, 401)) {
+        return null;
+      }
+      throw error;
+    }
   }
 }

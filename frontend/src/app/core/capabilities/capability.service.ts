@@ -14,6 +14,9 @@ import { SKIP_FORBIDDEN_HANDLING } from '../http/api-context';
 export class CapabilityService {
   private readonly platform = inject(PlatformApi);
   private pending?: Promise<Capabilities>;
+  private reloading?: Promise<Capabilities>;
+  /** Número de la última petición: una respuesta de una anterior no pisa a la más reciente. */
+  private latest = 0;
 
   private readonly current = signal<Capabilities | undefined>(undefined);
   /** Lo último que se cargó; `undefined` mientras no se haya cargado. */
@@ -21,14 +24,18 @@ export class CapabilityService {
 
   /** Las capacidades, cargadas una sola vez; un fallo no se guarda y el próximo intento vuelve a pedirlas. */
   load(): Promise<Capabilities> {
-    this.pending ??= this.fetch();
+    this.pending ??= this.request();
     return this.pending;
   }
 
-  /** Vuelve a pedirlas, por ejemplo tras un 403: los permisos pudieron cambiar. */
+  /**
+   * Vuelve a pedirlas, por ejemplo tras un 403: los permisos pudieron cambiar. Varias recargas a la vez
+   * comparten una sola petición.
+   */
   reload(): Promise<Capabilities> {
-    this.pending = this.fetch();
-    return this.pending;
+    this.reloading ??= this.request().finally(() => (this.reloading = undefined));
+    this.pending = this.reloading;
+    return this.reloading;
   }
 
   /** Busca una opción por su código (`1`, `1.5` o `1.5.9`) en lo ya cargado. */
@@ -36,7 +43,8 @@ export class CapabilityService {
     return search(this.current()?.items ?? [], code);
   }
 
-  private async fetch(): Promise<Capabilities> {
+  private async request(): Promise<Capabilities> {
+    const number = ++this.latest;
     try {
       const capabilities = await this.platform.invoke(
         getCapabilities,
@@ -44,10 +52,14 @@ export class CapabilityService {
         // Un 403 de esta misma petición no debe volver a pedir las capacidades.
         new HttpContext().set(SKIP_FORBIDDEN_HANDLING, true),
       );
-      this.current.set(capabilities);
+      if (number === this.latest) {
+        this.current.set(capabilities);
+      }
       return capabilities;
     } catch (error) {
-      this.pending = undefined;
+      if (number === this.latest) {
+        this.pending = undefined;
+      }
       throw error;
     }
   }

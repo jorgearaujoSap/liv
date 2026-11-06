@@ -9,3 +9,8 @@ Dockerfile
 .dockerignore
 *.md
 scripts
+.env*
+*.pem
+*.key
+coverage
+.npmrc
