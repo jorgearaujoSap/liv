@@ -28,3 +28,16 @@ liv:
       # backend falso, y uno en caché barrería las sesiones de otra prueba con sus propios límites. Lo encienden
       # solo las pruebas del barrido, con un contexto propio que se cierra al terminar.
       sweep-interval: 1h
+    # Todas las pruebas piden desde la misma dirección y comparten contextos: los límites reales las cortarían.
+    # Los mide RateLimitTest, con los suyos.
+    rate-limits:
+      replicas: 1
+      per-user:
+        requests: 1000000
+        per: 1m
+      per-ip:
+        requests: 1000000
+        per: 1m
+      sign-in:
+        requests: 1000000
+        per: 1m

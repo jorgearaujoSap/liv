@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -99,5 +100,35 @@ class ReturnToTest {
     String path = "/" + "a".repeat(2048);
     assertThat(ReturnTo.sanitize(path)).isEqualTo("/");
     assertThat(ReturnTo.sanitize("/" + "a".repeat(2047))).hasSize(2048);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "/opcion%2F1.4, /opcion%2F1.4",
+    "/resoluciones/RES-1%2F2026?vista=tabla, /resoluciones/RES-1%2F2026?vista=tabla",
+    "/consulta?siguiente=%2Fopcion, /consulta?siguiente=%2Fopcion",
+  })
+  @DisplayName(
+      "001-01 · Una ruta con %2F se acepta si, decodificada, sigue siendo una ruta de LIV, y vuelve tal como se pidió")
+  void acceptsAnEncodedSlashThatStaysInLiv(String target, String expected) {
+    assertThat(ReturnTo.sanitize(target)).isEqualTo(expected);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "%2F%2Fevil.example",
+        // No empieza por /: vuelto tal cual, el navegador lo leería relativo a la ruta de vuelta.
+        "%2Fopcion%2F1.4",
+        "%2F%5Cevil.example",
+        "/%2F%2Fevil.example",
+        "%2Fbff%2Flogin",
+        "/x%2F..%2Fbff/login",
+        "/x%2F%2E%2E%2Fbff/login",
+      })
+  @DisplayName(
+      "001-01 · Una ruta con %2F que, decodificada, sale de LIV o lleva al BFF se cambia por el inicio")
+  void refusesAnEncodedSlashThatLeavesLiv(String target) {
+    assertThat(ReturnTo.sanitize(target)).isEqualTo("/");
   }
 }

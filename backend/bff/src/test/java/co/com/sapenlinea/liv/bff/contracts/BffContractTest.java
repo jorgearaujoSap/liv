@@ -67,12 +67,12 @@ class BffContractTest {
   @Test
   @DisplayName("001-20 · Cada ruta declara su método y las respuestas que el BFF da")
   void eachRouteDeclaresItsAnswers() throws IOException {
-    assertThat(statuses("/bff/login", "get")).containsExactly("302");
+    assertThat(statuses("/bff/login", "get")).containsExactly("302", "429");
     assertThat(statuses("/bff/logout", "post")).containsExactly("200", "403");
     assertThat(statuses("/bff/backchannel-logout", "post")).containsExactly("200", "400", "503");
-    assertThat(statuses("/bff/session", "get")).containsExactly("200", "401");
+    assertThat(statuses("/bff/session", "get")).containsExactly("200", "401", "429");
     assertThat(statuses("/bff/session/keepalive", "post"))
-        .containsExactly("200", "401", "403", "502");
+        .containsExactly("200", "401", "403", "429", "502");
   }
 
   @Test

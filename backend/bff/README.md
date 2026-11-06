@@ -98,6 +98,8 @@ Todo llega por variables de entorno y los secretos y las URL no tienen valor por
 | `LIV_BFF_SERVICE_CLIENT_SECRET` | Secreto del cliente `liv-bff-service` (*client credentials*), para los endpoints internos de la API |
 | `LIV_API_URL` | Dirección interna de `liv-api` |
 | `LIV_BFF_SESSION_KEY` | Clave que cifra los *tokens* de la sesión: 32 bytes en base64 (AES-256-GCM). En AWS sale de Secrets Manager |
+| `LIV_BFF_TRUSTED_PROXIES` | Expresión regular con las direcciones del balanceador, las únicas cuyas `X-Forwarded-For` y `X-Forwarded-Proto` se aceptan (p. ej. `10[.]0[.]1[.][0-9]+`). Por omisión, solo la máquina local: detrás de un balanceador, sin ella todas las personas parecen venir de él y el BFF lo avisa al arrancar |
+| `LIV_BFF_REPLICAS` | Cuántas réplicas del BFF hay (por omisión, 1): cada una deja pasar su parte del límite de peticiones |
 
 Propiedades opcionales (`liv.bff.*`): `oidc.revocation-uri` (si el proveedor no publica `revocation_endpoint`), `oidc.redirect-uri` (por omisión `{baseUrl}/login/oauth2/code/{registrationId}`; detrás de un proxy hay que dar la dirección pública) y `api.connect-timeout` / `api.read-timeout` (2 s y 5 s).
 
