@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
+import org.springframework.session.Session;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -61,7 +62,22 @@ public final class EncryptedAuthorizedClientRepository implements OAuth2Authoriz
   public <T extends OAuth2AuthorizedClient> T loadAuthorizedClient(
       String registrationId, Authentication principal, HttpServletRequest request) {
     HttpSession session = request.getSession(false);
-    if (session == null || !(session.getAttribute(ATTRIBUTE) instanceof byte[] encrypted)) {
+    return session == null
+        ? null
+        : (T) load(session.getAttribute(ATTRIBUTE), registrationId, principal);
+  }
+
+  /**
+   * The tokens of a session read from the repository, without a request: the one a session that
+   * nobody came back to holds when it is ended (T19). Only the sign in client's.
+   */
+  public OAuth2AuthorizedClient loadFrom(Session session, Authentication principal) {
+    return load(session.getAttribute(ATTRIBUTE), OidcRegistrations.USER, principal);
+  }
+
+  private OAuth2AuthorizedClient load(
+      Object attribute, String registrationId, Authentication principal) {
+    if (!(attribute instanceof byte[] encrypted)) {
       return null;
     }
     Stored stored;
@@ -77,7 +93,7 @@ public final class EncryptedAuthorizedClientRepository implements OAuth2Authoriz
       return null;
     }
     ClientRegistration registration = registrations.findByRegistrationId(registrationId);
-    return registration == null ? null : (T) toClient(registration, stored);
+    return registration == null ? null : toClient(registration, stored);
   }
 
   @Override

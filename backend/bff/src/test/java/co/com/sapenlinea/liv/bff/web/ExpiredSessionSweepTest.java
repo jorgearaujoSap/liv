@@ -16,8 +16,7 @@ import org.springframework.test.context.TestPropertySource;
  * it expired, tells LIV (EndSession with {@code IDLE}), revokes it in the provider and deletes it.
  * Here the inactivity is 3 seconds and the sweep runs every second.
  */
-@TestPropertySource(
-    properties = {"spring.session.timeout=3s", "liv.bff.session.sweep-interval=1s"})
+@TestPropertySource(properties = {"spring.session.timeout=3s", "liv.bff.session.sweep-interval=1s"})
 class ExpiredSessionSweepTest extends BffFlowTest {
 
   @Test
@@ -43,7 +42,8 @@ class ExpiredSessionSweepTest extends BffFlowTest {
 
   @Test
   @Tag("001-10")
-  @DisplayName("001-10 · Un inicio de sesión que nadie terminó se borra al vencer, sin avisar a LIV")
+  @DisplayName(
+      "001-10 · Un inicio de sesión que nadie terminó se borra al vencer, sin avisar a LIV")
   void anUnfinishedSignInIsDeleted() throws SQLException {
     assertThat(browser().get(bffBase() + "/bff/login").status()).isEqualTo(302);
     assertThat(storedSessions()).isEqualTo(1);

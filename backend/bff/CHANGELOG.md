@@ -6,6 +6,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Fin de las sesiones vencidas aunque la persona no vuelva (feature 001, T19; 001-10, 001-18):
+  - un barrido cada `liv.bff.session.sweep-interval` (1 minuto) termina las sesiones vencidas por inactividad o por la duración máxima: `EndSession` con `IDLE` o `ABSOLUTE`, revocación del *refresh token* y borrado. Los inicios de sesión que nadie terminó se borran sin avisar a LIV;
+  - con varias réplicas, una sola barre a la vez (ShedLock 7.10.1, tabla `bff.shedlock`, migración `V202611061000`);
+  - la limpieza propia de Spring Session queda apagada (`spring.session.jdbc.cleanup-cron: "-"`), y una sesión que se lee ya vencida también termina así, en lugar de borrarse en silencio (`ClosingSessionRepository`).
 - Reenvío a la API, CSRF, límites de sesión y `keepalive` (feature 001, T18; 001-10, 001-12, 001-22):
   - `/api/**` va a `liv-api` con el *token* de acceso de la sesión (`TokenRelayFilter`, renovado si le queda menos de un minuto); no pasan la cookie, `X-User-Token`, el `Authorization` ni `X-XSRF-TOKEN` del navegador. `/internal/**` no se enruta (404). Con `invalid_grant` la sesión termina con `PROVIDER` y la respuesta es 401; si el proveedor no responde, 502;
   - CSRF con la cookie `XSRF-TOKEN` y la cabecera `X-XSRF-TOKEN` (solo la cabecera: no el parámetro `_csrf`), entregada también al iniciar sesión; sin el *token*, 403 con `code: 001-12`;

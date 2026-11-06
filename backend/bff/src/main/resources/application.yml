@@ -34,6 +34,9 @@ spring:
     jdbc:
       initialize-schema: never
       table-name: bff.SPRING_SESSION
+      # La limpieza propia de Spring Session borra las sesiones vencidas sin avisar a nadie. La reemplaza el
+      # barrido del BFF (ExpiredSessions, T19), que antes de borrarlas avisa a LIV y las revoca en el proveedor.
+      cleanup-cron: "-"
 
 server:
   port: ${SERVER_PORT:8081}

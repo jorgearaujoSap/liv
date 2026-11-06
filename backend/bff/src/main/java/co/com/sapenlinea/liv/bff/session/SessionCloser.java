@@ -4,9 +4,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.session.Session;
 
 /**
  * Ends what a session of a person still holds outside the BFF (plan, step 10): LIV is told
@@ -18,12 +20,16 @@ public final class SessionCloser {
 
   private static final Logger LOG = LoggerFactory.getLogger(SessionCloser.class);
 
-  private final OAuth2AuthorizedClientRepository clients;
+  /** Where Spring Security keeps the authentication in the session. */
+  private static final String SECURITY_CONTEXT =
+      HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
+
+  private final EncryptedAuthorizedClientRepository clients;
   private final InternalApiClient api;
   private final RefreshTokenRevoker revoker;
 
   public SessionCloser(
-      OAuth2AuthorizedClientRepository clients,
+      EncryptedAuthorizedClientRepository clients,
       InternalApiClient api,
       RefreshTokenRevoker revoker) {
     this.clients = clients;
@@ -56,6 +62,30 @@ public final class SessionCloser {
     } catch (RuntimeException e) {
       LOG.warn("No se pudieron leer los tokens de la sesión: {}", e.getClass().getSimpleName());
     }
+    endAndRevoke(session, client, reason);
+  }
+
+  /**
+   * The same for a session read from the repository, that nobody is using (T19): the sweep and a
+   * session found expired when it is read. A session without a person of LIV (a sign in that was
+   * never finished) has nothing to end outside the BFF. Deleting it is up to the caller.
+   */
+  public void close(Session stored, EndReason reason) {
+    if (!(stored.getAttribute(SECURITY_CONTEXT) instanceof SecurityContext context)
+        || !(context.getAuthentication() instanceof SessionAuthentication session)) {
+      return;
+    }
+    OAuth2AuthorizedClient client = null;
+    try {
+      client = clients.loadFrom(stored, session);
+    } catch (RuntimeException e) {
+      LOG.warn("No se pudieron leer los tokens de la sesión: {}", e.getClass().getSimpleName());
+    }
+    endAndRevoke(session, client, reason);
+  }
+
+  private void endAndRevoke(
+      SessionAuthentication session, OAuth2AuthorizedClient client, EndReason reason) {
     api.endSession(session.getPrincipal(), reason);
     if (client != null) {
       revoker.revoke(client);

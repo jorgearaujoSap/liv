@@ -26,6 +26,8 @@
     <spotless.version>3.10.4</spotless.version>
     <google-java-format.version>2.0.0</google-java-format.version>
     <openapi-diff.version>2.1.7</openapi-diff.version>
+    <!-- La misma versión que la API (backend/pom.xml). -->
+    <shedlock.version>7.10.1</shedlock.version>
   </properties>
 
   <dependencyManagement>
@@ -58,6 +60,18 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-session-jdbc</artifactId>
+    </dependency>
+    <!-- Barrido de las sesiones vencidas (T19, ADR 0023): con varias réplicas, una sola barre a la vez
+         (tabla bff.shedlock). -->
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-spring</artifactId>
+      <version>${shedlock.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>net.javacrumbs.shedlock</groupId>
+      <artifactId>shedlock-provider-jdbc-template</artifactId>
+      <version>${shedlock.version}</version>
     </dependency>
 
     <!-- Migraciones del esquema bff (ADR 0023): Flyway solo corre en los perfiles dev y test, como
