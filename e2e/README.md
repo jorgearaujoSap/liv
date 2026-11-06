@@ -35,7 +35,7 @@ Lo que todavía no cubren, y queda en otras pruebas:
 
 ## Aviso de inactividad (sesión corta)
 
-Con los 15 minutos reales, `pruebas/sesion-corta.spec.ts` tardaría más de un cuarto de hora, así que se omite salvo que se pida:
+Con los 15 minutos reales, `pruebas/sesion-corta.spec.ts` tardaría más de un cuarto de hora, así que se omite salvo que se pida: `npm test` la muestra como «skipped» (omitida), no como aprobada. Para correrla:
 
 1. Levanta el BFF con una sesión de 150 segundos: en el paso 3 de «Ejecutar LIV en local», `SPRING_SESSION_TIMEOUT=150s ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`.
 2. Desde `e2e/`: `LIV_E2E_SESION_CORTA=1 npx playwright test pruebas/sesion-corta.spec.ts` (unos 4 minutos).

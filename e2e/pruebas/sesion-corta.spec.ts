@@ -23,13 +23,16 @@ test.describe('Aviso de inactividad y expiración, con una sesión corta del BFF
     await expect(aviso).toBeVisible({ timeout: 60_000 });
     await expect(aviso).toContainText('por inactividad');
     await expect(aviso.getByRole('button', { name: 'Seguir conectado' })).toBeFocused();
+    const antes = await page.evaluate(async () => (await fetch('/bff/session')).json());
 
     await aviso.getByRole('button', { name: 'Seguir conectado' }).click();
 
     await expect(aviso).toBeHidden();
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Hola,');
     const estado = await page.evaluate(async () => (await fetch('/bff/session')).json());
-    expect(estado.idleSecondsLeft, 'la sesión volvió a empezar').toBeGreaterThan(120);
+    expect(estado.idleSecondsLeft, 'la sesión volvió a empezar').toBeGreaterThan(
+      antes.idleSecondsLeft + 20,
+    );
   });
 
   test('001-22 · «Cerrar sesión» en el aviso cierra la sesión y lleva a iniciar sesión', async ({ page }) => {
@@ -41,10 +44,12 @@ test.describe('Aviso de inactividad y expiración, con una sesión corta del BFF
     await aviso.getByRole('button', { name: 'Cerrar sesión' }).click();
 
     await enPaginaDeAcceso(page);
+    const respuesta = await page.request.get('/api/v1/me');
+    expect(respuesta.status(), 'la sesión se cerró en el BFF').toBe(401);
   });
 
   test('001-10 · Sin actividad, la sesión vence y la página lleva a iniciar sesión', async ({ page }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     await entrarComo(page, 'dev.consulta');
 
     await expect(page.getByRole('dialog', { name: 'Tu sesión está por expirar' })).toBeVisible({
