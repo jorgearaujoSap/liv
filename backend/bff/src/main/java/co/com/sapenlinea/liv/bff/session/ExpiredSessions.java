@@ -1,25 +1,14 @@
 package co.com.sapenlinea.liv.bff.session;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import co.com.sapenlinea.liv.bff.session.StoredSessions.Candidate;
+import co.com.sapenlinea.liv.bff.session.StoredSessions.Row;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.serializer.support.DeserializingConverter;
-import org.springframework.jdbc.core.JdbcOperations;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.transaction.support.TransactionOperations;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Ends the sessions that are over, inactivity or maximum duration, whether or not the person comes
@@ -31,15 +20,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * off, {@code spring.session.jdbc.cleanup-cron}) and when a session is read once expired; that is
  * why the repository asks here first ({@link ClosingSessionRepository}).
  *
- * <p>Only the sweep calls LIV and the provider: a request that finds its session expired leaves it
- * here and gets no session, so no request waits on them holding a connection. The sessions are read
- * straight from the tables of Spring Session, each one locked while it is ended ({@code FOR UPDATE
- * SKIP LOCKED}), so two replicas never end the same one at once, and one that cannot be
- * deserialized (a class changed in a deployment) is still deleted. The sign out and the maximum
- * duration checked on a request ({@code SessionCloser.closeAndDelete}) do not take that lock: if
- * one of them meets the sweep, LIV hears the end twice, which it accepts (EndSession is
- * idempotent). Its {@code expiry_time} is the end by inactivity; the maximum duration counts from
- * the moment LIV let the person in, never before the session was created.
+ * <p>Only the sweep calls LIV and the provider, and {@code /bff/login} before a new sign in: a
+ * request that finds its session expired leaves it here and gets no session, so no request waits on
+ * them holding a connection. Each session is ended locked ({@link StoredSessions}), so two replicas
+ * never end the same one at once. The sign out and the maximum duration checked on a request
+ * ({@code SessionCloser.closeAndDelete}) do not take that lock: if one of them meets the sweep, LIV
+ * hears the end twice, which it accepts (EndSession is idempotent). The maximum duration counts
+ * from the moment LIV let the person in, never before the session was created.
  */
 public final class ExpiredSessions {
 
@@ -48,44 +35,32 @@ public final class ExpiredSessions {
   /** Sessions read per query of the sweep; it goes on with the next ones while there are more. */
   static final int BATCH = 200;
 
-  private static final String SECURITY_CONTEXT =
-      HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
-
-  private final JdbcOperations jdbc;
-  private final TransactionOperations transaction;
+  private final StoredSessions stored;
   private final SessionCloser closer;
   private final Duration absolute;
   private final Duration budget;
   private final Duration giveUpAfter;
   private final Clock clock;
-  private final String table;
-  private final DeserializingConverter deserializer =
-      new DeserializingConverter(ExpiredSessions.class.getClassLoader());
 
   /**
    * @param budget how long one sweep may last; less than its lock, so that no other replica starts
    *     on the same sessions while this one is still at it
    * @param giveUpAfter how long a session whose end LIV or the provider keep failing is kept to try
    *     again; then it is deleted, with an error in the log
-   * @param table the table of Spring Session, {@code spring.session.jdbc.table-name}; its
-   *     attributes are in the one with the suffix {@code _ATTRIBUTES}
    */
   public ExpiredSessions(
-      DataSource dataSource,
+      StoredSessions stored,
       SessionCloser closer,
       Duration absolute,
       Duration budget,
       Duration giveUpAfter,
-      Clock clock,
-      String table) {
-    this.jdbc = new JdbcTemplate(dataSource);
-    this.transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+      Clock clock) {
+    this.stored = stored;
     this.closer = closer;
     this.absolute = absolute;
     this.budget = budget;
     this.giveUpAfter = giveUpAfter;
     this.clock = clock;
-    this.table = table;
   }
 
   /**
@@ -104,8 +79,7 @@ public final class ExpiredSessions {
     String afterId = "";
     List<Candidate> batch;
     do {
-      // By key, not by position: the sessions ended leave the table, the others stay behind.
-      batch = candidates(now, afterCreation, afterId);
+      batch = stored.candidates(now, now - absolute.toMillis(), afterCreation, afterId, BATCH);
       for (Candidate candidate : batch) {
         if (clock.millis() >= deadline) {
           LOG.warn("El barrido de sesiones vencidas agotó su tiempo; sigue en el próximo");
@@ -127,14 +101,7 @@ public final class ExpiredSessions {
    * sweep ends it, without the request waiting on LIV or the provider.
    */
   public boolean isExpired(String sessionId) {
-    return !jdbc.query(
-            "SELECT 1 FROM "
-                + table
-                + " WHERE session_id = ? AND principal_name IS NOT NULL AND expiry_time < ?",
-            (row, i) -> 1,
-            sessionId,
-            clock.millis())
-        .isEmpty();
+    return stored.isExpired(sessionId, clock.millis());
   }
 
   /**
@@ -153,15 +120,7 @@ public final class ExpiredSessions {
     try {
       int deleted;
       do {
-        deleted =
-            jdbc.update(
-                "DELETE FROM "
-                    + table
-                    + " WHERE primary_id IN (SELECT primary_id FROM "
-                    + table
-                    + " WHERE principal_name IS NULL AND expiry_time < ? LIMIT ?)",
-                now,
-                BATCH);
+        deleted = stored.deleteUnfinishedSignIns(now, BATCH);
       } while (deleted == BATCH && clock.millis() < deadline);
     } catch (RuntimeException e) {
       LOG.warn(
@@ -169,28 +128,9 @@ public final class ExpiredSessions {
     }
   }
 
-  /**
-   * Sessions of a person expired by inactivity, or created longer ago than the maximum duration,
-   * after the given one in the order of creation.
-   */
-  private List<Candidate> candidates(long now, long afterCreation, String afterId) {
-    return jdbc.query(
-        "SELECT session_id, creation_time FROM "
-            + table
-            + " WHERE principal_name IS NOT NULL AND (expiry_time < ? OR creation_time < ?)"
-            + " AND (creation_time, session_id) > (?, ?)"
-            + " ORDER BY creation_time, session_id LIMIT ?",
-        (row, i) -> new Candidate(row.getString(1), row.getLong(2)),
-        now,
-        now - absolute.toMillis(),
-        afterCreation,
-        afterId,
-        BATCH);
-  }
-
   private Outcome end(String sessionId, long now) {
     try {
-      Outcome outcome = transaction.execute(status -> endLocked(sessionId, now));
+      Outcome outcome = stored.inTransaction(() -> endLocked(sessionId, now));
       return outcome == null ? Outcome.KEPT : outcome;
     } catch (RuntimeException e) {
       LOG.warn("No se pudo terminar una sesión vencida: {}", e.getClass().getSimpleName());
@@ -200,24 +140,18 @@ public final class ExpiredSessions {
 
   /** Inside a transaction that holds the session locked until it ends. */
   private Outcome endLocked(String sessionId, long now) {
-    List<Row> rows =
-        jdbc.query(
-            "SELECT primary_id, principal_name, expiry_time FROM "
-                + table
-                + " WHERE session_id = ? FOR UPDATE SKIP LOCKED",
-            (row, i) -> new Row(row.getString(1), row.getString(2), row.getLong(3)),
-            sessionId);
-    if (rows.isEmpty()) {
+    Optional<Row> locked = stored.lock(sessionId);
+    if (locked.isEmpty()) {
       // Already gone, or someone else is ending it right now.
       return Outcome.ELSEWHERE;
     }
-    Row row = rows.get(0);
-    Map<String, byte[]> attributes = attributesOf(row.primaryId());
+    Row row = locked.get();
+    Map<String, byte[]> attributes = stored.attributesOf(row.primaryId());
     SessionAuthentication person;
     Object startedAt;
     try {
-      person = personOf(attributes);
-      startedAt = read(attributes, SessionLifetime.STARTED_AT_ATTRIBUTE);
+      person = stored.personOf(attributes);
+      startedAt = stored.read(attributes, SessionLifetime.STARTED_AT_ATTRIBUTE);
     } catch (RuntimeException unreadable) {
       if (row.idleEnd() >= now) {
         return Outcome.KEPT;
@@ -226,7 +160,7 @@ public final class ExpiredSessions {
           "Una sesión vencida no se puede leer ({}): se borra sin avisar a LIV ni revocarla"
               + " (sesión {})",
           unreadable.getClass().getSimpleName(),
-          fingerprint(sessionId));
+          StoredSessions.fingerprint(sessionId));
       return delete(row);
     }
     // Without the moment LIV let the person in, a session of a person is past the limit, as for
@@ -248,11 +182,11 @@ public final class ExpiredSessions {
       // LIV (/bff/login could not end it before the new sign in): the log says so, to match it.
       LOG.error(
           "Una sesión vencida comparte el sid {} con otra abierta: se borra sin avisar a LIV",
-          fingerprint(person.getPrincipal().sessionId()));
+          StoredSessions.fingerprint(person.getPrincipal().sessionId()));
       return delete(row);
     }
     EndReason reason = absoluteEnd <= row.idleEnd() ? EndReason.ABSOLUTE : EndReason.IDLE;
-    if (closer.closeExpired(person, tokensOf(attributes), reason)) {
+    if (closer.closeStored(person, stored.tokensOf(attributes), reason)) {
       return delete(row);
     }
     if (now - endedAt >= giveUpAfter.toMillis()) {
@@ -260,7 +194,7 @@ public final class ExpiredSessions {
           "LIV o el proveedor no aceptan el fin de una sesión vencida hace más de {}: se borra"
               + " (sid {})",
           giveUpAfter,
-          fingerprint(person.getPrincipal().sessionId()));
+          StoredSessions.fingerprint(person.getPrincipal().sessionId()));
       return delete(row);
     }
     return Outcome.KEPT;
@@ -270,19 +204,10 @@ public final class ExpiredSessions {
    * Another session of the BFF, still open, with the same session of the provider ({@code sid}).
    */
   private boolean sharesTheProviderSession(Row row, SessionAuthentication person, long now) {
-    List<String> others =
-        jdbc.query(
-            "SELECT primary_id FROM "
-                + table
-                + " WHERE principal_name = ? AND primary_id <> ? AND expiry_time >= ?",
-            (other, i) -> other.getString(1),
-            row.principal(),
-            row.primaryId(),
-            now);
     String sid = person.getPrincipal().sessionId();
-    for (String other : others) {
+    for (String other : stored.otherOpenSessions(row, now)) {
       try {
-        SessionAuthentication theOther = personOf(attributesOf(other));
+        SessionAuthentication theOther = stored.personOf(stored.attributesOf(other));
         if (theOther != null && theOther.getPrincipal().sessionId().equals(sid)) {
           return true;
         }
@@ -293,61 +218,8 @@ public final class ExpiredSessions {
     return false;
   }
 
-  private Map<String, byte[]> attributesOf(String primaryId) {
-    Map<String, byte[]> attributes = new HashMap<>();
-    jdbc.query(
-        "SELECT attribute_name, attribute_bytes FROM "
-            + table
-            + "_ATTRIBUTES WHERE session_primary_id = ? AND attribute_name IN (?, ?, ?)",
-        row -> {
-          attributes.put(row.getString(1), row.getBytes(2));
-        },
-        primaryId,
-        SECURITY_CONTEXT,
-        SessionLifetime.STARTED_AT_ATTRIBUTE,
-        EncryptedAuthorizedClientRepository.ATTRIBUTE);
-    return attributes;
-  }
-
-  private SessionAuthentication personOf(Map<String, byte[]> attributes) {
-    return read(attributes, SECURITY_CONTEXT) instanceof SecurityContext context
-            && context.getAuthentication() instanceof SessionAuthentication person
-        ? person
-        : null;
-  }
-
-  /** The encrypted tokens, or {@code null} if they cannot be read: then they cannot be revoked. */
-  private Object tokensOf(Map<String, byte[]> attributes) {
-    try {
-      return read(attributes, EncryptedAuthorizedClientRepository.ATTRIBUTE);
-    } catch (RuntimeException unreadable) {
-      return null;
-    }
-  }
-
-  /**
-   * A short fingerprint of an identifier, for the log: enough to match it by hand with the audit,
-   * without writing the identifier itself.
-   */
-  static String fingerprint(String identifier) {
-    try {
-      byte[] hash =
-          MessageDigest.getInstance("SHA-256").digest(identifier.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(hash, 0, 6);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  /** An attribute as Spring Session stores it, serialized; {@code null} if the session lacks it. */
-  private Object read(Map<String, byte[]> attributes, String name) {
-    byte[] bytes = attributes.get(name);
-    return bytes == null ? null : deserializer.convert(bytes);
-  }
-
   private Outcome delete(Row row) {
-    int deleted = jdbc.update("DELETE FROM " + table + " WHERE primary_id = ?", row.primaryId());
-    return deleted == 1 ? Outcome.ENDED : Outcome.ELSEWHERE;
+    return stored.delete(row.primaryId()) ? Outcome.ENDED : Outcome.ELSEWHERE;
   }
 
   private enum Outcome {
@@ -358,8 +230,4 @@ public final class ExpiredSessions {
     /** Gone, or being ended by someone else. */
     ELSEWHERE
   }
-
-  private record Candidate(String sessionId, long creationTime) {}
-
-  private record Row(String primaryId, String principal, long idleEnd) {}
 }

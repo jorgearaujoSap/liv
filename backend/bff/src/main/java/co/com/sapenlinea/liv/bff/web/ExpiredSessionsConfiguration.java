@@ -2,7 +2,10 @@ package co.com.sapenlinea.liv.bff.web;
 
 import co.com.sapenlinea.liv.bff.session.ClosingSessionRepository;
 import co.com.sapenlinea.liv.bff.session.ExpiredSessions;
+import co.com.sapenlinea.liv.bff.session.OidcSessions;
+import co.com.sapenlinea.liv.bff.session.ProviderLogout;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
+import co.com.sapenlinea.liv.bff.session.StoredSessions;
 import java.time.Clock;
 import java.time.Duration;
 import javax.sql.DataSource;
@@ -69,23 +72,35 @@ class ExpiredSessionsConfiguration {
   }
 
   @Bean
-  ExpiredSessions expiredSessions(
+  StoredSessions storedSessions(
+      DataSource dataSource, @Value("${spring.session.jdbc.table-name}") String table) {
+    return new StoredSessions(dataSource, table);
+  }
+
+  @Bean
+  OidcSessions oidcSessions(
       DataSource dataSource,
+      Clock clock,
+      @Value("${spring.session.jdbc.table-name}") String table) {
+    return new OidcSessions(dataSource, clock, table);
+  }
+
+  @Bean
+  ProviderLogout providerLogout(StoredSessions stored, OidcSessions oidc, SessionCloser closer) {
+    return new ProviderLogout(stored, oidc, closer);
+  }
+
+  @Bean
+  ExpiredSessions expiredSessions(
+      StoredSessions stored,
       SessionCloser closer,
       BffProperties properties,
       Clock clock,
-      @Value("${spring.session.jdbc.table-name}") String table,
       @Value("${spring.session.jdbc.cleanup-cron:}") String cleanupCron) {
     requireOwnCleanUpOff(cleanupCron);
     BffProperties.Session session = properties.session();
     return new ExpiredSessions(
-        dataSource,
-        closer,
-        session.absoluteTimeout(),
-        SWEEP_BUDGET,
-        session.sweepGiveUpAfter(),
-        clock,
-        table);
+        stored, closer, session.absoluteTimeout(), SWEEP_BUDGET, session.sweepGiveUpAfter(), clock);
   }
 
   /**
@@ -101,17 +116,22 @@ class ExpiredSessionsConfiguration {
   }
 
   @Bean
-  ExpiredSessionsSweeper expiredSessionsSweeper(ExpiredSessions expired) {
-    return new ExpiredSessionsSweeper(expired);
+  ExpiredSessionsSweeper expiredSessionsSweeper(ExpiredSessions expired, OidcSessions oidc) {
+    return new ExpiredSessionsSweeper(expired, oidc);
   }
 
-  /** What runs the sweep on schedule, one replica at a time. */
+  /**
+   * What runs the sweep on schedule, one replica at a time: the sessions that are over, and then
+   * the rows of {@code bff.oidc_session} whose session is gone.
+   */
   static class ExpiredSessionsSweeper {
 
     private final ExpiredSessions expired;
+    private final OidcSessions oidc;
 
-    ExpiredSessionsSweeper(ExpiredSessions expired) {
+    ExpiredSessionsSweeper(ExpiredSessions expired, OidcSessions oidc) {
       this.expired = expired;
+      this.oidc = oidc;
     }
 
     @Scheduled(
@@ -120,6 +140,7 @@ class ExpiredSessionsConfiguration {
     @SchedulerLock(name = LOCK, lockAtMostFor = LOCK_AT_MOST_FOR)
     public void sweep() {
       expired.sweep();
+      oidc.forgetTheGone();
     }
   }
 }

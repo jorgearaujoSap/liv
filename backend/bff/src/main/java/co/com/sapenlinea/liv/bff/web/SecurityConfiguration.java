@@ -5,6 +5,7 @@ import co.com.sapenlinea.liv.bff.login.LoginFailureHandler;
 import co.com.sapenlinea.liv.bff.login.LoginSuccessHandler;
 import co.com.sapenlinea.liv.bff.session.ExpiredSessions;
 import co.com.sapenlinea.liv.bff.session.InternalApiClient;
+import co.com.sapenlinea.liv.bff.session.OidcSessions;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.SessionCloser;
 import co.com.sapenlinea.liv.bff.session.SessionLifetime;
@@ -37,6 +38,9 @@ import org.springframework.session.SessionRepository;
 @Configuration(proxyBeanMethods = false)
 class SecurityConfiguration {
 
+  /** Where the provider closes a session on the back channel (T19). */
+  private static final String BACKCHANNEL_LOGOUT_PATH = "/bff/backchannel-logout";
+
   /** The context lives in the session, which Spring Session keeps in the database. */
   @Bean
   SecurityContextRepository securityContextRepository() {
@@ -50,23 +54,38 @@ class SecurityConfiguration {
     return new LoginAuthorizationRequestResolver(registrations, closer, expired);
   }
 
+  /** What lets the person in once the provider authenticated it (StartSession, T17). */
+  @Bean
+  LoginSuccessHandler loginSuccessHandler(
+      OAuth2AuthorizedClientRepository clients,
+      InternalApiClient api,
+      SecurityContextRepository contexts,
+      RefreshTokenRevoker revoker,
+      SessionRepository<?> sessions,
+      SessionLifetime lifetime,
+      OidcSessions oidcSessions) {
+    return new LoginSuccessHandler(
+        clients, api, contexts, revoker, sessions, lifetime, oidcSessions);
+  }
+
   @Bean
   SecurityFilterChain securityFilterChain(
       HttpSecurity http,
       LoginAuthorizationRequestResolver loginRequests,
+      LoginSuccessHandler loginSuccess,
       OAuth2AuthorizedClientRepository clients,
-      InternalApiClient api,
-      RefreshTokenRevoker revoker,
       SessionCloser closer,
       SecurityContextRepository contexts,
-      SessionRepository<?> sessions,
       SessionLifetime lifetime) {
     // The frontend reads the cookie (no HttpOnly) and sends it back in the X-XSRF-TOKEN header
     // (001-12). The cookie is no credential: LIV_SESSION is the one that authenticates.
     CookieCsrfTokenRepository csrfTokens = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrfTokens.setCookieCustomizer(cookie -> cookie.secure(true).sameSite("Strict").path("/"));
     http.csrf(csrf ->
-            csrf.csrfTokenRepository(csrfTokens)
+            // The provider calls the back channel without a session: its signed token is the
+            // proof (BackchannelLogoutController), so there is no anti-CSRF token to ask for.
+            csrf.ignoringRequestMatchers(BACKCHANNEL_LOGOUT_PATH)
+                .csrfTokenRepository(csrfTokens)
                 .csrfTokenRequestHandler(new HeaderOnlyCsrfTokenRequestHandler()))
         .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
         .addFilterAfter(
@@ -80,6 +99,7 @@ class SecurityConfiguration {
                     LoginAuthorizationRequestResolver.LOGIN_PATH,
                     "/login/oauth2/code/*",
                     "/bff/logout",
+                    BACKCHANNEL_LOGOUT_PATH,
                     // No route: a 404 for everybody, not a 401 that says it exists. The 404 is
                     // served by /error, which a person without a session must reach.
                     "/internal/**",
@@ -97,11 +117,7 @@ class SecurityConfiguration {
                 .authorizationEndpoint(
                     endpoint -> endpoint.authorizationRequestResolver(loginRequests))
                 .authorizedClientRepository(clients)
-                .successHandler(
-                    new CsrfTokenAfterLogin(
-                        new LoginSuccessHandler(
-                            clients, api, contexts, revoker, sessions, lifetime),
-                        csrfTokens))
+                .successHandler(new CsrfTokenAfterLogin(loginSuccess, csrfTokens))
                 .failureHandler(new LoginFailureHandler(contexts)));
     return http.build();
   }

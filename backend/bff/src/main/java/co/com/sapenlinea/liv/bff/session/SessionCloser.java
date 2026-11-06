@@ -59,15 +59,15 @@ public final class SessionCloser {
   }
 
   /**
-   * The same for a session read straight from its table, that nobody is using (T19): the sweep, and
-   * a new sign in from a browser whose session had expired. Deleting it is up to the caller, who
-   * does it only if this succeeded, so that a failure is retried.
+   * The same for a session read straight from its table, that nobody is using (T19): one that
+   * expired ({@link ExpiredSessions}) or one the provider closed ({@link ProviderLogout}). Deleting
+   * it is up to the caller.
    *
    * @param tokens the attribute with the encrypted tokens of the session
    * @return {@code false} only if trying again may succeed. Tokens that cannot be read can never be
    *     revoked: they count as done, with an error in the log
    */
-  public boolean closeExpired(SessionAuthentication person, Object tokens, EndReason reason) {
+  public boolean closeStored(SessionAuthentication person, Object tokens, EndReason reason) {
     OAuth2AuthorizedClient client = null;
     try {
       client = clients.loadFrom(tokens, person);
@@ -76,7 +76,7 @@ public final class SessionCloser {
     }
     boolean ended = api.endSession(person.getPrincipal(), reason);
     if (client == null) {
-      LOG.error("Una sesión vencida no tiene tokens legibles: no se puede revocar en el proveedor");
+      LOG.error("Una sesión terminada sin petición no tiene tokens legibles: no se puede revocar");
       return ended;
     }
     return ended && revoker.revoke(client);

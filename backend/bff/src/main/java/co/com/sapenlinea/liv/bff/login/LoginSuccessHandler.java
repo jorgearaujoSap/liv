@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.bff.login;
 
 import co.com.sapenlinea.liv.bff.session.InternalApiClient;
 import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
+import co.com.sapenlinea.liv.bff.session.OidcSessions;
 import co.com.sapenlinea.liv.bff.session.RefreshTokenRevoker;
 import co.com.sapenlinea.liv.bff.session.SessionAuthentication;
 import co.com.sapenlinea.liv.bff.session.SessionIdentity;
@@ -40,6 +41,7 @@ public final class LoginSuccessHandler implements AuthenticationSuccessHandler {
   private final SecurityContextRepository contexts;
   private final LoginRejection rejection;
   private final SessionLifetime lifetime;
+  private final OidcSessions oidcSessions;
 
   public LoginSuccessHandler(
       OAuth2AuthorizedClientRepository clients,
@@ -47,8 +49,10 @@ public final class LoginSuccessHandler implements AuthenticationSuccessHandler {
       SecurityContextRepository contexts,
       RefreshTokenRevoker revoker,
       SessionRepository<?> sessions,
-      SessionLifetime lifetime) {
+      SessionLifetime lifetime,
+      OidcSessions oidcSessions) {
     this.lifetime = lifetime;
+    this.oidcSessions = oidcSessions;
     this.clients = clients;
     this.api = api;
     this.contexts = contexts;
@@ -93,6 +97,8 @@ public final class LoginSuccessHandler implements AuthenticationSuccessHandler {
     holder.setContext(context);
     contexts.saveContext(context, request, response);
     lifetime.markStarted(request.getSession());
+    // For the back channel: when the provider closes its session, this is the one of the BFF.
+    oidcSessions.record(request.getSession().getId(), identity);
     LoginRejection.redirect(response, takeReturnTo(request));
   }
 
