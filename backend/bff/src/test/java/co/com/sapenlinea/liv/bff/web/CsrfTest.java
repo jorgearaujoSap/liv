@@ -124,6 +124,17 @@ class CsrfTest extends BffFlowTest {
     assertThat(BACKEND.apiCalls()).isEmpty();
   }
 
+  @Test
+  @DisplayName(
+      "001-12 · Sin sesión y sin el token anti-CSRF, una mutación recibe el 403 antes que el 401")
+  void theRefusalComesBeforeTheMissingSession() {
+    Browser browser = browser();
+
+    assertCsrfRefusal(browser.postWithoutCsrfToken(bffBase() + "/api/v1/liquidaciones", "x=1"));
+    assertCsrfRefusal(browser.postWithoutCsrfToken(bffBase() + "/bff/session/keepalive", ""));
+    assertThat(BACKEND.apiCalls()).isEmpty();
+  }
+
   /** The refusal of the BFF, as {@code bff.yaml} declares it ({@code CsrfRejected}). */
   private static void assertCsrfRefusal(Reply reply) {
     assertThat(reply.status()).isEqualTo(403);
