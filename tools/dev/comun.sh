@@ -37,9 +37,21 @@ pid_en_puerto() {
   elif command -v lsof >/dev/null 2>&1; then
     lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -n 1
   else
-    ss -ltnpH "sport = :$1" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -n 1
+    ss -ltnp "sport = :$1" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -n 1
   fi
   return 0
+}
+
+# Si algo escucha en el puerto, aunque sea de otro usuario y no se vea su PID.
+puerto_ocupado() {
+  if [ -n "$(pid_en_puerto "$1")" ]; then
+    return 0
+  fi
+  if ! en_windows && command -v ss >/dev/null 2>&1; then
+    [ -n "$(ss -ltn "sport = :$1" 2>/dev/null | sed 1d)" ]
+    return
+  fi
+  return 1
 }
 
 # Nombre del programa de un PID, en minúsculas, sin ruta ni .exe.
@@ -51,12 +63,30 @@ programa_de() {
   fi
 }
 
-# Termina el proceso, y en Windows también sus hijos.
+# Termina el proceso y sus hijos.
 terminar() {
   if en_windows; then
     taskkill //PID "$1" //T //F >/dev/null 2>&1 || true
   else
+    pkill -P "$1" 2>/dev/null || true
     kill "$1" 2>/dev/null || true
+  fi
+}
+
+# Termina el lanzador que dejó iniciar.sh (sh, mvnw, npm), con sus hijos, si sigue vivo y es uno de esos: el sistema
+# pudo dar su PID a otro programa. En Windows, el PID de Git Bash se traduce al de Windows.
+terminar_lanzador() {
+  [ -n "$1" ] && kill -0 "$1" 2>/dev/null || return 0
+  if en_windows; then
+    pid_windows=$(cat "/proc/$1/winpid" 2>/dev/null || true)
+    [ -n "$pid_windows" ] || return 0
+    case "$(programa_de "$pid_windows")" in
+      sh | bash | java | node | npm | cmd) terminar "$pid_windows" ;;
+    esac
+  else
+    case "$(programa_de "$1")" in
+      sh | bash | dash | java | node | npm | mvnw) terminar "$1" ;;
+    esac
   fi
 }
 
@@ -81,10 +111,8 @@ detener_servicio() {
   else
     printf '   %s ya no estaba escuchando.\n' "$2"
   fi
-  # El lanzador (mvnw, npm), si sigue vivo porque el servicio nunca llegó a escuchar.
-  if [ -n "$lanzado" ] && kill -0 "$lanzado" 2>/dev/null; then
-    kill "$lanzado" 2>/dev/null || true
-  fi
+  # El lanzador y sus hijos, si siguen vivos porque el servicio nunca llegó a escuchar.
+  terminar_lanzador "$lanzado"
   rm -f "$marca"
 }
 
@@ -104,7 +132,7 @@ esperar() {
       printf '\n   El proceso terminó antes de quedar listo.' >&2
       break
     fi
-    if grep -qE 'APPLICATION FAILED TO START|\[ERROR\]|An unhandled exception occurred' "$registro" 2>/dev/null; then
+    if grep -qE 'APPLICATION FAILED TO START|Failed to execute goal|An unhandled exception occurred' "$registro" 2>/dev/null; then
       break
     fi
     sleep 2

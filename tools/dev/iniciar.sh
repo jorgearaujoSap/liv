@@ -25,11 +25,13 @@ done
 # Si algo falla o se interrumpe antes de terminar, se detiene lo que ya había arrancado (el entorno se queda).
 LISTO=no
 limpiar() {
-  if [ "$LISTO" = no ]; then
+  if [ "$LISTO" = no ] && ls "$REGISTROS"/*.lanzado >/dev/null 2>&1; then
     printf '\nSe detiene lo que ya había arrancado…\n' >&2
-    detener_servicio 4200 frontend >&2
-    detener_servicio 8081 BFF >&2
-    detener_servicio 8080 API >&2
+    for servicio in "4200 frontend" "8081 BFF" "8080 API"; do
+      if [ -f "$REGISTROS/${servicio%% *}.lanzado" ]; then
+        detener_servicio "${servicio%% *}" "${servicio#* }" >&2
+      fi
+    done
   fi
 }
 trap limpiar EXIT
@@ -43,21 +45,27 @@ command -v java >/dev/null 2>&1 || falla "Falta Java 21 (JDK)."
 java -version 2>&1 | grep -q 'version "21' || falla "Hace falta el JDK 21; java -version dice otra versión."
 command -v node >/dev/null 2>&1 || falla "Falta Node (22.12 o superior dentro de la línea 22, o 24 o superior)."
 for puerto in $PUERTOS; do
-  if [ -n "$(pid_en_puerto "$puerto")" ]; then
+  if puerto_ocupado "$puerto"; then
     # Nada de esto lo levantó este script: no hay que detener nada al salir.
     LISTO=si
     falla "El puerto $puerto ya está en uso. Si es LIV, detenlo con sh tools/dev/detener.sh; si es otro programa, ciérralo."
   fi
 done
 mkdir -p "$REGISTROS"
+# Los puertos están libres: las marcas de una vez anterior ya no valen y no deben llevar a terminar nada.
+rm -f "$REGISTROS"/[0-9]*.lanzado
 if [ ! -f "$RAIZ/backend/dev/.env" ]; then
   cp "$RAIZ/backend/dev/.env.example" "$RAIZ/backend/dev/.env"
   printf 'Se creó backend/dev/.env a partir de .env.example.\n'
 fi
 
 paso "1/4 · Entorno local: PostgreSQL y Keycloak"
+# Solo es nuestro si no estaba ya levantado: si la persona lo levantó a mano, detener.sh no lo baja.
+YA_ESTABA=$(cd "$RAIZ/backend" && docker compose -f dev/compose.yaml --env-file dev/.env ps -q 2>/dev/null || true)
 (cd "$RAIZ/backend" && docker compose -f dev/compose.yaml --env-file dev/.env up -d --build)
-touch "$REGISTROS/entorno.lanzado"
+if [ -z "$YA_ESTABA" ]; then
+  touch "$REGISTROS/entorno.lanzado"
+fi
 (cd "$RAIZ/backend" && sh dev/check.sh) || falla "El entorno no quedó listo: mira la salida de check.sh arriba."
 
 paso "2/4 · API (puerto 8080)"
