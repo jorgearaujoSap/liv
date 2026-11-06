@@ -185,6 +185,24 @@ describe('las pantallas solo usan componentes de liv-components', () => {
   it('sin un div que haga de botón: un rol interactivo en un contenedor nativo', async () => {
     await rejects('<div role="button" tabindex="0">Ir</div>', /liv-components/);
     await rejects('<span role="link" tabindex="0">Ir</span>', /liv-components/);
+    await rejects('<div role="Button" tabindex="0">Ir</div>', /liv-components/);
+    await rejects('<div role="presentation button" tabindex="0">Ir</div>', /liv-components/);
+    await rejects('<div role="listbox" tabindex="0"></div>', /liv-components/);
+    await rejects('<div [attr.role]="\'button\'" tabindex="0">Ir</div>', /liv-components/);
+  });
+
+  it('sin [innerHtml] con minúsculas: Angular lo trata como innerHTML', async () => {
+    await rejects('<div [innerHtml]="html"></div>', /innerHTML/);
+  });
+
+  it('sin etiquetas que hacen de control: details, summary, iframe, label', async () => {
+    for (const markup of [
+      '<details></details>',
+      '<iframe src="x"></iframe>',
+      '<label>Nombre</label>',
+    ]) {
+      await rejects(markup, /liv-components/);
+    }
   });
 
   it('sin elementos propios que no sean de liv-components ni secciones de la propia pantalla (app-)', async () => {
@@ -239,6 +257,33 @@ describe('las pantallas solo usan componentes de liv-components', () => {
     it('sin `host` con class o style', async () => {
       assert.equal((await screen(component("host: { class: 'flex' }"))).length, 1);
       assert.equal((await screen(component("host: { '[style.color]': 'c' }"))).length, 1);
+    });
+
+    it('sin `styles` con la clave entre comillas, ni encapsulation None', async () => {
+      assert.equal((await screen(component("'styles': ['.a {}']"))).length, 1);
+      assert.equal((await screen(component('encapsulation: ViewEncapsulation.None'))).length, 1);
+    });
+
+    it('sin host con [attr.class] ni [attr.style]', async () => {
+      assert.equal((await screen(component("host: { '[attr.class]': 'c' }"))).length, 1);
+      assert.equal((await screen(component("host: { '[attr.style]': 's' }"))).length, 1);
+    });
+
+    it('sin @HostBinding de class ni style', async () => {
+      const code = `import { Component, HostBinding } from '@angular/core';
+@Component({ selector: 'app-x', template: '' })
+export class X {
+  @HostBinding('class.activo') activo = true;
+}
+`;
+      assert.equal((await screen(code)).length, 1);
+      const style = code.replace('class.activo', 'style.color');
+      assert.equal((await screen(style)).length, 1);
+    });
+
+    it('conserva las fronteras de HttpClient y del import() dinámico en features/', async () => {
+      const dynamic = "export const x = import('@angular/common/http');\n";
+      assert.equal((await screen(dynamic)).length, 1);
     });
 
     it('`styleUrl` sí, y `host` sin class ni style también', async () => {

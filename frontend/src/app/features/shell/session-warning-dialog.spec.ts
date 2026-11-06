@@ -122,6 +122,54 @@ describe('aviso de sesión por expirar (001-22)', () => {
     expect(text(dialog(fixture))).not.toContain('No pudimos extender');
   });
 
+  it('el fallo no pasa al aviso del límite de 8 horas, que no tiene cómo reintentar', async () => {
+    idle.extend = vi.fn().mockResolvedValue(false);
+    idle.warning.set({ kind: 'idle', secondsLeft: 90 });
+    const fixture = render();
+    (button(dialog(fixture), 'Seguir conectado') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(text(dialog(fixture))).toContain('No pudimos extender');
+
+    idle.warning.set({ kind: 'absolute', secondsLeft: 280 });
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    expect(text(dialog(fixture))).not.toContain('No pudimos extender');
+  });
+
+  it('un intento que termina cuando el aviso ya se cerró (otra pestaña extendió) no deja el fallo para el próximo', async () => {
+    let finish: (renewed: boolean) => void = () => undefined;
+    idle.extend = vi.fn(() => new Promise<boolean>((resolve) => (finish = resolve)));
+    idle.warning.set({ kind: 'idle', secondsLeft: 90 });
+    const fixture = render();
+    (button(dialog(fixture), 'Seguir conectado') as HTMLButtonElement).click();
+
+    idle.warning.set(undefined);
+    fixture.detectChanges();
+    finish(false);
+    await fixture.whenStable();
+    idle.warning.set({ kind: 'idle', secondsLeft: 100 });
+    fixture.detectChanges();
+
+    expect(text(dialog(fixture))).not.toContain('No pudimos extender');
+  });
+
+  it('el fallo se anuncia en una región viva que existe desde que se abre el aviso', async () => {
+    idle.extend = vi.fn().mockResolvedValue(false);
+    idle.warning.set({ kind: 'idle', secondsLeft: 90 });
+    const fixture = render();
+    const region = dialog(fixture)?.querySelector('[role="status"]');
+    expect(region).not.toBeNull();
+    expect(text(region)).toBe('');
+
+    (button(dialog(fixture), 'Seguir conectado') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text(region)).toBe('No pudimos extender tu sesión. Inténtalo de nuevo.');
+  });
+
   it('con el plazo vencido no dice «en 1 minuto»: dice que es en unos segundos', () => {
     idle.warning.set({ kind: 'idle', secondsLeft: 0 });
 

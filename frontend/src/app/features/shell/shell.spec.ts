@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 
 import { buildMenu } from '../../core/navigation/menu-presentation';
 import { IdleService, type SessionWarning } from '../../core/session/idle.service';
+import { SessionService } from '../../core/session/session.service';
 import { FakeWorkspace, leaf, USER } from '../testing/fixtures';
 import { Shell } from './shell';
 import { WorkspaceService } from './workspace.service';
@@ -22,6 +23,7 @@ class FakeIdle {
 describe('estructura general (001-02, 001-15)', () => {
   let workspace: FakeWorkspace;
   let idle: FakeIdle;
+  let session: { isRedirecting: boolean };
   let router: Router;
 
   const render = async () => {
@@ -36,6 +38,7 @@ describe('estructura general (001-02, 001-15)', () => {
   beforeEach(() => {
     workspace = new FakeWorkspace();
     idle = new FakeIdle();
+    session = { isRedirecting: false };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -44,6 +47,7 @@ describe('estructura general (001-02, 001-15)', () => {
         ]),
         { provide: WorkspaceService, useValue: workspace },
         { provide: IdleService, useValue: idle },
+        { provide: SessionService, useValue: session },
       ],
     });
     router = TestBed.inject(Router);
@@ -244,12 +248,22 @@ describe('estructura general (001-02, 001-15)', () => {
       expect(host(fixture).querySelector('liv-skeleton')).toBeNull();
     });
 
-    it('si no carga porque no hay sesión (401), no va a «Error»: el interceptor ya la lleva a iniciar sesión', async () => {
+    it('si no carga porque no hay sesión (401) y ya va a iniciar sesión, no va a «Error»', async () => {
       const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      session.isRedirecting = true;
       workspace.loading = Promise.reject(new HttpErrorResponse({ status: 401 }));
       await render();
 
       expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('un 401 sin redirección en curso (no se pudo averiguar si hay sesión) va a «Error»: no queda en «Cargando»', async () => {
+      const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      session.isRedirecting = false;
+      workspace.loading = Promise.reject(new HttpErrorResponse({ status: 401 }));
+      await render();
+
+      expect(navigate).toHaveBeenCalledWith('/error');
     });
 
     it('si se destruye mientras carga, un fallo posterior no navega', async () => {

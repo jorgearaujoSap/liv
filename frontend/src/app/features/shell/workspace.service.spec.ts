@@ -134,6 +134,36 @@ describe('WorkspaceService', () => {
     refresh.flush(USER);
   });
 
+  it('si llegan dos refrescos en desorden, vale el último que se pidió', async () => {
+    const loading = workspace.load();
+    http.expectOne('/api/v1/me').flush(USER);
+    http.expectOne('/api/v1/me/capabilities').flush(ALL_MODULES);
+    await loading;
+    TestBed.tick();
+    const caps = TestBed.inject(CapabilityService);
+
+    const first = caps.reload();
+    http.expectOne('/api/v1/me/capabilities').flush({ items: [] });
+    await first;
+    TestBed.tick();
+    const older = http.expectOne('/api/v1/me');
+
+    const second = caps.reload();
+    http
+      .expectOne('/api/v1/me/capabilities')
+      .flush({ items: [{ code: '3', status: 'COMING_SOON', children: [] }] });
+    await second;
+    TestBed.tick();
+    const newer = http.expectOne('/api/v1/me');
+
+    newer.flush({ ...USER, roles: ['AUDITOR'] });
+    await vi.waitFor(() => expect(workspace.user()?.roles).toEqual(['AUDITOR']));
+    older.flush({ ...USER, roles: ['CONSULTA'] });
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(workspace.user()?.roles).toEqual(['AUDITOR']);
+  });
+
   it('si refrescar la persona falla, se conserva la anterior', async () => {
     const loading = workspace.load();
     http.expectOne('/api/v1/me').flush(USER);

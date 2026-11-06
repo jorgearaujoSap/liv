@@ -126,6 +126,18 @@ describe('menú: catálogo de presentación (001-15)', () => {
     });
   });
 
+  it('una rama cuyos hijos se descartan todos sigue siendo rama: no se vuelve una hoja con ruta', () => {
+    const rama: Capability = {
+      code: '1',
+      status: 'AVAILABLE',
+      children: [leaf('x'), leaf('1.2#y', 'AVAILABLE')],
+    };
+    const [module] = buildMenu(capabilities(rama));
+
+    expect(module.available).toBe(false);
+    expect(module.href).toBeUndefined();
+  });
+
   describe('códigos que no son un número de opción (Doc. 01 §3)', () => {
     it('se descartan: no se pinta ni se enlaza lo que no tiene la forma de un número', () => {
       const menu = buildMenu(

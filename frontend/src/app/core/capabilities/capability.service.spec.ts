@@ -1,4 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
+import { vi } from 'vitest';
+
+import { TimeoutError } from '../http/with-timeout';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
@@ -20,6 +23,24 @@ describe('CapabilityService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('si el servidor no responde, falla por tiempo límite y el próximo intento vuelve a pedir', async () => {
+    vi.useFakeTimers();
+    try {
+      const loading = service.load();
+      const rejection = expect(loading).rejects.toBeInstanceOf(TimeoutError);
+      http.expectOne('/api/v1/me/capabilities');
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const again = service.load();
+    http.expectOne('/api/v1/me/capabilities').flush(only('1'));
+    expect(await again).toEqual(only('1'));
+  });
 
   it('varias recargas a la vez comparten una sola petición', async () => {
     const results = [service.reload(), service.reload(), service.reload()];
