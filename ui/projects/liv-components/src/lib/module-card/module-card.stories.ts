@@ -80,3 +80,20 @@ export const Cuadricula: Story = {
     `,
   }),
 };
+
+/** La cuadrícula de Inicio: columnas que se ajustan al ancho, varias filas y textos de distinto largo. */
+export const CuadriculaDeInicio: Story = {
+  name: 'Cuadrícula de Inicio',
+  render: () => ({
+    template: `
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
+        <liv-module-card heading="Administración" description="Entidades, usuarios, normas, vigencias y tablas base de liquidación." icon="settings" href="#administracion" />
+        <liv-module-card heading="Documentos y notificaciones" description="Documentos generados y notificaciones a los contribuyentes." icon="folder-open" [disabled]="true" />
+        <liv-module-card heading="Auditoría e integraciones" description="Bitácora de eventos." icon="shield-check" [disabled]="true" />
+        <liv-module-card heading="Liquidación" description="Cálculo individual y masivo del impuesto de cada vehículo." icon="calculator" [disabled]="true" />
+        <liv-module-card heading="Cobro" icon="wallet" [disabled]="true" />
+        <liv-module-card heading="Cuenta corriente y recaudo" description="Obligaciones, pagos, conciliación y saldos a favor." icon="wallet" [disabled]="true" />
+      </div>
+    `,
+  }),
+};

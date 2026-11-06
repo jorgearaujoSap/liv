@@ -110,6 +110,17 @@ describe('ModuleCard', () => {
     ).toBe(true);
   });
 
+  it('se estira con su celda: el anfitrión es flex, así el enlace toma su alto, y no fija una altura propia', () => {
+    const { card, link } = render();
+    // En una cuadrícula la celda estira al anfitrión y este al enlace (align-items: stretch). Sin una
+    // altura propia, quien la usa decide: con align-items: start mide lo que su contenido.
+    expect(declaredStyle(card, 'display')).toBe('flex');
+    expect(declaredStyle(card, 'height')).toBe('');
+    expect(declaredStyle(card, 'align-items')).toBe('');
+    expect(declaredStyle(link, 'height')).toBe('');
+    expect(declaredStyle(link, 'flex-grow')).toBe('1');
+  });
+
   it('Default usa los tokens de Figma: fondo, borde, radio y sombra sm', () => {
     const { card, link } = render();
     expect(getComputedStyle(link).backgroundColor).toContain('var(--color-bg-surface');

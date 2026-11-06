@@ -1,6 +1,6 @@
 {
   "name": "liv-components",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Librería de componentes y tokens de diseño del sistema LIV (impuesto vehicular).",
   "license": "UNLICENSED",
   "keywords": [
