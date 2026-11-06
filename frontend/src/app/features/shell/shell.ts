@@ -20,9 +20,8 @@ import {
 } from 'liv-components';
 import { filter } from 'rxjs';
 
-import { APP_PATHS } from '../../core/app-paths';
+import { APP_PATHS, OPTION_ROUTE } from '../../core/app-paths';
 import { hasStatus } from '../../core/http/http-errors';
-import { OPTION_ROUTE } from '../../core/app-paths';
 import { optionPath } from '../../core/navigation/menu-presentation';
 import { IdleService } from '../../core/session/idle.service';
 import { SessionService } from '../../core/session/session.service';
@@ -155,12 +154,22 @@ export class Shell implements OnInit {
   }
 }
 
-/** Las ramas que contienen una opción del menú: de `/opcion/1.5.3`, `1` y `1.5`. */
+/** Forma de un número de opción: `1`, `1.5` o `1.5.9`. */
+const OPTION_CODE = /^[0-9]+(\.[0-9]+)*$/;
+
+/**
+ * Las ramas que contienen una opción del menú: de `/opcion/1.5.3`, `1` y `1.5`. Una ruta que no es de una
+ * opción (`/`, `/opcion/abc`, `/opcion/1..2`) no abre nada.
+ */
 function branchesOf(path: string): string[] {
   const prefix = `/${OPTION_ROUTE}/`;
   if (!path.startsWith(prefix)) {
     return [];
   }
-  const parts = path.slice(prefix.length).split('.');
+  const code = path.slice(prefix.length);
+  if (!OPTION_CODE.test(code)) {
+    return [];
+  }
+  const parts = code.split('.');
   return parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join('.'));
 }
