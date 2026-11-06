@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-05
+> **Última actualización:** 2026-11-06
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -129,6 +129,17 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-06
+
+- Feature 001, T05b (PR #92): `ModuleCard` se estira con su celda (`liv-components` 0.3.1), por la prueba de Inicio del responsable: las tarjetas de módulo medían lo que su texto, y el diseño las pide iguales.
+  - **Cómo:** el anfitrión pasa a `flex` y el enlace a `flex-1`, sin altura fija, así que quien usa el componente conserva el control. Hay una historia nueva, «Cuadrícula de Inicio».
+  - **Verificación:** prueba en rojo primero y medición en un navegador: 158 px por tarjeta en la primera fila, como en Figma.
+  - **Revisión:** dos revisores adversariales de nivel alto y las lentes. Sin críticos ni altos; por sus hallazgos se cambió `height: 100%` por `flex`.
+  - **Sigue:**
+    - un humano publica la 0.3.1;
+    - T22a adopta la 0.3.1 en el frontend con filas iguales en Inicio;
+    - de la prueba de Inicio quedan además dos arreglos directos: la precarga del navegador, que hacía ver un 404 en `/bff/login`, y que `check.sh` revise los permisos de `liv_owner`.
 
 ### 2026-11-05
 
