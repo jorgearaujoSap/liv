@@ -124,4 +124,4 @@ ui/
 
 ## Estado
 
-Versión 0.2.0 publicada en npm: *tokens* de diseño y 18 componentes (feature 001), con pruebas, accesibilidad con axe y su historia de Storybook por variante. En desarrollo para 0.3.0: `NavItem` con los tipos `Subgroup` y `Nested`, que llevan el menú lateral a tres niveles (1.5.x y 1.6.x). Todavía no hay capturas de referencia de regresión visual (Q14): el catálogo de Storybook es hoy la referencia visual. Ver `CHANGELOG.md`.
+Versión 0.3.0 publicada en npm: *tokens* de diseño y 18 componentes (feature 001), con pruebas, accesibilidad con axe y su historia de Storybook por variante, y `NavItem` con los tipos `Subgroup` y `Nested`, que llevan el menú lateral a tres niveles (1.5.x y 1.6.x). Preparada para 0.3.1: `ModuleCard` se estira con su celda. Todavía no hay capturas de referencia de regresión visual (Q14): el catálogo de Storybook es hoy la referencia visual. Ver `CHANGELOG.md`.

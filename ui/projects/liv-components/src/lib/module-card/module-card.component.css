@@ -1,11 +1,15 @@
 @reference '../tailwind-reference.css';
 
+/*
+ * Se estira con su celda: en una cuadrícula, las tarjetas de una misma fila miden lo mismo (Figma, Inicio).
+ * El anfitrión es flex para que el enlace tome su alto; sin altura propia, quien la usa decide.
+ */
 :host {
-  @apply block;
+  @apply flex;
 }
 
 .module-card__link {
-  @apply box-border flex w-full cursor-pointer flex-col gap-4 p-5 text-left no-underline outline-none;
+  @apply box-border flex w-full flex-1 cursor-pointer flex-col gap-4 p-5 text-left no-underline outline-none;
   @apply rounded-xl border border-solid border-border-default bg-bg-surface shadow-elevation-sm;
 }
 

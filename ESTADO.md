@@ -133,6 +133,14 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 ### 2026-11-06
 
 - `README.md` de la raíz: nueva sección «Ejecutar LIV en local», con el paso a paso para levantar todo el sistema. Cubre entorno, API, BFF y frontend, cómo entrar, cómo crear un usuario, cómo detener y los problemas conocidos de la primera prueba completa. Los `README.md` de cada proyecto no cambian; la sección enlaza a ellos. Flujo directo (documentación).
+- Feature 001, T05b (PR #92): `ModuleCard` se estira con su celda (`liv-components` 0.3.1), por la prueba de Inicio del responsable: las tarjetas de módulo medían lo que su texto, y el diseño las pide iguales.
+  - **Cómo:** el anfitrión pasa a `flex` y el enlace a `flex-1`, sin altura fija, así que quien usa el componente conserva el control. Hay una historia nueva, «Cuadrícula de Inicio».
+  - **Verificación:** prueba en rojo primero y medición en un navegador: 158 px por tarjeta en la primera fila, como en Figma.
+  - **Revisión:** dos revisores adversariales de nivel alto y las lentes. Sin críticos ni altos; por sus hallazgos se cambió `height: 100%` por `flex`.
+  - **Sigue:**
+    - un humano publica la 0.3.1;
+    - T22a adopta la 0.3.1 en el frontend con filas iguales en Inicio;
+    - de la prueba de Inicio quedan además dos arreglos directos: la precarga del navegador, que hacía ver un 404 en `/bff/login`, y que `check.sh` revise los permisos de `liv_owner`.
 
 ### 2026-11-05
 

@@ -8,6 +8,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 
+## [0.3.1] — 2026-11-06
+
+Corrección de la feature 001. Un humano la publica desde `main`, después de integrar el PR.
+
+### Corregido
+
+- `ModuleCard` se estira con su celda: en una cuadrícula, las tarjetas de una misma fila miden lo mismo, como en el diseño de Inicio (Figma, nodo 26-793). Antes cada tarjeta medía lo que su texto. El anfitrión pasa de `block` a `flex` y no fija una altura: quien la usa decide (con `align-items: start` mide lo que su contenido). Para igualar también las filas entre sí, la cuadrícula de la pantalla usa filas iguales (`grid-auto-rows: 1fr`). Nueva historia «Cuadrícula de Inicio».
+
 ## [0.3.0] — 2026-11-05
 
 Tercer nivel del menú lateral (feature 001, diseño aprobado por el responsable funcional el 2026-11-05: Figma `NavItem`, `Type=Subgroup` y `Type=Nested`, y el marco «Menú · tres niveles»). Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión").

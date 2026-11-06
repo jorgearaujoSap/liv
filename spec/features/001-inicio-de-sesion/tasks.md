@@ -140,6 +140,10 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - **Pendientes de decisión humana** (listados en el PR): el peso del texto de `Subgroup` Active como única señal sin color (y una señal en `forced-colors`), el Hover del subgrupo activo y Active+Disabled, que Figma no define.
   - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico ni alto; medios y bajos coincidentes de pruebas que no habrían fallado con el código roto, historias y documentación, corregidos con prueba primero. Segunda ronda, solo sobre lo corregido: ningún crítico ni alto; 3 medios y 6 bajos, entre ellos dos errores de la propia corrección (una nota duplicada en el `CHANGELOG.md` y un `href` heredado en una historia). **No hubo tercera ronda** (regla de dos rondas): esas últimas correcciones quedan sin un tercer juicio independiente.
   - **Falta:** el uso en `frontend/` (otro PR) una vez que un humano publique la 0.3.0.
+- [ ] **T05b** · `ModuleCard` se estira con su celda: en una cuadrícula, las tarjetas de una misma fila miden lo mismo, como en el *frame* Inicio (Figma, nodo 26-793: las 9 miden 352×158). Versión 0.3.1 y `CHANGELOG.md`. **Un humano publica.** Sale de la prueba de Inicio del responsable (2026-11-05: «las cards de los módulos deberían tener el mismo tamaño… el diseño ya lo plantea de esa forma»). — PR [#92](https://github.com/jorgearaujoSap/liv/pull/92) (`ui/`).
+  - Archivos: `ui/projects/liv-components/src/lib/module-card/**`, `ui/projects/liv-components/package.json`, `ui/CHANGELOG.md`, `ui/README.md`.
+  - Prueba primero: el anfitrión es `flex`, sin altura ni `align-items` propios, y el enlace tiene `flex-grow: 1`. Como jsdom no calcula el diseño, la igualdad se midió en un navegador, en la historia «Cuadrícula de Inicio».
+  - Después de publicar, **T22a** en el frontend.
 
 ## `backend/identity/`
 
@@ -469,6 +473,10 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
     - **tercer nivel del menú (1.5.x y 1.6.x):** se diseña ahora, primero en Figma y, si hace falta un componente o variante, en `ui/`, en otro PR. **Diseño aprobado por el responsable funcional el 2026-11-05 en Figma:** `NavItem` con `Type=Subgroup` y `Type=Nested`, y el marco [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519). Siguen la variante en `ui/` (otro PR, con versión nueva) y su uso en el frontend (otro PR); hasta entonces se pintan dos niveles;
     - **pantalla local de «sesión terminada»:** sigue sin inventarse; si hace falta, se propone aparte.
   - **Revisión:** adversarial con dos `liv-revisor-critico` ciegos y las cuatro lentes (riesgo en nivel alto, resiliencia y confiabilidad en estándar, legibilidad en económico). Primera ronda: ningún crítico y altos de `axe-core` sin ADR, la carga sin tiempo límite, la persona que no se refrescaba y «Seguir conectado» que fallaba en silencio; además una regla de ESLint para `<style>` que buscaba la letra «s» (error propio), ramas del menú con una ruta sin pantalla y un 401 pisado por «Error». Segunda ronda, solo sobre lo corregido: ningún crítico y **1 alto** (callar el 401 dejaba «Cargando» colgado si `/bff/session` también fallaba, una regresión de la primera corrección), corregido con prueba en rojo primero junto con el resto de los medios. **No hubo tercera ronda** (regla de dos rondas): esas correcciones quedan sin un tercer juicio independiente. Resumen por severidad en el PR.
+
+- [ ] **T22a** · Adoptar `liv-components` 0.3.1 (trae también la 0.3.0) y filas iguales en la cuadrícula de Inicio (`grid-auto-rows: 1fr`), para que **todas** las tarjetas midan lo mismo, como en Figma. Después de que un humano publique la 0.3.1 (T05b).
+  - Archivos: `frontend/package.json`, `package-lock.json`, `frontend/src/app/features/home/**` y lo que pida el cambio de `NavItemType` de la 0.3.0.
+  - Prueba primero: la cuadrícula de Inicio declara filas iguales; *lint*, pruebas y *build* con la 0.3.1.
 
 ## Sistema
 
