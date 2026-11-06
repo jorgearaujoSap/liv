@@ -303,9 +303,7 @@ describe('IdleService', () => {
 
       channel.handler?.({ type: 'ended' });
       await advance(0);
-      http
-        .expectOne('/bff/session')
-        .flush(null, { status: 502, statusText: 'Bad Gateway' });
+      http.expectOne('/bff/session').flush(null, { status: 502, statusText: 'Bad Gateway' });
       await advance(0);
       expect(navigation.replaced).toEqual([]);
 

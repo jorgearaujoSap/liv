@@ -52,6 +52,11 @@ export class IdleService implements OnDestroy {
    */
   private epoch = 0;
   private extending?: Promise<boolean>;
+  /**
+   * Otra pestaña avisó que la sesión terminó. La próxima consulta decide: sin sesión, iniciar sesión; con
+   * una sesión abierta (quizá de otra persona), recargar para no mostrar nada de la anterior.
+   */
+  private endedElsewhere = false;
   /** Instantes (ms desde 1970) en que vencen la inactividad y el límite absoluto, según el BFF. */
   private idleDeadline = 0;
   private absoluteDeadline = 0;
@@ -136,6 +141,7 @@ export class IdleService implements OnDestroy {
   private stop(): void {
     this.epoch++;
     this.watching = false;
+    this.endedElsewhere = false;
     this.checking = false;
     clearTimeout(this.checkTimer);
     clearInterval(this.countdownTimer);
@@ -155,26 +161,25 @@ export class IdleService implements OnDestroy {
       this.epoch++;
       this.apply(message.status);
     } else {
-      void this.onSessionEndedElsewhere();
+      this.onSessionEndedElsewhere();
     }
   }
 
   /**
-   * Otra pestaña cerró la sesión. Esta no navega a ciegas a `/bff/login`, que cerraría una sesión nueva si
-   * la persona (u otra) ya volvió a entrar: pregunta primero.
+   * Otra pestaña avisó que la sesión terminó. Esta no navega a ciegas a `/bff/login`, que cerraría una
+   * sesión nueva si la persona (u otra) ya volvió a entrar: pregunta primero. Y solo pregunta a la vista:
+   * oculta, espera a volver a verse, para no empezar un inicio de sesión que pise el de la pestaña que la
+   * persona está usando (el BFF guarda uno solo por navegador). Si el BFF no responde, vuelve a preguntar.
    */
-  private async onSessionEndedElsewhere(): Promise<void> {
-    this.stop();
-    let status: SessionStatus | null = null;
-    try {
-      status = await this.session.status();
-    } catch {
-      // Sin respuesta, lo más probable es que la sesión ya no exista.
-    }
-    if (status) {
-      this.session.restart();
-    } else {
-      this.session.redirectToLogin('/');
+  private onSessionEndedElsewhere(): void {
+    this.endedElsewhere = true;
+    this.epoch++;
+    this.clearWarning();
+    clearTimeout(this.checkTimer);
+    this.checkTimer = undefined;
+    this.checking = false;
+    if (document.visibilityState === 'visible') {
+      void this.check();
     }
   }
 
@@ -218,6 +223,9 @@ export class IdleService implements OnDestroy {
       // Sin respuesta no se sabe nada: ni avisar ni cerrar. Se vuelve a preguntar más tarde.
       clearTimeout(this.checkTimer);
       this.checkTimer = setTimeout(() => void this.check(), RETRY_AFTER_FAILURE_MS);
+    } else if (status && this.endedElsewhere) {
+      this.stop();
+      this.session.restart();
     } else if (status) {
       this.apply(status);
     } else {

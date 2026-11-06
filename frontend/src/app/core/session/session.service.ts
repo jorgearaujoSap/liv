@@ -66,22 +66,30 @@ export class SessionService {
    * Lleva a iniciar sesión y, al autenticarse, de vuelta a `returnTo` (001-01). Solo actúa la primera
    * vez: si varias cosas lo piden a la vez (la guarda y un 401), vale la ruta del primero.
    *
-   * Avisa antes a las demás pestañas, como al salir: si la sesión venció, no deben seguir mostrando sus
-   * datos hasta su próxima consulta. Cada una pregunta al BFF antes de irse (`IdleService`), así que el
-   * aviso no cierra una sesión que siga abierta.
+   * Si la sesión terminó, avisa antes a las demás pestañas, como al salir, para que no sigan mostrando sus
+   * datos. Quien llama con `sessionEnded: false` sabe que la sesión sigue abierta: entonces no avisa, y las
+   * demás se enteran en su próxima consulta, porque `/bff/login` cierra la sesión abierta.
    */
-  redirectToLogin(returnTo: string): void {
+  redirectToLogin(
+    returnTo: string,
+    { sessionEnded = true }: { sessionEnded?: boolean } = {},
+  ): void {
     if (this.redirecting) {
       return;
     }
     this.redirecting = true;
-    this.channel.post({ type: 'ended' });
+    if (sessionEnded) {
+      this.channel.post({ type: 'ended' });
+    }
     const target = isReturnTarget(returnTo) ? returnTo : '/';
     this.navigation.replace(`${LOGIN_PATH}?returnTo=${encodeURIComponent(target)}`);
   }
 
-  /** Recarga la aplicación desde el inicio, con la sesión que haya. */
+  /** Recarga la aplicación desde el inicio, con la sesión que haya. No deshace una redirección en curso. */
   restart(): void {
+    if (this.redirecting) {
+      return;
+    }
     this.navigation.replace('/');
   }
 

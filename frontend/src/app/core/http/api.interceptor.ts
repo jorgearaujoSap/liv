@@ -105,8 +105,13 @@ function markedAsRetried(request: HttpRequest<unknown>): HttpRequest<unknown> {
   return request.clone({ context: context.set(RETRIED_AFTER_UNAUTHORIZED, true) });
 }
 
-function toLogin({ session, router }: Dependencies, error: unknown): Observable<never> {
-  session.redirectToLogin(currentUrl(router));
+/** `sessionEnded`: solo si se comprobó que no hay sesión se avisa a las demás pestañas. */
+function toLogin(
+  { session, router }: Dependencies,
+  error: unknown,
+  sessionEnded: boolean,
+): Observable<never> {
+  session.redirectToLogin(currentUrl(router), { sessionEnded });
   return throwError(() => error);
 }
 
@@ -117,7 +122,8 @@ function recoverFromUnauthorized(
   send: Send,
 ): Observable<HttpEvent<unknown>> {
   if (request.context.get(RETRIED_AFTER_UNAUTHORIZED)) {
-    return toLogin(dependencies, error);
+    // La sesión estaba abierta al reintentar; no se sabe si terminó.
+    return toLogin(dependencies, error, false);
   }
   // `undefined`: no se pudo averiguar si hay sesión. `null`: se averiguó y no hay.
   return from(dependencies.session.status().catch(() => undefined)).pipe(
@@ -127,7 +133,7 @@ function recoverFromUnauthorized(
         return throwError(() => error);
       }
       if (status === null || !canRetry(request)) {
-        return toLogin(dependencies, error);
+        return toLogin(dependencies, error, status === null);
       }
       return send(markedAsRetried(request));
     }),
