@@ -7,17 +7,19 @@ import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
  * Every answer of the BFF carries the security headers of doc. 02 §8 (T19), also the ones answered
  * before the security filters ({@code /bff/session}), the errors and what comes from the API.
  */
+@Tag("001-24")
 class SecurityHeadersTest extends BffFlowTest {
 
   @Test
   @DisplayName(
-      "T19 · Toda respuesta lleva HSTS, nosniff, Referrer-Policy, CSP con frame-ancestors 'none' y X-Frame-Options")
+      "001-24 · Toda respuesta lleva HSTS, nosniff, Referrer-Policy, CSP con frame-ancestors 'none' y X-Frame-Options")
   void everyAnswerCarriesTheHeaders() {
     Browser person = browser();
     person.signIn("/");

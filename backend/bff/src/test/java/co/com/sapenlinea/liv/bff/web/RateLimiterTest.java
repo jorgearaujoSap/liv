@@ -5,15 +5,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.bff.web.RateLimitProperties.Limit;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** The buckets themselves, without the server (T19). */
+@Tag("001-23")
 class RateLimiterTest {
 
   private static final Limit TWO_PER_HOUR = new Limit(2, Duration.ofHours(1));
 
   @Test
-  @DisplayName("T19 · Un balde que se recargó hasta su capacidad se olvida: es igual a uno nuevo")
+  @DisplayName(
+      "001-23 · Un balde que se recargó hasta su capacidad se olvida: es igual a uno nuevo")
   void forgetsABucketRefilledToItsCapacity() {
     RateLimiter limiter = new RateLimiter();
     // A bucket refilled to its capacity is full, whatever the kind of key.
@@ -35,7 +38,7 @@ class RateLimiterTest {
   }
 
   @Test
-  @DisplayName("T19 · Cada llave tiene su balde; agotado, dice cuántos segundos esperar")
+  @DisplayName("001-23 · Cada llave tiene su balde; agotado, dice cuántos segundos esperar")
   void eachKeyHasItsBucket() {
     RateLimiter limiter = new RateLimiter();
 
@@ -46,7 +49,7 @@ class RateLimiterTest {
   }
 
   @Test
-  @DisplayName("T19 · Se olvidan los baldes llenos, no los que tienen peticiones pendientes")
+  @DisplayName("001-23 · Se olvidan los baldes llenos, no los que tienen peticiones pendientes")
   void forgetsOnlyTheFullBuckets() {
     RateLimiter limiter = new RateLimiter();
     limiter.takeForAPerson("usada", TWO_PER_HOUR);
@@ -65,7 +68,7 @@ class RateLimiterTest {
 
   @Test
   @DisplayName(
-      "T19 · Pasado el tope de direcciones se olvidan algunas, nunca los baldes de las personas")
+      "001-23 · Pasado el tope de direcciones se olvidan algunas, nunca los baldes de las personas")
   void theCapNeverTouchesThePeople() {
     RateLimiter limiter = new RateLimiter();
     limiter.takeForAPerson("persona", TWO_PER_HOUR);
@@ -82,7 +85,7 @@ class RateLimiterTest {
   }
 
   @Test
-  @DisplayName("T19 · El límite se reparte entre las réplicas, y cada una deja pasar al menos 1")
+  @DisplayName("001-23 · El límite se reparte entre las réplicas, y cada una deja pasar al menos 1")
   void theLimitIsSharedByTheReplicas() {
     Limit limit = new Limit(600, Duration.ofMinutes(1));
     RateLimitProperties three =
@@ -94,7 +97,7 @@ class RateLimiterTest {
   }
 
   @Test
-  @DisplayName("T19 · Una dirección IPv6 cuenta por su red /64; una IPv4, tal cual")
+  @DisplayName("001-23 · Una dirección IPv6 cuenta por su red /64; una IPv4, tal cual")
   void anIpv6AddressCountsByItsNetwork() {
     assertThat(RateLimitFilter.networkOf("2001:db8:1:2:aaaa::1"))
         .isEqualTo(RateLimitFilter.networkOf("2001:db8:1:2:bbbb::9"));

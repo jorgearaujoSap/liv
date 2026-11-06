@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
@@ -23,11 +24,12 @@ import org.springframework.test.context.TestPropertySource;
       "liv.bff.rate-limits.per-user.requests=100",
       "liv.bff.rate-limits.per-user.per=1h"
     })
+@Tag("001-23")
 class RateLimitSharingTest extends BffFlowTest {
 
   @Test
   @DisplayName(
-      "T19 · Una persona con sesión no gasta el balde de su dirección; cada réplica deja pasar su parte")
+      "001-23 · Una persona con sesión no gasta el balde de su dirección; cada réplica deja pasar su parte")
   void aPersonDoesNotUseTheBucketOfTheAddress() {
     Browser person = browser();
     person.signIn("/");
