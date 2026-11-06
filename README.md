@@ -136,7 +136,7 @@ npm start
 
 ### 5. Entrar
 
-Abre **<http://localhost:4200>**. La aplicación te lleva a la pantalla de acceso de Keycloak y, al entrar, a Inicio. Si en vez de eso ves un 404 en `/bff/login`, pulsa F5 (ver «Problemas conocidos»).
+Abre **<http://localhost:4200>**. La aplicación te lleva a la pantalla de acceso de Keycloak y, al entrar, a Inicio. Si en vez de eso ves un 404 en `/bff/login`, mira «Problemas conocidos».
 
 - Todos los usuarios de prueba tienen la contraseña `Liv-Dev-2026!`. Para empezar, usa **`dev.consulta`**, que no pide segundo factor. Para entrar como administrador, usa **`dev.admin.sistema`**: en su primer ingreso pide configurar el TOTP con una aplicación de autenticación (Google Authenticator, Microsoft Authenticator o similar).
 - La lista completa de usuarios, roles y administraciones está en [`backend/dev/README.md`](backend/dev/README.md) › «*Realm* `liv` y usuarios de prueba».
@@ -167,7 +167,7 @@ Sin `-v` se conservan los datos. Con `-v` se borran y la próxima vez todo empie
 | Síntoma | Causa | Solución |
 |---|---|---|
 | La API no arranca: «`liv_owner` debe poder asumir `liv_identity_lookup` y `liv_audit_platform`» | El volumen de PostgreSQL es anterior a esos roles. `check.sh` todavía no lo detecta | Recrea el entorno con `docker compose -f dev/compose.yaml --env-file dev/.env down -v` y vuelve al paso 1, o ejecuta como `postgres` el `GRANT` de [`backend/dev/README.md`](backend/dev/README.md) › «Roles de base de datos» |
-| Al escribir `localhost:4200` en la barra del navegador aparece un 404 («Whitelabel Error Page») en `/bff/login` | El navegador precargó la página mientras escribías, y el BFF no abre un inicio de sesión desde una precarga. Es un defecto pendiente del frontend | Pulsa **F5** en esa pestaña, o abre la dirección desde un enlace o un marcador |
+| Al escribir `localhost:4200` en la barra del navegador aparece un 404 («Whitelabel Error Page») en `/bff/login` | El frontend es anterior al arreglo de la precarga del navegador (PR #97): arrancaba durante la precarga y el BFF no abre un inicio de sesión desde ella | Actualiza `main` y vuelve a ejecutar `npm start`. Mientras tanto, pulsa **F5** en esa pestaña |
 | Keycloak responde «Invalid redirect uri», o al volver no hay sesión | Se entró por `127.0.0.1` en lugar de `localhost`. El *realm* solo acepta el regreso a `http://localhost:4200` (`LIV_BFF_BASE_URL`), y la cookie de sesión no viaja entre `127.0.0.1` y `localhost` | Usa siempre `http://localhost:4200` |
 | Un puerto ya está en uso | Otro programa usa 5433, 8180, 8080, 8081 o 4200 | Cierra ese programa. Los de PostgreSQL y Keycloak se cambian en `backend/dev/.env`; los de la API, el BFF y el frontend, como dice el `README.md` de cada uno |
 | El tema de Keycloak no muestra un cambio reciente | La imagen de Keycloak es la anterior | Vuelve a levantar el entorno con `--build` |

@@ -480,6 +480,11 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - **Resultado:** `auto-rows-fr`, que Tailwind 4 escribe como `minmax(0, 1fr)`. El cambio de `NavItemType` de la 0.3.0 no afecta al menú, que sigue con dos niveles; el tercero va en otro PR. La medida real (352×158) queda para las pruebas e2e de T23.
   - **Para decidir:** a una sola columna, todas las tarjetas miden lo que la más alta; por debajo de unos 368 px la columna desborda, como ya pasaba antes. Figma no tiene diseño móvil.
 
+- [x] **T21b** · La aplicación no arranca durante la precarga del navegador (001-01). Al escribir la dirección, Chrome y Edge precargan la página; Angular redirigía a `/bff/login` y el BFF, que no abre un inicio de sesión desde una precarga, respondía 404. Lo encontró el responsable en la prueba local de Inicio (2026-11-05). — Hecha: PR [#97](https://github.com/jorgearaujoSap/liv/pull/97) (`frontend/`).
+  - Archivos: `frontend/src/main.ts`, `frontend/src/app/core/browser/when-opened.*`, `frontend/CHANGELOG.md`.
+  - Prueba primero: `startWhenOpened` no arranca antes de `prerenderingchange`, y arranca de inmediato sin precarga.
+  - **Revisión:** dos revisores adversariales de nivel alto. La primera versión aplazaba solo la navegación, y eso podía cerrar una sesión abierta mientras tanto; se rehízo esperando en el arranque. La segunda ronda dejó solo bajos, ya corregidos.
+  - **Falta:** probarlo en Chrome con el sistema levantado; la prueba e2e de 001-01 va en T23.
 ## Sistema
 
 - [ ] **T23** · `infra/` y `e2e/`.
