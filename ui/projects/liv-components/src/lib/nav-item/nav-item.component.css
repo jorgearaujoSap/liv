@@ -29,10 +29,25 @@
   @apply pl-[44px];
 }
 
+/* Nested: opción de tercer nivel, 16 px más sangrada que un subitem (44 + 16). */
+
+:host([data-type='nested']) > .nav-item__control {
+  @apply pl-[60px];
+}
+
 /* Group: texto de énfasis medio, como los títulos de módulo. */
 
 :host([data-type='group']) > .nav-item__control {
   @apply text-label-md text-text-primary;
+}
+
+/*
+ * Subgroup: opción de segundo nivel con subopciones (1.5 y 1.6). Alineado con el texto del módulo (44 px),
+ * sin icono, con chevron y énfasis medio pero más suave que el módulo (text-secondary).
+ */
+
+:host([data-type='subgroup']) > .nav-item__control {
+  @apply pl-[44px] text-label-md text-text-secondary;
 }
 
 /* Hover: solo si no es la pantalla actual ni está deshabilitado. */
@@ -50,6 +65,20 @@
 :host([data-active]) > .nav-item__control .nav-item__icon,
 :host([data-active]) > .nav-item__control .nav-item__chevron {
   @apply text-action-primary;
+}
+
+/*
+ * Active en un Subgroup (el grupo que contiene la pantalla actual): solo el texto en action-primary, sin
+ * relleno, y el chevron en text-muted como en Figma; así la pantalla actual es la única barra de color de
+ * su rama, además de la del módulo.
+ */
+
+:host([data-type='subgroup'][data-active]) > .nav-item__control {
+  @apply bg-transparent;
+}
+
+:host([data-type='subgroup'][data-active]) > .nav-item__control .nav-item__chevron {
+  @apply text-text-muted;
 }
 
 /* Disabled: aún no construida; no navega. */
