@@ -11,7 +11,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,11 +18,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Limits the requests (doc. 02 §8; plan, step 10; T19). A request of a person with a session counts
- * for the person; one without a session, for its address. The sign in ({@code /bff/login}) counts
- * also in its own, stricter, limit per address: the return from the provider does not, because it
- * only works with the {@code state} the sign in left, and refusing it would lose a sign in already
- * made. Past a limit the answer is 429 with {@code Retry-After} in seconds, and the request goes no
- * further: a page for the sign in, which is a navigation, and Problem Details for the rest.
+ * for the person; one without a session, for its address; {@code /bff/session}, which is answered
+ * before the person is known, in a bucket of its own per address. The sign in ({@code /bff/login})
+ * counts also in its own, stricter, limit per address. The return from the provider is not limited:
+ * it only works with the {@code state} the sign in left, and refusing it would lose a sign in
+ * already made. Past a limit the answer is 429 with {@code Retry-After} in seconds, and the request
+ * goes no further: a page for the sign in, which is a navigation, and Problem Details for the rest.
  *
  * <p>Two routes never count: the sign out, so that a person can always leave (the session of a
  * shared computer must end), and the back channel of the provider, which has its own limit ({@code
@@ -38,9 +38,11 @@ final class RateLimitFilter extends OncePerRequestFilter {
 
   static final String PER_IP = "ip:";
   static final String SIGN_IN = "sign-in:";
+  static final String SESSION_STATUS = "session:";
 
   private static final String SIGN_IN_PATH = "/bff/login";
   private static final Set<String> NOT_LIMITED = Set.of("/bff/logout", "/bff/backchannel-logout");
+  private static final String RETURN_FROM_THE_PROVIDER = "/login/oauth2/code/";
 
   private final RateLimiter limiter;
   private final RateLimitProperties limits;
@@ -55,16 +57,10 @@ final class RateLimitFilter extends OncePerRequestFilter {
     return limits.ofOneReplica(limits.perUser());
   }
 
-  /** Which limit each kind of key of an address has, for forgetting the full buckets. */
-  Map<String, Limit> addressLimitsByPrefix() {
-    return Map.of(
-        PER_IP, limits.ofOneReplica(limits.perIp()),
-        SIGN_IN, limits.ofOneReplica(limits.signIn()));
-  }
-
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return NOT_LIMITED.contains(request.getServletPath());
+    String path = request.getServletPath();
+    return NOT_LIMITED.contains(path) || path.startsWith(RETURN_FROM_THE_PROVIDER);
   }
 
   @Override
@@ -80,7 +76,12 @@ final class RateLimitFilter extends OncePerRequestFilter {
           limiter.takeForAPerson(
               person.getPrincipal().issuer() + " " + person.getName(), perUser());
     } else {
-      wait = limiter.takeForAnAddress(PER_IP + address, limits.ofOneReplica(limits.perIp()));
+      // /bff/session is answered before the security filters, so it never knows the person: its
+      // own bucket per address keeps the people of an office who are asking out of the one of the
+      // requests without a session.
+      String kind =
+          SessionStatusFilter.PATH.equals(request.getServletPath()) ? SESSION_STATUS : PER_IP;
+      wait = limiter.takeForAnAddress(kind + address, limits.ofOneReplica(limits.perIp()));
     }
     if (wait == 0 && signIn) {
       wait = limiter.takeForAnAddress(SIGN_IN + address, limits.ofOneReplica(limits.signIn()));
@@ -117,7 +118,7 @@ final class RateLimitFilter extends OncePerRequestFilter {
           .getWriter()
           .write(
               "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><title>LIV</title>"
-                  + "<p>Hubo demasiados intentos de iniciar sesión desde esta red. Espera "
+                  + "<p>Hubo demasiadas solicitudes. Espera "
                   + seconds
                   + " segundos y vuelve a abrir LIV.</p></html>");
       return;

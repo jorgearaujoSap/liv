@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import co.com.sapenlinea.liv.bff.web.RateLimitProperties.Limit;
 import java.time.Duration;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +11,28 @@ import org.junit.jupiter.api.Test;
 class RateLimiterTest {
 
   private static final Limit TWO_PER_HOUR = new Limit(2, Duration.ofHours(1));
+
+  @Test
+  @DisplayName("T19 · Un balde nuevo, que nadie usó, se olvida: es igual a no tenerlo")
+  void forgetsAnUnusedBucket() {
+    RateLimiter limiter = new RateLimiter();
+    // A bucket refilled to its capacity is full, whatever the kind of key.
+    limiter.takeForAnAddress("sign-in:1", new Limit(20, Duration.ofMillis(1)));
+    limiter.takeForAnAddress("ip:1", new Limit(600, Duration.ofMillis(1)));
+    pause(50);
+
+    limiter.forgetTheFull();
+
+    assertThat(limiter.addressKeys()).isZero();
+  }
+
+  private static void pause(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
 
   @Test
   @DisplayName("T19 · Cada llave tiene su balde; agotado, dice cuántos segundos esperar")
@@ -31,10 +52,15 @@ class RateLimiterTest {
     limiter.takeForAPerson("usada", TWO_PER_HOUR);
     limiter.takeForAnAddress("ip:1", TWO_PER_HOUR);
 
-    limiter.forgetTheFull(new Limit(1, Duration.ofHours(1)), Map.of("ip:", TWO_PER_HOUR));
+    limiter.takeForAPerson("agotada", TWO_PER_HOUR);
+    limiter.takeForAPerson("agotada", TWO_PER_HOUR);
+    limiter.takeForAnAddress("ip:sin-usar", new Limit(1, Duration.ofHours(1)));
+    limiter.takeForAnAddress("ip:sin-usar", new Limit(1, Duration.ofHours(1)));
 
-    assertThat(limiter.peopleKeys()).as("llena para un límite de 1").isZero();
-    assertThat(limiter.addressKeys()).as("a medias para un límite de 2").isEqualTo(1);
+    limiter.forgetTheFull();
+
+    assertThat(limiter.peopleKeys()).as("las dos tienen peticiones pendientes").isEqualTo(2);
+    assertThat(limiter.addressKeys()).isEqualTo(2);
   }
 
   @Test

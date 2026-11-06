@@ -18,9 +18,9 @@ import org.slf4j.LoggerFactory;
  * bucket is the same as a new one, so the full ones are forgotten ({@link #forgetTheFull}), and the
  * memory follows the keys in use.
  *
- * <p>The keys of addresses can be many (whoever controls a range of IPv6 addresses), so they are
- * capped: past {@link #MAX_KEYS}, first the full buckets go and then some of the addresses, never
- * the buckets of the people, whose number is bounded by who can sign in.
+ * <p>The keys of addresses can be many (whoever controls a range of addresses), so they are capped:
+ * past {@link #MAX_KEYS}, first the full buckets go and then some of the others, never the buckets
+ * of the people, whose number is bounded by who can sign in.
  */
 final class RateLimiter {
 
@@ -29,8 +29,16 @@ final class RateLimiter {
   /** The most keys of addresses kept. */
   static final int MAX_KEYS = 100_000;
 
-  private final Map<String, Bucket> people = new ConcurrentHashMap<>();
-  private final Map<String, Bucket> addresses = new ConcurrentHashMap<>();
+  private final Map<String, Kept> people = new ConcurrentHashMap<>();
+  private final Map<String, Kept> addresses = new ConcurrentHashMap<>();
+
+  /** A bucket and the capacity it was made with, to know when it is full again. */
+  private record Kept(Bucket bucket, int capacity) {
+
+    boolean isFull() {
+      return bucket.getAvailableTokens() >= capacity;
+    }
+  }
 
   /**
    * Takes one request from the bucket of a person.
@@ -44,18 +52,15 @@ final class RateLimiter {
   /** The same for a key of an address: the address, or the sign ins from it. */
   long takeForAnAddress(String key, Limit limit) {
     if (addresses.size() >= MAX_KEYS && !addresses.containsKey(key)) {
-      makeRoom(limit);
+      makeRoom();
     }
     return take(addresses, key, limit);
   }
 
   /** Forgets the buckets that are full again: the next request of their key starts a new one. */
-  void forgetTheFull(Limit perUser, Map<String, Limit> addressLimitsByPrefix) {
-    people.entrySet().removeIf(entry -> isFull(entry.getValue(), perUser));
-    addresses
-        .entrySet()
-        .removeIf(
-            entry -> isFull(entry.getValue(), limitOf(entry.getKey(), addressLimitsByPrefix)));
+  void forgetTheFull() {
+    people.values().removeIf(Kept::isFull);
+    addresses.values().removeIf(Kept::isFull);
   }
 
   int addressKeys() {
@@ -66,9 +71,12 @@ final class RateLimiter {
     return people.size();
   }
 
-  private static long take(Map<String, Bucket> buckets, String key, Limit limit) {
+  private static long take(Map<String, Kept> buckets, String key, Limit limit) {
     ConsumptionProbe probe =
-        buckets.computeIfAbsent(key, k -> bucket(limit)).tryConsumeAndReturnRemaining(1);
+        buckets
+            .computeIfAbsent(key, k -> new Kept(bucket(limit), limit.requests()))
+            .bucket()
+            .tryConsumeAndReturnRemaining(1);
     if (probe.isConsumed()) {
       return 0;
     }
@@ -77,35 +85,22 @@ final class RateLimiter {
   }
 
   /** Past the cap: a tenth of the addresses go, the full ones first. */
-  private void makeRoom(Limit limit) {
+  private void makeRoom() {
     LOG.warn("El límite de peticiones llegó a {} direcciones: se olvidan algunas", MAX_KEYS);
     int toRemove = MAX_KEYS / 10;
-    Iterator<Map.Entry<String, Bucket>> entries = addresses.entrySet().iterator();
-    while (entries.hasNext() && toRemove > 0) {
-      if (isFull(entries.next().getValue(), limit)) {
-        entries.remove();
+    Iterator<Kept> kept = addresses.values().iterator();
+    while (kept.hasNext() && toRemove > 0) {
+      if (kept.next().isFull()) {
+        kept.remove();
         toRemove--;
       }
     }
-    entries = addresses.entrySet().iterator();
-    while (entries.hasNext() && toRemove > 0) {
-      entries.next();
-      entries.remove();
+    kept = addresses.values().iterator();
+    while (kept.hasNext() && toRemove > 0) {
+      kept.next();
+      kept.remove();
       toRemove--;
     }
-  }
-
-  private static boolean isFull(Bucket bucket, Limit limit) {
-    return limit != null && bucket.getAvailableTokens() >= limit.requests();
-  }
-
-  private static Limit limitOf(String key, Map<String, Limit> limitsByPrefix) {
-    for (Map.Entry<String, Limit> prefix : limitsByPrefix.entrySet()) {
-      if (key.startsWith(prefix.getKey())) {
-        return prefix.getValue();
-      }
-    }
-    return null;
   }
 
   private static Bucket bucket(Limit limit) {
