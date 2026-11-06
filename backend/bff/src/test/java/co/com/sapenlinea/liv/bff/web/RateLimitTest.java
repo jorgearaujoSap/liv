@@ -6,15 +6,14 @@ import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 /**
- * The BFF limits how many requests a person and an address may make, and more strictly the sign
- * in (doc. 02 §8; T19). Past the limit it answers 429 with {@code Retry-After}, and the request
- * goes no further. Here the limits are a few requests per minute, and every test starts with a new
+ * The BFF limits how many requests a person and an address may make, and more strictly the sign in
+ * (doc. 02 §8; T19). Past the limit it answers 429 with {@code Retry-After}, and the request goes
+ * no further. Here the limits are a few requests per minute, and every test starts with a new
  * context, so with full buckets.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)

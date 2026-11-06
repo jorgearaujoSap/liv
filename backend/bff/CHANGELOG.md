@@ -6,6 +6,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Límite de peticiones (feature 001, T19; doc. 02 §8): por persona (300 por minuto), por dirección (600) y del inicio de sesión (20 por dirección). Pasado el límite, 429 con `Retry-After`, también en `/api/**`, donde la petición no llega a la API. Usa bucket4j (`bucket4j_jdk17-core` 8.21.0, el nombre actual de `bucket4j-core`, ADR 0023), en la memoria de cada réplica. La dirección es la que reenvía el balanceador (`server.forward-headers-strategy: native`). Los valores están en `liv.bff.rate-limits`.
+- Cabeceras de seguridad en toda respuesta (T19; doc. 02 §8): `Strict-Transport-Security`, `Content-Security-Policy` con `default-src 'none'` y `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` y `Referrer-Policy: no-referrer`.
+- `returnTo` con `%2F` (decisión de T21): se acepta si, decodificada, sigue siendo una ruta de LIV, y vuelve decodificada.
+- `bff.yaml` 1.3.0: la respuesta 429.
 - Cierre por canal trasero (feature 001, T19; 001-09, 001-18): cuando el proveedor cierra una sesión (un administrador la cierra o desactiva a la persona), llama a `POST /bff/backchannel-logout` (OpenID Connect Back-Channel Logout 1.0) y la sesión del BFF se borra al instante. Después se avisa a LIV (`EndSession` con `PROVIDER`) y se revoca el *refresh token*; si LIV no acepta el fin, el barrido lo reintenta.
 - El *logout token* se valida sin API propia de ningún proveedor: firma RS256 con las claves del `jwks_uri` (leídas con tiempos cortos, en caché y como máximo cada 30 s), `typ` `logout+jwt` o `JWT`, `iss`, `aud` del cliente, `iat` de los últimos 2 minutos, el evento del estándar, `jti`, `sid` y sin `nonce`. Responde 200, 400 con `invalid_request` o 503 para que el proveedor reintente. Atiende 8 a la vez. Está en `bff.yaml` (versión 1.2.0) y es solo para la red interna.
 - `bff.oidc_session` (migración `V202611061100`) guarda qué sesión del BFF es de qué `sid`, para encontrarla desde cualquier réplica, y los avisos a LIV pendientes.

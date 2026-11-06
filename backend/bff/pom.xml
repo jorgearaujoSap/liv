@@ -28,6 +28,9 @@
     <openapi-diff.version>2.1.7</openapi-diff.version>
     <!-- La misma versión que la API (backend/pom.xml). -->
     <shedlock.version>7.10.1</shedlock.version>
+    <!-- Limitación de tasa (ADR 0023, «bucket4j-core»): desde la 8.11 la misma librería se publica como
+         bucket4j_jdk17-core. Se fija 8.21.0, la última con más de dos semanas de publicada. -->
+    <bucket4j.version>8.21.0</bucket4j.version>
   </properties>
 
   <dependencyManagement>
@@ -72,6 +75,12 @@
       <groupId>net.javacrumbs.shedlock</groupId>
       <artifactId>shedlock-provider-jdbc-template</artifactId>
       <version>${shedlock.version}</version>
+    </dependency>
+    <!-- Límite de peticiones por persona, por dirección y del inicio de sesión (T19, doc. 02 §8). -->
+    <dependency>
+      <groupId>com.bucket4j</groupId>
+      <artifactId>bucket4j_jdk17-core</artifactId>
+      <version>${bucket4j.version}</version>
     </dependency>
 
     <!-- Migraciones del esquema bff (ADR 0023): Flyway solo corre en los perfiles dev y test, como

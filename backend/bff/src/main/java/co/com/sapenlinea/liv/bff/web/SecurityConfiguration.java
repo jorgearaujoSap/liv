@@ -12,6 +12,7 @@ import co.com.sapenlinea.liv.bff.session.SessionLifetime;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.RequestCacheConfigurer;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -32,8 +33,9 @@ import org.springframework.session.SessionRepository;
  * browser, not the BFF, decides where to go. {@code /api/**} goes to the API ({@link
  * ApiRouteConfiguration}); {@code /internal/**} has no route, so it is a 404.
  *
- * <p>The hardening of T19 (rate limit, headers beyond the default {@code Cache-Control}) is not
- * here yet.
+ * <p>The hardening of T19: the limit of requests runs here, where the person is known ({@link
+ * RateLimitFilter}); the security headers are written for every answer by {@link
+ * SecurityHeadersFilter}, so here Spring Security only writes {@code Cache-Control}.
  */
 @Configuration(proxyBeanMethods = false)
 class SecurityConfiguration {
@@ -76,7 +78,8 @@ class SecurityConfiguration {
       OAuth2AuthorizedClientRepository clients,
       SessionCloser closer,
       SecurityContextRepository contexts,
-      SessionLifetime lifetime) {
+      SessionLifetime lifetime,
+      RateLimitFilter rateLimit) {
     // The frontend reads the cookie (no HttpOnly) and sends it back in the X-XSRF-TOKEN header
     // (001-12). The cookie is no credential: LIV_SESSION is the one that authenticates.
     CookieCsrfTokenRepository csrfTokens = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -88,8 +91,9 @@ class SecurityConfiguration {
                 .csrfTokenRepository(csrfTokens)
                 .csrfTokenRequestHandler(new HeaderOnlyCsrfTokenRequestHandler()))
         .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
-        .addFilterAfter(
-            new AbsoluteLimitFilter(lifetime, closer), SecurityContextHolderFilter.class)
+        .addFilterAfter(rateLimit, SecurityContextHolderFilter.class)
+        .addFilterAfter(new AbsoluteLimitFilter(lifetime, closer), RateLimitFilter.class)
+        .headers(headers -> headers.defaultsDisabled().cacheControl(Customizer.withDefaults()))
         .securityContext(context -> context.securityContextRepository(contexts))
         .requestCache(RequestCacheConfigurer::disable)
         .logout(logout -> logout.disable())
