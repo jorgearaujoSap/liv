@@ -524,8 +524,10 @@ describe('NavItem', () => {
     it('Default usa el texto label/md; Active, body/md-strong', () => {
       const { branch } = renderLevels();
       expect(declaredStyle(branch, 'font-size')).toContain('--text-label-md');
+      expect(declaredStyle(branch, 'font-weight')).toContain('--text-label-md--font-weight');
       const active = renderLevels({ branchActive: true }).branch;
       expect(declaredStyle(active, 'font-size')).toContain('--text-body-md-strong');
+      expect(declaredStyle(active, 'font-weight')).toContain('--text-body-md-strong--font-weight');
     });
 
     it('Default usa text-secondary (no el text-primary de un módulo) y el chevron text-muted', () => {
@@ -572,10 +574,9 @@ describe('NavItem', () => {
       expect(usesToken(getComputedStyle(label).color, '--color-action-primary')).toBe(true);
     });
 
-    it('Active y Disabled a la vez: texto text-disabled, sin chevron ni aria-current', () => {
+    it('Active y Disabled a la vez: texto text-disabled y sin relleno', () => {
       const { branch } = renderLevels({ branchActive: true, branchDisabled: true });
-      expect(branch.hasAttribute('aria-current')).toBe(false);
-      expect(branch.querySelector('.nav-item__chevron')).toBeNull();
+      expect(declaredStyle(branch, 'background-color')).toContain('transparent');
       const label = branch.querySelector('.nav-item__label') as HTMLElement;
       expect(usesToken(getComputedStyle(label).color, '--color-text-disabled')).toBe(true);
     });

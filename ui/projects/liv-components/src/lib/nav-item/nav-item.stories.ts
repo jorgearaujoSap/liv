@@ -140,7 +140,13 @@ export const NestedActivo: Story = {
 
 export const NestedDeshabilitado: Story = {
   name: 'Nested · deshabilitado',
-  args: { type: 'nested', icon: undefined, disabled: true, label: 'Calendario tributario' },
+  args: {
+    type: 'nested',
+    icon: undefined,
+    href: undefined,
+    disabled: true,
+    label: 'Calendario tributario',
+  },
 };
 
 export const SubgroupExpandido: Story = {

@@ -25,13 +25,16 @@ let nextId = 0;
  *
  * Anidación válida: `group` contiene `subitem` y `subgroup`; `subgroup` contiene `nested`. Los hijos son
  * `liv-nav-item` directos (no se envuelven en otro elemento) y la sangría es fija por tipo, no por
- * profundidad: otra anidación se ve plana. `type` se fija al crear la opción.
+ * profundidad: otra anidación se ve plana. No cambies `type` con la opción ya creada.
  */
 export type NavItemType = 'item' | 'group' | 'subgroup' | 'subitem' | 'nested';
 
 /** Los tipos que se expanden para mostrar las opciones que contienen. */
 const BRANCH_TYPES: readonly NavItemType[] = ['group', 'subgroup'];
-/** Los tipos que dibujan icono. `subgroup`, `subitem` y `nested` no: se alinean con el texto del módulo. */
+/**
+ * Los tipos que dibujan icono. `subgroup`, `subitem` y `nested` no: se alinean con el texto del módulo
+ * (`nested`, 16 px más sangrado).
+ */
 const ICON_TYPES: readonly NavItemType[] = ['item', 'group'];
 
 /**
@@ -48,7 +51,8 @@ const ICON_TYPES: readonly NavItemType[] = ['item', 'group'];
  * declara `aria-current`: el `group` con el fondo de la pantalla actual y el `subgroup` solo con el color
  * y el peso del texto (`body/md-strong` en `action-primary`), sin relleno, para no apilar tres barras
  * (módulo, grupo y opción actual). Si la rama activa está contraída, la opción actual no está en el DOM:
- * la aplicación debe mantenerla expandida (`[expanded]`) mientras contenga la pantalla actual.
+ * la aplicación debe expandirla (`[(expanded)]`, para que el usuario también pueda contraerla) cuando la
+ * pantalla actual esté dentro.
  *
  * `disabled` es una opción aún no construida: no tiene `href`, no navega ni se expande, declara
  * `aria-disabled="true"`, explica por qué con `disabledHint` y el clic no llega a quien escuche el
