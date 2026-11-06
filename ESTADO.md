@@ -132,9 +132,11 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
-- Feature 001, criterios de `spec.md`: quedan marcados **12 de 22**.
-  - **Recién marcados:** 001-08, 001-14, 001-17 y 001-21. Ya tenían su prueba, que ahora se anota en la spec. 001-08 lo prueba `identity/theme/check.sh` contra Keycloak real (PR #101).
-  - **Siguen sin marcar:** 001-01, 001-02, 001-09, 001-11, 001-12, 001-15, 001-16, 001-19 y 001-22, que solo esperan la prueba e2e de T23, y 001-10, que además espera T19.
+- Feature 001, criterios de `spec.md`: quedan marcados **11 de 22**.
+  - **Recién marcados:** 001-08, 001-14 y 001-17. Ya tenían su prueba, que ahora se anota en la spec. 001-08 lo prueba `identity/theme/check.sh` contra Keycloak real (PR #101).
+  - **001-21:** se anotan sus pruebas, pero queda sin marcar. Falta probar que cambiar de proveedor solo cambia el vínculo (emisor, `sub`), y hoy no hay cómo volver a vincular a un usuario.
+  - **Esperan la prueba e2e de T23:** 001-01, 001-02, 001-09, 001-11, 001-12, 001-15, 001-16, 001-19 y 001-22.
+  - **Espera T23 y T19:** 001-10.
   - **`tasks.md`:** se marca la tarea aparte de F0-07 (PR #69 a #71).
 
 - Feature 001, T22b (PR #99): el menú lateral pinta el tercer nivel (1.5.x y 1.6.x) como en Figma. Guarda qué ramas están abiertas: la persona puede contraerlas y ninguna se cierra sola. Revisión adversarial en dos rondas, sin críticos ni altos.
