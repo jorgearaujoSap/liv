@@ -92,6 +92,59 @@ describe('menú: catálogo de presentación (001-15)', () => {
     ]);
   });
 
+  describe('una rama (módulo o grupo de opciones) no tiene pantalla propia', () => {
+    it('lleva a su primera opción disponible, no a una ruta sin pantalla', () => {
+      const [module] = buildMenu(
+        capabilities(
+          branch('1', [
+            leaf('1.2'),
+            branch('1.5', [leaf('1.5.3'), leaf('1.5.9', 'AVAILABLE'), leaf('1.5.8', 'AVAILABLE')]),
+          ]),
+        ),
+      );
+
+      const [, cargue] = module.children;
+      expect(cargue.available).toBe(true);
+      expect(cargue.href).toBe('/opcion/1.5.9');
+      expect(module.available).toBe(true);
+      expect(module.href).toBe('/opcion/1.5.9');
+    });
+
+    it('sin ninguna opción disponible no navega', () => {
+      const [module] = buildMenu(capabilities(branch('1', [branch('1.5', [leaf('1.5.9')])])));
+
+      expect(module.available).toBe(false);
+      expect(module.href).toBeUndefined();
+      expect(module.children[0].href).toBeUndefined();
+    });
+
+    it('si el backend la marca disponible pero ningún hijo lo está, no inventa una ruta', () => {
+      const lonely: Capability = { code: '1', status: 'AVAILABLE', children: [leaf('1.2')] };
+      const [module] = buildMenu(capabilities(lonely));
+
+      expect(module.href).toBeUndefined();
+    });
+  });
+
+  describe('códigos que no son un número de opción (Doc. 01 §3)', () => {
+    it('se descartan: no se pinta ni se enlaza lo que no tiene la forma de un número', () => {
+      const menu = buildMenu(
+        capabilities(
+          leaf('3'),
+          leaf('constructor'),
+          leaf('../admin'),
+          leaf('1?x'),
+          leaf('1.'),
+          leaf(''),
+          branch('1', [leaf('1.2'), leaf('1.2#x'), leaf('toString')]),
+        ),
+      );
+
+      expect(menu.map((module) => module.code)).toEqual(['3', '1']);
+      expect(menu[1].children.map((option) => option.code)).toEqual(['1.2']);
+    });
+  });
+
   it('un código que el catálogo no conoce se muestra con su número, no se oculta', () => {
     const menu = buildMenu(capabilities(leaf('10'), branch('1', [leaf('1.9')])));
 

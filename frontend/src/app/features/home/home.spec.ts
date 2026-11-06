@@ -66,6 +66,35 @@ describe('Inicio (001-02, 001-15)', () => {
     expect(text(render())).not.toContain('Cartera');
   });
 
+  it('sin saber quién es la persona, saluda sin nombre y habla de «tu entidad»', () => {
+    workspace.user.set(undefined);
+    const host = render();
+
+    expect(text(host.querySelector('h1'))).toBe('Hola');
+    expect(text(host)).toContain('para tu rol en tu entidad.');
+  });
+
+  it('con un nombre de varias palabras saluda por la primera', () => {
+    workspace.user.update((user) => user && { ...user, fullName: '  María   José Pérez ' });
+
+    expect(text(render().querySelector('h1'))).toBe('Hola, María');
+  });
+
+  it('un módulo con una opción disponible es una tarjeta habilitada que lleva a esa opción', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    workspace.menu.set(
+      buildMenu({
+        items: [{ code: '1', status: 'AVAILABLE', children: [leaf('1.2', 'AVAILABLE')] }],
+      }),
+    );
+    const [card] = cards(render());
+
+    const link = card.querySelector('a[href="/opcion/1.2"]') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    link.click();
+    expect(navigate).toHaveBeenCalledWith('/opcion/1.2');
+  });
+
   it('un módulo sin construir queda deshabilitado, con la insignia «Próximamente», y no navega', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const [first] = cards(render());

@@ -161,6 +161,18 @@ describe('capabilityGuard', () => {
       expect(target(await runWithParams({}, BY_PARAM))).toBe(APP_PATHS.forbidden);
     });
 
+    it('si la ruta declara las dos formas a la vez, se niega: no se elige una por precedencia', async () => {
+      expect(
+        target(await runWithParams({ code: '1.5.1' }, { ...BY_PARAM, capability: '1.5.1' })),
+      ).toBe(APP_PATHS.forbidden);
+    });
+
+    it('si la ruta declara que el número viene de la URL, un data.capability sin ese parámetro no la abre', async () => {
+      expect(target(await runWithParams({}, { ...BY_PARAM, capability: '1.5.1' }))).toBe(
+        APP_PATHS.forbidden,
+      );
+    });
+
     it('si la ruta no declara que el número viene de la URL, el parámetro se ignora', async () => {
       expect(target(await runWithParams({ code: '1.5.1' }, {}))).toBe(APP_PATHS.forbidden);
     });

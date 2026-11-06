@@ -6,6 +6,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Pantallas de la feature 001 (T22), con sus diseños de Figma LIV-Diseño y solo con `liv-components` 0.2.0:
+  - estructura general (`SideNav`, `AppHeader`) con el menú que arma `core/navigation/menu-presentation.ts` a partir de las capacidades: solo lo permitido, las opciones `COMING_SOON` deshabilitadas (001-02, 001-15);
+  - Inicio, Sin permiso (403), Próximamente, Cargando y Error (rutas `/`, `/sin-permiso`, `/proximamente` y `/error`);
+  - aviso de sesión por expirar sobre `IdleService.warning` (001-22): «Seguir conectado» o «Cerrar sesión»; el aviso del límite de 8 horas solo deja cerrar sesión (su texto no está en el diseño);
+  - ruta `opcion/:code`, con `capabilityGuard`, para abrir cualquier opción del menú por URL (001-16);
+  - regla de ESLint: las plantillas de `src/app/features/` solo usan `liv-*`, `app-*`, `router-outlet` y contenedores sin estilo, sin `style`, `class` ni controles nativos.
+- `axe-core` 4.14.0 (solo desarrollo): una prueba de accesibilidad por pantalla (001-19). **Pendiente de ADR** (`AGENTS.md` §4.5).
 - Núcleo de sesión (`src/app/core/`, feature 001, T21):
   - `SessionService` sobre `BffApi` (estado de la sesión sin extenderla, `keepalive` y cierre de sesión con navegación completa), `authGuard` con `returnTo` (001-01) y `capabilityGuard` sobre `PlatformApi` con 403 y «Próximamente» (001-16). Las rutas a las que llevan (`/sin-permiso`, `/proximamente`, `/error`) están en `app-paths.ts`; sus pantallas son de T22.
   - Interceptor de la API (`provideLivHttp()`): `X-Correlation-Id`, token anti-CSRF (cookie `XSRF-TOKEN` a `X-XSRF-TOKEN`, 001-12), reintento tras un 401 **una vez y solo en lecturas o con `Idempotency-Key`**, y recarga de capacidades tras un 403.
@@ -22,6 +29,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Contrato `bff` 1.1.0 (antes 1.0.0): declara el 403 anti-CSRF con `code` `001-12` (`CsrfProblem`). Compatible: el cliente generado cambia `Problem` por `CsrfProblem` en el BFF y nada de la aplicación lo usaba.
 - Aviso del cierre de sesión entre pestañas (decisión del responsable sobre T21): al ir a iniciar sesión sin sesión (vencida o tras un 401), `SessionService.redirectToLogin` avisa a las demás pestañas, igual que al salir. Si la sesión sigue abierta, no avisa. Cada pestaña que recibe el aviso pregunta al BFF cuando está a la vista, para no pisar el inicio de sesión de la pestaña que la persona usa. Sin sesión, va a iniciar sesión conservando su ruta; con una sesión abierta, se recarga. Si el BFF no responde, vuelve a preguntar en 30 segundos. El canal no falla si el navegador no deja enviar, y `restart()` no deshace una redirección en curso.
 - `liv-components` sube a la versión exacta 0.2.0 (18 componentes).
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.

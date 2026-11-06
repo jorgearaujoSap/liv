@@ -90,6 +90,62 @@ describe('aviso de sesión por expirar (001-22)', () => {
     expect(keep.getAttribute('aria-disabled')).not.toBe('true');
   });
 
+  it('si no se pudo extender la sesión, lo dice y deja reintentar', async () => {
+    idle.extend = vi.fn().mockResolvedValue(false);
+    idle.warning.set({ kind: 'idle', secondsLeft: 90 });
+    const fixture = render();
+    const keep = button(dialog(fixture), 'Seguir conectado') as HTMLButtonElement;
+
+    keep.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text(dialog(fixture))).toContain('No pudimos extender tu sesión. Inténtalo de nuevo.');
+    expect(keep.getAttribute('aria-disabled')).not.toBe('true');
+
+    keep.click();
+    expect(idle.extend).toHaveBeenCalledTimes(2);
+  });
+
+  it('el mensaje de fallo desaparece cuando el aviso se cierra y vuelve a salir', async () => {
+    idle.extend = vi.fn().mockResolvedValue(false);
+    idle.warning.set({ kind: 'idle', secondsLeft: 90 });
+    const fixture = render();
+    (button(dialog(fixture), 'Seguir conectado') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    idle.warning.set(undefined);
+    fixture.detectChanges();
+    idle.warning.set({ kind: 'idle', secondsLeft: 60 });
+    fixture.detectChanges();
+
+    expect(text(dialog(fixture))).not.toContain('No pudimos extender');
+  });
+
+  it('con el plazo vencido no dice «en 1 minuto»: dice que es en unos segundos', () => {
+    idle.warning.set({ kind: 'idle', secondsLeft: 0 });
+
+    const description = text(dialog(render()));
+    expect(description).toContain('en unos segundos');
+    expect(description).not.toContain('1 minuto');
+  });
+
+  it('si la inactividad pasa al límite de 8 horas con el aviso abierto, el foco queda en el diálogo', async () => {
+    idle.warning.set({ kind: 'idle', secondsLeft: 100 });
+    const fixture = render();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(button(dialog(fixture), 'Seguir conectado'));
+
+    idle.warning.set({ kind: 'absolute', secondsLeft: 280 });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(button(dialog(fixture), 'Seguir conectado')).toBeUndefined();
+    expect(text(dialog(fixture))).toContain('Tu sesión está por terminar');
+    expect(dialog(fixture)?.contains(document.activeElement)).toBe(true);
+  });
+
   it('el foco inicial queda en «Seguir conectado»', async () => {
     idle.warning.set({ kind: 'idle', secondsLeft: 120 });
     const fixture = render();
@@ -141,6 +197,12 @@ describe('aviso de sesión por expirar (001-22)', () => {
       (button(dialog(fixture), 'Cerrar sesión') as HTMLButtonElement).click();
 
       expect(idle.logout).toHaveBeenCalledOnce();
+    });
+
+    it('con un minuto o menos dice «1 minuto», en singular', () => {
+      idle.warning.set({ kind: 'absolute', secondsLeft: 60 });
+
+      expect(text(dialog(render()))).toContain('Cerraremos la tuya en 1 minuto.');
     });
   });
 });

@@ -5,6 +5,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import axe from 'axe-core';
 import { vi } from 'vitest';
 
+import { buildMenu } from '../core/navigation/menu-presentation';
 import { IdleService, type SessionWarning } from '../core/session/idle.service';
 import { ComingSoon } from './errors/coming-soon';
 import { Forbidden } from './errors/forbidden';
@@ -12,7 +13,7 @@ import { LoadError } from './errors/load-error';
 import { Home } from './home/home';
 import { Shell } from './shell/shell';
 import { WorkspaceService } from './shell/workspace.service';
-import { FakeWorkspace } from './testing/fixtures';
+import { FakeWorkspace, leaf } from './testing/fixtures';
 
 /**
  * Ejecuta axe-core sobre la pantalla. En jsdom no se puede calcular el contraste de color, así que esta
@@ -79,8 +80,30 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
 
   it('Inicio con el menú abierto en un módulo con subopciones', async () => {
     const page = await open('/');
-    (page.querySelector('liv-nav-item[data-type="group"] button') as HTMLButtonElement).click();
+    const group = page.querySelector('liv-nav-item[data-type="group"]') as HTMLElement;
+    (group.querySelector('button') as HTMLButtonElement).click();
+    TestBed.tick();
 
+    expect(group.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
+    expect(group.querySelectorAll('liv-nav-item[data-type="subitem"]').length).toBeGreaterThan(0);
+    expect(await violations(page)).toEqual([]);
+  });
+
+  it('Inicio con opciones disponibles (enlaces) y sin construir', async () => {
+    workspace.menu.set(
+      buildMenu({
+        items: [
+          { code: '1', status: 'AVAILABLE', children: [leaf('1.2', 'AVAILABLE'), leaf('1.4')] },
+          leaf('3', 'AVAILABLE'),
+          leaf('4'),
+        ],
+      }),
+    );
+    const page = await open('/');
+    (page.querySelector('liv-nav-item[data-type="group"] button') as HTMLButtonElement).click();
+    TestBed.tick();
+
+    expect(page.querySelectorAll('a[href^="/opcion/"]').length).toBeGreaterThan(2);
     expect(await violations(page)).toEqual([]);
   });
 

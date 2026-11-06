@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -151,6 +152,65 @@ describe('estructura general (001-02, 001-15)', () => {
       expect(navigate).toHaveBeenCalledWith('/opcion/3');
     });
 
+    it('una opción disponible dentro de un módulo navega, y sus hermanas sin construir no', async () => {
+      const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      workspace.menu.set(
+        buildMenu({
+          items: [
+            {
+              code: '1',
+              status: 'AVAILABLE',
+              children: [leaf('1.1'), leaf('1.2', 'AVAILABLE'), leaf('1.4')],
+            },
+          ],
+        }),
+      );
+      const fixture = await render();
+      const nav = host(fixture).querySelector('liv-side-nav') as HTMLElement;
+      (nav.querySelector('liv-nav-item[data-type="group"] button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      const subitems = Array.from(nav.querySelectorAll('liv-nav-item[data-type="subitem"]'));
+      expect(subitems.map((item) => item.hasAttribute('data-disabled'))).toEqual([
+        true,
+        false,
+        true,
+      ]);
+      (subitems[1].querySelector('a[href]') as HTMLAnchorElement).click();
+      expect(navigate).toHaveBeenCalledWith('/opcion/1.2');
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
+
+    it('en una opción del módulo, el módulo se marca y se abre; en otro con prefijo parecido, no', async () => {
+      workspace.menu.set(
+        buildMenu({
+          items: [
+            { code: '1', status: 'AVAILABLE', children: [leaf('1.2', 'AVAILABLE')] },
+            { code: '10', status: 'AVAILABLE', children: [leaf('10.1', 'AVAILABLE')] },
+          ],
+        }),
+      );
+      router.resetConfig([{ path: 'opcion/:code', children: [] }]);
+      await router.navigateByUrl('/');
+      const fixture = await render();
+      const groups = () =>
+        Array.from(host(fixture).querySelectorAll('liv-nav-item[data-type="group"]'));
+      const expanded = () =>
+        groups().map((group) => group.querySelector('button')?.getAttribute('aria-expanded'));
+
+      expect(expanded()).toEqual(['false', 'false']);
+
+      await router.navigateByUrl('/opcion/1.2');
+      fixture.detectChanges();
+
+      expect(expanded()).toEqual(['true', 'false']);
+      expect(groups()[0].hasAttribute('data-active')).toBe(true);
+      expect(groups()[1].hasAttribute('data-active')).toBe(false);
+      expect(
+        host(fixture).querySelectorAll('liv-nav-item[data-type="subitem"] [aria-current="page"]'),
+      ).toHaveLength(1);
+    });
+
     it('«Inicio» marca la pantalla actual, y solo en la ruta raíz', async () => {
       await router.navigateByUrl('/');
       const fixture = await render();
@@ -182,6 +242,39 @@ describe('estructura general (001-02, 001-15)', () => {
 
       expect(host(fixture).querySelector('[aria-busy="true"]')).toBeNull();
       expect(host(fixture).querySelector('liv-skeleton')).toBeNull();
+    });
+
+    it('si no carga porque no hay sesión (401), no va a «Error»: el interceptor ya la lleva a iniciar sesión', async () => {
+      const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      workspace.loading = Promise.reject(new HttpErrorResponse({ status: 401 }));
+      await render();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('si se destruye mientras carga, un fallo posterior no navega', async () => {
+      const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      let fail: (reason: unknown) => void = () => undefined;
+      workspace.loading = new Promise<void>((_resolve, reject) => (fail = reject));
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+
+      fixture.destroy();
+      fail(new Error('sin servicio'));
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('el aviso «Cargando tu sesión…» está fuera del contenedor ocupado, para que se anuncie', async () => {
+      workspace.loading = new Promise<void>(() => undefined);
+      const fixture = TestBed.createComponent(Shell);
+      fixture.detectChanges();
+      const status = host(fixture).querySelector('[role="status"]');
+
+      expect(text(status)).toBe('Cargando tu sesión…');
+      expect(status?.closest('[aria-busy="true"]')).toBeNull();
     });
 
     it('si no carga, va a la pantalla de error', async () => {

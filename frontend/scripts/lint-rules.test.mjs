@@ -166,8 +166,25 @@ describe('las pantallas solo usan componentes de liv-components', () => {
     await rejects('<liv-badge [ngClass]="clases">Hola</liv-badge>', /class/i);
   });
 
-  it('sin etiqueta <style>', async () => {
+  it('sin etiqueta <style>, con o sin atributos, en una o varias líneas', async () => {
     await rejects('<style>.x { color: red }</style>', /style/i);
+    await rejects('<style media="print">.x { color: red }</style>', /style/i);
+    await rejects('<style\n  type="text/css">.x { color: red }</style>', /style/i);
+  });
+
+  it('sin [className] ni [innerHTML]', async () => {
+    await rejects('<liv-badge [className]="clases">Hola</liv-badge>', /class/i);
+    await rejects('<div [innerHTML]="html"></div>', /innerHTML/);
+  });
+
+  it('sin controles nativos aunque vengan en mayúsculas o en un espacio de nombres (svg)', async () => {
+    await rejects('<BUTTON type="button">Ir</BUTTON>', /liv-components/);
+    await rejects('<svg viewBox="0 0 1 1"></svg>', /liv-components/);
+  });
+
+  it('sin un div que haga de botón: un rol interactivo en un contenedor nativo', async () => {
+    await rejects('<div role="button" tabindex="0">Ir</div>', /liv-components/);
+    await rejects('<span role="link" tabindex="0">Ir</span>', /liv-components/);
   });
 
   it('sin elementos propios que no sean de liv-components ni secciones de la propia pantalla (app-)', async () => {
@@ -203,5 +220,37 @@ describe('las pantallas solo usan componentes de liv-components', () => {
 
   it('la regla solo rige en src/app/features/', async () => {
     assert.deepEqual(await template('<div class="x"></div>', 'src/app/app.html'), []);
+  });
+
+  describe('el componente de una pantalla tampoco lleva estilos en su código', () => {
+    const component = (body) =>
+      `import { Component } from '@angular/core';\n@Component({ selector: 'app-x', template: '', ${body} })\nexport class X {}\n`;
+    const screen = async (code, filePath = 'src/app/features/home/x.ts') => {
+      const [result] = await eslint.lintText(code, { filePath: join(projectDir, filePath) });
+      return result.messages.filter((message) => message.ruleId === 'no-restricted-syntax');
+    };
+
+    it('sin `styles` en línea: los estilos van en el .component.css (styleUrl)', async () => {
+      const messages = await screen(component("styles: ['.a { color: red }']"));
+      assert.equal(messages.length, 1);
+      assert.match(messages[0].message, /styleUrl|\.component\.css|css/i);
+    });
+
+    it('sin `host` con class o style', async () => {
+      assert.equal((await screen(component("host: { class: 'flex' }"))).length, 1);
+      assert.equal((await screen(component("host: { '[style.color]': 'c' }"))).length, 1);
+    });
+
+    it('`styleUrl` sí, y `host` sin class ni style también', async () => {
+      assert.deepEqual(await screen(component("styleUrl: './x.css'")), []);
+      assert.deepEqual(await screen(component("host: { role: 'region' }")), []);
+    });
+
+    it('fuera de src/app/features/ no rige', async () => {
+      assert.deepEqual(
+        await screen(component("styles: ['.a {}']"), 'src/app/core/x.ts'),
+        [],
+      );
+    });
   });
 });
