@@ -13,9 +13,9 @@ import org.springframework.security.web.csrf.InvalidCsrfTokenException;
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
 
 /**
- * The answer with code 001-12 is only for the anti-CSRF refusal: the frontend takes any other 403 of
- * {@code /api/**} as "no permission" (001-16), so a future rule of the BFF that denies something must
- * not look like a missing token.
+ * The answer with code 001-12 is only for the anti-CSRF refusal: the frontend takes any other 403
+ * of {@code /api/**} as "no permission" (001-16), so a future rule of the BFF that denies something
+ * must not look like a missing token.
  */
 @Tag("001-12")
 class CsrfRejectionTest {
