@@ -174,6 +174,12 @@ describe('SessionService', () => {
 
       expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2F']);
     });
+
+    it('avisa a las demás pestañas antes de navegar, para que no sigan mostrando datos de la sesión que terminó', () => {
+      service.redirectToLogin('/liquidacion/lista');
+
+      expect(channel.posted).toEqual([{ type: 'ended' }]);
+    });
   });
   describe('varias llamadas a la vez', () => {
     it('redirectToLogin actúa una sola vez: la primera ruta pedida es la que vale', () => {
@@ -181,6 +187,7 @@ describe('SessionService', () => {
       service.redirectToLogin('/');
 
       expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%2Flista']);
+      expect(channel.posted).toEqual([{ type: 'ended' }]);
     });
 
     it('status() comparte una sola petición mientras haya una en vuelo', async () => {
