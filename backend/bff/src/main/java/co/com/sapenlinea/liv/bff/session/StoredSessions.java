@@ -3,6 +3,7 @@ package co.com.sapenlinea.liv.bff.session;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -63,6 +64,25 @@ public final class StoredSessions {
             "SELECT primary_id, principal_name, expiry_time FROM "
                 + table
                 + " WHERE session_id = ? FOR UPDATE SKIP LOCKED",
+            (row, i) -> new Row(row.getString(1), row.getString(2), row.getLong(3)),
+            sessionId)
+        .stream()
+        .findFirst();
+  }
+
+  /**
+   * The session, locked until the transaction ends, waiting up to {@code timeout} if someone else
+   * has it (a request of the person saving it, the sweep): empty only if it is gone.
+   *
+   * @throws org.springframework.dao.DataAccessException if it is still locked after the timeout
+   */
+  Optional<Row> lockWaiting(String sessionId, Duration timeout) {
+    jdbc.execute("SET LOCAL lock_timeout = '" + timeout.toMillis() + "ms'");
+    return jdbc
+        .query(
+            "SELECT primary_id, principal_name, expiry_time FROM "
+                + table
+                + " WHERE session_id = ? FOR UPDATE",
             (row, i) -> new Row(row.getString(1), row.getString(2), row.getLong(3)),
             sessionId)
         .stream()
@@ -147,10 +167,10 @@ public final class StoredSessions {
 
   /** The person of LIV of the session; {@code null} if it has none. It throws if unreadable. */
   SessionAuthentication personOf(Map<String, byte[]> attributes) {
-    return read(attributes, SECURITY_CONTEXT) instanceof SecurityContext context
-            && context.getAuthentication() instanceof SessionAuthentication person
-        ? person
-        : null;
+    if (!(read(attributes, SECURITY_CONTEXT) instanceof SecurityContext context)) {
+      return null;
+    }
+    return context.getAuthentication() instanceof SessionAuthentication person ? person : null;
   }
 
   /** The encrypted tokens, or {@code null} if they cannot be read: then they cannot be revoked. */

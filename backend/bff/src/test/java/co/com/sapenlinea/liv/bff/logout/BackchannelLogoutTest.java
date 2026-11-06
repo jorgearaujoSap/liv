@@ -2,16 +2,22 @@ package co.com.sapenlinea.liv.bff.logout;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import co.com.sapenlinea.liv.bff.LivBffApplication;
 import co.com.sapenlinea.liv.bff.persistence.BffDatabase;
 import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
 import co.com.sapenlinea.liv.bff.support.OidcProvider;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Base64;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  * When the session ends in the provider (an administrator closes it or disables the person), the
@@ -54,9 +60,115 @@ class BackchannelLogoutTest extends BffFlowTest {
     assertThat(BACKEND.endSessionCalls().get(0).path())
         .isEqualTo("/internal/v1/sessions/" + OidcProvider.SESSION_ID + "/end");
     assertThat(BACKEND.endSessionCalls().get(0).body()).contains("\"reason\":\"PROVIDER\"");
+    assertThat(BACKEND.revocationCalls()).as("se revoca su refresh token").hasSize(1);
     assertThat(storedSessions()).isZero();
     assertThat(oidcSessions()).isZero();
     assertThat(person.get(bffBase() + "/api/v1/me").status()).isEqualTo(401);
+  }
+
+  @Test
+  @Tag("001-18")
+  @DisplayName(
+      "001-09 · Si LIV no acepta el fin, la sesión del BFF se borra igual y el aviso a LIV queda pendiente")
+  void aFailedEndInLivIsLeftPending() throws SQLException {
+    browser().signIn("/");
+    BACKEND.reset();
+    BACKEND.endSessionAnswers(503);
+
+    Reply reply = backchannel(OidcProvider.logoutToken(OidcProvider.LOGOUT));
+
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(storedSessions()).as("no se puede volver a usar").isZero();
+    assertThat(
+            BffDatabase.queryValue(
+                BffDatabase.jdbcUrl(),
+                BffDatabase.OWNER,
+                "SELECT count(*) FROM bff.oidc_session WHERE pending_end_since IS NOT NULL"))
+        .as("el aviso a LIV queda para el barrido")
+        .isEqualTo("1");
+  }
+
+  @Test
+  @DisplayName(
+      "001-09 · Si una petición de la persona tiene la sesión bloqueada, el cierre la espera y la termina")
+  void aSessionLockedByARequestIsWaitedFor() throws SQLException {
+    browser().signIn("/");
+    BACKEND.reset();
+    String token = OidcProvider.logoutToken(OidcProvider.LOGOUT);
+
+    Reply reply;
+    try (Connection request =
+        DriverManager.getConnection(
+            BffDatabase.jdbcUrl(), BffDatabase.APP, BffDatabase.password(BffDatabase.APP))) {
+      request.setAutoCommit(false);
+      try (Statement lock = request.createStatement()) {
+        lock.execute("SELECT 1 FROM bff.spring_session FOR UPDATE");
+      }
+      Thread release =
+          new Thread(() -> {
+            pause(1500);
+            try {
+              request.rollback();
+            } catch (SQLException e) {
+              throw new IllegalStateException(e);
+            }
+          });
+      release.start();
+      reply = backchannel(token);
+      release.join();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
+
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(BACKEND.endSessionCalls()).hasSize(1);
+    assertThat(storedSessions()).isZero();
+  }
+
+  @Test
+  @DisplayName("001-09 · Salir también borra el registro del sid de la sesión")
+  void signingOutForgetsTheSid() throws SQLException {
+    Browser person = browser();
+    person.signIn("/");
+
+    assertThat(person.post(bffBase() + "/bff/logout", "").status()).isEqualTo(200);
+
+    assertThat(oidcSessions()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "001-09 · Otra instancia del BFF termina la sesión abierta en esta: lo compartido es la base")
+  void anotherInstanceEndsTheSession() throws SQLException {
+    Browser person = browser();
+    person.signIn("/");
+    BACKEND.reset();
+
+    try (ConfigurableApplicationContext other =
+        new SpringApplicationBuilder(LivBffApplication.class)
+            .profiles("test")
+            // As arguments, which come before application.yml; .properties() would come after.
+            .run(
+                java.util.stream.Stream.concat(
+                        configurationOf(OidcProvider.issuer()).entrySet().stream()
+                            .map(property -> "--" + property.getKey() + "=" + property.getValue()),
+                        java.util.stream.Stream.of("--server.port=0"))
+                    .toArray(String[]::new))) {
+      String otherBase =
+          "http://localhost:" + other.getEnvironment().getProperty("local.server.port");
+      Reply reply =
+          new Browser(otherBase)
+              .postWithoutCsrfToken(
+                  otherBase + "/bff/backchannel-logout",
+                  "logout_token=" + OidcProvider.logoutToken(OidcProvider.LOGOUT));
+
+      assertThat(reply.status()).isEqualTo(200);
+    }
+    assertThat(BACKEND.endSessionCalls()).hasSize(1);
+    assertThat(person.get(bffBase() + "/api/v1/me").status())
+        .as("en esta instancia ya no sirve")
+        .isEqualTo(401);
   }
 
   @Test
@@ -95,6 +207,8 @@ class BackchannelLogoutTest extends BffFlowTest {
           OidcProvider.logoutToken(OidcProvider.LOGOUT_WITHOUT_EVENT),
           OidcProvider.logoutToken(OidcProvider.LOGOUT_OTHER_CLIENT),
           OidcProvider.logoutToken(OidcProvider.LOGOUT_WITH_NONCE),
+          OidcProvider.logoutToken(OidcProvider.LOGOUT_OLD),
+          "x".repeat(20_000),
           "no-es-un-jwt",
           ""
         }) {
@@ -108,10 +222,18 @@ class BackchannelLogoutTest extends BffFlowTest {
   }
 
   @Test
-  @DisplayName("001-09 · El canal trasero solo acepta POST")
-  void onlyAPost() {
-    Reply reply = new Browser(bffBase()).get(bffBase() + "/bff/backchannel-logout");
+  @DisplayName("001-09 · El canal trasero solo acepta un POST con un formulario")
+  void onlyAFormPost() {
+    Browser provider = new Browser(bffBase());
 
-    assertThat(reply.status()).isIn(401, 404, 405);
+    assertThat(provider.get(bffBase() + "/bff/backchannel-logout").status()).isEqualTo(405);
+    assertThat(
+            provider
+                .post(
+                    bffBase() + "/bff/backchannel-logout",
+                    "{}",
+                    java.util.Map.of("Content-Type", "application/json"))
+                .status())
+        .isEqualTo(415);
   }
 }

@@ -36,6 +36,7 @@ public final class ExpiredSessions {
   static final int BATCH = 200;
 
   private final StoredSessions stored;
+  private final OidcSessions oidc;
   private final SessionCloser closer;
   private final Duration absolute;
   private final Duration budget;
@@ -50,12 +51,14 @@ public final class ExpiredSessions {
    */
   public ExpiredSessions(
       StoredSessions stored,
+      OidcSessions oidc,
       SessionCloser closer,
       Duration absolute,
       Duration budget,
       Duration giveUpAfter,
       Clock clock) {
     this.stored = stored;
+    this.oidc = oidc;
     this.closer = closer;
     this.absolute = absolute;
     this.budget = budget;
@@ -161,7 +164,7 @@ public final class ExpiredSessions {
               + " (sesión {})",
           unreadable.getClass().getSimpleName(),
           StoredSessions.fingerprint(sessionId));
-      return delete(row);
+      return delete(row, sessionId);
     }
     // Without the moment LIV let the person in, a session of a person is past the limit, as for
     // SessionLifetime; without a person, it is a sign in still going on.
@@ -174,7 +177,7 @@ public final class ExpiredSessions {
       return Outcome.KEPT;
     }
     if (person == null) {
-      return delete(row);
+      return delete(row, sessionId);
     }
     if (sharesTheProviderSession(row, person, now)) {
       // The person signed in again in the same session of the provider: ending this one there,
@@ -183,11 +186,11 @@ public final class ExpiredSessions {
       LOG.error(
           "Una sesión vencida comparte el sid {} con otra abierta: se borra sin avisar a LIV",
           StoredSessions.fingerprint(person.getPrincipal().sessionId()));
-      return delete(row);
+      return delete(row, sessionId);
     }
     EndReason reason = absoluteEnd <= row.idleEnd() ? EndReason.ABSOLUTE : EndReason.IDLE;
     if (closer.closeStored(person, stored.tokensOf(attributes), reason)) {
-      return delete(row);
+      return delete(row, sessionId);
     }
     if (now - endedAt >= giveUpAfter.toMillis()) {
       LOG.error(
@@ -195,7 +198,7 @@ public final class ExpiredSessions {
               + " (sid {})",
           giveUpAfter,
           StoredSessions.fingerprint(person.getPrincipal().sessionId()));
-      return delete(row);
+      return delete(row, sessionId);
     }
     return Outcome.KEPT;
   }
@@ -218,8 +221,12 @@ public final class ExpiredSessions {
     return false;
   }
 
-  private Outcome delete(Row row) {
-    return stored.delete(row.primaryId()) ? Outcome.ENDED : Outcome.ELSEWHERE;
+  private Outcome delete(Row row, String sessionId) {
+    if (!stored.delete(row.primaryId())) {
+      return Outcome.ELSEWHERE;
+    }
+    oidc.forget(sessionId);
+    return Outcome.ENDED;
   }
 
   private enum Outcome {

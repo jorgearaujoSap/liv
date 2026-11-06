@@ -33,6 +33,7 @@ public final class OidcProvider {
   public static final String LOGOUT_WITHOUT_EVENT = "logout-sin-evento";
   public static final String LOGOUT_OTHER_CLIENT = "logout-otro-cliente";
   public static final String LOGOUT_WITH_NONCE = "logout-con-nonce";
+  public static final String LOGOUT_OLD = "logout-viejo";
 
   private static final String ISSUER_ID = "liv";
   private static final String ISSUER_WITHOUT_SID = "liv-sin-sid";
@@ -135,6 +136,20 @@ public final class OidcProvider {
                 event,
                 "nonce",
                 "n-1"));
+    Map<String, Object> logoutOld =
+        logoutMapping(
+            LOGOUT_OLD,
+            Map.of(
+                "sub",
+                SUBJECT,
+                "sid",
+                SESSION_ID,
+                "aud",
+                USER_CLIENT,
+                "events",
+                event,
+                "iat",
+                1_700_000_000L));
     Map<String, Object> service =
         Map.of(
             "requestParam",
@@ -168,6 +183,7 @@ public final class OidcProvider {
                             logoutWithoutEvent,
                             logoutOtherClient,
                             logoutWithNonce,
+                            logoutOld,
                             user,
                             service)),
                     Map.of(

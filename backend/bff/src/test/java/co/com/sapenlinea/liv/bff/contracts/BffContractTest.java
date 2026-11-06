@@ -57,7 +57,11 @@ class BffContractTest {
         .matches("\\d+\\.\\d+\\.\\d+");
     assertThat(((Map<String, Object>) contract.get("paths")).keySet())
         .containsExactlyInAnyOrder(
-            "/bff/login", "/bff/logout", "/bff/session", "/bff/session/keepalive");
+            "/bff/login",
+            "/bff/logout",
+            "/bff/backchannel-logout",
+            "/bff/session",
+            "/bff/session/keepalive");
   }
 
   @Test
@@ -65,6 +69,7 @@ class BffContractTest {
   void eachRouteDeclaresItsAnswers() throws IOException {
     assertThat(statuses("/bff/login", "get")).containsExactly("302");
     assertThat(statuses("/bff/logout", "post")).containsExactly("200", "403");
+    assertThat(statuses("/bff/backchannel-logout", "post")).containsExactly("200", "400", "503");
     assertThat(statuses("/bff/session", "get")).containsExactly("200", "401");
     assertThat(statuses("/bff/session/keepalive", "post"))
         .containsExactly("200", "401", "403", "502");
@@ -120,6 +125,7 @@ class BffContractTest {
         new String[][] {
           {"/bff/login", "get"},
           {"/bff/logout", "post"},
+          {"/bff/backchannel-logout", "post"},
           {"/bff/session", "get"},
           {"/bff/session/keepalive", "post"}
         }) {

@@ -22,15 +22,19 @@ public final class ClosingSessionRepository<S extends Session>
 
   private final FindByIndexNameSessionRepository<S> sessions;
   private final Supplier<ExpiredSessions> expired;
+  private final Supplier<OidcSessions> oidc;
 
   /**
    * @param expired what ends the expired sessions; a supplier, because it needs this repository and
    *     is built after it
    */
   public ClosingSessionRepository(
-      FindByIndexNameSessionRepository<S> sessions, Supplier<ExpiredSessions> expired) {
+      FindByIndexNameSessionRepository<S> sessions,
+      Supplier<ExpiredSessions> expired,
+      Supplier<OidcSessions> oidc) {
     this.sessions = sessions;
     this.expired = SingletonSupplier.of(expired);
+    this.oidc = SingletonSupplier.of(oidc);
   }
 
   @Override
@@ -51,9 +55,11 @@ public final class ClosingSessionRepository<S extends Session>
     sessions.save(session);
   }
 
+  /** Every session of the BFF deleted by Spring Session (sign out, invalidated) forgets its sid. */
   @Override
   public void deleteById(String id) {
     sessions.deleteById(id);
+    oidc.get().forget(id);
   }
 
   @Override

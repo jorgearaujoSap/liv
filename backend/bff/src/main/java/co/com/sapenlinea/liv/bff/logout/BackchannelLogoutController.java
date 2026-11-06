@@ -8,15 +8,16 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.jwt.BadJwtException;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,8 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
  * provider, is the only thing that is trusted ({@link LogoutTokenDecoder}). The sessions of the BFF
  * of that session of the provider end at once ({@link ProviderLogout}). The answer is the one of
  * the standard: 200, or 400 with {@code invalid_request} if the token is not valid; 503 if the keys
- * of the provider cannot be read. The route is meant for the internal network only: it is not
- * published on the internet (plan, step 6).
+ * of the provider cannot be read, a session could not be ended (locked for too long, or the
+ * database failed) or too many tokens arrive at once, so that the provider may send it again. The
+ * route is meant for the internal network only: it is not published on the internet (plan, step 6).
  */
 @RestController
 final class BackchannelLogoutController {
@@ -41,21 +43,42 @@ final class BackchannelLogoutController {
 
   private static final Logger LOG = LoggerFactory.getLogger(BackchannelLogoutController.class);
 
+  /** Logout tokens handled at once; more get a 503, and the provider can send them again. */
+  private static final int AT_ONCE = 8;
+
   private final LogoutTokenDecoder decoder;
-  private final ProviderLogout logout;
+  private final ProviderLogout providerLogout;
+  private final Semaphore slots = new Semaphore(AT_ONCE);
 
   BackchannelLogoutController(
-      ClientRegistrationRepository registrations, ProviderLogout logout, Clock clock) {
+      ClientRegistrationRepository registrations, ProviderLogout providerLogout, Clock clock) {
     this.decoder = new LogoutTokenDecoder(registrations, clock);
-    this.logout = logout;
+    this.providerLogout = providerLogout;
   }
 
   @PostMapping(
       path = PATH,
       consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
-  ResponseEntity<Map<String, String>> logout(HttpServletRequest request) throws IOException {
-    String logoutToken = logoutTokenOf(request);
+  ResponseEntity<Map<String, String>> receive(HttpServletRequest request) throws IOException {
+    if (!slots.tryAcquire()) {
+      return unavailable();
+    }
+    try {
+      return handle(request);
+    } finally {
+      slots.release();
+    }
+  }
+
+  private ResponseEntity<Map<String, String>> handle(HttpServletRequest request)
+      throws IOException {
+    String logoutToken;
+    try {
+      logoutToken = logoutTokenOf(request);
+    } catch (IllegalArgumentException malformed) {
+      return refused("El formulario no es válido");
+    }
     if (!StringUtils.hasText(logoutToken)) {
       return refused("Falta logout_token");
     }
@@ -65,14 +88,28 @@ final class BackchannelLogoutController {
     } catch (BadJwtException e) {
       LOG.warn("Se rechazó un logout token: {}", e.getMessage());
       return refused("El logout token no es válido");
-    } catch (JwtException e) {
-      LOG.error("No se pudieron leer las claves del proveedor: {}", e.getClass().getSimpleName());
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .cacheControl(CacheControl.noStore())
-          .build();
+    } catch (RuntimeException e) {
+      // The keys of the provider could not be read (JwtException), or the provider is not known.
+      LOG.error("No se pudo validar un logout token: {}", e.getClass().getSimpleName());
+      return unavailable();
     }
-    logout.end(token.issuer(), token.sid(), token.subject());
+    try {
+      if (!providerLogout.end(token.issuer(), token.sid())) {
+        return unavailable();
+      }
+    } catch (DataAccessException e) {
+      LOG.error(
+          "El cierre por canal trasero no pudo leer las sesiones: {}",
+          e.getClass().getSimpleName());
+      return unavailable();
+    }
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).build();
+  }
+
+  private static ResponseEntity<Map<String, String>> unavailable() {
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+        .cacheControl(CacheControl.noStore())
+        .build();
   }
 
   /**

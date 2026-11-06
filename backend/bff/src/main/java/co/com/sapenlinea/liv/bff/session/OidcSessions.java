@@ -11,8 +11,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * Which session of the BFF belongs to which session of the provider ({@code sid}), in {@code
  * bff.oidc_session} (plan, step 10; T19): the provider names its session when it closes it on the
  * back channel, and with several replicas any of them must find ours. A row is written when LIV
- * lets the person in, with the id the session has from then on; it goes when the session ends, and
- * the sweep removes the ones whose session is gone.
+ * lets the person in, with the id the session has from then on, and goes when the session of the
+ * BFF is deleted. When the end of a session the provider closed is still to be told to LIV, the row
+ * stays as pending, and the sweep tells it ({@link ProviderLogout#tellThePendingEnds}).
  */
 public final class OidcSessions {
 
@@ -32,13 +33,16 @@ public final class OidcSessions {
     this.sessionTable = sessionTable;
   }
 
+  /** A session of the BFF and the one of the provider it belongs to. */
+  public record OidcSession(String sessionId, SessionIdentity identity, Long pendingEndSince) {}
+
   /** The session of the BFF {@code sessionId} is the one of the provider in {@code identity}. */
   public void record(String sessionId, SessionIdentity identity) {
     jdbc.update(
         "INSERT INTO bff.oidc_session (session_id, issuer, sid, subject, created_at)"
-            + " VALUES (?, ?, ?, ?, ?)"
-            + " ON CONFLICT (session_id) DO UPDATE SET issuer = EXCLUDED.issuer, sid = EXCLUDED.sid,"
-            + " subject = EXCLUDED.subject, created_at = EXCLUDED.created_at",
+            + " VALUES (?, ?, ?, ?, ?) ON CONFLICT (session_id) DO UPDATE SET issuer ="
+            + " EXCLUDED.issuer, sid = EXCLUDED.sid, subject = EXCLUDED.subject, created_at ="
+            + " EXCLUDED.created_at, pending_end_since = NULL",
         sessionId,
         identity.issuer(),
         identity.sessionId(),
@@ -46,35 +50,57 @@ public final class OidcSessions {
         clock.millis());
   }
 
-  /**
-   * The sessions of the BFF of a session of the provider: by its {@code sid} if the provider gives
-   * it, else every one of the person ({@code sub}), as OpenID Connect Back-Channel Logout 1.0 says.
-   */
-  public List<String> sessionsOf(String issuer, String sid, String subject) {
-    if (sid != null) {
-      return jdbc.queryForList(
-          "SELECT session_id FROM bff.oidc_session WHERE issuer = ? AND sid = ?",
-          String.class,
-          issuer,
-          sid);
-    }
-    return jdbc.queryForList(
-        "SELECT session_id FROM bff.oidc_session WHERE issuer = ? AND subject = ?",
-        String.class,
+  /** The open sessions of the BFF of a session of the provider. */
+  public List<OidcSession> sessionsOf(String issuer, String sid) {
+    return jdbc.query(
+        "SELECT session_id, issuer, subject, sid FROM bff.oidc_session"
+            + " WHERE issuer = ? AND sid = ? AND pending_end_since IS NULL",
+        (row, i) ->
+            new OidcSession(
+                row.getString(1),
+                new SessionIdentity(row.getString(2), row.getString(3), row.getString(4)),
+                null),
         issuer,
-        subject);
+        sid);
+  }
+
+  /** Up to {@code limit} ends still to be told to LIV, the oldest first. */
+  public List<OidcSession> pendingEnds(int limit) {
+    return jdbc.query(
+        "SELECT session_id, issuer, subject, sid, pending_end_since FROM bff.oidc_session"
+            + " WHERE pending_end_since IS NOT NULL ORDER BY pending_end_since LIMIT ?",
+        (row, i) ->
+            new OidcSession(
+                row.getString(1),
+                new SessionIdentity(row.getString(2), row.getString(3), row.getString(4)),
+                row.getLong(5)),
+        limit);
+  }
+
+  /** The end of that session is still to be told to LIV. */
+  public void markEndPending(String sessionId) {
+    jdbc.update(
+        "UPDATE bff.oidc_session SET pending_end_since = ? WHERE session_id = ?",
+        clock.millis(),
+        sessionId);
   }
 
   public void forget(String sessionId) {
     jdbc.update("DELETE FROM bff.oidc_session WHERE session_id = ?", sessionId);
   }
 
-  /** Removes the rows whose session of the BFF is gone; how many. */
-  public int forgetTheGone() {
+  /**
+   * Removes up to {@code limit} rows whose session of the BFF is gone and that have no end to tell;
+   * how many.
+   */
+  public int forgetTheGone(int limit) {
     return jdbc.update(
-        "DELETE FROM bff.oidc_session o WHERE o.created_at < ? AND NOT EXISTS (SELECT 1 FROM "
+        "DELETE FROM bff.oidc_session WHERE session_id IN (SELECT o.session_id FROM"
+            + " bff.oidc_session o WHERE o.pending_end_since IS NULL AND o.created_at < ? AND NOT"
+            + " EXISTS (SELECT 1 FROM "
             + sessionTable
-            + " s WHERE s.session_id = o.session_id)",
-        clock.millis() - GRACE.toMillis());
+            + " s WHERE s.session_id = o.session_id) LIMIT ?)",
+        clock.millis() - GRACE.toMillis(),
+        limit);
   }
 }

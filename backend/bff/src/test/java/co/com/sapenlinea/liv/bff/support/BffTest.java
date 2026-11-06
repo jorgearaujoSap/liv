@@ -46,15 +46,19 @@ public abstract class BffTest {
         () -> Base64.getEncoder().encodeToString("0123456789abcdef0123456789abcdef".getBytes()));
   }
 
+  /** The same configuration as {@link #configure}, with its values: for a second instance. */
+  protected static java.util.Map<String, Object> configurationOf(String issuer) {
+    java.util.Map<String, Object> properties = new java.util.HashMap<>();
+    DynamicPropertyRegistry registry = (name, value) -> properties.put(name, value.get());
+    configure(registry, () -> issuer);
+    return properties;
+  }
+
   @BeforeEach
   void startClean() throws SQLException {
     BACKEND.reset();
     BffDatabase.execute(BffDatabase.jdbcUrl(), BffDatabase.OWNER, "DELETE FROM bff.spring_session");
-    BffDatabase.execute(
-        BffDatabase.jdbcUrl(),
-        BffDatabase.OWNER,
-        "DO $$ BEGIN IF to_regclass('bff.oidc_session') IS NOT NULL THEN"
-            + " DELETE FROM bff.oidc_session; END IF; END $$");
+    BffDatabase.execute(BffDatabase.jdbcUrl(), BffDatabase.OWNER, "DELETE FROM bff.oidc_session");
   }
 
   /** Waits: the tests of the session limits run on real time, with limits of a few seconds. */

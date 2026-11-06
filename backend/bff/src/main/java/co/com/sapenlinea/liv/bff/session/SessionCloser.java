@@ -82,6 +82,16 @@ public final class SessionCloser {
     return ended && revoker.revoke(client);
   }
 
+  /**
+   * Only tells LIV that a session ended, for one whose session of the BFF is already gone (an end
+   * the provider ordered that LIV did not accept at the time).
+   *
+   * @return {@code false} only if trying again may succeed
+   */
+  public boolean endInLiv(SessionIdentity identity, EndReason reason) {
+    return api.endSession(identity, reason);
+  }
+
   private void endAndRevoke(
       SessionAuthentication session, OAuth2AuthorizedClient client, EndReason reason) {
     api.endSession(session.getPrincipal(), reason);

@@ -13,6 +13,8 @@ import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -58,13 +60,14 @@ class ExpiredSessionsConfiguration {
    * ExpiredSessions} at its first use: a post processor is created before the other beans.
    */
   @Bean
-  static BeanPostProcessor wrapSessionRepository(ObjectProvider<ExpiredSessions> expired) {
+  static BeanPostProcessor wrapSessionRepository(
+      ObjectProvider<ExpiredSessions> expired, ObjectProvider<OidcSessions> oidc) {
     return new BeanPostProcessor() {
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})
       public Object postProcessAfterInitialization(Object bean, String name) {
         if (bean instanceof JdbcIndexedSessionRepository sessions) {
-          return new ClosingSessionRepository(sessions, expired::getObject);
+          return new ClosingSessionRepository(sessions, expired::getObject, oidc::getObject);
         }
         return bean;
       }
@@ -86,13 +89,19 @@ class ExpiredSessionsConfiguration {
   }
 
   @Bean
-  ProviderLogout providerLogout(StoredSessions stored, OidcSessions oidc, SessionCloser closer) {
-    return new ProviderLogout(stored, oidc, closer);
+  ProviderLogout providerLogout(
+      StoredSessions stored,
+      OidcSessions oidc,
+      SessionCloser closer,
+      BffProperties properties,
+      Clock clock) {
+    return new ProviderLogout(stored, oidc, closer, properties.session().sweepGiveUpAfter(), clock);
   }
 
   @Bean
   ExpiredSessions expiredSessions(
       StoredSessions stored,
+      OidcSessions oidc,
       SessionCloser closer,
       BffProperties properties,
       Clock clock,
@@ -100,7 +109,13 @@ class ExpiredSessionsConfiguration {
     requireOwnCleanUpOff(cleanupCron);
     BffProperties.Session session = properties.session();
     return new ExpiredSessions(
-        stored, closer, session.absoluteTimeout(), SWEEP_BUDGET, session.sweepGiveUpAfter(), clock);
+        stored,
+        oidc,
+        closer,
+        session.absoluteTimeout(),
+        SWEEP_BUDGET,
+        session.sweepGiveUpAfter(),
+        clock);
   }
 
   /**
@@ -116,21 +131,31 @@ class ExpiredSessionsConfiguration {
   }
 
   @Bean
-  ExpiredSessionsSweeper expiredSessionsSweeper(ExpiredSessions expired, OidcSessions oidc) {
-    return new ExpiredSessionsSweeper(expired, oidc);
+  ExpiredSessionsSweeper expiredSessionsSweeper(
+      ExpiredSessions expired, ProviderLogout providerLogout, OidcSessions oidc) {
+    return new ExpiredSessionsSweeper(expired, providerLogout, oidc);
   }
 
   /**
-   * What runs the sweep on schedule, one replica at a time: the sessions that are over, and then
-   * the rows of {@code bff.oidc_session} whose session is gone.
+   * What runs the sweep on schedule, one replica at a time: the sessions that are over, the ends of
+   * sessions the provider closed still to be told to LIV, and the rows of {@code bff.oidc_session}
+   * whose session is gone. A failure in one does not stop the others.
    */
   static class ExpiredSessionsSweeper {
 
+    private static final Logger LOG = LoggerFactory.getLogger(ExpiredSessionsSweeper.class);
+
+    /** Rows of bff.oidc_session removed per sweep. */
+    private static final int FORGET_BATCH = 1000;
+
     private final ExpiredSessions expired;
+    private final ProviderLogout providerLogout;
     private final OidcSessions oidc;
 
-    ExpiredSessionsSweeper(ExpiredSessions expired, OidcSessions oidc) {
+    ExpiredSessionsSweeper(
+        ExpiredSessions expired, ProviderLogout providerLogout, OidcSessions oidc) {
       this.expired = expired;
+      this.providerLogout = providerLogout;
       this.oidc = oidc;
     }
 
@@ -139,8 +164,17 @@ class ExpiredSessionsConfiguration {
         initialDelayString = "${liv.bff.session.sweep-interval}")
     @SchedulerLock(name = LOCK, lockAtMostFor = LOCK_AT_MOST_FOR)
     public void sweep() {
-      expired.sweep();
-      oidc.forgetTheGone();
+      run("las sesiones vencidas", expired::sweep);
+      run("los fines pendientes", providerLogout::tellThePendingEnds);
+      run("las sesiones del proveedor sin sesión", () -> oidc.forgetTheGone(FORGET_BATCH));
+    }
+
+    private static void run(String what, Runnable step) {
+      try {
+        step.run();
+      } catch (RuntimeException e) {
+        LOG.warn("El barrido de {} falló: {}", what, e.getClass().getSimpleName());
+      }
     }
   }
 }

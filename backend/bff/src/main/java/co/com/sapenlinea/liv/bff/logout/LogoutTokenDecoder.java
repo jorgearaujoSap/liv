@@ -1,6 +1,14 @@
 package co.com.sapenlinea.liv.bff.logout;
 
 import co.com.sapenlinea.liv.bff.session.OidcRegistrations;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
+import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jose.util.DefaultResourceRetriever;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,6 +21,7 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
@@ -27,8 +36,9 @@ import org.springframework.util.function.SingletonSupplier;
  *   <li>signed with a key the provider publishes ({@code jwks_uri} of its discovery document);
  *   <li>issued by the provider of the sign in ({@code iss}) for this client ({@code aud});
  *   <li>issued now: {@code iat} within {@link #MAX_AGE}, and not expired if it says when;
- *   <li>with the event of the standard in {@code events}, an id ({@code jti}), a {@code sid} or a
- *       {@code sub}, and no {@code nonce} (which only an id token has).
+ *   <li>with the event of the standard in {@code events}, an id ({@code jti}), a {@code sid} and no
+ *       {@code nonce} (which only an id token has);
+ *   <li>of type {@code logout+jwt} or {@code JWT}, signed with RS256.
  * </ul>
  *
  * The keys are read the first time a token arrives, not at start: the BFF starts without the
@@ -53,8 +63,13 @@ final class LogoutTokenDecoder {
     this.clock = clock;
   }
 
-  /** What the token says to end, once checked. */
-  record LogoutToken(String issuer, String sid, String subject) {}
+  /**
+   * What the token says to end, once checked: the session {@code sid} of the provider {@code
+   * issuer}. The {@code sid} is required: the realm sends it ({@code
+   * backchannel.logout.session.required}), and a token with only the {@code sub} would end every
+   * session of the person, also the ones opened after it, if it were sent again.
+   */
+  record LogoutToken(String issuer, String sid) {}
 
   /**
    * @throws org.springframework.security.oauth2.jwt.BadJwtException if it is not a valid logout
@@ -64,14 +79,20 @@ final class LogoutTokenDecoder {
    */
   LogoutToken decode(String token) {
     Jwt jwt = decoder.obtain().decode(token);
-    return new LogoutToken(
-        jwt.getClaimAsString("iss"), jwt.getClaimAsString("sid"), jwt.getSubject());
+    return new LogoutToken(jwt.getClaimAsString("iss"), jwt.getClaimAsString("sid"));
   }
 
   private JwtDecoder build() {
     ClientRegistration registration = registrations.findByRegistrationId(OidcRegistrations.USER);
     NimbusJwtDecoder built =
-        NimbusJwtDecoder.withJwkSetUri(registration.getProviderDetails().getJwkSetUri()).build();
+        NimbusJwtDecoder.withJwkSource(keysOf(registration))
+            .jwsAlgorithm(SignatureAlgorithm.RS256)
+            // Spring checks no typ by default: the standard asks for logout+jwt, and accepts JWT.
+            .jwtProcessorCustomizer(processor ->
+                processor.setJWSTypeVerifier(
+                    new DefaultJOSEObjectTypeVerifier<>(
+                        new JOSEObjectType("logout+jwt"), JOSEObjectType.JWT, null)))
+            .build();
     JwtTimestampValidator expiry = new JwtTimestampValidator(SKEW);
     expiry.setClock(clock);
     built.setJwtValidator(
@@ -82,6 +103,26 @@ final class LogoutTokenDecoder {
                 registration.getClientId(),
                 clock)));
     return built;
+  }
+
+  /**
+   * The keys of the provider, from its {@code jwks_uri}: read with short timeouts, kept for 15
+   * minutes and read again at most every 30 seconds, also when a token names an unknown key. A
+   * token sent only to make the BFF read the keys again cannot flood the provider.
+   */
+  private static JWKSource<SecurityContext> keysOf(ClientRegistration registration) {
+    try {
+      return JWKSourceBuilder.create(
+              URI.create(registration.getProviderDetails().getJwkSetUri()).toURL(),
+              new DefaultResourceRetriever(2_000, 5_000, 512 * 1024))
+          .cache(Duration.ofMinutes(15).toMillis(), Duration.ofSeconds(15).toMillis())
+          .rateLimited(Duration.ofSeconds(30).toMillis())
+          .refreshAheadCache(false)
+          .retrying(false)
+          .build();
+    } catch (MalformedURLException | IllegalArgumentException e) {
+      throw new IllegalStateException("El jwks_uri del proveedor no es una URL", e);
+    }
   }
 
   /** The claims of §2.4 and §2.6 of the standard; every failure is said in the error. */
@@ -112,8 +153,8 @@ final class LogoutTokenDecoder {
       if (token.getId() == null) {
         failures.add("falta jti");
       }
-      if (token.getClaimAsString("sid") == null && token.getSubject() == null) {
-        failures.add("falta sid y sub");
+      if (token.getClaimAsString("sid") == null) {
+        failures.add("falta sid");
       }
       if (token.hasClaim("nonce")) {
         failures.add("trae nonce");
