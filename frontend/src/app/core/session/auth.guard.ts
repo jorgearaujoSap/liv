@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
 
+import type { SessionStatus } from '../../api/bff/models';
 import { APP_PATHS } from '../app-paths';
 import { IdleService } from './idle.service';
 import { SessionService } from './session.service';
@@ -14,7 +15,7 @@ export const authGuard: CanActivateFn & CanActivateChildFn = async (_route, stat
   const idle = inject(IdleService);
   const router = inject(Router);
 
-  let status;
+  let status: SessionStatus | null;
   try {
     status = await session.status();
   } catch {

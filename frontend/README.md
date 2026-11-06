@@ -88,8 +88,9 @@ Verificación en un contenedor real, al cambiar `nginx.conf`, el `Dockerfile` o 
 
 1. `docker exec <contenedor> nginx -t` responde que la configuración es correcta, y `id` muestra el usuario `nginx` (101).
 2. `curl -sD - -o /dev/null http://localhost:8080/ruta/cualquiera` responde 200 con `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy` y `Cache-Control: no-store`.
-3. Un archivo con hash (`main-XXXXXXXX.js`) responde `Cache-Control: public, max-age=31536000, immutable`; `/api/…`, `/bff/…` y un `.js` que no existe responden 404; un `POST`, 405.
-4. En un navegador, la página carga con sus estilos (la hoja pasa a `media="all"`) y la consola no muestra violaciones de la CSP.
+3. Un archivo con hash (`main-XXXXXXXX.js`) responde `Cache-Control: public, max-age=31536000, immutable`, y uno con hash que no existe, 404 con `no-store` (nunca se guarda un 404); `/api/…`, `/bff/…`, `/login/oauth2/…` y un `.js` que no existe responden 404; un `POST`, 405.
+4. El contenedor arranca y responde en `/healthz` con `docker run --read-only --tmpfs /tmp …` y corre con el usuario 101. El registro de accesos (`docker logs`) muestra la ruta sin la consulta de la URL.
+5. En un navegador, la página carga con sus estilos (la hoja pasa a `media="all"`) y la consola no muestra violaciones de la CSP.
 
 ## Estado
 

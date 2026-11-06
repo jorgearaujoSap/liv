@@ -32,20 +32,15 @@ export class SessionService {
    * vez (p. ej. varios 401) comparten una sola petición.
    */
   status(): Promise<SessionStatus | null> {
-    this.pendingStatus ??= this.fetchStatus().finally(() => (this.pendingStatus = undefined));
+    this.pendingStatus ??= this.orNullWithoutSession(() => this.bff.invoke(getSession)).finally(
+      () => (this.pendingStatus = undefined),
+    );
     return this.pendingStatus;
   }
 
   /** La persona elige seguir conectada (001-22). `null` si la sesión ya no existe. */
-  async keepAlive(): Promise<SessionStatus | null> {
-    try {
-      return await withTimeout(this.bff.invoke(keepAliveSession), BFF_TIMEOUT_MS);
-    } catch (error) {
-      if (hasStatus(error, 401)) {
-        return null;
-      }
-      throw error;
-    }
+  keepAlive(): Promise<SessionStatus | null> {
+    return this.orNullWithoutSession(() => this.bff.invoke(keepAliveSession));
   }
 
   /**
@@ -85,9 +80,12 @@ export class SessionService {
     this.navigation.replace('/');
   }
 
-  private async fetchStatus(): Promise<SessionStatus | null> {
+  /** Una llamada al BFF que devuelve lo que le queda a la sesión: un 401 es «no hay sesión», no un fallo. */
+  private async orNullWithoutSession(
+    call: () => Promise<SessionStatus>,
+  ): Promise<SessionStatus | null> {
     try {
-      return await withTimeout(this.bff.invoke(getSession), BFF_TIMEOUT_MS);
+      return await withTimeout(call(), BFF_TIMEOUT_MS);
     } catch (error) {
       if (hasStatus(error, 401)) {
         return null;
