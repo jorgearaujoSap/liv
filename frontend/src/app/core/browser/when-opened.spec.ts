@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { whenOpened } from './when-opened';
+import { startWhenOpened, whenOpened } from './when-opened';
 
 /** Un documento a medida: jsdom no simula la precarga del navegador. */
 function fakeDocument(prerendering?: boolean) {
@@ -44,7 +44,7 @@ const settled = async (promise: Promise<void>) => {
 // 001-01: el navegador puede precargar la página mientras se escribe la dirección. La aplicación no arranca
 // hasta que la persona la abre: así decide con lo que hay en ese momento (la sesión pudo abrirse o cerrarse
 // mientras tanto) y la precarga no pide nada al BFF ni avisa a otras pestañas.
-describe('whenOpened', () => {
+describe('whenOpened (001-01)', () => {
   it('en un navegador sin precarga (Firefox, Safari) sigue de inmediato', async () => {
     expect(await settled(whenOpened(fakeDocument() as unknown as Document))).toBe(true);
   });
@@ -61,5 +61,28 @@ describe('whenOpened', () => {
     document.activate();
     expect(await settled(opened)).toBe(true);
     expect(document.listeners).toEqual([]);
+  });
+});
+
+describe('startWhenOpened (001-01)', () => {
+  it('durante la precarga no arranca la aplicación: arranca cuando la persona abre la página', async () => {
+    const document = fakeDocument(true);
+    const bootstrap = vi.fn(() => Promise.resolve());
+
+    const started = startWhenOpened(document as unknown as Document, bootstrap);
+    await settled(Promise.resolve());
+    expect(bootstrap).not.toHaveBeenCalled();
+
+    document.activate();
+    await started;
+    expect(bootstrap).toHaveBeenCalledTimes(1);
+  });
+
+  it('sin precarga arranca de inmediato', async () => {
+    const bootstrap = vi.fn(() => Promise.resolve());
+
+    await startWhenOpened(fakeDocument() as unknown as Document, bootstrap);
+
+    expect(bootstrap).toHaveBeenCalledTimes(1);
   });
 });
