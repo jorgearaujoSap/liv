@@ -15,7 +15,6 @@ import org.springframework.security.config.annotation.web.configurers.RequestCac
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
@@ -58,12 +57,6 @@ class SecurityConfiguration {
     // (001-12). The cookie is no credential: LIV_SESSION is the one that authenticates.
     CookieCsrfTokenRepository csrfTokens = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrfTokens.setCookieCustomizer(cookie -> cookie.secure(true).sameSite("Strict").path("/"));
-    AccessDeniedHandler csrfRejected =
-        (request, response, exception) -> {
-          response.setStatus(HttpStatus.FORBIDDEN.value());
-          response.setContentType("application/problem+json");
-          response.getWriter().write("{\"status\":403,\"code\":\"001-12\"}");
-        };
     http.csrf(csrf ->
             csrf.csrfTokenRepository(csrfTokens)
                 .csrfTokenRequestHandler(new HeaderOnlyCsrfTokenRequestHandler()))
@@ -89,7 +82,7 @@ class SecurityConfiguration {
         .exceptionHandling(exceptions ->
             exceptions
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-                .accessDeniedHandler(csrfRejected))
+                .accessDeniedHandler(CsrfRejection.handler()))
         .oauth2Login(login ->
             login
                 .loginPage(LoginAuthorizationRequestResolver.LOGIN_PATH)

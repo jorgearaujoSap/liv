@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.security.web.csrf.InvalidCsrfTokenException;
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
 
@@ -42,7 +43,8 @@ class CsrfRejectionTest {
         .handle(
             new MockHttpServletRequest(),
             response,
-            new InvalidCsrfTokenException(null, "otro"));
+            new InvalidCsrfTokenException(
+                new DefaultCsrfToken("X-XSRF-TOKEN", "_csrf", "esperado"), "otro"));
 
     assertThat(response.getContentAsString()).contains("\"code\":\"001-12\"");
   }
