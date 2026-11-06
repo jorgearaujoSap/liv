@@ -1,34 +1,46 @@
 package co.com.sapenlinea.liv.bff.web;
 
 import co.com.sapenlinea.liv.bff.session.SessionAuthentication;
+import co.com.sapenlinea.liv.bff.web.RateLimitProperties.Limit;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Limits the requests (doc. 02 §8; T19): every request counts for its address; a request of a
- * person with a session counts also for the person; the sign in ({@code /bff/login} and the return
- * from the provider) counts also in its own, stricter, limit per address. Past any of them the
- * answer is 429, with {@code Retry-After} in seconds, and the request goes no further.
+ * Limits the requests (doc. 02 §8; plan, step 10; T19). A request of a person with a session counts
+ * for the person; one without a session, for its address. The sign in ({@code /bff/login}) counts
+ * also in its own, stricter, limit per address: the return from the provider does not, because it
+ * only works with the {@code state} the sign in left, and refusing it would lose a sign in already
+ * made. Past a limit the answer is 429 with {@code Retry-After} in seconds, and the request goes no
+ * further: a page for the sign in, which is a navigation, and Problem Details for the rest.
+ *
+ * <p>Two routes never count: the sign out, so that a person can always leave (the session of a
+ * shared computer must end), and the back channel of the provider, which has its own limit ({@code
+ * BackchannelLogoutController}). The paths are compared as the server reads them ({@code
+ * getServletPath}, decoded and normalized), so {@code /bff/%6Cogin} is the sign in too.
  *
  * <p>The address is the one of the client as Tomcat sees it: behind the load balancer, the one it
- * forwards ({@code server.forward-headers-strategy: native}, which trusts only the internal
- * network). The back channel of the provider does not count: it calls from the internal network,
- * one address for every session it closes, and has its own limit ({@code
- * BackchannelLogoutController}).
+ * forwards, accepted only from the addresses in {@code LIV_BFF_TRUSTED_PROXIES}. IPv6 addresses
+ * count by their /64, the network a single client gets.
  */
 final class RateLimitFilter extends OncePerRequestFilter {
 
   static final String PER_IP = "ip:";
-  static final String PER_USER = "user:";
   static final String SIGN_IN = "sign-in:";
+
+  private static final String SIGN_IN_PATH = "/bff/login";
+  private static final Set<String> NOT_LIMITED = Set.of("/bff/logout", "/bff/backchannel-logout");
 
   private final RateLimiter limiter;
   private final RateLimitProperties limits;
@@ -38,53 +50,83 @@ final class RateLimitFilter extends OncePerRequestFilter {
     this.limits = limits;
   }
 
-  /** Which limit each kind of key has, for forgetting the full buckets. */
-  Map<String, RateLimitProperties.Limit> limitsByPrefix() {
-    return Map.of(PER_IP, limits.perIp(), PER_USER, limits.perUser(), SIGN_IN, limits.signIn());
+  /** The share of this replica of the limit of a person. */
+  Limit perUser() {
+    return limits.ofOneReplica(limits.perUser());
+  }
+
+  /** Which limit each kind of key of an address has, for forgetting the full buckets. */
+  Map<String, Limit> addressLimitsByPrefix() {
+    return Map.of(
+        PER_IP, limits.ofOneReplica(limits.perIp()),
+        SIGN_IN, limits.ofOneReplica(limits.signIn()));
   }
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return request.getRequestURI().equals("/bff/backchannel-logout");
+    return NOT_LIMITED.contains(request.getServletPath());
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    String address = request.getRemoteAddr();
-    long wait = limiter.take(PER_IP + address, limits.perIp());
-    if (wait == 0 && isASignIn(request)) {
-      wait = limiter.take(SIGN_IN + address, limits.signIn());
-    }
-    if (wait == 0
-        && SecurityContextHolder.getContext().getAuthentication()
-            instanceof SessionAuthentication person) {
+    String address = networkOf(request.getRemoteAddr());
+    boolean signIn = SIGN_IN_PATH.equals(request.getServletPath());
+    long wait;
+    if (SecurityContextHolder.getContext().getAuthentication()
+        instanceof SessionAuthentication person) {
       wait =
-          limiter.take(
-              PER_USER + person.getPrincipal().issuer() + " " + person.getName(), limits.perUser());
+          limiter.takeForAPerson(
+              person.getPrincipal().issuer() + " " + person.getName(), perUser());
+    } else {
+      wait = limiter.takeForAnAddress(PER_IP + address, limits.ofOneReplica(limits.perIp()));
+    }
+    if (wait == 0 && signIn) {
+      wait = limiter.takeForAnAddress(SIGN_IN + address, limits.ofOneReplica(limits.signIn()));
     }
     if (wait > 0) {
-      tooMany(response, wait);
+      tooMany(response, wait, signIn);
       return;
     }
     chain.doFilter(request, response);
   }
 
-  private static boolean isASignIn(HttpServletRequest request) {
-    String path = request.getRequestURI();
-    return path.equals("/bff/login") || path.startsWith("/login/oauth2/code/");
+  /** The address, or the /64 network of an IPv6 address. */
+  static String networkOf(String address) {
+    if (address == null || !address.contains(":")) {
+      return address;
+    }
+    try {
+      byte[] bytes = InetAddress.getByName(address).getAddress();
+      return bytes.length == 16 ? HexFormat.of().formatHex(bytes, 0, 8) + "::/64" : address;
+    } catch (UnknownHostException e) {
+      return address;
+    }
   }
 
-  private static void tooMany(HttpServletResponse response, long seconds) throws IOException {
+  private static void tooMany(HttpServletResponse response, long seconds, boolean aPage)
+      throws IOException {
     response.setStatus(429);
     response.setHeader("Retry-After", Long.toString(seconds));
     response.setHeader("Cache-Control", "no-store");
-    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+    if (aPage) {
+      response.setContentType(MediaType.TEXT_HTML_VALUE);
+      response
+          .getWriter()
+          .write(
+              "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><title>LIV</title>"
+                  + "<p>Hubo demasiados intentos de iniciar sesión desde esta red. Espera "
+                  + seconds
+                  + " segundos y vuelve a abrir LIV.</p></html>");
+      return;
+    }
+    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
     response
         .getWriter()
         .write(
-            "{\"status\":429,\"title\":\"Demasiadas solicitudes. Intenta de nuevo en un momento.\"}");
+            "{\"status\":429,\"title\":\"Demasiadas solicitudes. Intenta de nuevo en un"
+                + " momento.\"}");
   }
 }

@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.session.web.http.SessionRepositoryFilter;
 
 /**
  * The hardening of the BFF (doc. 02 §8; T19): the security headers on every answer and the limit of
@@ -35,11 +36,17 @@ class HardeningConfiguration {
     return new RateLimitFilter(limiter, limits);
   }
 
-  /** It is a filter of the security chain only, not one of the whole server. */
+  /**
+   * The limit runs in the security chain, where the person is known; and also, by address, in front
+   * of {@code /bff/session}, which is answered before that chain ({@link SessionStatusFilter}). A
+   * request is limited once: the filter runs once per request.
+   */
   @Bean
-  FilterRegistrationBean<RateLimitFilter> rateLimitFilterOutsideTheChain(RateLimitFilter filter) {
+  FilterRegistrationBean<RateLimitFilter> rateLimitInFrontOfTheSessionStatus(
+      RateLimitFilter filter) {
     FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
-    registration.setEnabled(false);
+    registration.addUrlPatterns(SessionStatusFilter.PATH);
+    registration.setOrder(SessionRepositoryFilter.DEFAULT_ORDER - 20);
     return registration;
   }
 
@@ -61,7 +68,7 @@ class HardeningConfiguration {
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
     public void forgetTheFull() {
-      limiter.forgetTheFull(filter.limitsByPrefix());
+      limiter.forgetTheFull(filter.perUser(), filter.addressLimitsByPrefix());
     }
   }
 }

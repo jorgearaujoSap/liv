@@ -15,8 +15,9 @@ info:
     X-XSRF-TOKEN; sin él, el BFF responde 403 con code 001-12, también en /api/**, donde la petición
     no llega a la API. Ese rechazo va antes que el 401: una mutación sin el token recibe 403 aunque no
     haya sesión. Cualquier otro 403 de /api/** viene de la API. El BFF limita las peticiones por
-    persona, por dirección y del inicio de sesión: pasado el límite responde 429 con Retry-After, también
-    en /api/**, donde la petición no llega a la API. Feature 001 · Inicio de sesión.
+    persona (con sesión) o por dirección (sin ella), y el inicio de sesión además por dirección: pasado
+    el límite responde 429 con Retry-After, también en /api/**, donde la petición no llega a la API.
+    Salir y el canal trasero no tienen límite. Feature 001 · Inicio de sesión.
 tags:
   - name: Session
     description: Inicio y cierre de sesión y estado de la sesión.
@@ -55,7 +56,23 @@ paths:
               schema:
                 type: string
         '429':
-          $ref: '#/components/responses/TooManyRequests'
+          description: >-
+            Demasiados intentos de iniciar sesión desde esta red. Es una página: la persona llegó
+            navegando. Vuelve a intentarlo después de Retry-After segundos.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              description: Segundos que faltan para poder volver a intentarlo.
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store.
+          content:
+            text/html:
+              schema:
+                type: string
   /bff/logout:
     post:
       tags: [Session]
@@ -79,8 +96,6 @@ paths:
                 $ref: '#/components/schemas/LogoutResult'
         '403':
           $ref: '#/components/responses/CsrfRejected'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
   /bff/backchannel-logout:
     post:
       tags: [Provider]
@@ -162,6 +177,8 @@ paths:
           description: >-
             No hay una sesión abierta: no existe, venció por inactividad o llegó a su duración
             máxima.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /bff/session/keepalive:
     post:
       tags: [Session]

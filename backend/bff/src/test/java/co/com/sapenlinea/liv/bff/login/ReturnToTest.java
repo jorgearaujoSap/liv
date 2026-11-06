@@ -104,13 +104,12 @@ class ReturnToTest {
 
   @ParameterizedTest
   @CsvSource({
-    "/opcion%2F1.4, /opcion/1.4",
-    "%2Fopcion%2F1.4, /opcion/1.4",
-    "/opcion%2f1.4?vista=tabla, /opcion/1.4?vista=tabla",
+    "/opcion%2F1.4, /opcion%2F1.4",
+    "/resoluciones/RES-1%2F2026?vista=tabla, /resoluciones/RES-1%2F2026?vista=tabla",
     "/consulta?siguiente=%2Fopcion, /consulta?siguiente=%2Fopcion",
   })
   @DisplayName(
-      "001-01 · Una ruta con %2F se acepta si, decodificada, sigue siendo una ruta de LIV, y vuelve decodificada")
+      "001-01 · Una ruta con %2F se acepta si, decodificada, sigue siendo una ruta de LIV, y vuelve tal como se pidió")
   void acceptsAnEncodedSlashThatStaysInLiv(String target, String expected) {
     assertThat(ReturnTo.sanitize(target)).isEqualTo(expected);
   }
@@ -119,6 +118,8 @@ class ReturnToTest {
   @ValueSource(
       strings = {
         "%2F%2Fevil.example",
+        // No empieza por /: vuelto tal cual, el navegador lo leería relativo a la ruta de vuelta.
+        "%2Fopcion%2F1.4",
         "%2F%5Cevil.example",
         "/%2F%2Fevil.example",
         "%2Fbff%2Flogin",

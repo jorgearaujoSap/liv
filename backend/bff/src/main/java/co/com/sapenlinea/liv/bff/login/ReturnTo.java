@@ -33,17 +33,22 @@ public final class ReturnTo {
    * The path to go back to, or the home page. A {@code %2F} or {@code %5C} in the route (decision
    * of the responsible person in T21, done in T19) is decoded first and the path is checked as
    * decoded: a browser does not decode them in a redirect, but a proxy or a server in between may,
-   * so what is checked is what any of them would see. The path comes back decoded.
+   * so what is checked is what any of them would see. The path comes back as it was asked for: a
+   * {@code %2F} inside a segment (an id with a slash) is part of that segment, and decoding it
+   * would change the route.
    */
   public static String sanitize(String requested) {
     if (requested == null || requested.length() > MAX_LENGTH) {
       return HOME;
     }
     String path = withSlashesDecoded(requested);
-    if (!SAFE_PATH.matcher(path).matches() || path.startsWith("//") || leadsToAnOwnRoute(path)) {
+    if (!SAFE_PATH.matcher(path).matches()
+        || !SAFE_PATH.matcher(requested).matches()
+        || path.startsWith("//")
+        || leadsToAnOwnRoute(path)) {
       return HOME;
     }
-    return path;
+    return requested;
   }
 
   /**

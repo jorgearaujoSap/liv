@@ -40,9 +40,13 @@ spring:
 
 server:
   port: ${SERVER_PORT:8081}
-  # Detrás del balanceador, la dirección del cliente es la que él reenvía (X-Forwarded-For). Tomcat solo la
-  # acepta de la red interna (internalProxies), así que nadie de fuera puede falsearla (T19, límite por dirección).
+  # Detrás del balanceador, la dirección del cliente es la que él reenvía (X-Forwarded-For), y el esquema el que él
+  # recibió (X-Forwarded-Proto). Tomcat solo los acepta de las direcciones de LIV_BFF_TRUSTED_PROXIES (expresión
+  # regular): las del balanceador, nunca toda la red privada. Por omisión, solo esta máquina (desarrollo).
   forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: ${LIV_BFF_TRUSTED_PROXIES:127[.]0[.]0[.]1|0:0:0:0:0:0:0:1}
   # La única cookie de LIV que autentica (001-11): HttpOnly, Secure y SameSite=Strict, sin tokens dentro.
   # Secure va fijo: con TLS terminado en el balanceador el BFF recibe HTTP y, si no, no la marcaría.
   servlet:
@@ -69,9 +73,11 @@ liv:
       encryption-key: ${LIV_BFF_SESSION_KEY}
       # Cada cuánto se terminan las sesiones vencidas a las que nadie volvió (T19, ExpiredSessions).
       sweep-interval: 1m
-    # Límite de peticiones (T19, doc. 02 §8; valores aprobados por el responsable el 2026-11-06). Por dirección es
-    # más alto que por persona: varias personas de una oficina pueden compartir una dirección.
+    # Límite de peticiones (T19, doc. 02 §8; valores propuestos en la conversación del 2026-11-06 y aprobados por el
+    # responsable, pendientes de registrar en spec.md). Una persona con sesión cuenta por persona; sin sesión, por
+    # dirección. Cada réplica deja pasar su parte (replicas, LIV_BFF_REPLICAS).
     rate-limits:
+      replicas: ${LIV_BFF_REPLICAS:1}
       per-user:
         requests: 300
         per: 1m
