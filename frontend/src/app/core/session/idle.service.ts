@@ -47,8 +47,9 @@ export class IdleService implements OnDestroy {
   private watching = false;
   private checking = false;
   /**
-   * Cambia cada vez que algo hace obsoleta una consulta en vuelo («Seguir conectado», dejar de vigilar):
-   * su respuesta se descarta en lugar de deshacer lo que pasó después.
+   * Cambia cada vez que algo hace obsoleta una consulta o una renovación en vuelo («Seguir conectado»,
+   * dejar de vigilar, el aviso de cierre de otra pestaña): su respuesta se descarta en lugar de deshacer lo
+   * que pasó después.
    */
   private epoch = 0;
   private extending?: Promise<boolean>;
@@ -158,6 +159,10 @@ export class IdleService implements OnDestroy {
       return;
     }
     if (message.type === 'extended') {
+      if (this.endedElsewhere) {
+        // Ya avisaron que la sesión terminó: decide la próxima consulta, no este mensaje.
+        return;
+      }
       this.epoch++;
       this.apply(message.status);
     } else {
@@ -169,16 +174,20 @@ export class IdleService implements OnDestroy {
    * Otra pestaña avisó que la sesión terminó. Esta no navega a ciegas a `/bff/login`, que cerraría una
    * sesión nueva si la persona (u otra) ya volvió a entrar: pregunta primero. Y solo pregunta a la vista:
    * oculta, espera a volver a verse, para no empezar un inicio de sesión que pise el de la pestaña que la
-   * persona está usando (el BFF guarda uno solo por navegador). Si el BFF no responde, vuelve a preguntar.
+   * persona está usando (el BFF guarda uno solo por navegador). Si el BFF no responde, vuelve a preguntar,
+   * también solo a la vista. Si ya había una consulta en vuelo, esa respuesta decide.
+   *
+   * Si llega mientras «Seguir conectado» está en vuelo, esa renovación se da por perdida y la consulta
+   * decide: con la sesión abierta, la pestaña se recarga.
    */
   private onSessionEndedElsewhere(): void {
     this.endedElsewhere = true;
-    this.epoch++;
     this.clearWarning();
     clearTimeout(this.checkTimer);
     this.checkTimer = undefined;
-    this.checking = false;
-    if (document.visibilityState === 'visible') {
+    if (!this.checking) {
+      // Invalida una renovación en vuelo; una consulta en vuelo, en cambio, sigue y decide.
+      this.epoch++;
       void this.check();
     }
   }
@@ -202,6 +211,10 @@ export class IdleService implements OnDestroy {
   /** Pregunta al BFF, sin extender la sesión, y decide: avisar, cerrar o volver a esperar. */
   private async check(): Promise<void> {
     if (!this.watching || this.checking) {
+      return;
+    }
+    if (this.endedElsewhere && document.visibilityState !== 'visible') {
+      // Tras el aviso de otra pestaña solo se pregunta a la vista: `visibilitychange` vuelve a llamar.
       return;
     }
     this.checking = true;
