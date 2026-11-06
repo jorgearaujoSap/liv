@@ -15,3 +15,11 @@ export function whenOpened(document: Document): Promise<void> {
     document.addEventListener('prerenderingchange', () => resolve(), { once: true }),
   );
 }
+
+/** Arranca la aplicación (`bootstrap`) cuando la persona tiene la página delante (`whenOpened`). */
+export function startWhenOpened(
+  document: Document,
+  bootstrap: () => Promise<unknown>,
+): Promise<unknown> {
+  return whenOpened(document).then(bootstrap);
+}
