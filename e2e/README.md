@@ -26,12 +26,20 @@ Si tu entorno local usa otras direcciones o credenciales de administración de K
 |---|---|
 | `pruebas/acceso.spec.ts` | Vuelta a la ruta pedida (001-01), página de acceso en español y con axe (001-19), «Mostrar contraseña», mensaje único (001-03), usuario desactivado (001-05), rol sin segundo factor (001-08), código TOTP incorrecto y correcto (001-07), configurar el segundo factor en el primer ingreso (001-06) y bloqueo tras 5 fallos (001-04) |
 | `pruebas/sesion.spec.ts` | Ningún *token* en el navegador y la cookie `LIV_SESSION`, `HttpOnly`, `Secure` y `SameSite=Strict` (001-11); salir sin *tokens* en la URL, «atrás» sin datos y otra ruta que vuelve a pedir entrar (001-09); rechazo anti-CSRF (001-12) |
+| `pruebas/sesion-corta.spec.ts` | Aviso de inactividad con «Seguir conectado» y «Cerrar sesión» (001-22) y vencimiento sin actividad (001-10). Solo con la sesión corta (abajo) |
 | `pruebas/estructura.spec.ts` | Cabecera con nombre, administración y rol, y tarjetas iguales (001-02), menú por rol con el tercer nivel (001-15), «Sin permiso» por URL (001-16) y «Próximamente», con axe en cada pantalla |
 
 Lo que todavía no cubren, y queda en otras pruebas:
-- la expiración por inactividad y el aviso de los 2 minutos (001-10 y 001-22): necesitan una sesión del BFF corta;
 - que un código TOTP inválido cuente para el bloqueo (001-07): lo prueba `backend/identity/theme/check.sh`;
 - el 403 de la API en una opción sin permiso (001-16): la feature 001 aún no tiene una API con permiso propio; lo prueban las del backend.
+
+## Aviso de inactividad (sesión corta)
+
+Con los 15 minutos reales, `pruebas/sesion-corta.spec.ts` tardaría más de un cuarto de hora, así que se omite salvo que se pida:
+
+1. Levanta el BFF con una sesión de 150 segundos: en el paso 3 de «Ejecutar LIV en local», `SPRING_SESSION_TIMEOUT=150s ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`.
+2. Desde `e2e/`: `LIV_E2E_SESION_CORTA=1 npx playwright test pruebas/sesion-corta.spec.ts` (unos 4 minutos).
+3. Vuelve a levantar el BFF sin la variable para el uso normal.
 
 ## Usuarios
 
