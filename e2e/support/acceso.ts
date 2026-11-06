@@ -8,9 +8,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { CLAVE, KEYCLOAK_URL, TOTP_SECRETO } from './entorno';
 import { codigoTotp } from './totp';
 
-/** Espera la página de acceso de Keycloak (tema `liv`). */
-export async function enPaginaDeAcceso(page: Page): Promise<void> {
-  await expect(page).toHaveURL(new RegExp(`^${KEYCLOAK_URL}/realms/liv/`));
+/** Espera la página de acceso de Keycloak (tema `liv`), hasta `timeout` ms si se da. */
+export async function enPaginaDeAcceso(page: Page, timeout?: number): Promise<void> {
+  await expect(page).toHaveURL(new RegExp(`^${KEYCLOAK_URL}/realms/liv/`), { timeout });
   await expect(page.locator('#username')).toBeVisible();
 }
 
