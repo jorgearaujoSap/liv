@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 
 import { BrowserNavigation } from '../browser/browser-navigation.service';
 import { SessionChannel, SessionMessage } from './session-channel';
@@ -120,16 +121,21 @@ describe('SessionService', () => {
       expect(channel.posted).toEqual([{ type: 'ended' }]);
     });
 
-    it.each(['https://evil.example/', '//evil.example', '/\\evil.example', 'bff/login', ''])(
-      'no navega a un destino que no es una ruta de LIV: %j',
-      async (redirectTo) => {
-        const result = service.logout();
-        http.expectOne('/bff/logout').flush({ redirectTo });
-        await result;
+    it.each([
+      'https://evil.example/',
+      '//evil.example',
+      '/\\evil.example',
+      '/\t/evil.example',
+      '/\n/evil.example',
+      'bff/login',
+      '',
+    ])('no navega a un destino que no es una ruta de LIV: %j', async (redirectTo) => {
+      const result = service.logout();
+      http.expectOne('/bff/logout').flush({ redirectTo });
+      await result;
 
-        expect(navigation.replaced).toEqual(['/bff/login']);
-      },
-    );
+      expect(navigation.replaced).toEqual(['/bff/login']);
+    });
 
     it('si la petición falla, igual navega a /bff/login, que cierra la sesión abierta', async () => {
       const result = service.logout();
@@ -150,13 +156,90 @@ describe('SessionService', () => {
       ]);
     });
 
-    it.each(['https://evil.example/', '//evil.example', '/\\evil.example', 'liquidacion', ''])(
-      'una ruta que no es de LIV se cambia por /: %j',
-      (returnTo) => {
-        service.redirectToLogin(returnTo);
+    it.each([
+      'https://evil.example/',
+      '//evil.example',
+      '/\\evil.example',
+      '/\t/evil.example',
+      '/\r\n/evil.example',
+      'liquidacion',
+      '',
+      '/bff/login',
+      '/bff/logout',
+      '/api/v1/me',
+      '/internal/v1/sessions',
+      '/login/oauth2/code/liv',
+    ])('una ruta que no es de LIV, o es del BFF o de la API, se cambia por /: %j', (returnTo) => {
+      service.redirectToLogin(returnTo);
 
-        expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2F']);
-      },
-    );
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2F']);
+    });
+  });
+  describe('varias llamadas a la vez', () => {
+    it('redirectToLogin actúa una sola vez: la primera ruta pedida es la que vale', () => {
+      service.redirectToLogin('/liquidacion/lista');
+      service.redirectToLogin('/');
+
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%2Flista']);
+    });
+
+    it('status() comparte una sola petición mientras haya una en vuelo', async () => {
+      const first = service.status();
+      const second = service.status();
+      http.expectOne('/bff/session').flush({ idleSecondsLeft: 100, absoluteSecondsLeft: 200 });
+
+      expect(await first).toEqual(await second);
+    });
+
+    it('una vez respondida, la siguiente status() vuelve a preguntar', async () => {
+      const first = service.status();
+      http.expectOne('/bff/session').flush({ idleSecondsLeft: 100, absoluteSecondsLeft: 200 });
+      await first;
+
+      const second = service.status();
+      http.expectOne('/bff/session').flush(null, { status: 401, statusText: 'Unauthorized' });
+      expect(await second).toBeNull();
+    });
+  });
+
+  describe('si el BFF no responde', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('status() falla a los 10 segundos y no deja nada colgado', async () => {
+      const result = service.status();
+      const outcome = result.then(
+        () => 'respondió',
+        (error: Error) => error.name,
+      );
+      http.expectOne('/bff/session');
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(await outcome).toBe('TimeoutError');
+      // La siguiente consulta no hereda la que se perdió.
+      const next = service.status();
+      http.expectOne('/bff/session').flush(null, { status: 401, statusText: 'Unauthorized' });
+      expect(await next).toBeNull();
+    });
+
+    it('keepAlive() falla a los 10 segundos', async () => {
+      const outcome = service.keepAlive().then(
+        () => 'respondió',
+        (error: Error) => error.name,
+      );
+      http.expectOne('/bff/session/keepalive');
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(await outcome).toBe('TimeoutError');
+    });
+
+    it('logout() igual navega a /bff/login, que cierra la sesión abierta', async () => {
+      const result = service.logout();
+      http.expectOne('/bff/logout');
+      await vi.advanceTimersByTimeAsync(10_000);
+      await result;
+
+      expect(navigation.replaced).toEqual(['/bff/login']);
+    });
   });
 });

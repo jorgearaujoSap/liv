@@ -128,25 +128,33 @@ describe('nginx.conf: cabeceras de seguridad (doc. 02 §8)', () => {
   });
 });
 
+/** La tabla de caché mira el estado de la respuesta además de la ruta: `"$status:$uri"`. */
+const mapEntries = () => all.filter((d) => d.path.at(-1) === 'map "$status:$uri" $cache_control');
+const hashedPattern = () => {
+  const entry = mapEntries().find((d) => d.text.endsWith('immutable"'));
+  return new RegExp(entry.text.match(/^"~([^"]+)"/)[1]);
+};
+
 describe('nginx.conf: caché', () => {
   it('Cache-Control sale de una tabla: no-store salvo los archivos con hash en el nombre', () => {
     assert.equal(headerValue('Cache-Control'), '$cache_control');
-    const map = all.filter((d) => d.path.at(-1) === 'map $uri $cache_control').map((d) => d.text);
+    const map = mapEntries().map((d) => d.text);
     assert.ok(map.length > 0, 'falta el map de Cache-Control');
     assert.ok(map.includes('default "no-store"'));
     assert.ok(map.some((entry) => entry.endsWith('"public, max-age=31536000, immutable"')));
   });
 
   it('el patrón del archivo con hash coincide con los que genera Angular y no con index.html', () => {
-    const entry = all.find(
-      (d) => d.path.at(-1) === 'map $uri $cache_control' && d.text.endsWith('immutable"'),
-    );
-    const regex = new RegExp(entry.text.match(/^"~([^"]+)"/)[1]);
-    assert.ok(regex.test('/main-ON6NZC24.js'));
-    assert.ok(regex.test('/styles-ELR7ATZQ.css'));
-    assert.ok(!regex.test('/index.html'));
-    assert.ok(!regex.test('/'));
-    assert.ok(!regex.test('/favicon.ico'));
+    const regex = hashedPattern();
+    assert.ok(regex.test('200:/main-ON6NZC24.js'));
+    assert.ok(regex.test('200:/styles-ELR7ATZQ.css'));
+    assert.ok(!regex.test('200:/index.html'));
+    assert.ok(!regex.test('200:/'));
+    assert.ok(!regex.test('200:/favicon.ico'));
+  });
+
+  it('un archivo con hash que no existe (404) no se guarda un año: dejaría la pantalla en blanco', () => {
+    assert.ok(!hashedPattern().test('404:/chunk-ON6NZC24.js'));
   });
 });
 
@@ -159,9 +167,23 @@ describe('nginx.conf: qué sirve', () => {
   });
 
   it('la API y el BFF no son del frontend: responden 404 y no caen en index.html', () => {
-    const block = all.find((d) => d.path.at(-1)?.startsWith('location ~ ^/(api|bff|internal)/'));
-    assert.ok(block, 'falta el location de /api, /bff e /internal');
+    const block = all.find((d) =>
+      d.path.at(-1)?.startsWith('location ~ ^/(api|bff|internal|login/oauth2)(/|$)'),
+    );
+    assert.ok(block, 'falta el location de /api, /bff, /internal y /login/oauth2');
     assert.equal(block.text, 'return 404');
+  });
+
+  it('el registro de accesos no guarda la consulta de la URL: puede llevar datos (doc. 02 §6)', () => {
+    const format = all.find((d) => d.text.startsWith('log_format '));
+    assert.ok(format, 'falta el log_format propio');
+    assert.doesNotMatch(
+      format.text,
+      /\$request\b|\$request_uri|\$args|\$query_string|\$http_referer/,
+    );
+    assert.match(format.text, /\$uri/);
+    const log = all.find((d) => d.text.startsWith('access_log ') && !d.text.includes(' off'));
+    assert.ok(log?.text.endsWith(` ${format.text.split(' ')[1]}`), 'access_log sin el formato propio');
   });
 
   it('un archivo con extensión que no existe es 404; una ruta de la aplicación cae en index.html', () => {
@@ -201,7 +223,22 @@ describe('Dockerfile', () => {
     assert.match(dockerfile, /COPY --from=\w+ \S*dist\/liv-frontend\/browser \/usr\/share\/nginx\/html/);
   });
 
-  it('no vuelve a root', () => {
+  it('corre con el usuario 101, explícito, y nunca vuelve a root', () => {
     assert.doesNotMatch(dockerfile, /^USER\s+(root|0)\b/m);
+    assert.match(dockerfile.split(froms.at(-1))[1], /^USER 101$/m);
+  });
+
+  it('lleva el aviso de licencias de las dependencias que Angular junta al compilar', () => {
+    assert.match(
+      dockerfile,
+      /COPY --from=\w+ \S*dist\/liv-frontend\/3rdpartylicenses\.txt \S+/,
+    );
+  });
+
+  it('.dockerignore deja fuera los secretos y la salida de pruebas', () => {
+    const ignore = read('.dockerignore').split('\n');
+    for (const pattern of ['.env*', '*.pem', '*.key', 'coverage', '.npmrc']) {
+      assert.ok(ignore.includes(pattern), `.dockerignore sin ${pattern}`);
+    }
   });
 });

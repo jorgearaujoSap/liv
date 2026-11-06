@@ -258,12 +258,24 @@ describe('IdleService', () => {
       http.expectNone(() => true);
     });
 
-    it('si otra pestaña cerró la sesión, esta vuelve a iniciar sesión', async () => {
+    it('si otra pestaña cerró la sesión y ya no hay ninguna, esta vuelve a iniciar sesión', async () => {
       idle.watch(status(900));
 
       channel.handler?.({ type: 'ended' });
+      await advance(0);
+      await answerSession(null);
 
       expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2F']);
+    });
+
+    it('si hay una sesión abierta (otra persona entró en otra pestaña), no cierra esa sesión: recarga la aplicación', async () => {
+      idle.watch(status(900));
+
+      channel.handler?.({ type: 'ended' });
+      await advance(0);
+      await answerSession(status(900));
+
+      expect(navigation.replaced).toEqual(['/']);
     });
 
     it('al volver a ser visible la pestaña, consulta de inmediato: los temporizadores se frenan en segundo plano', async () => {
@@ -317,6 +329,131 @@ describe('IdleService', () => {
       await advance(30 * MINUTE);
 
       expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+  describe('lo que pasa cuando varias cosas ocurren a la vez', () => {
+    const warn = async () => {
+      idle.watch(status(120));
+      await advance(0);
+      await answerSession(status(120));
+    };
+
+    it('navegar con el aviso abierto no lo cierra ni pide nada: solo actualiza los plazos', async () => {
+      await warn();
+
+      idle.watch(status(100));
+
+      expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 100 });
+      http.expectNone(() => true);
+    });
+
+    it('una consulta que salió antes de «Seguir conectado» no deshace lo extendido', async () => {
+      await warn();
+      await advance(120 * 1000);
+      const stale = http.expectOne('/bff/session');
+
+      const extending = idle.extend();
+      http.expectOne('/bff/session/keepalive').flush(status(900));
+      await extending;
+      stale.flush(status(0, 0));
+      await advance(0);
+
+      expect(navigation.replaced).toEqual([]);
+      expect(idle.warning()).toBeUndefined();
+    });
+
+    it('un doble clic en «Seguir conectado» hace una sola petición y la avisa una vez', async () => {
+      await warn();
+
+      const first = idle.extend();
+      const second = idle.extend();
+      http.expectOne('/bff/session/keepalive').flush(status(900));
+
+      expect(await first).toBe(true);
+      expect(await second).toBe(true);
+      expect(channel.posted).toHaveLength(1);
+    });
+
+    it('con el aviso del límite abierto, si la inactividad vence antes avisa por inactividad', async () => {
+      idle.watch(status(200, 290));
+      await advance(0);
+      await answerSession(status(200, 290));
+      expect(idle.warning()).toEqual({ kind: 'absolute', secondsLeft: 290 });
+
+      await advance(80 * 1000);
+      await answerSession(status(120, 210));
+
+      expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 120 });
+    });
+
+    it('«Seguir conectado» tras salir de la sesión no la reanuda ni navega', async () => {
+      await warn();
+
+      const extending = idle.extend();
+      const leaving = idle.logout();
+      http.expectOne('/bff/session/keepalive').flush(status(900));
+      http.expectOne('/bff/logout').flush({ redirectTo: '/bff/login' });
+      await Promise.all([extending, leaving]);
+      await advance(30 * MINUTE);
+
+      expect(navigation.replaced).toEqual(['/bff/login']);
+      http.expectNone(() => true);
+    });
+  });
+
+  describe('si el BFF no responde', () => {
+    it('la consulta se da por perdida a los 10 segundos y se reintenta en 30', async () => {
+      idle.watch(status(900));
+      await advance(13 * MINUTE);
+      http.expectOne('/bff/session');
+
+      await advance(10_000);
+      http.expectNone(() => true);
+      await advance(30_000);
+      http.expectOne('/bff/session').flush(status(90));
+      await advance(0);
+
+      expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 90 });
+    });
+
+    it('la cuenta regresiva llega a cero aunque no se pueda preguntar, sin cerrar la sesión por su cuenta', async () => {
+      idle.watch(status(120));
+      await advance(0);
+      await answerSession(status(120));
+
+      await advance(120 * 1000);
+      http.expectOne('/bff/session').flush(null, { status: 502, statusText: 'Bad Gateway' });
+      await advance(0);
+
+      expect(idle.warning()).toEqual({ kind: 'idle', secondsLeft: 0 });
+      expect(navigation.replaced).toEqual([]);
+    });
+  });
+
+  describe('página restaurada de la memoria del navegador (001-09)', () => {
+    const pageshow = (persisted: boolean) => {
+      const event = new Event('pageshow');
+      Object.defineProperty(event, 'persisted', { value: persisted });
+      window.dispatchEvent(event);
+    };
+
+    it('al volver con «atrás» a una página guardada, consulta si la sesión sigue', async () => {
+      idle.watch(status(900));
+
+      pageshow(true);
+      await advance(0);
+
+      await answerSession(null);
+      expect(navigation.replaced).toEqual(['/bff/login?returnTo=%2Fliquidacion%3Fanio%3D2026']);
+    });
+
+    it('una carga normal no consulta', async () => {
+      idle.watch(status(900));
+
+      pageshow(false);
+      await advance(0);
+
+      http.expectNone(() => true);
     });
   });
 });
