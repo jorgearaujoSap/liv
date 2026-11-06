@@ -10,20 +10,51 @@
           type="group"
           [icon]="module.icon"
           [active]="isInModule(module.code)"
-          [expanded]="isInModule(module.code)"
+          [expanded]="isExpanded(module.code)"
+          (expandedChange)="setExpanded(module.code, $event)"
         >
           {{ module.label }}
-          @for (option of module.children; track option.code) {
-            <liv-nav-item
-              type="subitem"
-              [href]="option.href"
-              [active]="isCurrent(option.href)"
-              [disabled]="!option.available"
-              (navigate)="go($event)"
-            >
-              {{ option.label }}
-            </liv-nav-item>
-          }
+          <!--
+            NavItem proyecta solo sus hijos liv-nav-item; con @if de por medio, Angular no los reconoce y los
+            pone junto al texto. ngProjectAs los marca como tales.
+          -->
+          <ng-container ngProjectAs="liv-nav-item">
+            @for (option of module.children; track option.code) {
+              @if (option.children.length > 0) {
+                <!-- Tercer nivel (1.5.x y 1.6.x): la opción agrupa las suyas, como en Figma (Menú · tres niveles). -->
+                <liv-nav-item
+                  type="subgroup"
+                  [active]="isInModule(option.code)"
+                  [expanded]="isExpanded(option.code)"
+                  (expandedChange)="setExpanded(option.code, $event)"
+                  [disabled]="!option.available"
+                >
+                  {{ option.label }}
+                  @for (nested of option.children; track nested.code) {
+                    <liv-nav-item
+                      type="nested"
+                      [href]="nested.href"
+                      [active]="isCurrent(nested.href)"
+                      [disabled]="!nested.available"
+                      (navigate)="go($event)"
+                    >
+                      {{ nested.label }}
+                    </liv-nav-item>
+                  }
+                </liv-nav-item>
+              } @else {
+                <liv-nav-item
+                  type="subitem"
+                  [href]="option.href"
+                  [active]="isCurrent(option.href)"
+                  [disabled]="!option.available"
+                  (navigate)="go($event)"
+                >
+                  {{ option.label }}
+                </liv-nav-item>
+              }
+            }
+          </ng-container>
         </liv-nav-item>
       } @else {
         <liv-nav-item

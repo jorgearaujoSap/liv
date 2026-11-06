@@ -485,6 +485,11 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - Prueba primero: subgrupo con sus anidadas, navegación de tercer nivel, ramas activas y abiertas, contraer y volver a navegar, y axe con el menú abierto.
   - **Además:** la estructura guarda qué ramas están abiertas (`[(expanded)]`). La persona puede contraerlas y ninguna se cierra sola; esto corrige también el módulo, que antes se cerraba al salir de él.
   - **Para decidir:** si un subgrupo con todas sus opciones sin construir debe poder abrirse para mostrarlas deshabilitadas, como un módulo. Hoy queda cerrado y deshabilitado.
+- [x] **T21b** · La aplicación no arranca durante la precarga del navegador (001-01). Al escribir la dirección, Chrome y Edge precargan la página; Angular redirigía a `/bff/login` y el BFF, que no abre un inicio de sesión desde una precarga, respondía 404. Lo encontró el responsable en la prueba local de Inicio (2026-11-05). — Hecha: PR [#97](https://github.com/jorgearaujoSap/liv/pull/97) (`frontend/`).
+  - Archivos: `frontend/src/main.ts`, `frontend/src/app/core/browser/when-opened.*`, `frontend/CHANGELOG.md`.
+  - Prueba primero: `startWhenOpened` no arranca antes de `prerenderingchange`, y arranca de inmediato sin precarga.
+  - **Revisión:** dos revisores adversariales de nivel alto. La primera versión aplazaba solo la navegación, y eso podía cerrar una sesión abierta mientras tanto; se rehízo esperando en el arranque. La segunda ronda dejó solo bajos, ya corregidos.
+  - **Falta:** probarlo en Chrome con el sistema levantado; la prueba e2e de 001-01 va en T23.
 ## Sistema
 
 - [ ] **T23** · `infra/` y `e2e/`.
