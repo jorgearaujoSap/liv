@@ -30,6 +30,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Menú lateral de tres niveles (1.5.x y 1.6.x), como en Figma (Menú · tres niveles): una opción con subopciones es un subgrupo (`NavItem` `subgroup`) con las suyas anidadas (`nested`). Con la pantalla actual dentro, el módulo y el subgrupo se marcan y se abren. Las opciones sin construir siguen deshabilitadas (feature 001, 001-15).
 - `liv-components` 0.3.1, desde la 0.2.0; trae también la 0.3.0. Las tarjetas de módulo se estiran con su celda, y la cuadrícula de Inicio tiene filas iguales (`auto-rows-fr`): todas las tarjetas miden lo que la más alta, como en Figma (feature 001, T22a). El menú sigue con dos niveles; el tercero (1.5.x y 1.6.x) va en otro PR.
 - `capabilityGuard`: la ruta puede declarar `data: { capabilityParam: 'code' }` para tomar el número de la opción de la URL; declarar a la vez `capability` y `capabilityParam` se niega.
 - Contrato `bff` 1.1.0 (antes 1.0.0): declara el 403 anti-CSRF con `code` `001-12` (`CsrfProblem`). Compatible: el cliente generado cambia `Problem` por `CsrfProblem` en el BFF y nada de la aplicación lo usaba.

@@ -289,9 +289,10 @@ describe('estructura general (001-02, 001-15)', () => {
         const subgroups = Array.from(nav.querySelectorAll('liv-nav-item[data-type="subgroup"]'));
 
         expect(group.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
+        // Un subgrupo sin construir no se expande ni declara aria-expanded (NavItem).
         expect(
           subgroups.map((item) => item.querySelector('button')?.getAttribute('aria-expanded')),
-        ).toEqual(['true', 'false']);
+        ).toEqual(['true', null]);
         expect(subgroups.map((item) => item.hasAttribute('data-active'))).toEqual([true, false]);
         const current = nav.querySelectorAll('[aria-current="page"]');
         expect(current).toHaveLength(1);

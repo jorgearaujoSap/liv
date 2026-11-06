@@ -93,7 +93,10 @@ export class Shell implements OnInit {
     return href !== undefined && this.path() === href;
   }
 
-  /** La pantalla actual es una opción de este módulo (`/opcion/1.4` es del módulo `1`). */
+  /**
+   * La pantalla actual está dentro de esta rama: `/opcion/1.4` es del módulo `1`, y `/opcion/1.5.3` es del
+   * módulo `1` y de su grupo `1.5`.
+   */
   protected isInModule(code: string): boolean {
     const own = optionPath(code);
     return this.path() === own || this.path().startsWith(`${own}.`);
