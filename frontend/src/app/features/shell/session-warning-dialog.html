@@ -1,0 +1,19 @@
+<liv-dialog
+  [open]="warning() !== undefined"
+  [heading]="heading()"
+  [description]="description()"
+  icon="history"
+  [dismissible]="false"
+>
+  <liv-button variant="secondary" (click)="signOut()">Cerrar sesión</liv-button>
+  @if (warning()?.kind === 'idle') {
+    <liv-button
+      data-initial-focus
+      [loading]="extending()"
+      loadingLabel="Extendiendo la sesión…"
+      (click)="keepConnected()"
+    >
+      Seguir conectado
+    </liv-button>
+  }
+</liv-dialog>

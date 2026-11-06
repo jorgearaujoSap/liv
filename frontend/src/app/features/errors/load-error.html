@@ -1,0 +1,13 @@
+<main>
+  <liv-logo />
+  <liv-result-state
+    tone="danger"
+    icon="cloud-off"
+    heading="No pudimos cargar tu sesión"
+    [headingLevel]="1"
+    description="El servicio no responde. Inténtalo de nuevo en unos minutos; si el problema continúa, comunícate con soporte técnico."
+  >
+    <liv-button variant="secondary" (click)="signOut()">Salir</liv-button>
+    <liv-button leadingIcon="refresh-cw" (click)="retry()">Reintentar</liv-button>
+  </liv-result-state>
+</main>

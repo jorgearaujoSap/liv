@@ -170,8 +170,9 @@ describe('las pantallas solo usan componentes de liv-components', () => {
     await rejects('<style>.x { color: red }</style>', /style/i);
   });
 
-  it('sin componentes propios de la aplicación en la plantilla', async () => {
-    await rejects('<app-tarjeta></app-tarjeta>', /liv-components/);
+  it('sin elementos propios que no sean de liv-components ni secciones de la propia pantalla (app-)', async () => {
+    await rejects('<mi-tarjeta></mi-tarjeta>', /liv-components/);
+    await rejects('<tarjeta-modulo></tarjeta-modulo>', /liv-components/);
   });
 
   it('sin controles nativos: botón, enlace, campo, tabla…', async () => {
@@ -188,12 +189,13 @@ describe('las pantallas solo usan componentes de liv-components', () => {
     }
   });
 
-  it('sí: componentes de liv-components, router-outlet y contenedores nativos sin estilo', async () => {
+  it('sí: liv-components, secciones app-, router-outlet y contenedores nativos sin estilo', async () => {
     const code = `<main>
   <section>
     <liv-page-header [heading]="titulo" />
     <div><liv-badge>Hola</liv-badge></div>
   </section>
+  <app-session-warning-dialog />
   <router-outlet />
 </main>`;
     assert.deepEqual(await template(code), []);

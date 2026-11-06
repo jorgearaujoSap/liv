@@ -11,7 +11,9 @@ describe('WorkspaceService', () => {
   let workspace: WorkspaceService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     http = TestBed.inject(HttpTestingController);
     workspace = TestBed.inject(WorkspaceService);
   });

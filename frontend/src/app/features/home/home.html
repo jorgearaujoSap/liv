@@ -1,0 +1,16 @@
+<liv-page-header [heading]="greeting()" [description]="description()" />
+<section aria-labelledby="home-modules">
+  <h2 id="home-modules">Módulos</h2>
+  <div>
+    @for (module of modules(); track module.code) {
+      <liv-module-card
+        [heading]="module.label"
+        [description]="module.description"
+        [icon]="module.icon"
+        [href]="module.href"
+        [disabled]="!module.available"
+        (navigate)="open($event)"
+      />
+    }
+  </div>
+</section>

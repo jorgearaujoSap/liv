@@ -122,7 +122,10 @@ describe('capabilityGuard', () => {
   // Una sola ruta (`opcion/:code`) atiende por URL cualquier opción del menú (001-16): el número de la opción
   // viaja en la URL y la ruta lo declara con `data: { capabilityParam: 'code' }`.
   describe('número de la opción en la URL', () => {
-    const runWithParams = async (params: Record<string, unknown>, data: Record<string, unknown>) => {
+    const runWithParams = async (
+      params: Record<string, unknown>,
+      data: Record<string, unknown>,
+    ) => {
       const pending = TestBed.runInInjectionContext(
         () =>
           capabilityGuard(

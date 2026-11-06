@@ -45,7 +45,7 @@ describe('Inicio (001-02, 001-15)', () => {
   it('muestra una tarjeta por módulo permitido, con su descripción', () => {
     const host = render();
 
-    expect(cards(host).map((card) => text(card.querySelector('h2, h3')))).toEqual([
+    expect(cards(host).map((card) => text(card.querySelector('.module-card__title')))).toEqual([
       'Administración',
       'Registro automotor y contribuyentes',
       'Liquidación',

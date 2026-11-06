@@ -34,7 +34,8 @@ class FakeIdle {
 }
 
 // 001-19: las pantallas de la aplicación cumplen WCAG 2.1 AA (axe-core).
-describe('accesibilidad de las pantallas (001-19)', () => {
+// axe recorre todo el DOM de la estructura general, y en jsdom tarda: más de los 5 s predeterminados.
+describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
   let workspace: FakeWorkspace;
   let idle: FakeIdle;
 

@@ -37,7 +37,10 @@ describe('estructura general (001-02, 001-15)', () => {
     idle = new FakeIdle();
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        provideRouter([
+          { path: '', children: [] },
+          { path: 'sin-permiso', children: [] },
+        ]),
         { provide: WorkspaceService, useValue: workspace },
         { provide: IdleService, useValue: idle },
       ],
@@ -119,12 +122,14 @@ describe('estructura general (001-02, 001-15)', () => {
     });
 
     it('un módulo con subopciones se abre y muestra las suyas, también deshabilitadas', async () => {
-      const nav = host(await render()).querySelector('liv-side-nav') as HTMLElement;
+      const fixture = await render();
+      const nav = host(fixture).querySelector('liv-side-nav') as HTMLElement;
       const group = nav.querySelector('liv-nav-item[data-type="group"]') as HTMLElement;
 
       expect(group.getAttribute('data-disabled')).toBeNull();
       expect(group.querySelector('button')?.getAttribute('aria-expanded')).toBe('false');
       (group.querySelector('button') as HTMLButtonElement).click();
+      fixture.detectChanges();
       expect(group.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
 
       const subitems = Array.from(group.querySelectorAll('liv-nav-item[data-type="subitem"]'));

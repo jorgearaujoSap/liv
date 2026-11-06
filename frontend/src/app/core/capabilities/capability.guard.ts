@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
 
 import { APP_PATHS } from '../app-paths';
 import { CapabilityService } from './capability.service';
@@ -17,7 +17,7 @@ export const capabilityGuard: CanActivateFn & CanActivateChildFn = async (route)
   const capabilities = inject(CapabilityService);
   const router = inject(Router);
 
-  const code = route.data['capability'];
+  const code = capabilityCode(route);
   if (typeof code !== 'string') {
     // Una ruta protegida sin código es un error de configuración: se niega.
     return router.parseUrl(APP_PATHS.forbidden);
@@ -33,3 +33,17 @@ export const capabilityGuard: CanActivateFn & CanActivateChildFn = async (route)
   }
   return capability.status === 'AVAILABLE' ? true : router.parseUrl(APP_PATHS.comingSoon);
 };
+
+/**
+ * El código de la opción: el que la ruta declara en `data.capability` o, si declara
+ * `data: { capabilityParam: 'code' }`, el del parámetro de la URL con ese nombre (una sola ruta atiende
+ * cualquier opción del menú). Sin ninguno de los dos, no hay código y la guarda niega.
+ */
+function capabilityCode(route: ActivatedRouteSnapshot): unknown {
+  const declared: unknown = route.data['capability'];
+  if (declared !== undefined) {
+    return declared;
+  }
+  const param: unknown = route.data['capabilityParam'];
+  return typeof param === 'string' ? route.params[param] : undefined;
+}
