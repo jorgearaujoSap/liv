@@ -360,6 +360,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
 | Próximamente (**pendiente de aprobación en H2**) | [Próximamente](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=29-1689) | ResultState (Info), Button, Icon y la estructura general |
 | Cargando sesión | [Cargando](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1640) | Skeleton, Logo |
 | Error al cargar la sesión | [Error](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=26-1672) | ResultState, Logo, Button, Icon |
+| Menú de tres niveles (**propuesto 2026-11-05, pendiente de aprobación**) | [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519) | SideNav, NavItem con los tipos nuevos `Subgroup` y `Nested` ([NavItem](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=22-147)), AppHeader, PageHeader |
 
 ## Decisiones
 
@@ -471,7 +472,7 @@ Diseños aprobados por el responsable funcional el 2026-11-01 (versión 2, con s
   - **decisiones del responsable (2026-11-05):**
     - se aprueba el texto del aviso del límite de 8 horas;
     - el grupo de módulo del menú lateral se deja habilitado, como en Figma, frente a la tarjeta deshabilitada de Inicio;
-    - el **tercer nivel del menú** (1.5.x y 1.6.x) se diseña ahora: primero en Figma y, si hace falta, en `ui/` (otro PR). Hasta entonces, dos niveles;
+    - el **tercer nivel del menú** (1.5.x y 1.6.x) se diseña ahora. **Diseño propuesto el 2026-11-05, pendiente de aprobación del responsable funcional:** `NavItem` gana `Type=Subgroup` (opción de segundo nivel con chevron, que se expande) y `Type=Nested` (tercer nivel, sangrado 16 px más que `Subitem`), con los mismos cuatro estados; el marco de referencia es [Menú · tres niveles](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=51-1519), con Administración abierta y 1.5 expandido. Sigue la variante en `ui/` (otro PR) y su uso en el frontend (otro PR). Hasta entonces, dos niveles;
     - la pantalla local de «sesión terminada» sigue sin inventarse (no está en los diseños aprobados).
 - **Ajustes de T21 (PR #84; decisiones y riesgos pendientes del responsable).** Salieron de implementar el núcleo del frontend y de su revisión adversarial y de las cuatro lentes:
   - **ESLint:** la regla de T20 no se amplió; solo restringe `HttpClient`, `HttpBackend` y `HttpHandler`, y el interceptor no los necesita;
