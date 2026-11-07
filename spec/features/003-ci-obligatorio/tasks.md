@@ -4,13 +4,13 @@ _Checklist accionable derivada del `plan.md`. Tareas pequeñas y concretas; cada
 
 Rama de implementación: `feat/003-ci-obligatorio-github`. **T1 a T4 van en un solo PR de la raíz**: los *workflows* no se pueden probar por partes, y el PR que crea el *script* hace correr todo, porque toca `.github/` (plan, paso 3).
 
-- [ ] **T1** · Arnés de pruebas y *script* de decisión (plan, pasos 1 y 2).
-  - **Archivos:** `.github/scripts/test/aplica.test.sh` y `.github/scripts/aplica.sh`.
+- [x] **T1** · Arnés de pruebas y *script* de decisión (plan, pasos 1 y 2).
+  - **Archivos:** `.github/scripts/test/aplica.test.sh` y `.github/scripts/aplica.sh`, más `.github/.gitattributes` (final de línea LF de los *scripts*, para que no se rompan en Git Bash con `autocrlf`).
   - **Prueba primero:** el arnés, con todos los casos del paso 1, sobre un repositorio temporal con un *merge* real. Commit `test:` con el arnés en rojo (sin el *script*); después, el `feat:` con el *script*.
   - **Verificación local:** `bash .github/scripts/test/aplica.test.sh` en verde, en Git Bash y en Linux (CI).
-- [ ] **T2** · Trabajo `sistema · scripts de CI` en `sistema-pr`, que corre el arnés en todos los PR (plan, paso 1).
+- [x] **T2** · Trabajo `sistema · scripts de CI` en `sistema-pr`, que corre el arnés en todos los PR (plan, paso 1).
   - **Archivos:** `.github/workflows/sistema-pr.yml`.
-- [ ] **T3** · *Workflows* de cada proyecto (plan, pasos 3 a 5).
+- [x] **T3** · *Workflows* de cada proyecto (plan, pasos 3 a 5).
   - **Archivos:** `.github/workflows/backend-pr.yml`, `bff-pr.yml`, `frontend-pr.yml`, `ui-pr.yml` y `backend-contracts-pr.yml`.
   - **Qué cambia:**
     - sin `paths` en el disparador;
@@ -19,7 +19,7 @@ Rama de implementación: `feat/003-ci-obligatorio-github`. **T1 a T4 van en un s
     - el agregado `backend · contratos`;
     - un comentario que dice que los nombres de los trabajos son los de la protección.
   - **Prueba:** la ejecución del propio PR. Todo corre porque toca `.github/`, y `backend · contratos` queda en verde.
-- [ ] **T4** · Documentación (plan, paso 8).
+- [x] **T4** · Documentación (plan, paso 8).
   - **Archivos:** `docs/arquitectura/04_Calidad_Testing_y_CI.md` (§9 y su versión) y `ESTADO.md` (F0‑07 y bitácora).
 - [ ] **T5** · Protección de `main` (plan, paso 6). Después de integrar el PR de T1 a T4, y **con la aprobación explícita del responsable** en la sesión (`AGENTS.md` §4.5).
   - **Qué se hace:** los seis *checks* nuevos al *ruleset* `main` (id 26341460), sin actores que se la salten y sin exigir la rama al día.
