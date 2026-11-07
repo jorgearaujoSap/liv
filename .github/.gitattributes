@@ -1,0 +1,2 @@
+# (Patrones relativos a .github/.) Los scripts de .github/scripts/ se ejecutan con Bash, también en Git Bash: con CRLF fallarían.
+scripts/**/*.sh text eol=lf
