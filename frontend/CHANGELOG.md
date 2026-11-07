@@ -27,6 +27,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Tailwind CSS 4 con los tokens de diseño importados de `liv-components/styles/theme.css`. La paleta, los tamaños de texto y las sombras por defecto de Tailwind están anulados.
 - ESLint (angular-eslint 21) con reglas de frontera: la aplicación usa solo la API pública de `liv-components` y no importa archivos de otros proyectos del monorepo.
 - Prettier y Vitest; raíz de la aplicación sin pantallas (solo `router-outlet`) a la espera de los diseños aprobados.
+- *Skill* `liv-pantalla` para los agentes (`.claude/skills/`), basada en las pantallas de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). `.vscode/mcp.json` pasa a usar el CLI del proyecto, en lugar de descargar la última versión con `npx -y`.
 
 ### Cambiado
 
