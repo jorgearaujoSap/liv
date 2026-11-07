@@ -59,7 +59,7 @@ aplicar() {
       +*) git -C "$repo" update-index --add --cacheinfo "100644,$(blob),${a#+}" ;;
       -*) git -C "$repo" update-index --force-remove -- "${a#-}" ;;
       '~'*)
-        par=${a#~}
+        par=${a#\~}
         origen=${par%%>*}
         destino=${par#*>}
         sha=$(git -C "$repo" rev-parse --verify ":0:$origen")
