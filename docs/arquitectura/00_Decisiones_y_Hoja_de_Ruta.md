@@ -153,6 +153,7 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 | 0028 | SDD adaptativo: evaluación previa antes de la especificación; el flujo directo reemplaza al tipo «trivial» y el SDD sigue siendo la metodología principal (complementa al ADR 0014) | Aceptado (2026-11-05) | `docs/adr/ADR-0028-…`, 05 §3.3, `AGENTS.md` §4.3 |
 | 0029 | `axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`, para la prueba de accesibilidad de cada pantalla (001-19); el contraste lo cubre el e2e de T23 | Aceptado (2026-11-05) | `docs/adr/ADR-0029-…`, `AGENTS.md` §4.5, feature 001 T22 |
 | 0030 | Pruebas de navegador (`e2e/`, Playwright) contra el entorno local de desarrollo hasta antes de producción; las imágenes publicadas, `infra/` con TLS y el CI de e2e (IN‑09, F0‑12) quedan para antes de producción | Aceptado (2026-11-06) | `docs/adr/ADR-0030-…`, 01 §14.1 (IN‑09), `AGENTS.md` §4.2 |
+| 0031 | Criterio de cierre de la Fase 0: *walking skeleton* en el entorno local con las pruebas de navegador en verde, CI de cada proyecto en verde y obligatorio, y F0‑02, F0‑10 y F0‑11 hechos; *staging* antes de la primera entrega a usuarios y cada pendiente restante con su momento | Aceptado (2026-11-07) | `docs/adr/ADR-0031-…`, §8 |
 
 ---
 
@@ -181,7 +182,7 @@ Ninguna fase empieza sin su documento funcional aprobado y sin sus pendientes cr
 
 | Fase | Contenido | Documento funcional | Criterio de salida |
 |---|---|---|---|
-| **0 — Fundaciones** | Sin funcionalidad de negocio (detalle abajo) | Esta serie 00–05 | *Walking skeleton* desplegado en *staging* con CI completo en verde |
+| **0 — Fundaciones** | Sin funcionalidad de negocio (detalle abajo) | Esta serie 00–05 | *Walking skeleton* funcionando en el entorno local con las pruebas de navegador en verde, CI de cada proyecto en verde y obligatorio, y F0‑02, F0‑10 y F0‑11 hechos (ADR 0031). *Staging*, antes de la primera entrega a usuarios |
 | 1 — Tablas base y configuración | Vigencias (1.4), normas (1.3), cargue de avalúos (1.5.1–1.5.4), tarifas, calendario, beneficios, sanciones (1.5.5–1.5.8), configuración de jurisdicción (1.5.9), consultas 1.6 | 01, 03 | Tablas 2026 y configuración de Ipiales publicadas en *staging* con las mismas cifras de la prevalidación (Doc. 03 §2 y §9.2) |
 | 2 — Homologación y liquidación individual | Homologación 2.6, motor de liquidación, liquidación individual (3.1) y simulador (3.3) | 02, 03 | Los ejemplos de Doc. 02 §B.9 y Doc. 03 §9.3 pasan como pruebas *golden* |
 | 3 — Liquidación masiva | Corridas 3.2, excepciones, consultas 3.6 | 02 | Corrida con volumen objetivo dentro del tiempo de 03 §1, con reinicio probado |
@@ -194,7 +195,7 @@ Ninguna fase empieza sin su documento funcional aprobado y sin sus pendientes cr
 | # | Entregable | Documento |
 |---|---|---|
 | F0‑01 | Reorganización del repositorio: documentación en `docs/` (hecho); creación de `backend/` y `frontend/` como proyectos autónomos y separables al iniciar sus esqueletos (F0‑04, F0‑05) | 01 §14 |
-| F0‑02 | ADR 0001–0021 revisados y aceptados (o reemplazados) | 00 §6 |
+| F0‑02 | ADR 0001–0022 revisados y aceptados (o reemplazados), con un archivo por ADR en `docs/adr/` | 00 §6 |
 | F0‑03 | `AGENTS.md` / `CLAUDE.md` jerárquicos, *skills* del proyecto, plantillas SDD, ganchos del agente y de Git | 05 |
 | F0‑04 | Esqueleto de backend con los módulos vacíos, verificación de fronteras y reglas de arquitectura activas | 01, 04 |
 | F0‑05 | Esqueleto de frontend con autenticación, *layout*, menú dirigido por permisos y cliente API generado, construido solo con componentes de `liv-components` | 01 §11 |
@@ -207,3 +208,5 @@ Ninguna fase empieza sin su documento funcional aprobado y sin sus pendientes cr
 | F0‑10 | Esquema JSON de la configuración de jurisdicción, validado en CI contra los dos YAML existentes | 01 §5 |
 | F0‑11 | Pruebas *golden* escritas (en rojo) con los ejemplos de los documentos funcionales | 04 §5 |
 | F0‑12 | Una prueba Playwright de extremo a extremo (inicio de sesión → menú) en CI. Hasta antes de producción corre en local, contra el entorno de desarrollo (ADR 0030) | 04 §5 |
+
+Qué entregables bloquean el cierre de la Fase 0 y cuándo se hace cada pendiente restante: ADR 0031.
