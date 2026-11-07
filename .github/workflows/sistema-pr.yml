@@ -1,6 +1,9 @@
 # Verificaciones de todo PR, sin importar la carpeta (doc. 04 §9):
 # - título del PR en Conventional Commits (Q13): con squash merge, el título es el mensaje del commit en main;
-# - búsqueda de secretos en los commits del PR (doc. 02 §10).
+# - búsqueda de secretos en los commits del PR (doc. 02 §10);
+# - pruebas de los scripts de CI (.github/scripts/), que deciden qué verificaciones de proyecto corren.
+# Los nombres de los trabajos son los de los checks obligatorios del ruleset «main»: no se cambian sin cambiar también
+# la protección.
 # El guardián SDD (Q11, Q15) y el e2e de humo (Q10) se agregan con sus tareas (F0‑07, F0‑12).
 name: sistema-pr
 
@@ -51,3 +54,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: false
+
+  # Pruebas de los scripts que deciden qué verificaciones corren (.github/scripts/aplica.sh). Si fallan, no se puede
+  # confiar en la omisión de las verificaciones, así que es un check obligatorio más (ruleset «main»).
+  scripts:
+    name: sistema · scripts de CI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Pruebas de aplica.sh
+        run: bash .github/scripts/test/aplica.test.sh
