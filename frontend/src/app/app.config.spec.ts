@@ -59,14 +59,20 @@ describe('appConfig', () => {
       await router.navigateByUrl('/pantalla');
 
       expect(router.url).toBe(APP_PATHS.error);
+      expect(handleError).toHaveBeenCalledOnce();
       expect(handleError).toHaveBeenCalledWith(chunkError);
     });
 
-    it('si la que falla es «Error», no vuelve a intentarla', async () => {
-      const router = setUp(false);
+    it.each([APP_PATHS.error, `${APP_PATHS.error}?x=1`, `${APP_PATHS.error};a=1`])(
+      'si la que falla es «Error» (%s), no vuelve a intentarla',
+      async (url) => {
+        const router = setUp(false);
 
-      await expect(router.navigateByUrl(APP_PATHS.error)).rejects.toBe(chunkError);
-      expect(router.url).toBe('/');
-    });
+        await expect(router.navigateByUrl(url)).rejects.toBe(chunkError);
+        expect(router.url).toBe('/');
+        // Sin redirección: el enrutador relanza el error y lo reporta él.
+        expect(handleError).not.toHaveBeenCalled();
+      },
+    );
   });
 });
