@@ -33,7 +33,7 @@ jobs:
   # Decide si el PR toca contratos, pom.xml o el wrapper de Maven (.github/scripts/aplica.sh). Corre en todos los PR:
   # así «backend · contratos» existe siempre y puede ser obligatorio. Usa el script de la rama base, no el del PR.
   cambios:
-    name: backend · cambios
+    name: contratos · cambios
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
@@ -204,6 +204,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Resultado de los contratos
+        if: ${{ always() }}
         env:
           CAMBIOS: ${{ needs.cambios.result }}
           APLICA: ${{ needs.cambios.outputs.aplica }}
