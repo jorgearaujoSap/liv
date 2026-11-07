@@ -63,3 +63,5 @@ La *skill* `liv-sdd-feature` (paso 7, ADR 0030) lo pide en cada feature con inte
 - la feature agrega aquí sus pruebas, primero en rojo, en un PR propio de `e2e/`;
 - al validar, el agente levanta el sistema, corre `npm test` y revisa cada pantalla contra Figma;
 - el resultado va en el PR del frontend.
+
+Cómo se escribe cada prueba (nombres, sesión, localizadores, axe y capturas): la *skill* `liv-prueba-e2e`, en `e2e/.claude/skills/liv-prueba-e2e/SKILL.md`. Léela antes de escribir una prueba, aunque tu agente no la cargue solo.
