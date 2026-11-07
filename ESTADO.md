@@ -110,19 +110,29 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos).
 3. Siguientes entregables de la Fase 0: F0‑02, F0‑03, F0‑07, F0‑10 y F0‑11. La feature 001 está hecha; su T24 queda para antes de producción.
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
-5. `liv-components`, en este orden:
-   - **T05:** integrada (PR #43) y la 0.2.0 publicada el 2026-11-03; `frontend/` la adopta en el PR #82 (T20). Antes, decidir lo abierto de T05 (bitácora del 2026-11-02): estilo de texto de la etiqueta de sección, recorte de textos y opciones deshabilitadas del menú.
-   - **Backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
-6. Identidad (tras T08), decisiones pendientes del responsable:
+5. `liv-components` (el frontend usa la 0.3.1):
+   - decidir los tres puntos abiertos de T05 (bitácora del 2026-11-02): el estilo de texto de la etiqueta de sección, el recorte de textos y las opciones deshabilitadas del menú;
+   - usar en el frontend el tercer nivel del menú (`NavItem` con `Subgroup` y `Nested`, desde la 0.3.0) cuando haya opciones 1.5.x y 1.6.x;
+   - **backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
+6. Identidad, decisiones pendientes del responsable:
    - un trabajo de CI que construya la imagen de Keycloak, ejecute `backend/identity/theme/check.sh`, la revise con Trivy y la publique;
    - si la imagen `node` que compila el tema queda cubierta por "Tailwind CLI" en el ADR 0023;
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
-7. BFF (tras T18): integrar el PR #80 con `bff · verify` en verde; luego T20 (hecha, PR #82), T21 (hecha, PR #84; decisiones pendientes en el PR: la CSP con `style-src 'unsafe-inline'`, el 403 de una mutación, `returnTo` con `%2F`, el cierre entre pestañas por expiración y el CI de la imagen), T22 (hecha, PR #89 y #90; decisiones del responsable del 2026-11-05 en la bitácora; el tercer nivel del menú está diseñado y aprobado en Figma y su variante `NavItem` está en el PR #91 de `ui/`, versión 0.3.0, que publica un humano; falta su uso en el frontend) y, antes de producción, T19. Decisiones pendientes del responsable: las de T18 (el prefijo `__Host-` de la cookie CSRF, los códigos de error del proveedor que terminan la sesión y la revocación con `invalid_grant`; plan › «Ajustes de T18»), las de T16 (la publicación de la imagen del BFF, Spring Boot 4.1.2 con menos de dos semanas de publicado, las dependencias de prueba del BFF y la etiqueta `bff-vX.Y.Z`; plan › Decisiones, «Ajustes de T16») y las de T17 (la equivalencia de `spring-boot-starter-session-jdbc` con el ADR 0023, los motivos de `EndSession`, las sesiones que pueden quedar abiertas en LIV hasta T19 y el sitio común del proveedor; «Ajustes de T17»).
-8. Contratos (F0‑07, ADR 0027): integrar el PR #69 y después el #70, volviendo a correr sus *checks*. Comprobar que la primera ejecución de `backend-main` publica `contract-core-v1.0.0`, `contract-core-internal-v1.0.0` y `contract-platform-v1.0.0`. Luego, T20 (hecha, PR #82). Quedan por decidir:
+7. BFF, decisiones pendientes del responsable (`plan.md` de la feature 001, «Ajustes de T16», «Ajustes de T17» y «Ajustes de T18»):
+   - **T16:** la publicación de la imagen del BFF y la etiqueta `bff-vX.Y.Z`; aceptar Spring Boot 4.1.2, adoptado cuando tenía menos de dos semanas de publicado; las dependencias de prueba del BFF;
+   - **T17:** si `spring-boot-starter-session-jdbc` queda cubierto por el ADR 0023; los motivos con que se registra el cierre de una sesión (`EndSession`); el sitio común del proveedor de identidad;
+   - **T18:** el prefijo `__Host-` de la cookie CSRF; los códigos de error del proveedor que terminan la sesión; la revocación con `invalid_grant`.
+8. Contratos (ADR 0027), configuración pendiente del responsable:
    - activar las *releases* inmutables y un *ruleset* para las etiquetas `contract-*`;
-   - exigir Q08 como *check*;
-   - fijar `distributionSha256Sum` en el *wrapper* de Maven.
+   - fijar `distributionSha256Sum` en el *wrapper* de Maven;
+   - exigir el *check* de cambios incompatibles en contratos (Q08, `docs/arquitectura/04`), si se retoma la idea de hacer obligatorios los *checks* de cada proyecto.
+9. T24 de la feature 001, antes de producción (`tasks.md`):
+   - imágenes publicadas de la API, el BFF con sus migraciones, el frontend y la identidad;
+   - el trabajo de CI de la imagen del frontend, que necesita aprobación;
+   - `infra/` solo con imágenes y TLS, y el e2e contra ellas y en CI (F0‑12);
+   - la CSP con *nonce* del frontend y la prueba visual del panel de marca;
+   - las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
 
 ---
 
@@ -132,6 +142,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- **Próximos pasos al día tras cerrar la feature 001:** se quitaron los PR ya integrados (#69, #70, #80 y #91), los contratos ya publicados, T19 y las decisiones de T21 (las tomó el responsable el 2026-11-05). Quedan las decisiones de identidad y del BFF (T16 a T18), la configuración de los contratos y T24.
 - Scripts de desarrollo (flujo directo):
   - `sh tools/dev/iniciar.sh` levanta LIV completo en local con un solo comando: entorno, API, BFF y frontend. Verifica los requisitos y los puertos, espera a que cada servicio esté listo y muestra su registro si falla;
   - `sh tools/dev/detener.sh` lo detiene, conservando los datos salvo con `--borrar-datos`;
