@@ -41,7 +41,8 @@ Con esta feature:
 
 ## Preguntas abiertas
 
-- **¿La protección exige que la rama esté al día con `main` antes de integrar?**
-  - Si se exige, dos PR en verde por separado no pueden dejar `main` en rojo al integrarse juntos. A cambio, cada vez que se integra uno, hay que pulsar «Update branch» en los demás y esperar su CI.
-  - Si no se exige, se trabaja como hoy y se acepta ese riesgo.
-  - Se decide en la H1.
+- Ninguna.
+
+## Decisiones tomadas en la H1
+
+- **La rama no tiene que estar al día con `main` para integrarse** (decisión del responsable, 2026-11-07). Se trabaja como hoy. Se acepta el riesgo de que dos PR en verde por separado dejen `main` en rojo al integrarse uno detrás del otro.

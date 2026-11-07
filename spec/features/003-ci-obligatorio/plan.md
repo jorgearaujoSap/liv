@@ -58,7 +58,7 @@ Un PR de la raíz (`.github/`, `docs/`, `ESTADO.md`; `AGENTS.md` §4.6). Despué
 6. **Protección de `main`** (*ruleset* `main`, id 26341460):
    - a los *checks* obligatorios se suman `backend · verify`, `bff · verify`, `frontend · verify`, `ui · verify`, `backend · contratos` y `sistema · scripts de CI`, todos de GitHub Actions (15368);
    - la lista de actores que pueden saltarse la protección queda vacía;
-   - la política de «rama al día con `main`» se fija según lo que decida el responsable en la H1;
+   - la rama no tiene que estar al día con `main` (`strict_required_status_checks_policy: false`, como hoy; decisión del responsable en la H1);
    - el JSON resultante (`gh api repos/{repo}/rulesets/26341460`) se guarda en `spec.md` como prueba de 003-06;
    - los PR que ya estén abiertos necesitan «Update branch» para recibir los *checks* nuevos.
 7. **Demostración, después del paso 6.** Cada PR de prueba se cierra sin integrar. Su enlace y su `gh pr view --json mergeStateStatus,statusCheckRollup` quedan en `spec.md`:
