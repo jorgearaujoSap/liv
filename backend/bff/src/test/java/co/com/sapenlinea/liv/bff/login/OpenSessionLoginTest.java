@@ -84,7 +84,9 @@ class OpenSessionLoginTest extends BffFlowTest {
             Map.of("Sec-Fetch-Dest", "image", "Sec-Fetch-Mode", "no-cors"),
             Map.of("Sec-Fetch-Dest", "empty", "Sec-Fetch-Mode", "cors"),
             Map.of("Sec-Purpose", "prefetch", "Sec-Fetch-Dest", "document"))) {
-      browser.get(bffBase() + "/bff/login", headers);
+      Reply reply = browser.get(bffBase() + "/bff/login", headers);
+      assertThat(reply.status()).isEqualTo(302);
+      assertThat(reply.location()).isEqualTo("/");
     }
 
     assertThat(BACKEND.calls()).isEmpty();
@@ -113,6 +115,28 @@ class OpenSessionLoginTest extends BffFlowTest {
     assertThat(BACKEND.startSessionCalls()).isEmpty();
     assertThat(storedSessions()).as("la sesión que guardaba la solicitud").isZero();
     assertThat(browser.cookie("LIV_SESSION")).isNull();
+  }
+
+  @Test
+  @Tag("001-01")
+  @DisplayName(
+      "001-01 · Una precarga del navegador de /bff/login lleva a la ruta de returnTo, sin iniciar"
+          + " sesión")
+  void aPreloadOfTheLoginGoesToTheReturnRoute() {
+    Map<String, String> preload =
+        Map.of(
+            "Sec-Purpose", "prefetch;prerender",
+            "Sec-Fetch-Dest", "document",
+            "Sec-Fetch-Mode", "navigate");
+
+    Reply reply = browser().get(bffBase() + "/bff/login?returnTo=%2Fopcion%2F1.4", preload);
+    Reply unsafe = browser().get(bffBase() + "/bff/login?returnTo=https://evil.example", preload);
+
+    assertThat(reply.status()).isEqualTo(302);
+    assertThat(reply.location()).isEqualTo("/opcion/1.4");
+    assertThat(unsafe.status()).isEqualTo(302);
+    assertThat(unsafe.location()).isEqualTo("/");
+    assertThat(BACKEND.calls()).isEmpty();
   }
 
   @Test
