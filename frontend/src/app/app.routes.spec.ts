@@ -42,6 +42,16 @@ describe('rutas', () => {
     expect(shell()?.children?.[0]?.pathMatch).toBe('full');
   });
 
+  it('las pantallas dentro de la estructura general se cargan en diferido', () => {
+    const screens = shell()?.children ?? [];
+
+    expect(screens.length).toBeGreaterThan(0);
+    for (const screen of screens) {
+      expect(screen.component, screen.path).toBeUndefined();
+      expect(screen.loadComponent, screen.path).toBeDefined();
+    }
+  });
+
   it('cualquier opción del menú se abre por URL por una ruta con la guarda de capacidades (001-16)', () => {
     const option = child('opcion/:code');
 

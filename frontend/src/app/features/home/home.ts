@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ModuleCardComponent, PageHeaderComponent } from 'liv-components';
 
@@ -14,6 +14,7 @@ import { WorkspaceService } from '../shell/workspace.service';
   imports: [PageHeaderComponent, ModuleCardComponent],
   templateUrl: './home.html',
   styleUrl: './home.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Home {
   private readonly router = inject(Router);

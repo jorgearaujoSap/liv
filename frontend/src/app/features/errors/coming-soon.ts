@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonComponent, ResultStateComponent } from 'liv-components';
 
@@ -13,6 +13,7 @@ import { APP_PATHS } from '../../core/app-paths';
   imports: [ResultStateComponent, ButtonComponent],
   templateUrl: './coming-soon.html',
   styleUrl: './result-page.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ComingSoon {
   private readonly router = inject(Router);

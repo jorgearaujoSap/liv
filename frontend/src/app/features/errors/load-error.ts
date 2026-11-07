@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ButtonComponent, LogoComponent, ResultStateComponent } from 'liv-components';
 
 import { APP_PATHS } from '../../core/app-paths';
@@ -15,6 +15,7 @@ import { SessionService } from '../../core/session/session.service';
   imports: [LogoComponent, ResultStateComponent, ButtonComponent],
   templateUrl: './load-error.html',
   styleUrl: './load-error.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoadError {
   private readonly navigation = inject(BrowserNavigation);
