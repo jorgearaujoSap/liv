@@ -69,8 +69,8 @@ final class RateLimitFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     String address = networkOf(request.getRemoteAddr());
-    // A preload of the sign in is not a sign in: it gets a page that asks for it again once the
-    // person opens it, and only that navigation counts.
+    // A request the browser makes on its own (a preload) is not a sign in: it gets a page that asks
+    // for it again once the person opens it, and only that navigation uses the sign in limit.
     boolean signIn =
         SIGN_IN_PATH.equals(request.getServletPath()) && Navigations.isANavigation(request);
     long wait;

@@ -56,6 +56,15 @@ paths:
             La petición no es una navegación. Página que espera a que la persona la abra y entonces
             vuelve a pedir esta ruta como navegación; sin scripts, tiene un enlace que hace lo mismo.
             Su único script está permitido por su hash en Content-Security-Policy.
+          headers:
+            Content-Security-Policy:
+              description: La política común, con script-src limitado al hash del script de la página.
+              schema:
+                type: string
+            Cache-Control:
+              description: no-store.
+              schema:
+                type: string
           content:
             text/html:
               schema:
@@ -69,8 +78,10 @@ paths:
                 type: string
         '429':
           description: >-
-            Demasiados intentos de iniciar sesión desde esta red. Es una página: la persona llegó
-            navegando. Vuelve a intentarlo después de Retry-After segundos.
+            Demasiados intentos de iniciar sesión desde esta red. Si la persona llegó navegando, es
+            una página; si es una petición que el navegador hace por su cuenta y pasó el límite de
+            la dirección o de la persona, es application/problem+json. Vuelve a intentarlo después
+            de Retry-After segundos.
           headers:
             Retry-After:
               schema:
@@ -85,6 +96,9 @@ paths:
             text/html:
               schema:
                 type: string
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequestsProblem'
   /bff/logout:
     post:
       tags: [Session]
