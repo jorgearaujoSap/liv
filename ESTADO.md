@@ -106,7 +106,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 ## 6. Próximos pasos
 
-1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
+1. Aprobar la spec de la feature 002 (H1), la publicación automática de `liv-components`. Con ella, los desarrolladores ya no necesitan permiso de publicación en npm (`npm owner add`): basta con la persona que aprueba en GitHub. Más adelante conviene una organización de npm del equipo.
 2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos).
 3. Siguientes entregables de la Fase 0: F0‑02, F0‑03, F0‑07, F0‑10 y F0‑11. La feature 001 está hecha; su T24 queda para antes de producción.
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
@@ -142,12 +142,16 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- **Feature 002 · Publicación automática de `liv-components`: propuesta.** `spec.md` en propuesta (criterios 002-01 a 002-09), en la rama `feat/002-publicacion-automatica-ui`. Es un cambio crítico (`.github/**` y `ui/**`).
+  - **Qué propone:** quien prepara la versión ya no necesita cuenta de npm. Al integrar el PR, GitHub verifica la versión, espera la aprobación del responsable, publica con procedencia y crea la etiqueta y la *release*.
+  - **Credencial propuesta:** publicación de confianza de npm, sin clave guardada.
+  - **Para la H1:** qué dispara la publicación, la credencial (las dos se apartan de `docs/arquitectura/04` §9 y van en el ADR 0031) y si queda la publicación a mano como alternativa de emergencia.
 - **Próximos pasos al día tras cerrar la feature 001:** se quitaron los PR ya integrados (#69, #70, #80 y #91), los contratos ya publicados, T19 y las decisiones de T21 (las tomó el responsable el 2026-11-05). Quedan las decisiones de identidad y del BFF (T16 a T18), la configuración de los contratos y T24.
-- Scripts de desarrollo (flujo directo):
+- **Scripts de desarrollo (flujo directo), integrados en el PR #112:**
   - `sh tools/dev/iniciar.sh` levanta LIV completo en local con un solo comando: entorno, API, BFF y frontend. Verifica los requisitos y los puertos, espera a que cada servicio esté listo y muestra su registro si falla;
   - `sh tools/dev/detener.sh` lo detiene, conservando los datos salvo con `--borrar-datos`;
   - el README raíz los explica;
-  - `AGENTS.md` §4.6 aclara que no son una herramienta de build. Esa aclaración espera la aprobación del responsable en el PR.
+  - `AGENTS.md` §4.6 aclara que no son una herramienta de build. El responsable la aprobó al integrar el PR.
 
 - **Feature 001 · Inicio de sesión: hecha.** Los 24 criterios de la spec están probados y la feature pasa a «Hecho» en el roadmap. El cierre de `tasks.md`:
   - **ERD versión 2.1:** los ajustes al modelo aprobados en H2:
