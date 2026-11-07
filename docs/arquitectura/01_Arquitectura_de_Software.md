@@ -303,7 +303,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 |---|---|
 | Esquemas | Uno por módulo. Un módulo solo escribe en su esquema. La lectura cruzada se hace mediante las fachadas del paquete raíz del módulo o mediante vistas `v_*` publicadas |
 | Nombres | `snake_case` en inglés, como el ERD |
-| Claves primarias | UUID versión 7 (ordenado en el tiempo, mejor para índices) |
+| Claves primarias | UUID versión 7 (ordenado en el tiempo, mejor para índices), con `DEFAULT uuidv7()` en la tabla. `core.admin_user` y `audit.audit_event`, de la feature 001, conservan la versión 4 (decisión del responsable, 2026-11-06) |
 | Dinero | `NUMERIC(18,2)` almacenado; intermedios con escala ≥ 6 solo en memoria y en la traza |
 | Tasas | `NUMERIC(9,6)` como fracción (0,015 = 1,5 %), igual que la configuración |
 | Fechas | `DATE` para fechas de negocio (causación, vencimiento); `TIMESTAMPTZ` para instantes |

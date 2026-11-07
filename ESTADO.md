@@ -107,9 +107,8 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 6. Próximos pasos
 
 1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
-2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos). Dos tareas que salieron de las *skills* de código:
-   - **UUID versión 7 en lo existente** (`backend/`, crítica por la migración): `DEFAULT uuidv7()` en `core.admin_user` y `audit.audit_event`, y que el código no genere claves con `UUID.randomUUID()`;
-   - **pantallas de la feature 001 con `OnPush` y carga diferida** (`frontend/`, refactorización sin cambio de comportamiento).
+2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos). Una tarea que salió de las *skills* de código:
+   - **pantallas de la feature 001 con `OnPush` y carga diferida** (`frontend/`, refactorización sin cambio de comportamiento): en revisión en el PR #120.
 3. Siguientes entregables de la Fase 0: F0‑02, F0‑03, F0‑07, F0‑10 y F0‑11. La feature 001 está hecha; su T24 queda para antes de producción.
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 5. `liv-components` (el frontend usa la 0.3.1):
@@ -150,7 +149,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
   - en la raíz, `AGENTS.md` §9 las lista y §1.1 refleja que `e2e/` y `tools/` ya existen;
   - no se agregan *skills* públicas de Spring Boot: no hay oficiales, y las de la comunidad chocan con la arquitectura del proyecto;
   - **decisiones del responsable** (2026-11-06):
-    - **claves UUID versión 7**, como pide el doc. 01 §9: las tablas nuevas usan `DEFAULT uuidv7()` (PR #115). Lo que la feature 001 hace con la versión 4 se corrige en una tarea aparte;
+    - **claves UUID versión 7 en lo nuevo**, como pide el doc. 01 §9: las tablas nuevas usan `DEFAULT uuidv7()` (PR #115). Lo de la feature 001 conserva la versión 4 y no se migra; así lo dice ahora el doc. 01 §9;
     - **`OnPush`, `input()`/`output()` y carga diferida** en las pantallas nuevas (PR #116), y una tarea aparte migra las de la feature 001;
     - **las pruebas localizan por rol y texto visible**, y `data-testid` solo si no hay ninguno de los dos (PR #117). Así lo dicen ahora los docs. 01 §11, 04 y 05 §9;
     - **el `.mcp.json` de la raíz se queda.**
