@@ -60,7 +60,27 @@ Paso a paso para levantar todo el sistema en tu equipo: entorno (PostgreSQL y Ke
 | BFF (`liv-bff`) | <http://localhost:8081> | [`backend/bff/README.md`](backend/bff/README.md) |
 | Frontend | **<http://localhost:4200>**, la única dirección que se abre en el navegador | [`frontend/README.md`](frontend/README.md) |
 
-Se necesitan cuatro terminales, una por paso, todas desde la raíz del repositorio y con `main` al día.
+### Atajo: un solo comando
+
+Desde la raíz del repositorio (en Windows, con Git Bash; también en macOS o Linux), con `main` al día y Docker Desktop abierto:
+
+```bash
+sh tools/dev/iniciar.sh
+```
+
+Hace los pasos 1 a 4 de abajo, en orden: verifica los requisitos y que los puertos estén libres, levanta cada servicio y espera a que esté listo. Si algo falla, o lo interrumpes con Ctrl+C, muestra el final del registro y detiene lo que ya había arrancado. La primera vez tarda varios minutos. Los servicios siguen corriendo aunque cierres la terminal. Los registros quedan en `tools/dev/registros/`. Al terminar, abre <http://localhost:4200> (paso 5).
+
+Para detener todo, conservando los datos:
+
+```bash
+sh tools/dev/detener.sh
+```
+
+Con `--borrar-datos` también borra los volúmenes (pide confirmación), y la próxima vez todo empieza de cero. `detener.sh` solo termina lo que levantó `iniciar.sh`: nunca otro programa que use el mismo puerto, ni un entorno que levantaste a mano. Para la prueba de navegador del aviso de inactividad, `sh tools/dev/iniciar.sh --sesion-corta` levanta el BFF con una sesión de 150 s (`e2e/README.md`).
+
+### Paso a paso
+
+Lo mismo, a mano: se necesitan cuatro terminales, una por paso, todas desde la raíz del repositorio y con `main` al día.
 
 ### 1. Entorno local (terminal 1)
 

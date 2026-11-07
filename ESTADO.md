@@ -132,6 +132,12 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- Scripts de desarrollo (flujo directo):
+  - `sh tools/dev/iniciar.sh` levanta LIV completo en local con un solo comando: entorno, API, BFF y frontend. Verifica los requisitos y los puertos, espera a que cada servicio esté listo y muestra su registro si falla;
+  - `sh tools/dev/detener.sh` lo detiene, conservando los datos salvo con `--borrar-datos`;
+  - el README raíz los explica;
+  - `AGENTS.md` §4.6 aclara que no son una herramienta de build. Esa aclaración espera la aprobación del responsable en el PR.
+
 - **Feature 001 · Inicio de sesión: hecha.** Los 24 criterios de la spec están probados y la feature pasa a «Hecho» en el roadmap. El cierre de `tasks.md`:
   - **ERD versión 2.1:** los ajustes al modelo aprobados en H2:
     - `core.admin_user` con la identidad del proveedor y `last_login_at`;
