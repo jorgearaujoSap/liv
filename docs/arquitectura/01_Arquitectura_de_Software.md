@@ -350,7 +350,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 | Diseño previo | Toda pantalla nueva tiene un diseño en Figma aprobado antes de implementarse, salvo la excepción de §11.2 |
 | Accesibilidad | WCAG 2.1 AA (Resolución MinTIC 1519 de 2020, a validar), verificada con axe‑core en Playwright y en el catálogo de la librería |
 | Localización | `es-CO`: separador de miles con punto, decimales con coma, moneda COP, fechas `dd/mm/aaaa`. Los formateadores (*pipes* de moneda y fechas) viven en la librería |
-| Pruebas | Identificadores `data-testid` estables para Playwright (convención en doc. 04) |
+| Pruebas | Playwright localiza por rol accesible y texto visible, como una persona; `data-testid` solo si no hay ninguno de los dos (convención en doc. 04) |
 
 ### 11.1 Librería de componentes `liv-components`
 

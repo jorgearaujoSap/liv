@@ -243,7 +243,7 @@ Para que todos los agentes produzcan lo mismo de la misma forma, el proyecto tie
 | `liv-adr` | ADR en formato MADR en `docs/adr/` y actualización del doc. 00 §6 | — |
 | `liv-estado` | Actualización de `ESTADO.md` y de la bitácora | — |
 
-**Skills de código (se crean con F0‑04 y F0‑05, cuando exista la estructura real):**
+**Skills de código (cada una se crea con el primer caso real de su tipo; las que ya existen están en `AGENTS.md` §9):**
 
 | *Skill* | Produce |
 |---|---|
@@ -252,11 +252,11 @@ Para que todos los agentes produzcan lo mismo de la misma forma, el proyecto tie
 | Nuevo paso del motor | Estrategia, entrada de traza, pruebas unitarias y de propiedades |
 | Nueva migración | Nombre con marca de tiempo, *expand/contract*, RLS si aplica, prueba de integración |
 | Nuevo endpoint | Cambio en OpenAPI primero, generación, implementación, prueba de contrato |
-| Nueva pantalla Angular | Lectura del *frame* de Figma, *feature* con carga diferida, servicio de datos, composición con componentes de `liv-components`, `data-testid`, prueba |
+| Nueva pantalla Angular | Lectura del *frame* de Figma, *feature* con carga diferida, servicio de datos, composición con componentes de `liv-components`, prueba |
 | Nuevo componente de `liv-components` | Lectura del componente en el sistema de diseño de Figma, componente con sus variantes y estados, historias de Storybook, pruebas unitarias, de accesibilidad y capturas de referencia, mismo nombre que en Figma y enlace al componente de Figma en la historia |
-| Nueva prueba e2e | Prueba Playwright con fixtures, rol y verificación de accesibilidad |
+| Nueva prueba e2e | Prueba Playwright con fixtures, rol, localizadores por rol accesible y texto visible, y verificación de accesibilidad |
 
-Las *skills* de código de `backend/` y `frontend/` viven dentro de cada proyecto (su propio `.claude/skills/`), para que se vayan con él al separarlo (doc. 01 §14.1).
+Las *skills* de código de `backend/`, `frontend/`, `ui/` y `e2e/` viven dentro de cada proyecto (su propio `.claude/skills/`), para que se vayan con él al separarlo (doc. 01 §14.1).
 
 Las plantillas de `spec.md`, `plan.md` y `tasks.md` ya están en `spec/features/NNN-nombre-feature/`; la del PR se crea en la Fase 0.
 
