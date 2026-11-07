@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-06
+> **Última actualización:** 2026-11-07
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -140,6 +140,12 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-07
+
+- **Feature 001, enmienda 4 (001-01 y 001-23), decidida por el responsable:** al abrir LIV a veces se veía un 404 en `/bff/login`, que solo se arreglaba con Ctrl+Shift+R. Chrome precarga `/bff/login` desde el historial y el BFF, que no inicia sesión con una precarga, respondía 404. Ahora una precarga recibe una página que, al abrirse, vuelve a pedir `/bff/login` como navegación, y no gasta el límite del inicio de sesión (T21c, PR #121 de `backend/bff/`, contrato `bff` 1.4.0).
+  - **Revisión:** dos rondas, adversarial y las cuatro lentes. La primera versión redirigía a `returnTo` y dejaba entrar con la sesión abierta de quien estuviera antes; se rehízo.
+  - **Falta:** probarlo en Chrome. Aparte, en el navegador integrado y sin poder reproducirlo en uno limpio, Keycloak reutilizó un `sid` ya cerrado en LIV y la API rechazó los inicios con 001-14 durante un rato.
 
 ### 2026-11-06
 
