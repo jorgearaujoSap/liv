@@ -2,14 +2,14 @@
 # `backend/bff/` es un proyecto Maven aparte (`liv-bff`), que el `verify` de `backend/` no compila.
 # Compuertas cubiertas hoy: Q01 (compilación y formato), Q02 (pruebas) y Q03 (arquitectura). La
 # publicación de su imagen queda para cuando se decida (plan de la feature 001, «Ajustes de T16»).
+# Corre en todos los PR, sin filtro de rutas: «bff · cambios» decide si «bff · verify» corre o se omite
+# (.github/scripts/aplica.sh). Los nombres de los trabajos son los de los checks obligatorios del ruleset «main»:
+# no se cambian sin cambiar también la protección, o el check obligatorio queda esperando para siempre.
 name: bff-pr
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'backend/bff/**'
-      - '.github/workflows/bff-pr.yml'
 
 permissions:
   contents: read
@@ -19,8 +19,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decide si el PR toca algo que afecte al proyecto (.github/scripts/aplica.sh). Corre en todos los PR: así el
+  # check «bff · verify» existe siempre y puede ser obligatorio. Usa el script de la rama base, no el del PR.
+  cambios:
+    name: bff · cambios
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      aplica: ${{ steps.aplica.outputs.aplica }}
+    steps:
+      # El checkout es el merge del PR con main; con fetch-depth 2 trae también su primer padre, la punta de main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: ¿Cambia el PR algo que afecte a bff?
+        id: aplica
+        run: |
+          if git cat-file -e HEAD^1:.github/scripts/aplica.sh 2> /dev/null; then
+            git show HEAD^1:.github/scripts/aplica.sh > "$RUNNER_TEMP/aplica.sh"
+            bash "$RUNNER_TEMP/aplica.sh" bff >> "$GITHUB_OUTPUT"
+          else
+            echo "La base aún no tiene el script (el PR que lo agrega): aplica."
+            echo "aplica=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
     name: bff · verify
+    needs: cambios
+    if: ${{ always() && (needs.cambios.result != 'success' || needs.cambios.outputs.aplica != 'false') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
