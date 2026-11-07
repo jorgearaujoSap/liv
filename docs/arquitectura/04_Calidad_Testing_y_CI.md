@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0014, 0015, 0016) · `01_Arquitectura_de_Software.md`
-> **Versión:** 1.1 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados). Cambio del 2026-11-07: §9, CI obligatorio en `main` (feature 003)
+> **Versión:** 1.1 — 2026-11-07, §9 cambiado por la feature 003 (CI obligatorio en `main`; H2 aprobada). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 
 ---
 
@@ -233,9 +233,10 @@ flowchart LR
 
 - **Qué se mira:** los archivos del *commit* de *merge* que se verifica (`git diff -z --name-only --no-renames HEAD^1 HEAD`), con las dos rutas de un archivo movido.
 - **Regla:** una lista de lo que se sabe que **no** afecta. La verificación de un proyecto solo se omite si todos los archivos están en otro proyecto o son neutros (`docs/`, `spec/`, `e2e/`, `tools/`, `.claude/`, los `.md` de la raíz, `.gitignore`, `.mcp.json`). `.github/`, cualquier otro archivo de la raíz y cualquier ruta desconocida hacen correr todo. Para los contratos aplica lo que toca `backend/contracts/`, `backend/bff/contracts/`, los dos `pom.xml` o el *wrapper* de Maven.
-- **Ante la duda no se omite:** la verificación se omite solo si `cambios` terminó bien y dijo `false`. Un fallo de `cambios`, una salida vacía o una cancelación normal la hacen correr; una cancelación forzada de la propia verificación deja su check en `cancelled`, que bloquea el PR.
+- **Ante la duda no se omite:** la verificación se omite solo si `cambios` terminó bien y dijo `false`. Un fallo de `cambios` o una salida vacía la hacen correr. Una cancelación nunca la deja en `skipped` (que cuenta como aprobado): corre o queda en `cancelled`, que bloquea el PR.
 - **Checks obligatorios del ruleset `main`:** `sistema · título Conventional Commits`, `sistema · secretos`, `sistema · scripts de CI`, `backend · verify`, `bff · verify`, `frontend · verify`, `ui · verify` y `backend · contratos`. El nombre de un trabajo no se cambia sin cambiar el ruleset en el mismo momento.
 - **Riesgo residual:** un PR que cambia `.github/workflows/` corre su propio workflow. La única barrera es la revisión humana (H3) de todo cambio en `.github/`.
+- **Costo:** cada edición o etiqueta de un PR vuelve a correr `backend-contracts-pr`; en los PR que tocan `.github/` o la raíz eso significa las dos matrices de Maven. Se acepta.
 - **Mantenimiento:** una carpeta o un archivo nuevo en la raíz hace correr todo hasta que se declare neutro en `aplica.sh`, con su caso en `.github/scripts/test/aplica.test.sh`.
 
 **Portabilidad (P4):** el repositorio está en GitHub y podría migrar a Bitbucket. por eso la lógica de cada paso vive en comandos de Maven, *scripts* de npm y herramientas de `tools/`, y los workflows solo las orquestan. Migrar a Bitbucket Pipelines debe ser reescribir la orquestación, no la lógica. Lo que solo existe en GitHub (entornos protegidos, *dependency review*, CodeQL, *secret scanning*) tiene que tener un equivalente identificado antes de migrar.
