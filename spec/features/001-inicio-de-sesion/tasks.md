@@ -496,6 +496,11 @@ Las tareas de `ui/`, `backend/identity/` y `backend/dev/` pueden ir en paralelo;
   - Prueba primero: `startWhenOpened` no arranca antes de `prerenderingchange`, y arranca de inmediato sin precarga.
   - **Revisión:** dos revisores adversariales de nivel alto. La primera versión aplazaba solo la navegación, y eso podía cerrar una sesión abierta mientras tanto; se rehízo esperando en el arranque. La segunda ronda dejó solo bajos, ya corregidos.
   - **Falta:** probarlo en Chrome con el sistema levantado; la prueba e2e de 001-01 va en T23.
+- [x] **T21c** · La precarga de `/bff/login` muestra el inicio de sesión (001-01 y 001-23, enmienda 4). Chrome también precarga `/bff/login`, que tiene en el historial; el BFF respondía 404 a esa precarga y el navegador lo mostraba hasta recargar con Ctrl+Shift+R. Lo encontró el responsable el 2026-11-07. — Hecha: PR [#121](https://github.com/jorgearaujoSap/liv/pull/121) (`backend/bff/`).
+  - Archivos: `backend/bff/src/main/java/co/com/sapenlinea/liv/bff/login/` (`LoginPreloadController`, `Navigations`, `LoginAuthorizationRequestResolver`), `backend/bff/src/main/java/co/com/sapenlinea/liv/bff/web/RateLimitFilter.java`, `backend/bff/contracts/openapi/bff.yaml` (1.4.0), sus pruebas y `backend/bff/CHANGELOG.md`.
+  - Prueba primero: la precarga recibe una página que espera a que la abran y vuelve a pedir `/bff/login` como navegación, sin crear ni cambiar la sesión; una navegación nunca recibe esa página; la precarga no gasta el límite del inicio de sesión.
+  - **Revisión:** dos rondas, con dos revisores adversariales y la lente de riesgo de nivel alto y las demás lentes. La primera versión redirigía a `returnTo` y dejaba entrar con la sesión abierta de quien estuviera antes; se rehízo con la página.
+  - **Falta:** que el responsable lo pruebe en su Chrome.
 ## Sistema
 
 - [ ] **T23** · Pruebas de navegador (`e2e/`) contra el entorno local. Decisión del responsable del 2026-11-06 (ADR 0030): no hacen falta imágenes, `Dockerfile`, TLS ni CI por ahora.
