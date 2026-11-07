@@ -139,7 +139,7 @@ Los ejemplos numéricos de los documentos funcionales son la especificación eje
 | Entorno | Docker Compose con perfiles `core` + `app` + `seed` (doc. 03 §4.2) |
 | Autenticación | Estado de sesión por rol, obtenido una vez con los usuarios de prueba de Keycloak |
 | Organización | Por módulo y menú; *fixtures* y objetos de página para pantallas reutilizadas |
-| Selectores | `data-testid` estables o roles accesibles; prohibidos selectores por CSS de maquetación |
+| Selectores | Primero roles accesibles y texto visible; `data-testid` estables solo si no hay ninguno de los dos. Prohibidos los selectores por CSS de maquetación, salvo que el criterio trate del diseño de ese componente |
 | Datos | Cada prueba crea sus datos o usa el *seed* versionado; las pruebas son independientes y paralelizables |
 | Accesibilidad | Verificación axe‑core en cada pantalla visitada |
 | Diagnóstico | Traza, video y captura en fallos, publicados como artefacto de CI |

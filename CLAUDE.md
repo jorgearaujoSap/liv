@@ -12,7 +12,7 @@ Las reglas del proyecto son las mismas para todos los agentes y están en `AGENT
 
 Este archivo no repite ni modifica reglas: cualquier regla nueva o cambio va en `AGENTS.md`, para que la sigan todos los agentes. Aquí solo va lo específico de Claude Code.
 
-- **Skills del proyecto:** están en `.claude/skills/` y Claude Code las carga solo al abrir el repositorio, en cualquier equipo. Son `liv-sdd-feature`, `liv-revision-adversarial`, `liv-revision-4r`, `liv-figma`, `liv-adr` y `liv-estado` (para qué sirve cada una: `AGENTS.md` §9). **Prevalecen sobre las *skills* globales** que pueda tener un equipo concreto:
+- **Skills del proyecto:** están en `.claude/skills/` y Claude Code las carga solo al abrir el repositorio, en cualquier equipo. Son `liv-sdd-feature`, `liv-revision-adversarial`, `liv-revision-4r`, `liv-figma`, `liv-adr` y `liv-estado` (para qué sirve cada una: `AGENTS.md` §9). Las *skills* de código están en el `.claude/skills/` de cada proyecto (`backend/`, `frontend/`, `ui/` y `e2e/`): Claude Code las carga al abrir ese proyecto (desde la raíz, ver `AGENTS.md` §9). Las *skills* del proyecto **prevalecen sobre las *skills* globales** que pueda tener un equipo concreto:
   - `liv-revision-adversarial` reemplaza a `judgment-day`;
   - `liv-revision-4r` reemplaza a `review-risk`, `review-resilience`, `review-readability` y `review-reliability`;
   - `liv-sdd-feature` reemplaza a los comandos SDD de gentle‑ai. Si se usan esos comandos, los artefactos van igual en `spec/features/NNN-nombre-feature/` (propose + spec → `spec.md`, design → `plan.md`, tasks → `tasks.md`), nunca en `openspec/`.

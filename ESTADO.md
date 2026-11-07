@@ -107,7 +107,8 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 6. Próximos pasos
 
 1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
-2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos).
+2. Completar F0‑02 (un archivo por ADR en `docs/adr/`) y F0‑03 (plantilla de PR y ganchos). Una tarea que salió de las *skills* de código:
+   - **pantallas de la feature 001 con `OnPush` y carga diferida** (`frontend/`, refactorización sin cambio de comportamiento): en revisión en el PR #120.
 3. Siguientes entregables de la Fase 0: F0‑02, F0‑03, F0‑07, F0‑10 y F0‑11. La feature 001 está hecha; su T24 queda para antes de producción.
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 5. `liv-components` (el frontend usa la 0.3.1):
@@ -142,6 +143,16 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- **Skills de código para los agentes**, por flujo directo; en `ui/`, que es ruta crítica, con la aprobación del responsable. Los cambios de los `AGENTS.md` y de `CLAUDE.md` esperan su aprobación en cada PR. Siguen el código real de la feature 001 para que el agente no improvise la estructura:
+  - `liv-migracion` y `liv-endpoint` (`backend/`, PR #115), `liv-pantalla` (`frontend/`, PR #116), `liv-prueba-e2e` (`e2e/`, PR #117) y `liv-componente` (`ui/`, PR #118);
+  - el servidor MCP del CLI de Angular en modo de solo lectura, con la guía oficial y la documentación de la versión instalada, en `frontend/` y `ui/` (PR #116 y #118, donde los `.vscode/mcp.json` dejan de descargar la última versión con `npx -y`) y en la raíz, con el CLI de `frontend/`;
+  - en la raíz, `AGENTS.md` §9 las lista y §1.1 refleja que `e2e/` y `tools/` ya existen;
+  - no se agregan *skills* públicas de Spring Boot: no hay oficiales, y las de la comunidad chocan con la arquitectura del proyecto;
+  - **decisiones del responsable** (2026-11-06):
+    - **claves UUID versión 7 en lo nuevo**, como pide el doc. 01 §9: las tablas nuevas usan `DEFAULT uuidv7()` (PR #115). Lo de la feature 001 conserva la versión 4 y no se migra; así lo dice ahora el doc. 01 §9;
+    - **`OnPush`, `input()`/`output()` y carga diferida** en las pantallas nuevas (PR #116), y una tarea aparte migra las de la feature 001;
+    - **las pruebas localizan por rol y texto visible**, y `data-testid` solo si no hay ninguno de los dos (PR #117). Así lo dicen ahora los docs. 01 §11, 04 y 05 §9;
+    - **el `.mcp.json` de la raíz se queda.**
 - Frontend, convenciones de Angular 21 en las pantallas de la feature 001 (flujo directo, decisión del responsable del 2026-11-06):
   - `OnPush` en todos los componentes. No había `@Input` ni `@Output`;
   - carga diferida de Inicio, Sin permiso y Próximamente. La estructura general y «Error» siguen en el paquete inicial, con el motivo en `app.routes.ts`;
