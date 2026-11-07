@@ -31,4 +31,12 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend
 
 ## Skills
 
-Las *skills* de código del frontend (nueva pantalla) se agregarán en `frontend/.claude/skills/` con el primer componente. Mientras tanto, usa `liv-figma` y las demás *skills* del repositorio de plataforma.
+Las *skills* de código del frontend están en `frontend/.claude/skills/`. Siguen el código real de la feature 001. Antes de la tarea que describen, léelas, aunque tu agente no las cargue solo:
+
+| *Skill* | Úsala para |
+|---|---|
+| `liv-pantalla` | Crear o cambiar una pantalla: diseño, ruta con su capacidad, servicio, composición con `liv-components`, estilos y pruebas |
+
+Para Figma usa `liv-figma`, y para el resto las *skills* de proceso del repositorio de plataforma (hoy, `.claude/skills/` en la raíz del monorepo).
+
+**Conocimiento de Angular:** el servidor MCP del CLI de Angular, en modo de solo lectura, entrega la guía oficial de buenas prácticas y la documentación de la versión instalada. Está configurado en `.mcp.json` (Claude Code) y `.vscode/mcp.json` (VS Code). Usa el CLI del proyecto (`node node_modules/@angular/cli/bin/ng.js mcp --read-only`, desde `frontend/`), así que necesita `npm install`. Otros agentes lo configuran con el mismo comando. Si la guía de Angular choca con una regla de este archivo, manda la regla.
