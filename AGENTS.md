@@ -22,7 +22,9 @@ Stack aprobado: Java 21 LTS + Spring Boot (monolito modular hexagonal), Angular 
 | `backend/` | Proyecto autónomo: Java 21, Spring Boot, Maven. Tiene su propio `AGENTS.md` con las reglas del backend (§4.6) |
 | `frontend/` | Proyecto autónomo: Angular 21 y Tailwind; instala la librería `liv-components` desde npm con versión exacta. Tiene su propio `AGENTS.md` con las reglas del frontend (§4.6) |
 | `ui/` | Proyecto autónomo: workspace de Angular con la librería de componentes `liv-components`, que se publica en npm. Tiene su propio `AGENTS.md` (§4.6) |
-| `e2e/`, `perf/`, `infra/`, `tools/` | Aún no existen: pruebas de sistema, infraestructura compartida y herramientas de la raíz |
+| `e2e/` | Pruebas de navegador con Playwright contra el entorno local (ADR 0030). Tiene su `README.md` |
+| `tools/` | Herramientas de la raíz: `tools/dev/` levanta y detiene LIV en local |
+| `perf/`, `infra/` | Aún no existen: pruebas de carga e infraestructura compartida |
 
 `README.md` en la raíz tiene el mapa completo; la estructura objetivo está en `docs/arquitectura/01` §14.
 
@@ -274,7 +276,17 @@ Procedimientos paso a paso que viven **en el repositorio**, en `.claude/skills/<
 | `liv-adr` | Redactar, aceptar o reemplazar un ADR en `docs/adr/` | Decisiones de arquitectura, dependencias nuevas, aceptación de los ADR propuestos |
 | `liv-estado` | Actualizar `ESTADO.md` | Al iniciar, completar o bloquear cualquier tarea |
 
-Las *skills* del proyecto **prevalecen** sobre las que un equipo tenga instaladas de forma global. Las *skills* de código (caso de uso hexagonal, migración, endpoint, pantalla, componente de `liv-components`, prueba e2e…, `docs/arquitectura/05` §9) se agregan dentro de cada proyecto (`backend/`, `frontend/`, `ui/`) con sus primeros casos reales, para no inventar estructuras que todavía no están definidas en código. Una *skill* nueva o modificada se revisa en un PR como cualquier otro cambio.
+Las *skills* del proyecto **prevalecen** sobre las que un equipo tenga instaladas de forma global. Las *skills* de código (`docs/arquitectura/05` §9) viven dentro de cada proyecto, en su `.claude/skills/`, para que se vayan con cada proyecto al separarlo. Siguen el código real de la feature 001. Antes de la tarea que describen, léelas, aunque tu agente no las cargue solo:
+
+| *Skill* | Proyecto | Úsala para |
+|---|---|---|
+| `liv-migracion` | `backend/` | Tablas, columnas, políticas RLS, permisos o funciones de PostgreSQL |
+| `liv-endpoint` | `backend/` | Un endpoint `/api/**`: contrato, caso de uso con su permiso, controlador y pruebas |
+| `liv-pantalla` | `frontend/` | Una pantalla: diseño, ruta con su capacidad, servicio, composición con `liv-components` y pruebas |
+| `liv-componente` | `ui/` | Un componente, variante o *token* de `liv-components` |
+| `liv-prueba-e2e` | `e2e/` | Una prueba de navegador con Playwright |
+
+Las *skills* de regla de validación y de paso del motor se crean con la primera feature de los Módulos 1 y 3, a partir de su código real, para no inventar estructuras que todavía no existen. Cada *skill* pide consultar la documentación oficial de la versión que usa el proyecto en lugar de escribir de memoria. En `frontend/` y `ui/`, el servidor MCP del CLI de Angular (`ng mcp --read-only`) da esa documentación y la guía oficial de buenas prácticas; si choca con una regla de LIV, manda la regla. El `.mcp.json` de la raíz lo arranca con el CLI de `frontend/` para las sesiones abiertas en la raíz. Como los *scripts* de `tools/dev/`, no es una herramienta de build y ningún proyecto depende de él: sin `npm install` en `frontend/`, ese servidor no arranca y nada más falla. Una *skill* nueva o modificada se revisa en un PR como cualquier otro cambio.
 
 ---
 

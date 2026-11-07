@@ -142,6 +142,15 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- **Skills de código para los agentes**, por flujo directo; en `ui/`, que es ruta crítica, con la aprobación del responsable. Los cambios de los `AGENTS.md` y de `CLAUDE.md` esperan su aprobación en cada PR. Siguen el código real de la feature 001 para que el agente no improvise la estructura:
+  - `liv-migracion` y `liv-endpoint` (`backend/`, PR #115), `liv-pantalla` (`frontend/`, PR #116), `liv-prueba-e2e` (`e2e/`, PR #117) y `liv-componente` (`ui/`, PR #118);
+  - el servidor MCP del CLI de Angular en modo de solo lectura, con la guía oficial y la documentación de la versión instalada, en `frontend/` y `ui/` (PR #116 y #118, donde los `.vscode/mcp.json` dejan de descargar la última versión con `npx -y`) y en la raíz, con el CLI de `frontend/`;
+  - en la raíz, `AGENTS.md` §9 las lista y §1.1 refleja que `e2e/` y `tools/` ya existen;
+  - no se agregan *skills* públicas de Spring Boot: no hay oficiales, y las de la comunidad chocan con la arquitectura del proyecto;
+  - **para decidir:**
+    - las claves primarias UUID versión 7 del doc. 01 §9, frente a `gen_random_uuid()` (versión 4) en dos tablas (PR #115);
+    - `OnPush`, `input()`/`output()` y la carga diferida en las pantallas nuevas (PR #116);
+    - localizar las pruebas por rol y texto en lugar de `data-testid`, que pedía el doc. 05 §9 (PR #117).
 - **Próximos pasos al día tras cerrar la feature 001:** se quitaron los PR ya integrados (#69, #70, #80 y #91), los contratos ya publicados, T19 y las decisiones de T21 (las tomó el responsable el 2026-11-05). Quedan las decisiones de identidad y del BFF (T16 a T18), la configuración de los contratos y T24.
 - Scripts de desarrollo (flujo directo):
   - `sh tools/dev/iniciar.sh` levanta LIV completo en local con un solo comando: entorno, API, BFF y frontend. Verifica los requisitos y los puertos, espera a que cada servicio esté listo y muestra su registro si falla;
