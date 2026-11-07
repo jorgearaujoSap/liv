@@ -144,8 +144,13 @@ class OpenSessionLoginTest extends BffFlowTest {
     assertThat(reply.status()).isEqualTo(200);
     assertThat(reply.header("Content-Type")).startsWith("text/html");
     assertThat(reply.header("Cache-Control")).contains("no-store");
+    assertThat(scriptOf(reply.body()))
+        .as("mientras está precargada espera; abierta, vuelve a pedir la misma dirección")
+        .isEqualTo(
+            "if(document.prerendering){document.addEventListener('prerenderingchange',"
+                + "function(){location.replace(location.href)},{once:true})}"
+                + "else{location.replace(location.href)}");
     assertThat(reply.body())
-        .as("espera a que la persona abra la página y la vuelve a pedir")
         .contains("prerenderingchange")
         .contains("location.replace(location.href)")
         .contains("href=\"/bff/login?returnTo=%2Fopcion%2F1.4\"");

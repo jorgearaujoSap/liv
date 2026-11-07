@@ -35,6 +35,16 @@ class SecurityHeadersTest extends BffFlowTest {
             browser().get(bffBase() + "/bff/login", Map.of("Sec-Purpose", "prefetch;prerender")),
             person.post(bffBase() + "/bff/logout", ""));
 
+    Reply preload = replies.get(5);
+    assertThat(preload.headerValues("Content-Security-Policy"))
+        .as("una sola CSP: con dos, el navegador aplicaría las dos y bloquearía el script")
+        .hasSize(1);
+    for (String directive : SecurityHeadersFilter.CSP.split("; ")) {
+      if (!directive.startsWith("default-src")) {
+        assertThat(preload.header("Content-Security-Policy")).contains(directive);
+      }
+    }
+
     for (Reply reply : replies) {
       assertThat(reply.header("Strict-Transport-Security"))
           .as("HSTS")
