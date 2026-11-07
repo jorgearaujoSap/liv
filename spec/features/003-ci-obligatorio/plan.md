@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador
+**Estado:** aprobado (H2) — 2026-11-07, responsable del proyecto
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -134,4 +134,4 @@ Un PR de la raíz (`.github/`, `docs/`, `ESTADO.md`; `AGENTS.md` §4.6). Despué
     - una lista vacía da `aplica=true`;
     - `*.md` solo es neutro en la raíz.
   - Todos resueltos. No quedan hallazgos críticos ni altos.
-- [ ] Aprobación H2: <quién, fecha>.
+- [x] Aprobación H2: el responsable del proyecto, 2026-11-07 (equipo de una persona, `AGENTS.md` §4.3).

@@ -1,6 +1,6 @@
 # 003 · CI obligatorio en main
 
-**Estado:** propuesta
+**Estado:** aprobada (H1) — 2026-11-07, responsable funcional
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
 **Módulo:** ninguno de negocio; CI del repositorio (Fase 0, F0‑07) · **Menú:** no aplica · **Tipo de cambio:** crítico (`.github/**`, `AGENTS.md` §4.3)
