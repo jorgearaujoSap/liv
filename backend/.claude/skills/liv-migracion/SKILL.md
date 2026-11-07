@@ -36,6 +36,8 @@ Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-
 1. **Nombre:** `V<AAAAMMDDHHmm>__<modulo>_<descripcion>.sql`, con una marca posterior a la última de la carpeta. Ejemplo: `V202611010905__core_administrations_users.sql`.
 2. **Encabezado:** un comentario con la feature, la tarea y el **porqué** (CC‑09). Modelo: `V202611031010__audit_import_cursor_complete.sql`.
 3. **Tipos y nombres:** los de la tabla de `docs/arquitectura/01` §9. Son `snake_case` en inglés como el ERD, `NUMERIC` para dinero y tasas, nunca `float`, `DATE` para fechas de negocio, `TIMESTAMPTZ` para instantes y `CHECK` con los valores de cada estado.
+   - **Claves primarias:** `id UUID PRIMARY KEY DEFAULT uuidv7()`, la versión 7 que pide el doc. 01 §9, con la función de PostgreSQL 18. La aplicación no inventa el identificador: lo lee con `RETURNING id`.
+   - Las dos tablas de la feature 001 que usan `gen_random_uuid()` (versión 4), `core.admin_user` y `audit.audit_event`, se corrigen en una tarea aparte. No las copies.
 4. **Aislamiento.** Modelo: `V202611010905__core_administrations_users.sql`.
    - Las tablas con datos de una administración tienen `administration_id NOT NULL`.
    - Sus FK son compuestas `(…, administration_id)` y se apoyan en un `UNIQUE` compuesto del padre, para que una FK no mezcle administraciones.
@@ -64,5 +66,6 @@ Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-
 - [ ] El nombre tiene una marca de tiempo nueva y no se editó ninguna migración ya integrada.
 - [ ] Toda tabla con `administration_id` tiene RLS, una política `TO liv_app` y FK compuestas.
 - [ ] Los permisos de `liv_app` son los mínimos y `LivAppGrantsTest` los refleja.
+- [ ] Las claves primarias nuevas usan `DEFAULT uuidv7()`.
 - [ ] Ningún valor tributario quedó en la migración (tarifas, rangos, fechas): eso es configuración de jurisdicción (CC‑01).
 - [ ] Las pruebas se escribieron antes (commit `test:`) y `./mvnw verify` está en verde.
