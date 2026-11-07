@@ -142,6 +142,11 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-06
 
+- Frontend, convenciones de Angular 21 en las pantallas de la feature 001 (flujo directo, decisión del responsable del 2026-11-06):
+  - `OnPush` en todos los componentes. No había `@Input` ni `@Output`;
+  - carga diferida de Inicio, Sin permiso y Próximamente. La estructura general y «Error» siguen en el paquete inicial, con el motivo en `app.routes.ts`;
+  - único cambio de comportamiento: si no llega el paquete de una pantalla diferida (red caída o despliegue nuevo), la persona va a «Error» en vez de quedarse ante una página en blanco (`withNavigationErrorHandler`). Lo decidió el responsable tras la revisión de `liv-revisor`;
+  - pruebas unitarias y de navegador en verde, incluidas las del aviso de inactividad, que piden levantar el BFF con una sesión de 150 s.
 - **Próximos pasos al día tras cerrar la feature 001:** se quitaron los PR ya integrados (#69, #70, #80 y #91), los contratos ya publicados, T19 y las decisiones de T21 (las tomó el responsable el 2026-11-05). Quedan las decisiones de identidad y del BFF (T16 a T18), la configuración de los contratos y T24.
 - Scripts de desarrollo (flujo directo):
   - `sh tools/dev/iniciar.sh` levanta LIV completo en local con un solo comando: entorno, API, BFF y frontend. Verifica los requisitos y los puertos, espera a que cada servicio esté listo y muestra su registro si falla;

@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -58,6 +59,7 @@ import { WorkspaceService } from './workspace.service';
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Shell implements OnInit {
   private readonly router = inject(Router);

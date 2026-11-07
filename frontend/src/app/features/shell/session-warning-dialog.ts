@@ -1,4 +1,12 @@
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { ButtonComponent, DialogComponent } from 'liv-components';
 
 import { IdleService } from '../../core/session/idle.service';
@@ -19,6 +27,7 @@ import { IdleService } from '../../core/session/idle.service';
   imports: [DialogComponent, ButtonComponent],
   templateUrl: './session-warning-dialog.html',
   styleUrl: './session-warning-dialog.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SessionWarningDialog {
   private readonly idle = inject(IdleService);
