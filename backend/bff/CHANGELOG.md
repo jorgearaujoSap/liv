@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- `/bff/login` que no es una navegación (001-01, enmienda 4). Una precarga del navegador (`Sec-Purpose`), una imagen o una petición del frontend recibían un 404, y Chrome lo mostraba al abrir la página precargada. Ahora reciben una página que, cuando la persona la abre, vuelve a pedir `/bff/login` como navegación: se inicia la sesión y, si había otra abierta, se cierra antes, como al navegar. La página no inicia ni cierra una sesión válida por sí misma, y ninguna petición que no sea una navegación gasta el límite del inicio de sesión. Contrato `bff` 1.4.0.
 - `returnTo` con `%2F` o `%5C` en la ruta (001-01, decisión del responsable en T21): antes se cambiaba por el inicio; ahora se acepta si, decodificada, sigue siendo una ruta de LIV, y vuelve tal como se pidió.
 
 ### Agregado

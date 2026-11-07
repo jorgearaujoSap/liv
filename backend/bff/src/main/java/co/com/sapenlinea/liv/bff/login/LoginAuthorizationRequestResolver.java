@@ -59,7 +59,10 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
 
   @Override
   public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
-    if (!login.matches(request) || !isANavigation(request)) {
+    // Only a person who navigates may end the open session: not an image, a script or a preload.
+    // Those get a page that asks for this route again once the person opens it
+    // (LoginPreloadController).
+    if (!login.matches(request) || !Navigations.isANavigation(request)) {
       return null;
     }
     // First the request, which fails if the provider cannot be reached: the open session is only
@@ -70,20 +73,6 @@ public final class LoginAuthorizationRequestResolver implements OAuth2Authorizat
         .getSession()
         .setAttribute(RETURN_TO_ATTRIBUTE, ReturnTo.sanitize(request.getParameter("returnTo")));
     return authorization;
-  }
-
-  /**
-   * This GET ends the open session, so only a person who navigates to it may cause that: not an
-   * image, a script, a prefetch or any other request a page can make without the person asking.
-   * Browsers say what a request is in {@code Sec-Fetch-*}; a client that does not send them is not
-   * a browser page and is treated as a navigation (the cookie is {@code SameSite=Strict} anyway).
-   */
-  private static boolean isANavigation(HttpServletRequest request) {
-    String destination = request.getHeader("Sec-Fetch-Dest");
-    String mode = request.getHeader("Sec-Fetch-Mode");
-    return request.getHeader("Sec-Purpose") == null
-        && (destination == null || destination.equals("document"))
-        && (mode == null || mode.equals("navigate"));
   }
 
   @Override

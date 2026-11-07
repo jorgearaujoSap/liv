@@ -6,6 +6,7 @@ import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,18 @@ class SecurityHeadersTest extends BffFlowTest {
             browser().get(bffBase() + "/api/v1/me"),
             browser().get(bffBase() + "/internal/v1/x"),
             browser().get(bffBase() + "/bff/login"),
+            browser().get(bffBase() + "/bff/login", Map.of("Sec-Purpose", "prefetch;prerender")),
             person.post(bffBase() + "/bff/logout", ""));
+
+    Reply preload = replies.get(5);
+    assertThat(preload.headerValues("Content-Security-Policy"))
+        .as("una sola CSP: con dos, el navegador aplicaría las dos y bloquearía el script")
+        .hasSize(1);
+    for (String directive : SecurityHeadersFilter.CSP.split("; ")) {
+      if (!directive.startsWith("default-src")) {
+        assertThat(preload.header("Content-Security-Policy")).contains(directive);
+      }
+    }
 
     for (Reply reply : replies) {
       assertThat(reply.header("Strict-Transport-Security"))
