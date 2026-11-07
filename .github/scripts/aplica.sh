@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Decide si la verificación de un proyecto corre en un PR (feature 003, plan, pasos 2 y 3).
 #
+# Supone el checkout de un PR (refs/pull/N/merge): HEAD es el commit de merge y HEAD^1 la punta de la rama base, así que
+# `git diff HEAD^1 HEAD` es el diff completo del PR. Con otro HEAD (un push, un commit suelto) vería solo parte.
 # Uso, desde la raíz de un checkout del merge del PR con fetch-depth 2:
 #   bash aplica.sh <backend|bff|frontend|ui|contratos>
 # Escribe en la salida estándar exactamente una línea, `aplica=true` o `aplica=false`, lista para `>> "$GITHUB_OUTPUT"`.
@@ -21,7 +23,10 @@ set -euo pipefail
 # que afecta a todos).
 clasifica() {
   case "$1" in
-    # Primero el BFF, que vive dentro de backend/ pero es otro proyecto Maven.
+    # Un archivo oculto directamente en backend/ (.gitattributes, .gitignore, .editorconfig) también configura al BFF que
+    # vive dentro: aplica a todos. Los de las subcarpetas (.mvn/) son del backend.
+    backend/.*) if [[ "${1#backend/}" == */* ]]; then clase=backend; else clase=otro; fi ;;
+    # El BFF vive dentro de backend/ pero es otro proyecto Maven: va antes que backend/*.
     backend/bff/*) clase=bff ;;
     backend/*) clase=backend ;;
     frontend/*) clase=frontend ;;
@@ -60,7 +65,7 @@ decidir() {
   trap 'rm -f "${lista:-}"' EXIT
   # NUL como separador: sirve para cualquier nombre. --no-renames muestra un archivo movido con su ruta anterior y
   # con la nueva, y core.quotePath=false evita que Git escriba entre comillas los nombres con tildes.
-  git -c core.quotePath=false diff -z --name-only --no-renames HEAD^1 HEAD > "$lista" 2> /dev/null || return 1
+  git -c core.quotePath=false diff -z --name-only --no-renames HEAD^1 HEAD -- > "$lista" 2> /dev/null || return 1
 
   resultado=false
   while IFS= read -r -d '' archivo || [ -n "$archivo" ]; do

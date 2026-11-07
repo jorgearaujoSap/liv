@@ -39,6 +39,16 @@ fallos=0
 ok() { total=$((total + 1)); echo "ok    - $1"; }
 falla() { total=$((total + 1)); fallos=$((fallos + 1)); echo "FALLA - $1"; echo "        $2"; }
 
+# Un fallo del propio arnés (no del script) aborta: seguir dejaría el repositorio del caso anterior y podría pasar en falso.
+aborta() { echo "ERROR del arnés: $1" >&2; exit 2; }
+
+# Deja refs/heads/pr, que es el HEAD del repositorio de prueba, apuntando al commit dado.
+apunta_pr() {
+  [ -n "$1" ] || aborta "commit vacío (falló commit-tree)"
+  git -C "$repo" update-ref refs/heads/pr "$1" || aborta "no se pudo mover refs/heads/pr"
+  [ "$(git -C "$repo" rev-parse refs/heads/pr)" = "$1" ] || aborta "refs/heads/pr no quedó en $1"
+}
+
 # ---------------------------------------------------------------------------------------------------------------
 # Construcción de commits
 # ---------------------------------------------------------------------------------------------------------------
@@ -98,20 +108,19 @@ TODOS=TTTTT
 NINGUNO=FFFFF
 
 # Corre aplica.sh para cada proyecto y compara con lo esperado.
-# $1 nombre, $2 esperado en el orden de $proyectos (T aplica, F no), $3 directorio de trabajo, $4 qué se compara:
-# `salida` (solo la salida estándar) o `todo` (salida estándar y de error juntas, para probar que no se filtra nada).
+# $1 nombre, $2 esperado en el orden de $proyectos (T aplica, F no), $3 directorio de trabajo.
+# Se compara la salida estándar y la de error juntas: debe ser exactamente una línea, así que un aplica=true que viene
+# de un error del script (que avisa por la salida de error) no pasa por un aplica=true de la regla.
 verifica_proyectos() {
-  local nombre=$1 esperado=$2 dir=$3 flujos=${4:-salida}
+  local nombre=$1 esperado=$2 dir=$3
   local i obtenido esperado_i codigo lineas
+  # Sin restos del caso anterior: un caso que no escribe su resultado no puede leer el de otro.
+  rm -f "$tmp"/salida.* "$tmp"/codigo.*
   # Los cinco proyectos en paralelo: cada llamada a Bash y a Git es lenta en Windows.
   for i in 0 1 2 3 4; do
     (
-      cd "$dir" || exit 1
-      if [ "$flujos" = todo ]; then
-        bash "$script" "${proyectos[$i]}" > "$tmp/salida.$i" 2>&1
-      else
-        bash "$script" "${proyectos[$i]}" > "$tmp/salida.$i" 2> /dev/null
-      fi
+      cd "$dir" || { echo 99 > "$tmp/codigo.$i"; exit 0; }
+      bash "$script" "${proyectos[$i]}" > "$tmp/salida.$i" 2>&1
       echo $? > "$tmp/codigo.$i"
     ) &
   done
@@ -122,7 +131,6 @@ verifica_proyectos() {
     codigo=$(cat "$tmp/codigo.$i")
     esperado_i=aplica=false
     [ "${esperado:$i:1}" = T ] && esperado_i=aplica=true
-    # Exactamente una línea: una salida vacía o con líneas de más es un fallo, aunque el valor sea el esperado.
     if [ "$obtenido" != "$esperado_i" ] || [ "$codigo" -ne 0 ] || [ "${#lineas[@]}" -ne 1 ]; then
       falla "$nombre · ${proyectos[$i]}" "esperado «$esperado_i» (código 0), obtenido «$obtenido» (código $codigo)"
     else
@@ -131,12 +139,10 @@ verifica_proyectos() {
   done
 }
 
-# PR con esas acciones, integrado en main con un merge real. $1 nombre, $2 esperado, resto: acciones; si la primera es
-# `--todo`, se compara también la salida de error (ver verifica_proyectos).
+# PR con esas acciones, integrado en main con un merge real. $1 nombre, $2 esperado, resto: acciones.
 pr() {
-  local nombre=$1 esperado=$2 flujos=salida arbol_pr commit_pr merge
+  local nombre=$1 esperado=$2 arbol_pr commit_pr merge
   shift 2
-  if [ "${1:-}" = --todo ]; then flujos=todo; shift; fi
   cp "$tmp/indice-base" "$GIT_INDEX_FILE"
   aplicar "$@"
   arbol_pr=$(git -C "$repo" write-tree)
@@ -144,8 +150,10 @@ pr() {
   cp "$tmp/indice-main" "$GIT_INDEX_FILE"
   aplicar "$@"
   merge=$(git -C "$repo" commit-tree "$(git -C "$repo" write-tree)" -p "$main" -p "$commit_pr" -m merge)
-  git -C "$repo" update-ref refs/heads/pr "$merge"
-  verifica_proyectos "$nombre" "$esperado" "$repo" "$flujos"
+  apunta_pr "$merge"
+  # El caso tiene que haber cambiado algo: con un fixture mal armado el diff queda vacío y el script da TTTTT.
+  [ -n "$(git -C "$repo" diff --name-only HEAD^1 HEAD)" ] || aborta "el caso «$nombre» no cambia ningún archivo"
+  verifica_proyectos "$nombre" "$esperado" "$repo"
 }
 
 # Un solo resultado esperado, con otros argumentos o en otro directorio.
@@ -204,6 +212,12 @@ pr ".mcp.json"                               $NINGUNO +.mcp.json
 pr "todo lo neutro junto"                    $NINGUNO +docs/x.md +spec/s.md +e2e/e.ts +tools/t.sh +.claude/c.md +README.md +.gitignore +.mcp.json
 pr "documentación borrada"                   $NINGUNO -docs/x.md
 pr "documentación movida a spec"             $NINGUNO '~docs/x.md>spec/x.md'
+pr "backend movido al BFF"                   TTFFF  '~backend/src/main/java/A.java>backend/bff/src/main/java/A.java'
+pr "archivo de la raíz borrado"              $TODOS -Makefile
+pr "backend/.gitattributes llega al BFF"      $TODOS +backend/.gitattributes
+pr "backend/.mvn/ es del wrapper, no un dotfile" TFFFT +backend/.mvn/wrapper/x
+pr "archivo que se llama HEAD"               $TODOS +HEAD
+pr "carpeta con prefijo backend/bff sin barra" TFFFF +backend/bffx/x.txt
 
 # *.md solo es neutro en la raíz.
 pr "backend/README.md"                       TFFFF  +backend/README.md
@@ -221,7 +235,7 @@ pr "salto de línea que imita un archivo de docs" $TODOS +$'nuevo/x\ndocs/y.md'
 pr "salto de línea que imita una ruta de la raíz" $NINGUNO +$'docs/x\n.github/workflows/w.yml'
 pr "nombre con parte de una orden"           $NINGUNO +'docs/$(touch pwn);`id`.md'
 # El nombre no se imprime ni se interpreta como una orden de GitHub Actions: la salida es solo aplica=false.
-pr "nombre ::error:: no llega a la salida"   $NINGUNO --todo +'docs/::error::fuga-secreta.md'
+pr "nombre ::error:: no llega a la salida"   $NINGUNO +'docs/::error::fuga-secreta.md'
 
 # Contratos: backend/contracts, backend/bff/contracts, los dos pom.xml y el wrapper de Maven de los dos.
 pr "contratos del backend"                   TFFFT  +backend/contracts/openapi/api.yaml
@@ -251,7 +265,7 @@ arbol_main=$(git -C "$repo" write-tree)
 # Un merge cuyo árbol es el de main: el PR no cambia ningún archivo.
 igual_a_main=$(git -C "$repo" commit-tree "$arbol_main" -p "$base" -m igual)
 vacio=$(git -C "$repo" commit-tree "$arbol_main" -p "$main" -p "$igual_a_main" -m vacio)
-git -C "$repo" update-ref refs/heads/pr "$vacio"
+apunta_pr "$vacio"
 verifica_proyectos "lista de archivos vacía" $TODOS "$repo"
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -262,7 +276,7 @@ solo_docs=$(cp "$tmp/indice-base" "$GIT_INDEX_FILE"; aplicar +docs/x.md > /dev/n
 solo_docs_main=$(cp "$tmp/indice-main" "$GIT_INDEX_FILE"; aplicar +docs/x.md > /dev/null; git -C "$repo" write-tree)
 commit_docs=$(git -C "$repo" commit-tree "$solo_docs" -p "$base" -m docs)
 merge_docs=$(git -C "$repo" commit-tree "$solo_docs_main" -p "$main" -p "$commit_docs" -m merge)
-git -C "$repo" update-ref refs/heads/pr "$merge_docs"
+apunta_pr "$merge_docs"
 
 verifica "sin argumento" "aplica=true" "$repo"
 verifica "proyecto desconocido" "aplica=true" "$repo" noexiste
@@ -305,6 +319,52 @@ for p in "${proyectos[@]}"; do
   verifica "fuera de un repositorio · $p" "aplica=true" "$tmp/fuera" "$p"
 done
 unset GIT_CEILING_DIRECTORIES
+
+# ---------------------------------------------------------------------------------------------------------------
+# Workflows: la condición que decide la omisión y los nombres de los checks obligatorios no cambian sin querer.
+# Es una comprobación de texto: la ejecución real de los workflows se demuestra en el PR (plan, paso 7).
+# ---------------------------------------------------------------------------------------------------------------
+workflows="$aqui/../../workflows"
+condicion="if: \${{ always() && (needs.cambios.result != 'success' || needs.cambios.outputs.aplica != 'false') }}"
+
+# $1 nombre de la prueba, $2 workflow, $3 línea completa (sin CR, para Git Bash con autocrlf), $4 veces que debe aparecer
+# (por defecto 1).
+aparece() {
+  local veces
+  veces=$(tr -d '\r' < "$workflows/$2" | grep -cxF -- "$3" || true)
+  if [ "$veces" -eq "${4:-1}" ]; then
+    ok "$1"
+  else
+    falla "$1" "«$3» aparece $veces veces en $2 y debía aparecer ${4:-1}"
+  fi
+}
+sin_filtro_de_rutas() {
+  if grep -q '^    paths:' "$workflows/$2"; then falla "$1" "$2 filtra por ruta"; else ok "$1"; fi
+}
+
+for par in backend-pr:backend bff-pr:bff frontend-pr:frontend ui-pr:ui; do
+  w=${par%%:*}.yml
+  p=${par##*:}
+  aparece "$w · trabajo «$p · cambios»" "$w" "    name: $p · cambios"
+  aparece "$w · trabajo «$p · verify»" "$w" "    name: $p · verify"
+  aparece "$w · la verificación se omite solo con success y false" "$w" "    $condicion"
+  aparece "$w · la verificación espera a cambios" "$w" "    needs: cambios"
+  sin_filtro_de_rutas "$w · sin filtro de rutas" "$w"
+done
+
+w=backend-contracts-pr.yml
+aparece "$w · trabajo «contratos · cambios»" "$w" "    name: contratos · cambios"
+aparece "$w · check obligatorio «backend · contratos»" "$w" "    name: backend · contratos"
+aparece "$w · pruebas y comparación se omiten solo con success y false" "$w" "    $condicion" 2
+aparece "$w · pruebas y comparación esperan a cambios" "$w" "    needs: cambios" 2
+aparece "$w · el agregado corre siempre" "$w" "    if: \${{ always() }}"
+aparece "$w · el paso del agregado corre siempre" "$w" "        if: \${{ always() }}"
+sin_filtro_de_rutas "$w · sin filtro de rutas" "$w"
+
+w=sistema-pr.yml
+aparece "$w · título" "$w" "    name: sistema · título Conventional Commits"
+aparece "$w · secretos" "$w" "    name: sistema · secretos"
+aparece "$w · scripts de CI" "$w" "    name: sistema · scripts de CI"
 
 # ---------------------------------------------------------------------------------------------------------------
 echo
