@@ -4,8 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Agregado
+
+- *Skill* `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
+
 ### Cambiado
 
+- `.vscode/mcp.json` usa el CLI del proyecto, en lugar de descargar la última versión con `npx -y`.
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 
 ## [0.3.1] — 2026-11-06
