@@ -37,7 +37,7 @@ Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-
 2. **Encabezado:** un comentario con la feature, la tarea y el **porqué** (CC‑09). Modelo: `V202611031010__audit_import_cursor_complete.sql`.
 3. **Tipos y nombres:** los de la tabla de `docs/arquitectura/01` §9. Son `snake_case` en inglés como el ERD, `NUMERIC` para dinero y tasas, nunca `float`, `DATE` para fechas de negocio, `TIMESTAMPTZ` para instantes y `CHECK` con los valores de cada estado.
    - **Claves primarias:** `id UUID PRIMARY KEY DEFAULT uuidv7()`, la versión 7 que pide el doc. 01 §9, con la función de PostgreSQL 18. La aplicación no inventa el identificador: lo lee con `RETURNING id`.
-   - Las dos tablas de la feature 001 que usan `gen_random_uuid()` (versión 4), `core.admin_user` y `audit.audit_event`, se corrigen en una tarea aparte. No las copies.
+   - Las dos tablas de la feature 001 que usan `gen_random_uuid()` (versión 4), `core.admin_user` y `audit.audit_event`, se quedan así por decisión del responsable (2026-11-06). No copies ese patrón en las tablas nuevas.
 4. **Aislamiento.** Modelo: `V202611010905__core_administrations_users.sql`.
    - Las tablas con datos de una administración tienen `administration_id NOT NULL`.
    - Sus FK son compuestas `(…, administration_id)` y se apoyan en un `UNIQUE` compuesto del padre, para que una FK no mezcle administraciones.

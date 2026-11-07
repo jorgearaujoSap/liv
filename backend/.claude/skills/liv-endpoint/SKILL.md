@@ -45,7 +45,7 @@ En los módulos hexagonales (`jurisdiction`, `valuation`, `tax`, `ledger`) se re
 4. **Persistencia.**
    - El caso de uso usa un puerto (interfaz en `application`). El adaptador va en `infrastructure` (`JdbcUserProfiles`: `JdbcClient`, SQL explícito y `@Transactional(readOnly = true)` en las lecturas).
    - Si hace falta una tabla o columna, primero la *skill* `liv-migracion`.
-   - No generes claves primarias con `UUID.randomUUID()`, que da la versión 4: la tabla las genera con `DEFAULT uuidv7()` y el adaptador las lee con `RETURNING id`. El código de la feature 001 que todavía usa `UUID.randomUUID()` se corrige en una tarea aparte.
+   - No generes claves primarias con `UUID.randomUUID()`, que da la versión 4: la tabla las genera con `DEFAULT uuidv7()` y el adaptador las lee con `RETURNING id`. El código de la feature 001 que usa `UUID.randomUUID()` se queda así por decisión del responsable (2026-11-06): no lo copies en el código nuevo.
 5. **Controlador** en `<modulo>/api/`.
    - Clase sin `public` que implementa la interfaz generada (`implements CurrentUserApi`), con `@RestController` y sin rutas propias: `ContractRulesTest` lo verifica.
    - Sin lógica (CC‑07): traduce la petición, llama al caso de uso y traduce la respuesta a los modelos generados. Máximo 200 líneas.
