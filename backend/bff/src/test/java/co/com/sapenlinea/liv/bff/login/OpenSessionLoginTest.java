@@ -7,8 +7,12 @@ import co.com.sapenlinea.liv.bff.support.BffFlowTest;
 import co.com.sapenlinea.liv.bff.support.Browser;
 import co.com.sapenlinea.liv.bff.support.Browser.Reply;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -77,21 +81,23 @@ class OpenSessionLoginTest extends BffFlowTest {
       "001-09 · Una petición que no es una navegación a /bff/login no cierra la sesión abierta")
   void aRequestThatIsNotANavigationDoesNotEndTheSession() throws SQLException {
     Browser browser = signedIn();
+    String session = browser.cookie("LIV_SESSION");
     BACKEND.reset();
 
     for (Map<String, String> headers :
         List.of(
             Map.of("Sec-Fetch-Dest", "image", "Sec-Fetch-Mode", "no-cors"),
             Map.of("Sec-Fetch-Dest", "empty", "Sec-Fetch-Mode", "cors"),
-            Map.of("Sec-Purpose", "prefetch", "Sec-Fetch-Dest", "document"))) {
+            Map.of("Sec-Purpose", "prefetch", "Sec-Fetch-Dest", "document"),
+            Map.of("Sec-Purpose", "prefetch"))) {
       Reply reply = browser.get(bffBase() + "/bff/login", headers);
-      assertThat(reply.status()).isEqualTo(302);
-      assertThat(reply.location()).isEqualTo("/");
+      assertThat(reply.status()).as("%s", headers).isEqualTo(200);
+      assertThat(reply.body()).contains("location.replace(location.href)");
     }
 
     assertThat(BACKEND.calls()).isEmpty();
     assertThat(storedSessions()).isEqualTo(1);
-    assertThat(browser.cookie("LIV_SESSION")).isNotNull();
+    assertThat(browser.cookie("LIV_SESSION")).as("la misma sesión").isEqualTo(session);
   }
 
   @Test
@@ -120,23 +126,55 @@ class OpenSessionLoginTest extends BffFlowTest {
   @Test
   @Tag("001-01")
   @DisplayName(
-      "001-01 · Una precarga del navegador de /bff/login lleva a la ruta de returnTo, sin iniciar"
-          + " sesión")
-  void aPreloadOfTheLoginGoesToTheReturnRoute() {
+      "001-01 · Una precarga de /bff/login recibe una página que, al abrirla, vuelve a pedirla como"
+          + " navegación, sin iniciar sesión")
+  void aPreloadOfTheLoginAsksForItAgainOnceOpened() throws SQLException {
+    BACKEND.reset();
     Map<String, String> preload =
         Map.of(
             "Sec-Purpose", "prefetch;prerender",
             "Sec-Fetch-Dest", "document",
             "Sec-Fetch-Mode", "navigate");
+    Browser browser = browser();
 
-    Reply reply = browser().get(bffBase() + "/bff/login?returnTo=%2Fopcion%2F1.4", preload);
-    Reply unsafe = browser().get(bffBase() + "/bff/login?returnTo=https://evil.example", preload);
+    Reply reply = browser.get(bffBase() + "/bff/login?returnTo=%2Fopcion%2F1.4", preload);
+    Reply unsafeReturnTo =
+        browser.get(bffBase() + "/bff/login?returnTo=https://evil.example", preload);
 
-    assertThat(reply.status()).isEqualTo(302);
-    assertThat(reply.location()).isEqualTo("/opcion/1.4");
-    assertThat(unsafe.status()).isEqualTo(302);
-    assertThat(unsafe.location()).isEqualTo("/");
+    assertThat(reply.status()).isEqualTo(200);
+    assertThat(reply.header("Content-Type")).startsWith("text/html");
+    assertThat(reply.header("Cache-Control")).contains("no-store");
+    assertThat(reply.body())
+        .as("espera a que la persona abra la página y la vuelve a pedir")
+        .contains("prerenderingchange")
+        .contains("location.replace(location.href)")
+        .contains("href=\"/bff/login?returnTo=%2Fopcion%2F1.4\"");
+    assertThat(reply.header("Content-Security-Policy"))
+        .as("solo el script de la página, por su hash")
+        .contains("script-src '" + sha256(scriptOf(reply.body())) + "'")
+        .contains("default-src 'none'")
+        .contains("frame-ancestors 'none'");
+    assertThat(unsafeReturnTo.body()).contains("href=\"/bff/login?returnTo=%2F\"");
     assertThat(BACKEND.calls()).isEmpty();
+    assertThat(storedSessions()).isZero();
+    assertThat(browser.cookie("LIV_SESSION")).isNull();
+  }
+
+  private static String scriptOf(String page) {
+    int start = page.indexOf("<script>") + "<script>".length();
+    return page.substring(start, page.indexOf("</script>", start));
+  }
+
+  private static String sha256(String script) {
+    try {
+      return "sha256-"
+          + Base64.getEncoder()
+              .encodeToString(
+                  MessageDigest.getInstance("SHA-256")
+                      .digest(script.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Test
