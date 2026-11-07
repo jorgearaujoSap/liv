@@ -39,4 +39,11 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el backend.
 
 ## Skills
 
-Las *skills* de código del backend (caso de uso, regla de validación, paso del motor, migración, endpoint) se agregarán en `backend/.claude/skills/` cuando existan los primeros casos reales. Mientras tanto, usa las *skills* de proceso del repositorio de plataforma.
+Las *skills* de código del backend están en `backend/.claude/skills/`. Siguen el código real de la feature 001. Antes de la tarea que describen, léelas, aunque tu agente no las cargue solo:
+
+| *Skill* | Úsala para |
+|---|---|
+| `liv-migracion` | Crear o cambiar tablas, columnas, políticas RLS, permisos o funciones de PostgreSQL |
+| `liv-endpoint` | Agregar o cambiar un endpoint `/api/**`: contrato, caso de uso con su permiso, controlador y pruebas |
+
+Las de regla de validación y paso del motor se crearán con la primera feature de los Módulos 1 y 3, a partir de su código real. Para el resto, usa las *skills* de proceso del repositorio de plataforma (hoy, `.claude/skills/` en la raíz del monorepo).

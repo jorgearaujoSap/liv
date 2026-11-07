@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonComponent, ResultStateComponent } from 'liv-components';
 
@@ -14,6 +14,7 @@ import { WorkspaceService } from '../shell/workspace.service';
   imports: [ResultStateComponent, ButtonComponent],
   templateUrl: './forbidden.html',
   styleUrl: './result-page.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Forbidden {
   private readonly router = inject(Router);

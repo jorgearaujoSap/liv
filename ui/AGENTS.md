@@ -23,6 +23,18 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librerí
 | Formato | Prettier | `npm run format:check` |
 | TDD | Commit `test:` (prueba en rojo) antes del `feat:`/`fix:` | Revisión del PR |
 
+## Skills
+
+Las *skills* de código de la librería están en `ui/.claude/skills/`. Siguen el código real de la feature 001. Antes de la tarea que describen, léelas, aunque tu agente no las cargue solo:
+
+| *Skill* | Úsala para |
+|---|---|
+| `liv-componente` | Crear o cambiar un componente, una variante o un *token*: Figma, componente, estilos, pruebas con axe, historia, API pública y versión |
+
+Para Figma usa `liv-figma`, y para el resto las *skills* de proceso del repositorio de plataforma (hoy, `.claude/skills/` en la raíz del monorepo).
+
+**Conocimiento de Angular:** el servidor MCP del CLI de Angular, en modo de solo lectura, entrega la guía oficial de buenas prácticas y la documentación de la versión instalada. Está configurado en `.mcp.json` (Claude Code) y `.vscode/mcp.json` (VS Code). Usa el CLI del proyecto (`node node_modules/@angular/cli/bin/ng.js mcp --read-only`, desde `ui/`), así que necesita `npm install`. Otros agentes deben configurar ese mismo comando, ejecutado desde `ui/`. Si la guía de Angular choca con una regla de este archivo, manda la regla.
+
 ## Antes de decir "terminado"
 
 - `npm run lint`, `npm run format:check` y `npm run pack` en verde, o se reporta qué falló.
