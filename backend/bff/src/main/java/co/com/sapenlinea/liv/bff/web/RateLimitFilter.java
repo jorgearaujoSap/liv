@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.bff.web;
 
+import co.com.sapenlinea.liv.bff.login.Navigations;
 import co.com.sapenlinea.liv.bff.session.SessionAuthentication;
 import co.com.sapenlinea.liv.bff.web.RateLimitProperties.Limit;
 import jakarta.servlet.FilterChain;
@@ -68,7 +69,10 @@ final class RateLimitFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     String address = networkOf(request.getRemoteAddr());
-    boolean signIn = SIGN_IN_PATH.equals(request.getServletPath());
+    // A preload of the sign in is not a sign in: it gets a page that asks for it again once the
+    // person opens it, and only that navigation counts.
+    boolean signIn =
+        SIGN_IN_PATH.equals(request.getServletPath()) && Navigations.isANavigation(request);
     long wait;
     if (SecurityContextHolder.getContext().getAuthentication()
         instanceof SessionAuthentication person) {

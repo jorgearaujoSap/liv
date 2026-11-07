@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LIV · BFF
-  version: 1.3.1
+  version: 1.4.0
   description: >-
     Rutas propias del BFF que usa el navegador (ADR 0010, ADR 0005): inicio y cierre de sesión y
     estado de la sesión. Contract-first: el BFF se escribe contra este archivo y el frontend usa una
@@ -36,10 +36,10 @@ paths:
         proveedor de identidad con código y PKCE; el proveedor siempre pide las credenciales
         (prompt=login). Al volver, el BFF abre la sesión y redirige a returnTo. Si ya había una
         sesión abierta, la cierra antes. Si el proveedor o LIV no aceptan el inicio, la persona
-        vuelve a esta misma ruta, sin ningún motivo en la URL. Una petición que no es una navegación
-        (una precarga del navegador con Sec-Purpose, una imagen, una petición del frontend) no
-        inicia ni cierra nada: redirige a returnTo, y la aplicación vuelve a esta ruta cuando la
-        persona la abre.
+        vuelve a esta misma ruta, sin ningún motivo en la URL. Una petición que el navegador hace por
+        su cuenta (una precarga con Sec-Purpose, una imagen, una petición del frontend) no inicia
+        ni cierra una sesión: recibe una página que, cuando la persona la abre, vuelve a pedir esta
+        ruta como navegación.
       parameters:
         - name: returnTo
           in: query
@@ -51,15 +51,20 @@ paths:
             type: string
             maxLength: 2048
       responses:
-        '302':
+        '200':
           description: >-
-            Redirección al proveedor de identidad o, si la petición no es una navegación, a
-            returnTo.
+            La petición no es una navegación. Página que espera a que la persona la abra y entonces
+            vuelve a pedir esta ruta como navegación; sin scripts, tiene un enlace que hace lo mismo.
+            Su único script está permitido por su hash en Content-Security-Policy.
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Redirección al proveedor de identidad.
           headers:
             Location:
-              description: >-
-                Dirección de autorización del proveedor, o la ruta de LIV de returnTo (/ si no es
-                válida).
+              description: Dirección de autorización del proveedor.
               schema:
                 type: string
         '429':
