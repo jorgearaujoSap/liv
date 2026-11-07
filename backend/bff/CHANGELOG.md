@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- `/bff/login` que no es una navegación (001-01, enmienda 4): una precarga del navegador (`Sec-Purpose`), una imagen o una petición del frontend recibían un 404, y Chrome lo mostraba al abrir la página que había precargado. Ahora redirigen a la ruta de `returnTo` sin iniciar ni cerrar nada, y la aplicación vuelve a `/bff/login` cuando la persona la abre. Contrato `bff` 1.3.1, solo con descripciones.
 - `returnTo` con `%2F` o `%5C` en la ruta (001-01, decisión del responsable en T21): antes se cambiaba por el inicio; ahora se acepta si, decodificada, sigue siendo una ruta de LIV, y vuelve tal como se pidió.
 
 ### Agregado
