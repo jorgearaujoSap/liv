@@ -326,3 +326,5 @@ Se revisan en cada retrospectiva para detectar *vibe coding* a tiempo.
 | Cada pantalla con su propio botón, tabla o formulario "parecido" | Librería única `liv-components` + reglas de ESLint y Stylelint (doc. 04 §3.2) |
 | Pantallas inventadas por el agente sin diseño | Diseño de Figma aprobado antes del gate H2 + verificación Q15 en CI |
 | Ajustes visuales "rápidos" con estilos sueltos en una pantalla | Solo *tokens* y variantes de la librería; sin `::ng-deep` ni sobrescritura de clases |
+
+Demostración 003.
