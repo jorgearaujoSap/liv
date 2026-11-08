@@ -144,6 +144,14 @@
       <artifactId>json-schema-validator</artifactId>
       <version>${json-schema-validator.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <!-- Los esquemas son JSON. Con jackson-dataformat-yaml en el classpath, Spring registraría un
+             convertidor de application/yaml que lee YAML sin las reglas del cargador seguro. -->
+        <exclusion>
+          <groupId>tools.jackson.dataformat</groupId>
+          <artifactId>jackson-dataformat-yaml</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

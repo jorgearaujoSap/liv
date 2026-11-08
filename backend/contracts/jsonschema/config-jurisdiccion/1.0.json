@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:liv:jsonschema:config-jurisdiccion:1.0",
   "title": "Configuración de jurisdicción 1.0",
-  "description": "Forma del archivo YAML de configuración de jurisdicción y vigencia (Doc. 03 §5; feature 004). Valida solo la forma (CJ01): qué secciones y campos hay, de qué tipo es cada uno, cuáles son obligatorios y qué valores admiten los campos cerrados. No fija valores tributarios. Las reglas CJ02 a CJ14 son del validador de la opción 1.5.9. Esta versión es inmutable: un cambio es una versión nueva, en un archivo nuevo.",
+  "description": "Forma del archivo YAML de configuración de jurisdicción y vigencia (Doc. 03 §5; feature 004). Valida solo la forma (CJ01): qué secciones y campos hay, de qué tipo es cada uno, cuáles son obligatorios y qué valores admiten los campos cerrados. No fija valores tributarios. Las reglas CJ02 a CJ14 son del validador de la opción 1.5.9. Se aplica al árbol que da el cargador portable de YAML (sus casos están en 1.0.casos.json), que rechaza antes los caracteres de control. Esta versión es inmutable: un cambio es una versión nueva, en un archivo nuevo.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -46,7 +46,7 @@
           "anyOf": [
             {
               "type": "string",
-              "pattern": "^[0-9]{8}$"
+              "pattern": "^[0-9]{8}(?![\\s\\S])"
             },
             {
               "$ref": "#/$defs/pendiente"
@@ -63,7 +63,7 @@
           "anyOf": [
             {
               "type": "string",
-              "pattern": "^[0-9]{2}$"
+              "pattern": "^[0-9]{2}(?![\\s\\S])"
             },
             {
               "$ref": "#/$defs/pendiente"
@@ -325,7 +325,7 @@
               }
             },
             "ADMINISTRACION_DIRECTA": {
-              "description": "D: liquida los matriculados (departamentos y distritos).",
+              "description": "D: liquida los matriculados; qué tipos de jurisdicción la pueden activar lo decide CJ12.",
               "type": "object",
               "additionalProperties": false,
               "required": [
@@ -872,7 +872,7 @@
       "properties": {
         "general": {
           "type": "string",
-          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(?![\\s\\S])"
         },
         "vehiculo_nuevo": {
           "$ref": "#/$defs/codigo"
@@ -1486,7 +1486,7 @@
   },
   "$defs": {
     "estado": {
-      "description": "Estado de una regla: VIGENTE (verificada contra la norma citada), POR_CONFIRMAR (valor propuesto, jurídica debe validarlo) o PENDIENTE (el equipo debe diligenciarlo).",
+      "description": "Estado de una regla: VIGENTE (verificada contra la norma citada), POR_CONFIRMAR (valor propuesto, que debe validar la revisión jurídica) o PENDIENTE (el equipo debe diligenciarlo).",
       "type": "string",
       "enum": [
         "VIGENTE",
@@ -1497,27 +1497,27 @@
     "pendiente": {
       "description": "El texto PENDIENTE: el equipo aún debe diligenciar el campo. Que no quede ninguno al publicar lo decide CJ02.",
       "type": "string",
-      "pattern": "^PENDIENTE$"
+      "pattern": "^PENDIENTE(?![\\s\\S])"
     },
     "codigo": {
       "description": "Código que lee la máquina, en mayúsculas: una opción, una referencia a una norma, una categoría. Nunca PENDIENTE ni POR_CONFIRMAR.",
       "type": "string",
-      "pattern": "^(?!(PENDIENTE|POR_CONFIRMAR)$)[A-Z][A-Z0-9_]*$"
+      "pattern": "^(?!(PENDIENTE|POR_CONFIRMAR)(?![\\s\\S]))[A-Z][A-Z0-9_]*(?![\\s\\S])"
     },
     "identificador": {
       "description": "Identificador en minúsculas que lee la máquina (atributos, soportes, condiciones).",
       "type": "string",
-      "pattern": "^[a-z][a-z0-9_]*$"
+      "pattern": "^[a-z][a-z0-9_]*(?![\\s\\S])"
     },
     "ruta": {
       "description": "Ruta a otro campo de la configuración, con puntos (p. ej. servicio_publico.gravado).",
       "type": "string",
-      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+(?![\\s\\S])"
     },
     "texto_tecnico": {
       "description": "Texto que lee la máquina (columnas de las tablas, fórmulas, números de artículo). Nunca PENDIENTE.",
       "type": "string",
-      "pattern": "^(?!PENDIENTE$).+$"
+      "pattern": "^(?!PENDIENTE(?![\\s\\S]))[\\s\\S]+(?![\\s\\S])"
     },
     "texto_libre": {
       "description": "Texto que escribe una persona (nombres, NIT, números de normas, descripciones). Admite PENDIENTE y POR_CONFIRMAR.",
@@ -1525,7 +1525,7 @@
       "minLength": 1
     },
     "fraccion": {
-      "description": "Tasa o porcentaje como fracción entre 0 y 1 (0.015 = 1,5 %), o PENDIENTE.",
+      "description": "Tasa o porcentaje como fracción entre 0 y 1 (0.5 = 50 %), o PENDIENTE.",
       "anyOf": [
         {
           "type": "number",
@@ -1538,7 +1538,7 @@
       ]
     },
     "factor": {
-      "description": "Factor de ajuste de la base gravable, mayor que 0 (p. ej. 1.10). No es una fracción.",
+      "description": "Factor de ajuste de la base gravable, mayor que 0 (1 deja la base igual). No es una fracción.",
       "type": "number",
       "exclusiveMinimum": 0
     },
@@ -1557,7 +1557,7 @@
       "anyOf": [
         {
           "type": "string",
-          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(?![\\s\\S])"
         },
         {
           "$ref": "#/$defs/pendiente"
@@ -1569,7 +1569,7 @@
       "anyOf": [
         {
           "type": "string",
-          "pattern": "^[0-9]{2}([0-9]{3})?$"
+          "pattern": "^[0-9]{2}([0-9]{3})?(?![\\s\\S])"
         },
         {
           "$ref": "#/$defs/pendiente"
@@ -1579,7 +1579,7 @@
     "dane_lista": {
       "description": "Código DANE de 2 o 5 dígitos en una lista.",
       "type": "string",
-      "pattern": "^[0-9]{2}([0-9]{3})?$"
+      "pattern": "^[0-9]{2}([0-9]{3})?(?![\\s\\S])"
     }
   }
 }
