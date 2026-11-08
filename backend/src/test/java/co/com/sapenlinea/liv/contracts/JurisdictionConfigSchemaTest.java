@@ -312,7 +312,6 @@ class JurisdictionConfigSchemaTest {
         "/causacion/proporcionalidad_nuevos/formula_meses",
         "/redondeo/obligatoria",
         "/redondeo/metodo",
-        "/redondeo/estado",
         "/tarifas/0/rangos/0/desde_exclusivo",
         "/reportes/sibga_mensual/contenido",
         "/sujecion/no_gravados/5/excepto_si"

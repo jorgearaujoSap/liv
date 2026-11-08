@@ -30,7 +30,8 @@ import tools.jackson.databind.node.ObjectNode;
  *   <li>exceptions: at the root only the six mandatory sections are required; no modality is
  *       required, and {@code activa} is required in each of them;
  *   <li>{@code estado} only takes its three values;
- *   <li>{@code PENDIENTE} is valid only in dates, fractions, DANE codes and the listed free texts;
+ *   <li>{@code PENDIENTE} is valid only in dates, fractions, DANE codes, the listed free texts and
+ *       {@code estado}, where it is one of the three values;
  *   <li>{@code null} is valid only in the listed fields.
  * </ul>
  */
@@ -167,7 +168,9 @@ class JurisdictionConfigSchemaMutationTest {
     }
 
     boolean acceptsPendiente(String general, String key) {
-      return PENDIENTE_ALLOWED.contains(general) || FRACTION_KEYS.contains(key);
+      return PENDIENTE_ALLOWED.contains(general)
+          || FRACTION_KEYS.contains(key)
+          || key.equals("estado");
     }
 
     boolean acceptsNull(String general) {
