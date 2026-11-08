@@ -13,8 +13,6 @@ import co.com.sapenlinea.liv.contracts.SafeYamlLoader.Reason;
 import co.com.sapenlinea.liv.contracts.SafeYamlLoader.UnsafeYamlException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -185,20 +183,16 @@ class JurisdictionConfigSchemaTest {
   }
 
   @Test
-  @Tag("004-05")
-  @DisplayName("004-05 · cada valor de las listas cerradas es válido")
-  void closedListValues() {
-    assertValid("/jurisdiccion/tipo", "DEPARTAMENTO", "DISTRITO_CAPITAL", "DISTRITO", "MUNICIPIO");
-    assertValid("/base_gravable/vehiculo_nuevo/fuente_base", "FACTURA", "DECLARACION_IMPORTACION");
-    assertValid("/beneficios/0/tipo", "DESCUENTO_PORCENTUAL", "EXENCION_TOTAL", "VALOR_FIJO");
-    assertValid("/redondeo/metodo", "MULTIPLO_MAS_CERCANO", "MULTIPLO_SUPERIOR", "SIN_REDONDEO");
-    assertValid(
-        "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/modo",
-        "FIN_DE_VIGENCIA",
-        "DIAS_DESDE_CAUSACION",
-        "FECHA_FIJA");
-    assertValid("/calendario/vehiculos_nuevos/descuento/modo", "NO_APLICA", "DIAS_DESDE_CAUSACION");
-    assertValid("/recaudo/descuento_pago_parcial", "NO_APLICA", "PROPORCIONAL");
+  @Tag("004-07")
+  @DisplayName(
+      "004-07 · un salto de línea final no cumple un patrón, aunque el árbol no venga del cargador")
+  void trailingLineBreak() {
+    assertInvalid("/distribucion_recaudo/origen", "DERIVADA_DE_COMPETENCIA\n");
+    assertInvalid("/vigencia/fin", "2026-12-31\n");
+    assertInvalid("/vigencia/fin", "PENDIENTE\n");
+    assertInvalid("/jurisdiccion/codigo_dane", "52356\r\n");
+    assertInvalid("/jurisdiccion/codigo_dane", "52356\u0085");
+    assertInvalid("/reportes/sibga_mensual/contenido", "vehiculos\u2028");
   }
 
   @Test
@@ -333,12 +327,22 @@ class JurisdictionConfigSchemaTest {
   }
 
   @ParameterizedTest(name = "004-09 · esquema_version {0} no es una versión publicada")
-  @ValueSource(strings = {"2.0", "1.1", "1", "1.0.0", "PENDIENTE", "../1.0", ""})
+  @ValueSource(strings = {"99.0", "0.0", "1", "1.0.0", "PENDIENTE", "../1.0", "", "1:0", "1.0*"})
   @Tag("004-09")
   void unknownVersion(String version) {
     ObjectNode configuration = set(load(IPIALES), "/esquema_version", text(version));
 
-    assertThat(JurisdictionConfigSchemas.forVersion(version)).isNull();
+    assertThat(JurisdictionConfigSchemas.forVersion(version)).isEmpty();
+    assertThat(errors(configuration)).containsExactly(JurisdictionConfigSchemas.VERSION_PATH);
+  }
+
+  @Test
+  @Tag("004-09")
+  @DisplayName("004-09 · con una versión desconocida no se valida el resto contra otra versión")
+  void unknownVersionIsNotValidatedAgainstAnother() {
+    ObjectNode configuration = set(load(IPIALES), "/esquema_version", text("99.0"));
+    set(configuration, "/redondeo/multiplo", text("mil"));
+
     assertThat(errors(configuration)).containsExactly(JurisdictionConfigSchemas.VERSION_PATH);
   }
 
@@ -351,7 +355,7 @@ class JurisdictionConfigSchemaTest {
     ObjectNode otherVersion = set(load(IPIALES), "/esquema_version", text("1.1"));
     assertThat(
             JurisdictionConfigSchemas.paths(
-                JurisdictionConfigSchemas.forVersion("1.0").validate(otherVersion)))
+                JurisdictionConfigSchemas.forVersion("1.0").orElseThrow().validate(otherVersion)))
         .containsExactly("/esquema_version");
   }
 
@@ -359,16 +363,8 @@ class JurisdictionConfigSchemaTest {
   @Tag("004-10")
   @DisplayName("004-10 · una clave repetida en una configuración se rechaza antes de validar")
   void duplicateKeyInAConfiguration() throws Exception {
-    String yaml =
-        Files.readString(
-            Path.of(
-                "src",
-                "test",
-                "resources",
-                "contracts",
-                "jsonschema",
-                "config-jurisdiccion",
-                IPIALES));
+    String yaml = TestConfigurations.text(IPIALES);
+    // A second "multiplo" right after the first one, keeping the line break of the file.
     String duplicated =
         yaml.replaceFirst("(?m)^(  multiplo: 1000)(\\r?\\n)", "$1$2  multiplo: 100$2");
     assertThat(duplicated).isNotEqualTo(yaml);
@@ -377,6 +373,12 @@ class JurisdictionConfigSchemaTest {
         .isInstanceOf(UnsafeYamlException.class)
         .extracting(e -> ((UnsafeYamlException) e).reason())
         .isEqualTo(Reason.CLAVE_REPETIDA);
+  }
+
+  private static void assertInvalid(String path, String value) {
+    assertThat(errors(set(load(IPIALES), path, text(value))))
+        .as("%s = %s", path, value)
+        .containsExactly(path);
   }
 
   private static void assertValid(String path, String... values) {

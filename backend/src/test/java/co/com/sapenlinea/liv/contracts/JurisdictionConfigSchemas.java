@@ -17,8 +17,11 @@ import com.networknt.schema.utils.JsonType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
 
@@ -61,15 +64,33 @@ final class JurisdictionConfigSchemas {
                           .build())
                   .schemaLoader(loader -> loader.fetchRemoteResources(false)));
 
+  private static final Map<String, Schema> CACHE = new ConcurrentHashMap<>();
+
   private JurisdictionConfigSchemas() {}
 
-  /** The schema of a version, read from its file, or null if the version is not published. */
-  static Schema forVersion(String version) {
-    Path file = FOLDER.resolve(version + ".json");
-    if (!VERSION.matcher(version).matches() || !Files.isRegularFile(file)) {
-      return null;
+  /**
+   * The schema of a version, read from its file, or empty if the version is not published. The form
+   * of the version is checked before it becomes part of a path.
+   */
+  static Optional<Schema> forVersion(String version) {
+    if (!VERSION.matcher(version).matches()) {
+      return Optional.empty();
     }
-    return REGISTRY.getSchema(CommonCases.EXACT.readTree(file.toFile()));
+    if (!Files.isDirectory(FOLDER)) {
+      throw new IllegalStateException(
+          "no está la carpeta de los esquemas: " + FOLDER.toAbsolutePath());
+    }
+    Path file = FOLDER.resolve(version + ".json");
+    if (!Files.isRegularFile(file)) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        CACHE.computeIfAbsent(version, v -> compile(CommonCases.EXACT.readTree(file.toFile()))));
+  }
+
+  /** A schema with the configuration of ADR 0032 (no remote loading, strict integers). */
+  static Schema compile(JsonNode schema) {
+    return REGISTRY.getSchema(schema);
   }
 
   /** The errors of a schema against the Draft 2020-12 meta-schema, which the validator bundles. */
@@ -80,12 +101,14 @@ final class JurisdictionConfigSchemas {
   /** The JSON Pointer paths of the errors of a configuration; empty if it is valid. */
   static Set<String> errors(JsonNode configuration) {
     JsonNode version = configuration.isObject() ? configuration.get("esquema_version") : null;
-    Schema schema =
-        version != null && version.isString() ? forVersion(version.stringValue()) : null;
-    if (schema == null) {
+    Optional<Schema> schema =
+        version != null && version.isString()
+            ? forVersion(version.stringValue())
+            : Optional.empty();
+    if (schema.isEmpty()) {
       return Set.of(VERSION_PATH);
     }
-    return paths(schema.validate(configuration));
+    return paths(schema.get().validate(configuration));
   }
 
   /**

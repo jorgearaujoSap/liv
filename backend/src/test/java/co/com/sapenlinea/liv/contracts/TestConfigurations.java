@@ -2,6 +2,8 @@ package co.com.sapenlinea.liv.contracts;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import tools.jackson.core.JsonPointer;
@@ -22,13 +24,27 @@ final class TestConfigurations {
   static final List<String> ALL = List.of(TEMPLATE, IPIALES);
 
   private static final Path FOLDER =
-      Path.of("src", "test", "resources", "contracts", "jsonschema", "config-jurisdiccion");
+      CommonCases.BACKEND.resolve(
+          Path.of("src", "test", "resources", "contracts", "jsonschema", "config-jurisdiccion"));
 
   private TestConfigurations() {}
 
+  /** The text of a configuration, as it is on disk. */
+  static String text(String name) {
+    try {
+      return Files.readString(FOLDER.resolve(name), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   static ObjectNode load(String name) {
     try {
-      return (ObjectNode) SafeYamlLoader.load(FOLDER.resolve(name));
+      JsonNode tree = SafeYamlLoader.load(FOLDER.resolve(name));
+      if (!(tree instanceof ObjectNode object)) {
+        throw new IllegalStateException(name + " no es un objeto");
+      }
+      return object;
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -37,12 +53,12 @@ final class TestConfigurations {
   /** Replaces the node at a JSON Pointer path, which must exist. */
   static ObjectNode set(ObjectNode root, String path, JsonNode value) {
     JsonPointer pointer = JsonPointer.compile(path);
+    existing(root, path);
     JsonNode parent = root.at(pointer.head());
-    String last = pointer.last().getMatchingProperty();
     if (parent instanceof ArrayNode array) {
       array.set(pointer.last().getMatchingIndex(), value);
     } else {
-      ((ObjectNode) parent).set(last, value);
+      ((ObjectNode) parent).set(pointer.last().getMatchingProperty(), value);
     }
     return root;
   }
@@ -50,7 +66,15 @@ final class TestConfigurations {
   /** Removes the key at a JSON Pointer path, which must exist. */
   static ObjectNode remove(ObjectNode root, String path) {
     JsonPointer pointer = JsonPointer.compile(path);
+    existing(root, path);
     ((ObjectNode) root.at(pointer.head())).remove(pointer.last().getMatchingProperty());
     return root;
+  }
+
+  /** A typo in the path of a test fails with the path, not with a NullPointerException. */
+  private static void existing(ObjectNode root, String path) {
+    if (root.at(path).isMissingNode()) {
+      throw new IllegalArgumentException("la ruta no existe en la configuración: " + path);
+    }
   }
 }

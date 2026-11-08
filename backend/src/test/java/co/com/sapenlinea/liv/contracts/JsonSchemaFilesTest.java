@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.contracts;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -24,14 +25,15 @@ import tools.jackson.databind.JsonNode;
 /**
  * Meta-test of every JSON Schema in {@code contracts/jsonschema/<name>/} (feature 004, plan step 1;
  * ADR 0032): the file names, the dialect and the identifier, and the portable subset of Draft
- * 2020-12. It also proves 004-11: the schema fixes no tax value, because its only numeric bounds
- * are those of the convention, and {@code const}, {@code enum} and {@code pattern} appear only
- * where the plan puts them.
+ * 2020-12. It is also the gate of 004-11: the schema fixes no tax value, because its only numeric
+ * bounds are those of the convention, and {@code const}, {@code enum}, {@code pattern} and the
+ * bounds appear only where the plan puts them. A new version that needs another keyword, pattern or
+ * place changes these lists in the same review.
  */
 @DisplayName("Archivos de JSON Schema de los contratos (004-11)")
 class JsonSchemaFilesTest {
 
-  private static final Path ROOT = Path.of("contracts", "jsonschema");
+  private static final Path ROOT = CommonCases.JSON_SCHEMAS;
   private static final Pattern SCHEMA_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.json");
   private static final Pattern CASES_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.casos\\.json");
   private static final String DIALECT = "https://json-schema.org/draft/2020-12/schema";
@@ -60,19 +62,30 @@ class JsonSchemaFilesTest {
           "maximum",
           "exclusiveMinimum");
 
+  /** A subschema says what it accepts with at least one of these. */
+  private static final Set<String> CONSTRAINTS = Set.of("type", "$ref", "anyOf", "enum", "const");
+
+  /**
+   * The end of the text that Java, Python and ECMA read the same way: {@code $} also accepts a
+   * final line break.
+   */
+  private static final String END = "(?![\\s\\S])";
+
   /** The text classes of the plan ("Clases de texto", "Fechas", "DANE", "PENDIENTE"). */
   private static final Set<String> PATTERNS =
       Set.of(
-          "^(?!(PENDIENTE|POR_CONFIRMAR)$)[A-Z][A-Z0-9_]*$",
-          "^[a-z][a-z0-9_]*$",
-          "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
-          "^(?!PENDIENTE$).+$",
-          "^PENDIENTE$",
-          "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
-          "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
-          "^[0-9]{2}([0-9]{3})?$",
-          "^[0-9]{2}$",
-          "^[0-9]{8}$");
+          "^(?!(PENDIENTE|POR_CONFIRMAR)" + END + ")[A-Z][A-Z0-9_]*" + END,
+          "^[a-z][a-z0-9_]*" + END,
+          "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+" + END,
+          "^(?!PENDIENTE" + END + ")[\\s\\S]+" + END,
+          "^PENDIENTE" + END,
+          "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])" + END,
+          "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])" + END,
+          "^[0-9]{2}([0-9]{3})?" + END,
+          "^[0-9]{2}" + END,
+          "^[0-9]{8}" + END);
+
+  private static final String CALENDAR = "/properties/calendario/properties/vehiculos_nuevos";
 
   /** Where enum may appear: estado and the closed lists of 004-05, by their exact path. */
   private static final Set<String> ENUM_PATHS =
@@ -82,17 +95,26 @@ class JsonSchemaFilesTest {
           "/properties/base_gravable/properties/vehiculo_nuevo/properties/fuente_base",
           "/properties/beneficios/items/properties/tipo",
           "/properties/redondeo/properties/metodo",
-          "/properties/calendario/properties/vehiculos_nuevos/properties/plazo_pago_sin_intereses/properties/modo",
-          "/properties/calendario/properties/vehiculos_nuevos/properties/descuento/properties/modo",
+          CALENDAR + "/properties/plazo_pago_sin_intereses/properties/modo",
+          CALENDAR + "/properties/descuento/properties/modo",
           "/properties/recaudo/properties/descuento_pago_parcial");
 
-  /** The numeric bounds of the convention (004-11): 0 and 1 for fractions, 0 for the rest. */
-  private static final Map<String, Set<BigDecimal>> BOUNDS =
+  /** An enum value is a code, never a number or a tax value. */
+  private static final Pattern ENUM_VALUE = Pattern.compile("[A-Z][A-Z0-9_]*");
+
+  /**
+   * The numeric bounds of the convention (004-11), each with the only places where it may appear: 0
+   * and 1 for fractions, more than 0 for factors, 0 for the rest, and 1 as the minimum length.
+   */
+  private static final Map<String, Bound> BOUNDS =
       Map.of(
-          "minimum", Set.of(BigDecimal.ZERO),
-          "exclusiveMinimum", Set.of(BigDecimal.ZERO),
-          "maximum", Set.of(BigDecimal.ONE),
-          "minLength", Set.of(BigDecimal.ONE));
+          "minimum", new Bound(BigDecimal.ZERO, null),
+          "maximum", new Bound(BigDecimal.ONE, Set.of("/$defs/fraccion/anyOf/0")),
+          "exclusiveMinimum", new Bound(BigDecimal.ZERO, Set.of("/$defs/factor")),
+          "minLength", new Bound(BigDecimal.ONE, null));
+
+  /** The only value of a bound and, if not null, the only places where it may appear. */
+  private record Bound(BigDecimal value, Set<String> places) {}
 
   static Stream<Path> schemas() throws IOException {
     List<Path> schemas = new ArrayList<>();
@@ -109,7 +131,8 @@ class JsonSchemaFilesTest {
 
   @Test
   @DisplayName(
-      "004-12 · cada archivo es <MAYOR.MENOR>.json o <MAYOR.MENOR>.casos.json, y cada esquema tiene sus casos")
+      "Cada archivo es <MAYOR.MENOR>.json o <MAYOR.MENOR>.casos.json, sin enlaces,"
+          + " y cada esquema tiene sus casos")
   void fileNames() throws IOException {
     try (Stream<Path> folders = Files.list(ROOT)) {
       for (Path folder : folders.toList()) {
@@ -145,8 +168,7 @@ class JsonSchemaFilesTest {
     assertThat(schema.get("$schema").stringValue()).isEqualTo(DIALECT);
   }
 
-  @ParameterizedTest(
-      name = "{0}: su $id, su esquema_version y sus casos nombran la carpeta y la versión")
+  @ParameterizedTest(name = "{0}: su $id, su esquema_version y sus casos nombran carpeta y versión")
   @MethodSource("schemas")
   void identity(Path file) {
     String folder = name(file.getParent());
@@ -170,33 +192,82 @@ class JsonSchemaFilesTest {
   @Tag("004-11")
   void portableSubsetWithoutTaxValues(Path file) {
     List<String> problems = new ArrayList<>();
-    check(read(file), "", problems);
+    walk(read(file), "", problems);
 
     assertThat(problems).isEmpty();
   }
 
-  /** Walks every schema position of the document and writes what breaks the rules. */
-  private static void check(JsonNode schema, String path, List<String> problems) {
+  @Test
+  @DisplayName("ADR 0032 · el validador no carga esquemas remotos")
+  void noRemoteSchemas() {
+    JsonNode schema =
+        CommonCases.EXACT.readTree(
+            "{\"$schema\": \"" + DIALECT + "\", \"$ref\": \"http://127.0.0.1:9/otro.json\"}");
+
+    assertThatThrownBy(() ->
+            JurisdictionConfigSchemas.compile(schema).validate(CommonCases.EXACT.readTree("{}")))
+        .isInstanceOf(RuntimeException.class);
+  }
+
+  /** Checks every schema position of the document and goes down into its subschemas. */
+  private static void walk(JsonNode schema, String path, List<String> problems) {
     if (!schema.isObject()) {
       problems.add(path + ": un esquema debe ser un objeto");
       return;
     }
+    checkKeywords(schema, path, problems);
+    checkObjectsAndPatterns(schema, path, problems);
+    checkPlaces(schema, path, problems);
+    for (String container : List.of("properties", "$defs")) {
+      if (schema.has(container)) {
+        schema
+            .get(container)
+            .properties()
+            .forEach(e ->
+                walk(
+                    e.getValue(),
+                    path + "/" + container + "/" + JurisdictionConfigSchemas.escape(e.getKey()),
+                    problems));
+      }
+    }
+    if (schema.has("items")) {
+      walk(schema.get("items"), path + "/items", problems);
+    }
+    if (schema.has("anyOf")) {
+      for (int i = 0; i < schema.get("anyOf").size(); i++) {
+        walk(schema.get("anyOf").get(i), path + "/anyOf/" + i, problems);
+      }
+    }
+  }
+
+  /** Only keywords of the subset, a single type, a constraint and bounds of the convention. */
+  private static void checkKeywords(JsonNode schema, String path, List<String> problems) {
     for (Map.Entry<String, JsonNode> entry : schema.properties()) {
       String keyword = entry.getKey();
-      JsonNode value = entry.getValue();
       if (!KEYWORDS.contains(keyword)) {
         problems.add(path + ": palabra clave fuera del subconjunto: " + keyword);
       }
-      if (BOUNDS.containsKey(keyword)
-          && !(value.isNumber()
-              && BOUNDS.get(keyword).stream()
-                  .anyMatch(b -> b.compareTo(value.decimalValue()) == 0))) {
-        problems.add(path + ": límite " + keyword + " = " + value);
+      Bound bound = BOUNDS.get(keyword);
+      JsonNode value = entry.getValue();
+      if (bound != null
+          && (!value.isNumber()
+              || bound.value().compareTo(value.decimalValue()) != 0
+              || (bound.places() != null && !bound.places().contains(path)))) {
+        problems.add(path + ": límite " + keyword + " = " + value + " fuera de la convención");
       }
     }
+    if (schema.has("type") && !schema.get("type").isString()) {
+      problems.add(path + ": type debe ser un solo tipo");
+    }
+    if (!path.isEmpty() && CONSTRAINTS.stream().noneMatch(schema::has)) {
+      problems.add(path + ": un subesquema sin type, $ref, anyOf, enum ni const lo acepta todo");
+    }
+  }
+
+  /** Every object is strict, and every pattern is a text class of the plan, on a string. */
+  private static void checkObjectsAndPatterns(JsonNode schema, String path, List<String> problems) {
     if ((schema.has("properties") || isType(schema, "object"))
-        && !(schema.has("additionalProperties")
-            && schema.get("additionalProperties").isBoolean()
+        && !(schema.path("additionalProperties").isBoolean()
             && !schema.get("additionalProperties").booleanValue())) {
       problems.add(path + ": un objeto sin additionalProperties: false");
     }
@@ -208,41 +279,31 @@ class JsonSchemaFilesTest {
         problems.add(path + ": pattern fuera de las clases del plan: " + schema.get("pattern"));
       }
     }
+  }
+
+  /** $ref, const, enum, $id and $schema only where the plan puts them. */
+  private static void checkPlaces(JsonNode schema, String path, List<String> problems) {
     if (schema.has("$ref") && !schema.get("$ref").stringValue().startsWith("#/$defs/")) {
       problems.add(path + ": $ref externo: " + schema.get("$ref"));
     }
     if (schema.has("const") && !path.equals("/properties/esquema_version")) {
       problems.add(path + ": const fuera de esquema_version");
     }
-    if (schema.has("enum") && !ENUM_PATHS.contains(path)) {
-      problems.add(path + ": enum fuera de estado y de las listas cerradas de 004-05");
-    }
-    for (String container : List.of("properties", "$defs")) {
-      if (schema.has(container)) {
-        schema
-            .get(container)
-            .properties()
-            .forEach(e ->
-                check(
-                    e.getValue(),
-                    path + "/" + container + "/" + JurisdictionConfigSchemas.escape(e.getKey()),
-                    problems));
+    if (schema.has("enum")) {
+      if (!ENUM_PATHS.contains(path)) {
+        problems.add(path + ": enum fuera de estado y de las listas cerradas de 004-05");
       }
+      schema.get("enum").values().stream()
+          .filter(v -> !v.isString() || !ENUM_VALUE.matcher(v.stringValue()).matches())
+          .forEach(v -> problems.add(path + ": valor de enum que no es un código: " + v));
     }
-    if (schema.has("items")) {
-      check(schema.get("items"), path + "/items", problems);
-    }
-    if (schema.has("anyOf")) {
-      for (int i = 0; i < schema.get("anyOf").size(); i++) {
-        check(schema.get("anyOf").get(i), path + "/anyOf/" + i, problems);
-      }
+    if (!path.isEmpty() && (schema.has("$id") || schema.has("$schema"))) {
+      problems.add(path + ": $id o $schema fuera de la raíz");
     }
   }
 
   private static boolean isType(JsonNode schema, String type) {
-    return schema.has("type")
-        && schema.get("type").isString()
-        && schema.get("type").stringValue().equals(type);
+    return schema.path("type").isString() && schema.get("type").stringValue().equals(type);
   }
 
   private static JsonNode read(Path file) {
@@ -251,7 +312,9 @@ class JsonSchemaFilesTest {
 
   private static String version(Path file) {
     Matcher matcher = SCHEMA_FILE.matcher(name(file));
-    assertThat(matcher.matches()).isTrue();
+    if (!matcher.matches()) {
+      throw new IllegalArgumentException(file + " no es un esquema <MAYOR.MENOR>.json");
+    }
     return matcher.group(1);
   }
 
