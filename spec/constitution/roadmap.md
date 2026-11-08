@@ -9,6 +9,7 @@ _Orden y estado de las features. Es la vista de "qué hay hecho, qué toca ahora
 _Features completadas, en orden de implementación._
 
 - ✅ **[001 · Inicio de sesión](../features/001-inicio-de-sesion/spec.md)** — hecha el 2026-11-06. Inicio de sesión con Keycloak por el BFF (sin *tokens* en el navegador), segundo factor por rol, sesión con inactividad y duración máxima, menú por permisos de tres niveles, *layout* y pantallas de error. Endurecida (T19) y con pruebas de navegador (T23). Los 24 criterios de la spec están probados. Quedan para T24, antes de producción: imágenes, TLS, el e2e en CI y la CSP con *nonce* del frontend. Feature de plataforma y guía de referencia del flujo SDD; incluye el entregable F0‑05b.
+- ✅ **[003 · CI obligatorio en main](../features/003-ci-obligatorio/spec.md)** — hecha el 2026-11-07. Los *workflows* de PR corren siempre, cada verificación se omite solo si su proyecto no cambió y la protección de `main` exige la verificación de cada proyecto y los contratos (condición 2 del cierre de la Fase 0, ADR 0031).
 
 ## Siguiente 🔜
 
