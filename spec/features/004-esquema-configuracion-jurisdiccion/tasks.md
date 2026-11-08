@@ -6,14 +6,16 @@ Un PR por paso del plan, en su orden: cada paso usa lo que integró el anterior 
 
 ## Paso 1 · Backend: el esquema y sus pruebas (rama `feat/004-esquema-backend`)
 
-- [ ] **T1** · Carga segura del YAML con el subconjunto portable (plan, «Subconjunto portable de YAML»).
-  - **Archivos:** `backend/src/test/java/co/com/sapenlinea/liv/contracts/SafeYamlLoader.java`, `SafeYamlLoaderTest.java` y la sección `carga` de `backend/contracts/jsonschema/config-jurisdiccion/1.0.casos.json`.
+Un solo PR, que pasa de ~400 líneas y se justifica en su descripción (Q12), como permite el plan (riesgo «Tamaño del PR del paso 1»): las correcciones de la revisión tocan a la vez el cargador y el esquema.
+
+- [x] **T1** · Carga segura del YAML con el subconjunto portable (plan, «Subconjunto portable de YAML»).
+  - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: `SafeYamlLoader.java`, `SafeYamlLoaderTest.java` y `CommonCases.java` (lee los casos con números exactos) y la sección `carga` de `backend/contracts/jsonschema/config-jurisdiccion/1.0.casos.json`.
   - **Prueba primero:** `SafeYamlLoaderTest` sobre los casos de carga (004‑10 y las reglas 1 a 5 del subconjunto), en rojo sin el cargador. Si SnakeYAML no permite alguna regla, se detiene aquí y se replantea.
-- [ ] **T2** · Esquema 1.0 y sus pruebas (plan, «Contenido del esquema 1.0»).
-  - **Archivos:** `backend/pom.xml` (`networknt` 3.0.9 en `test`, ADR 0032), `backend/contracts/jsonschema/config-jurisdiccion/1.0.json`, la sección `validacion` de `1.0.casos.json`, en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: `JurisdictionConfigSchemas.java` (ayuda de las pruebas que elige el esquema por `esquema_version` antes de validar, fila «Versión» del plan, 004‑09), `JurisdictionConfigSchemaTest.java`, `JurisdictionConfigSchemaMutationTest.java`, `JurisdictionConfigCommonCasesTest.java` y `JsonSchemaFilesTest.java`; las copias de los dos anexos en `backend/src/test/resources/contracts/jsonschema/config-jurisdiccion/`.
+- [x] **T2** · Esquema 1.0 y sus pruebas (plan, «Contenido del esquema 1.0»).
+  - **Archivos:** `backend/pom.xml` (`networknt` 3.0.9 en `test`, ADR 0032), `backend/contracts/jsonschema/config-jurisdiccion/1.0.json`, la sección `validacion` de `1.0.casos.json`, en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: `JurisdictionConfigSchemas.java` (ayuda de las pruebas que elige el esquema por `esquema_version` antes de validar, fila «Versión» del plan, 004‑09), `TestConfigurations.java` (carga y cambia las configuraciones de prueba), `JurisdictionConfigFieldClasses.java` y `JurisdictionConfigFieldTable.java` (la clase de cada campo según el plan, oráculo de la mutación), `JurisdictionConfigSchemaTest.java`, `JurisdictionConfigSchemaMutationTest.java`, `JurisdictionConfigCommonCasesTest.java` y `JsonSchemaFilesTest.java`; `CommonCases.java` (rutas desde `basedir`); las copias de los dos anexos en `backend/src/test/resources/contracts/jsonschema/config-jurisdiccion/`; `backend/.gitattributes` (`contracts/jsonschema/**` con LF, como se publica).
   - **Prueba primero:** las cuatro clases de prueba, en rojo sin `1.0.json`: un caso por criterio (CJ01, 004‑01 a 004‑11) con su código en el `@DisplayName`, la mutación de cada nodo de las dos configuraciones, los casos comunes y la meta‑prueba.
   - **Verificación local:** `./mvnw verify` en `backend/` y `./mvnw dependency:tree` (SnakeYAML sigue en `compile`).
-- [ ] **T3** · Documentación del paso 1.
+- [x] **T3** · Documentación del paso 1. T1 a T3 en el PR #141, con la revisión adversarial y las cuatro lentes en dos rondas.
   - **Archivos:** `backend/README.md` (sección del esquema) y `backend/CHANGELOG.md` («Sin publicar»).
 
 ## Paso 2 · Backend: inmutabilidad y publicación (rama `feat/004-esquema-publicacion`)
