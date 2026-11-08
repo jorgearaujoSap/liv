@@ -66,10 +66,14 @@ class JsonSchemaFilesTest {
   private static final Set<String> CONSTRAINTS = Set.of("type", "$ref", "anyOf", "enum", "const");
 
   /**
-   * The end of the text that Java, Python and ECMA read the same way: {@code $} also accepts a
-   * final line break.
+   * The end of the text that every engine reads the same way. With {@code $}, Python ({@code
+   * re.search}) and ECMA accept a final line break; networknt turns {@code $} into {@code \z}, so
+   * in Java this list, and not the behaviour, is what keeps the patterns portable.
    */
   private static final String END = "(?![\\s\\S])";
+
+  /** Text without control characters or line breaks, which the loader also rejects. */
+  private static final String NO_CONTROL = "[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]";
 
   /** The text classes of the plan ("Clases de texto", "Fechas", "DANE", "PENDIENTE"). */
   private static final Set<String> PATTERNS =
@@ -77,7 +81,7 @@ class JsonSchemaFilesTest {
           "^(?!(PENDIENTE|POR_CONFIRMAR)" + END + ")[A-Z][A-Z0-9_]*" + END,
           "^[a-z][a-z0-9_]*" + END,
           "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+" + END,
-          "^(?!PENDIENTE" + END + ")[\\s\\S]+" + END,
+          "^(?!PENDIENTE" + END + ")" + NO_CONTROL + "+" + END,
           "^PENDIENTE" + END,
           "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])" + END,
           "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])" + END,
@@ -204,9 +208,24 @@ class JsonSchemaFilesTest {
         CommonCases.EXACT.readTree(
             "{\"$schema\": \"" + DIALECT + "\", \"$ref\": \"http://127.0.0.1:9/otro.json\"}");
 
+    // With remote loading on, it tries to connect and fails with a SocketException; here it never
+    // connects.
     assertThatThrownBy(() ->
             JurisdictionConfigSchemas.compile(schema).validate(CommonCases.EXACT.readTree("{}")))
-        .isInstanceOf(RuntimeException.class);
+        .isInstanceOf(RuntimeException.class)
+        .satisfies(e -> {
+          for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            assertThat(cause).isNotInstanceOf(java.net.SocketException.class);
+          }
+        });
+  }
+
+  @Test
+  @DisplayName("ADR 0032 · jackson-dataformat-yaml no está en el classpath de las pruebas")
+  void noJacksonYaml() {
+    // With it, Spring would register an application/yaml converter without the loader's rules.
+    assertThatThrownBy(() -> Class.forName("tools.jackson.dataformat.yaml.YAMLMapper"))
+        .isInstanceOf(ClassNotFoundException.class);
   }
 
   /** Checks every schema position of the document and goes down into its subschemas. */
@@ -232,6 +251,9 @@ class JsonSchemaFilesTest {
     }
     if (schema.has("items")) {
       walk(schema.get("items"), path + "/items", problems);
+    }
+    if (schema.path("additionalProperties").isObject()) {
+      walk(schema.get("additionalProperties"), path + "/additionalProperties", problems);
     }
     if (schema.has("anyOf")) {
       for (int i = 0; i < schema.get("anyOf").size(); i++) {

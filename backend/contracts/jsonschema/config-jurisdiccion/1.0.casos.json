@@ -1,5 +1,5 @@
 {
-  "$comment": "Casos comunes del esquema 1.0 de la configuración de jurisdicción (ADR 0032). Todo cargador y todo validador de esta versión deben dar lo mismo: las pruebas del backend y las del validador de la raíz corren este archivo. 'carga': el subconjunto portable de YAML; si se rechaza, 'motivo' es el código que debe dar el cargador. 'validacion': el YAML se carga y se valida contra el esquema; si es inválido, 'rutas' son las rutas JSON Pointer de los errores, con la de la clave en 'required' y 'additionalProperties'. Si un caso trae 'repetir', el YAML es su texto repetido ese número de veces. El árbol se compara con tipo y escala: un entero no es igual a un decimal (1000 frente a 1000.0), un booleano no es un número y 0.10 no es igual a 0.1. Reglas de carga, en este orden: (1) el texto en UTF-8, de hasta 1 MiB (TAMANO); (2) sin caracteres U+0000 a U+001F, salvo el salto de línea y el retorno de carro, ni U+007F a U+009F, U+2028, U+2029 o U+FEFF, también en los comentarios (CARACTER_DE_CONTROL); (3) YAML bien formado (SINTAXIS); (4) en el orden del documento: sin directivas, un solo documento, sin etiquetas, anclas, alias ni fusiones, hasta 20 niveles de colecciones, claves de texto sin repetir, sin caracteres de control en claves y valores, y escalares sin comillas solo como true, false, null, enteros y decimales sin exponente de hasta 30 dígitos, fechas AAAA-MM-DD (que quedan como texto) y textos que no empiezan con un dígito o un punto, ni con un signo seguido de un dígito o un punto, ni son y, n, yes, no, on, off, true, false o null en otras mayúsculas, ni ~, << o =. Un archivo que no es UTF-8 válido se rechaza con CODIFICACION.",
+  "$comment": "Casos comunes del esquema 1.0 de la configuración de jurisdicción (ADR 0032). Todo cargador y todo validador de esta versión deben dar lo mismo: las pruebas del backend y las del validador de la raíz corren este archivo. 'carga': el subconjunto portable de YAML; si se rechaza, 'motivo' es el código que debe dar el cargador. 'validacion': el YAML se carga y se valida contra el esquema; si es inválido, 'rutas' son las rutas JSON Pointer de los errores, con la de la clave en 'required' y 'additionalProperties'; un caso de validación con 'arbol' en lugar de 'yaml' valida ese árbol JSON tal cual, sin el cargador. Si un caso trae 'repetir', el YAML es su texto repetido ese número de veces; un caso aceptado sin 'arbol' solo comprueba que se acepta. El árbol se compara con tipo y escala: un entero no es igual a un decimal (1000 frente a 1000.0), un booleano no es un número y 0.10 no es igual a 0.1. Reglas de carga, en este orden: (1) hasta 1 MiB, medido en bytes UTF-8 (TAMANO); (2) un archivo que no es UTF-8 válido (CODIFICACION); (3) sin caracteres U+0000 a U+001F, salvo el salto de línea y el retorno de carro, ni U+007F a U+009F, U+2028, U+2029, U+FEFF, U+FFFE o U+FFFF, en ninguna parte del texto, también en los comentarios (CARACTER_DE_CONTROL); (4) YAML bien formado (SINTAXIS); (5) en el orden del documento: sin directivas (DIRECTIVA), un solo documento (DOCUMENTOS) y, en cada nodo y en este orden, sin alias (ALIAS), anclas (ANCLA) ni etiquetas (ETIQUETA), hasta 20 niveles de colecciones (PROFUNDIDAD) y, en cada clave y en este orden, que sea un escalar (CLAVE_NO_TEXTO), sin los caracteres de (3) ni salto de línea o retorno de carro (CARACTER_DE_CONTROL), que no sea << ni = (FUSION), que sin comillas sea texto (CLAVE_NO_TEXTO) y que no se repita (CLAVE_REPETIDA); en cada valor escalar, sin los caracteres de (3) ni salto de línea o retorno de carro (CARACTER_DE_CONTROL) y, sin comillas, solo true, false, null, enteros y decimales sin exponente de hasta 30 dígitos (NUMERO_LARGO), fechas AAAA-MM-DD (que quedan como texto) y textos que no estén vacíos (VALOR_VACIO), no sean << ni = (FUSION) y no empiecen con un dígito o un punto, ni con un signo seguido de un dígito o un punto, ni sean y, n, yes, no, on, off, true, false o null en otras mayúsculas, ni ~ (ESCALAR_AMBIGUO).",
   "esquema": "config-jurisdiccion",
   "version": "1.0",
   "carga": [
@@ -189,6 +189,12 @@
         "a": 999999999999999999999999999999,
         "b": -0.11111111111111111111111111111
       }
+    },
+    {
+      "caso": "exactamente 1 MiB con caracteres de dos bytes",
+      "yaml": "- aññññññ\n",
+      "aceptado": true,
+      "repetir": 65536
     },
     {
       "caso": "etiqueta que construye un objeto",
@@ -742,6 +748,55 @@
       "yaml": "a: yes\nb: &x 1\n",
       "aceptado": false,
       "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "ancla y etiqueta en el mismo nodo",
+      "yaml": "a: !!str &x b\n",
+      "aceptado": false,
+      "motivo": "ANCLA"
+    },
+    {
+      "caso": "etiqueta antes que el ancla en el texto",
+      "yaml": "a: &x !!str b\n",
+      "aceptado": false,
+      "motivo": "ANCLA"
+    },
+    {
+      "caso": "clave sin comillas con un salto de línea",
+      "yaml": "? 1\n\n  2\n: x\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "retorno de carro escapado",
+      "yaml": "a: \"x\\ry\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "etiqueta con un salto de línea escapado",
+      "yaml": "a: !foo%0A::error::x 1\n",
+      "aceptado": false,
+      "motivo": "ETIQUETA"
+    },
+    {
+      "caso": "no carácter U+FFFE",
+      "yaml": "a: x\ufffey\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "no carácter U+FFFF",
+      "yaml": "a: x\uffffy\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "más de 1 MiB con caracteres de dos bytes",
+      "yaml": "- aññññññ\n",
+      "aceptado": false,
+      "motivo": "TAMANO",
+      "repetir": 65537
     }
   ],
   "validacion": [
@@ -1056,6 +1111,222 @@
       "valido": false,
       "rutas": [
         "/esquema_version"
+      ]
+    },
+    {
+      "caso": "árbol: salto de línea final en un código",
+      "arbol": {
+        "esquema_version": "1.0",
+        "jurisdiccion": {
+          "tipo": "MUNICIPIO",
+          "codigo_dane": "52356",
+          "nombre": "Ipiales",
+          "administracion": {
+            "nombre": "Secretaría de Hacienda",
+            "nit": "PENDIENTE"
+          },
+          "departamento_padre_dane": "52",
+          "estado": "VIGENTE"
+        },
+        "competencia": {
+          "modalidades": {},
+          "estado": "VIGENTE"
+        },
+        "vigencia": {
+          "anio": 2026,
+          "inicio": "2026-01-01",
+          "fin": "2026-12-31",
+          "version_config": 1
+        },
+        "normas": [],
+        "distribucion_recaudo": {
+          "origen": "DERIVADA_DE_COMPETENCIA\n",
+          "estado": "VIGENTE"
+        }
+      },
+      "valido": false,
+      "rutas": [
+        "/distribucion_recaudo/origen"
+      ]
+    },
+    {
+      "caso": "árbol: salto de línea final en una fecha",
+      "arbol": {
+        "esquema_version": "1.0",
+        "jurisdiccion": {
+          "tipo": "MUNICIPIO",
+          "codigo_dane": "52356",
+          "nombre": "Ipiales",
+          "administracion": {
+            "nombre": "Secretaría de Hacienda",
+            "nit": "PENDIENTE"
+          },
+          "departamento_padre_dane": "52",
+          "estado": "VIGENTE"
+        },
+        "competencia": {
+          "modalidades": {},
+          "estado": "VIGENTE"
+        },
+        "vigencia": {
+          "anio": 2026,
+          "inicio": "2026-01-01",
+          "fin": "2026-12-31\n",
+          "version_config": 1
+        },
+        "normas": [],
+        "distribucion_recaudo": {
+          "origen": "DERIVADA_DE_COMPETENCIA",
+          "estado": "VIGENTE"
+        }
+      },
+      "valido": false,
+      "rutas": [
+        "/vigencia/fin"
+      ]
+    },
+    {
+      "caso": "árbol: PENDIENTE con salto de línea final en una fecha",
+      "arbol": {
+        "esquema_version": "1.0",
+        "jurisdiccion": {
+          "tipo": "MUNICIPIO",
+          "codigo_dane": "52356",
+          "nombre": "Ipiales",
+          "administracion": {
+            "nombre": "Secretaría de Hacienda",
+            "nit": "PENDIENTE"
+          },
+          "departamento_padre_dane": "52",
+          "estado": "VIGENTE"
+        },
+        "competencia": {
+          "modalidades": {},
+          "estado": "VIGENTE"
+        },
+        "vigencia": {
+          "anio": 2026,
+          "inicio": "2026-01-01",
+          "fin": "PENDIENTE\n",
+          "version_config": 1
+        },
+        "normas": [],
+        "distribucion_recaudo": {
+          "origen": "DERIVADA_DE_COMPETENCIA",
+          "estado": "VIGENTE"
+        }
+      },
+      "valido": false,
+      "rutas": [
+        "/vigencia/fin"
+      ]
+    },
+    {
+      "caso": "árbol: retorno de carro y salto de línea finales en un código DANE",
+      "arbol": {
+        "esquema_version": "1.0",
+        "jurisdiccion": {
+          "tipo": "MUNICIPIO",
+          "codigo_dane": "52356\r\n",
+          "nombre": "Ipiales",
+          "administracion": {
+            "nombre": "Secretaría de Hacienda",
+            "nit": "PENDIENTE"
+          },
+          "departamento_padre_dane": "52",
+          "estado": "VIGENTE"
+        },
+        "competencia": {
+          "modalidades": {},
+          "estado": "VIGENTE"
+        },
+        "vigencia": {
+          "anio": 2026,
+          "inicio": "2026-01-01",
+          "fin": "2026-12-31",
+          "version_config": 1
+        },
+        "normas": [],
+        "distribucion_recaudo": {
+          "origen": "DERIVADA_DE_COMPETENCIA",
+          "estado": "VIGENTE"
+        }
+      },
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/codigo_dane"
+      ]
+    },
+    {
+      "caso": "árbol: separador de línea final en un código DANE",
+      "arbol": {
+        "esquema_version": "1.0",
+        "jurisdiccion": {
+          "tipo": "MUNICIPIO",
+          "codigo_dane": "52356\u2028",
+          "nombre": "Ipiales",
+          "administracion": {
+            "nombre": "Secretaría de Hacienda",
+            "nit": "PENDIENTE"
+          },
+          "departamento_padre_dane": "52",
+          "estado": "VIGENTE"
+        },
+        "competencia": {
+          "modalidades": {},
+          "estado": "VIGENTE"
+        },
+        "vigencia": {
+          "anio": 2026,
+          "inicio": "2026-01-01",
+          "fin": "2026-12-31",
+          "version_config": 1
+        },
+        "normas": [],
+        "distribucion_recaudo": {
+          "origen": "DERIVADA_DE_COMPETENCIA",
+          "estado": "VIGENTE"
+        }
+      },
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/codigo_dane"
+      ]
+    },
+    {
+      "caso": "árbol: booleano en lugar de un código",
+      "arbol": {
+        "esquema_version": "1.0",
+        "jurisdiccion": {
+          "tipo": "MUNICIPIO",
+          "codigo_dane": "52356",
+          "nombre": "Ipiales",
+          "administracion": {
+            "nombre": "Secretaría de Hacienda",
+            "nit": "PENDIENTE"
+          },
+          "departamento_padre_dane": "52",
+          "estado": "VIGENTE"
+        },
+        "competencia": {
+          "modalidades": {},
+          "estado": "VIGENTE"
+        },
+        "vigencia": {
+          "anio": 2026,
+          "inicio": "2026-01-01",
+          "fin": "2026-12-31",
+          "version_config": 1
+        },
+        "normas": [],
+        "distribucion_recaudo": {
+          "origen": true,
+          "estado": "VIGENTE"
+        }
+      },
+      "valido": false,
+      "rutas": [
+        "/distribucion_recaudo/origen"
       ]
     }
   ]

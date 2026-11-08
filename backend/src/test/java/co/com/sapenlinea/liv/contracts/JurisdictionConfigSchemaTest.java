@@ -185,7 +185,8 @@ class JurisdictionConfigSchemaTest {
   @Test
   @Tag("004-07")
   @DisplayName(
-      "004-07 · un salto de línea final no cumple un patrón, aunque el árbol no venga del cargador")
+      "004-07 · en Java, un salto de línea final no cumple un patrón (en Python lo fijan los casos"
+          + " comunes con árbol)")
   void trailingLineBreak() {
     assertInvalid("/distribucion_recaudo/origen", "DERIVADA_DE_COMPETENCIA\n");
     assertInvalid("/vigencia/fin", "2026-12-31\n");

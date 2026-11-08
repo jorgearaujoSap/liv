@@ -206,6 +206,9 @@ class JurisdictionConfigSchemaMutationTest {
   private record Generator(String configuration, Oracle oracle, List<Arguments> out) {
 
     void walk(JsonNode node, String path, String general) {
+      if (!path.isEmpty()) {
+        otherType(path);
+      }
       if (node.isObject()) {
         object((ObjectNode) node, path, general);
       } else if (node.isArray()) {
@@ -217,6 +220,10 @@ class JurisdictionConfigSchemaMutationTest {
     private void array(JsonNode node, String path, String general) {
       FieldClass items = JurisdictionConfigFieldClasses.of(general + "[]");
       if (items != null) {
+        add(
+            "CJ01 · null como elemento de " + path,
+            root -> TestConfigurations.set(root, path, NODES.arrayNode().add(NODES.nullNode())),
+            Set.of(path + "/0"));
         for (Probe probe : items.probes()) {
           add(
               "004-05 · " + label(probe) + " en " + path + "/0 (" + items.name() + ")",
@@ -268,6 +275,20 @@ class JurisdictionConfigSchemaMutationTest {
           "CJ01 · null en " + path + (nullable ? " (vale)" : " (no vale)"),
           root -> TestConfigurations.set(root, path, NODES.nullNode()),
           nullable ? Set.of() : Set.of(path));
+    }
+
+    /**
+     * An object or a list is never null and never a text (the plan admits null only in scalars).
+     */
+    private void otherType(String path) {
+      add(
+          "CJ01 · null en lugar de " + path,
+          root -> TestConfigurations.set(root, path, NODES.nullNode()),
+          Set.of(path));
+      add(
+          "CJ01 · un texto en lugar de " + path,
+          root -> TestConfigurations.set(root, path, NODES.stringNode("x")),
+          Set.of(path));
     }
 
     private void add(String description, UnaryOperator<ObjectNode> change, Set<String> expected) {

@@ -53,7 +53,10 @@ class SafeYamlLoaderTest {
   void acceptsThePortableSubset(String name, JsonNode testCase) {
     JsonNode tree = SafeYamlLoader.load(yaml(testCase));
 
-    assertThat(tree).isEqualTo(testCase.get("arbol"));
+    // A repeated case has no tree: it is too big to write, and only its acceptance counts.
+    if (testCase.has("arbol")) {
+      assertThat(tree).isEqualTo(testCase.get("arbol"));
+    }
   }
 
   @ParameterizedTest(name = "004-10 · se rechaza: {0}")
@@ -63,8 +66,26 @@ class SafeYamlLoaderTest {
 
     assertThatThrownBy(() -> SafeYamlLoader.load(yaml))
         .isInstanceOf(UnsafeYamlException.class)
-        .extracting(e -> ((UnsafeYamlException) e).reason().name())
-        .isEqualTo(testCase.get("motivo").stringValue());
+        .satisfies(e -> {
+          assertThat(((UnsafeYamlException) e).reason().name())
+              .isEqualTo(testCase.get("motivo").stringValue());
+          // A fragment of the YAML in the message can never start a line of a log.
+          assertThat(e.getMessage()).doesNotContain("\n", "\r", "\u0085", "\u2028");
+        });
+  }
+
+  @Test
+  @DisplayName("004-10 · un archivo de más de 1 MiB se rechaza antes de leerlo y de decodificarlo")
+  void sizeBeforeEncoding(@TempDir Path folder) throws Exception {
+    Path file = folder.resolve("grande.yaml");
+    byte[] bytes = new byte[SafeYamlLoader.MAX_BYTES + 1];
+    java.util.Arrays.fill(bytes, (byte) 0xFF);
+    Files.write(file, bytes);
+
+    assertThatThrownBy(() -> SafeYamlLoader.load(file))
+        .isInstanceOf(UnsafeYamlException.class)
+        .extracting(e -> ((UnsafeYamlException) e).reason())
+        .isEqualTo(Reason.TAMANO);
   }
 
   @Test

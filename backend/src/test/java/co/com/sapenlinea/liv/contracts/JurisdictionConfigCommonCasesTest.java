@@ -31,7 +31,11 @@ class JurisdictionConfigCommonCasesTest {
   @ParameterizedTest(name = "CJ01 · {0}")
   @MethodSource("cases")
   void validation(String name, JsonNode testCase) {
-    JsonNode configuration = SafeYamlLoader.load(testCase.get("yaml").stringValue());
+    // A case with "arbol" checks the schema alone, without the loader (e.g. a final line break).
+    JsonNode configuration =
+        testCase.has("arbol")
+            ? testCase.get("arbol")
+            : SafeYamlLoader.load(testCase.get("yaml").stringValue());
     Set<String> expected = new TreeSet<>();
     if (!testCase.get("valido").booleanValue()) {
       testCase.get("rutas").values().forEach(r -> expected.add(r.stringValue()));
