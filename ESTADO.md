@@ -161,7 +161,10 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
     - y `publish`: la *release* `jsonschema-<nombre>-v<MAYOR.MENOR>` con el protocolo de `publish.sh`. Los dos leen lo guardado en Git, no los archivos del disco;
     - los escenarios están en `test/jsonschema-escenarios.sh`, que `run.sh` carga y exige (211 comprobaciones en el `run.sh` completo, con `dash` y el `gh` falso), más el README y el CHANGELOG del backend. No se tocó `.github/` ni se publicó ninguna *release*.
   - **Revisión:** adversarial con dos revisores de nivel alto y las cuatro lentes, en dos rondas, sin críticos. Se corrigieron los dos hallazgos altos de la primera ronda (la comprobación leía los archivos del disco y no los guardados en Git, y un enlace simbólico en la ruta del proyecto la engañaba) y los medios.
-  - **Para el responsable (detalle en el PR):** las *releases* con archivos de más no se detectan (también pasa en `publish.sh`); las guardas comprueban que existan el *script* y sus pruebas, no su contenido; y el paso 3 tiene tres requisitos: juzgar el *merge commit* con `fetch-depth: 2`, un grupo `concurrency` en la publicación y los *scripts* de la base.
+  - **Decisiones del responsable (2026-11-08):**
+    - las *releases* con archivos de más no se detectan (también pasa en `publish.sh`): se arregla en un PR aparte, para los dos *scripts*, después de este;
+    - las guardas comprueban que existan el *script* y sus pruebas, no su contenido: se acepta y se anota en los Riesgos de `plan.md` en el paso 6, a la espera de CODEOWNERS cuando haya una segunda persona.
+  - **Para el paso 3 (detalle en el PR):** juzgar el *merge commit* con `fetch-depth: 2`, un grupo `concurrency` en la publicación y los *scripts* de la base.
 - **Orquestador de la feature en curso (ADR 0033), decidido por el responsable:**
   - la *skill* `liv-orquestador` dirige la feature en curso: lanza cada fase y cada tarea en una sesión nueva, paraleliza solo dentro de la feature lo que no depende de otra tarea ni comparte recursos (hasta tres sesiones a la vez), supervisa, valida y escala a la persona;
   - se mantiene una sola feature a la vez; la persona elige cuál empieza, aprueba H1, H2 y H3 de cada PR y lo integra. El orquestador no integra de ninguna forma;
