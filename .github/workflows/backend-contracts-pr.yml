@@ -1,5 +1,6 @@
 # Compuerta Q08 del backend (doc. 04 §8): los contratos OpenAPI no tienen cambios incompatibles sin aprobar
-# (doc. 01 §10, ADR 0027). Solo orquesta los scripts de contracts/scripts/ de cada proyecto (IN‑08): la API
+# (doc. 01 §10, ADR 0027) y los esquemas JSON de contracts/jsonschema/ no cambian una vez integrados (feature 004,
+# ADR 0032). Solo orquesta los scripts de contracts/scripts/ de cada proyecto (IN‑08): la API
 # (backend/) y el BFF (backend/bff/), que tiene su propia copia desde T18; mientras no la tenga, su trabajo no
 # hace nada.
 # Juzga el comparador de la base (la punta de main, con su pom.xml), no el del PR: un PR no puede cambiar la regla
@@ -193,6 +194,43 @@ jobs:
           LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
         run: sh "$JUDGE/contracts/scripts/compare.sh" HEAD^1
+
+      # Esquemas JSON del backend (feature 004, ADR 0032): una versión que ya está en la base no cambia ni se quita.
+      # Solo en la pierna backend: el BFF no tiene esquemas. Corre aunque la comparación de los contratos haya
+      # fallado, para que el PR vea las dos fallas a la vez.
+      # El juez es el script de la base, con el lib.sh de la base, en un worktree aparte: un PR que cambie o
+      # debilite jsonschema.sh no cambia con qué se lo juzga.
+      # check juzga el commit HEAD (el merge del PR) contra HEAD^1; si HEAD^1 no existe, el paso falla.
+      - name: Esquemas JSON de contracts/jsonschema/ (inmutables)
+        if: ${{ !cancelled() && matrix.project == 'backend' }}
+        working-directory: .
+        run: |
+          if ! git rev-parse -q --verify 'HEAD^1^{commit}' > /dev/null; then
+            echo "::error::HEAD no tiene primer padre: sin la punta de la base no se puede juzgar. Se espera el merge del PR, con fetch-depth 2."
+            exit 1
+          fi
+          if ! schemas_dir=$(git ls-tree HEAD^1 -- backend/contracts/jsonschema) ||
+             ! base_script=$(git ls-tree HEAD^1 -- backend/contracts/scripts/jsonschema.sh); then
+            echo "::error::No se pudo leer la base con git ls-tree."
+            exit 1
+          fi
+          if [ -z "$schemas_dir" ]; then
+            echo "La base aún no tiene backend/contracts/jsonschema/: no hay versiones que proteger."
+            exit 0
+          fi
+          if [ -n "$base_script" ]; then
+            git worktree add --detach "$RUNNER_TEMP/base-esquemas" HEAD^1
+            judge="$RUNNER_TEMP/base-esquemas/backend"
+          elif [ -f backend/contracts/scripts/jsonschema.sh ]; then
+            echo "La base aún no tiene contracts/scripts/jsonschema.sh: juzga el del PR, que lo restaura."
+            judge="$GITHUB_WORKSPACE/backend"
+          else
+            echo "::error::backend tiene esquemas pero no contracts/scripts/jsonschema.sh, ni en la base ni en el PR."
+            exit 1
+          fi
+          # LIV_CONTRACTS_ROOT es el checkout del PR. Sin ella, el script del worktree de la base juzgaría a la base
+          # contra sí misma y todo pasaría.
+          LIV_CONTRACTS_ROOT="$GITHUB_WORKSPACE/backend" sh "$judge/contracts/scripts/jsonschema.sh" check HEAD^1
 
   # El check obligatorio de los contratos (ruleset «main»). Corre siempre y aprueba solo en dos casos; cualquier otra
   # combinación (failure, cancelled, un resultado inesperado) lo deja en rojo.
