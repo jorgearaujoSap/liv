@@ -214,15 +214,22 @@ jobs:
             echo "::error::No se pudo leer la base con git ls-tree."
             exit 1
           fi
-          if [ -z "$schemas_dir" ]; then
-            echo "La base aún no tiene backend/contracts/jsonschema/: no hay versiones que proteger."
+          # Con la base sin la carpeta y el PR con ella, check sigue juzgando la forma de lo que el PR agrega.
+          if [ -z "$schemas_dir" ] && ! git cat-file -e HEAD:backend/contracts/jsonschema 2> /dev/null; then
+            echo "Ni la base ni el PR tienen backend/contracts/jsonschema/: no hay versiones que proteger."
             exit 0
           fi
           if [ -n "$base_script" ]; then
             git worktree add --detach "$RUNNER_TEMP/base-esquemas" HEAD^1
             judge="$RUNNER_TEMP/base-esquemas/backend"
           elif [ -f backend/contracts/scripts/jsonschema.sh ]; then
-            echo "La base aún no tiene contracts/scripts/jsonschema.sh: juzga el del PR, que lo restaura."
+            # Caso para restaurar un script que se quitó, y lo avisa con una anotación: el juez es el del PR, así que
+            # ese PR solo lo restaura y no toca los esquemas.
+            echo "::warning::La base no tiene contracts/scripts/jsonschema.sh: juzga el del PR, que lo restaura."
+            if ! git diff --quiet HEAD^1 HEAD -- backend/contracts/jsonschema/; then
+              echo "::error::Un PR que restaura jsonschema.sh no cambia también los esquemas."
+              exit 1
+            fi
             judge="$GITHUB_WORKSPACE/backend"
           else
             echo "::error::backend tiene esquemas pero no contracts/scripts/jsonschema.sh, ni en la base ni en el PR."

@@ -115,7 +115,8 @@ jobs:
   # Los esquemas JSON del backend (feature 004, ADR 0032), como releases jsonschema-<nombre>-v<MAYOR.MENOR>. Va en un
   # trabajo propio, sin needs, para que una falla al publicar un contrato OpenAPI no deje el esquema sin publicar, ni
   # al revés. Solo el backend tiene esquemas. Las versiones no cambian: si la release ya existe con otro contenido,
-  # falla; si ya existe igual, no la toca; así que correrlo de nuevo (Re-run o workflow_dispatch) es seguro.
+  # falla; si ya existe igual, no la toca; así que correrlo de nuevo es seguro. Para reintentar, mejor
+  # workflow_dispatch desde main que «Re-run» de una ejecución vieja, que usa el workflow y el script de aquel commit.
   # Como publish.sh, usa el script del commit anterior (la base); si aún no lo tiene (la integración que lo agrega),
   # el de este commit; y si hay esquemas y ningún script, falla. Ningún paso antes del juez escribe LIV_GH, la
   # variable con la que las pruebas cambian gh por uno falso: no se agrega aquí ninguna que la defina.
@@ -128,9 +129,11 @@ jobs:
     permissions:
       # Crear las releases y sus etiquetas.
       contents: write
-    # Sin cancelar, y declarado en el propio trabajo: el grupo del workflow ya pone las publicaciones en fila, y
-    # este mantiene esa garantía aunque alguien cambie aquel. Dos publicaciones a la vez crearían dos borradores con
-    # la misma etiqueta. Tiene otro nombre: con el mismo, el trabajo esperaría a su propio workflow.
+    # Sin cancelar lo que ya corre, y declarado en el propio trabajo: el grupo del workflow ya pone las publicaciones
+    # en fila, y este mantiene esa garantía aunque alguien cambie aquel. Dos publicaciones a la vez crearían dos
+    # borradores con la misma etiqueta. GitHub sigue descartando una ejecución en espera si llega otra detrás: no
+    # se pierde nada, porque cada publicación converge al árbol de su commit. Tiene otro nombre que el del workflow:
+    # con el mismo, el trabajo esperaría a su propio workflow.
     concurrency:
       group: backend-main-esquemas
       cancel-in-progress: false
@@ -144,6 +147,10 @@ jobs:
       - name: Script de los esquemas que juzga y publica
         id: judge
         run: |
+          if ! git rev-parse -q --verify 'HEAD^1^{commit}' > /dev/null; then
+            echo "::error::HEAD no tiene primer padre: no se puede elegir el script de la base. Se espera fetch-depth 2."
+            exit 1
+          fi
           if ! git cat-file -e "HEAD:backend/contracts/jsonschema" 2> /dev/null; then
             echo "backend no tiene esquemas en contracts/jsonschema/: no hay nada que publicar."
             exit 0
