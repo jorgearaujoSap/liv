@@ -68,3 +68,9 @@ describe('Badge', () => {
     await expectNoAxeViolations(render({ tone: 'danger', showDot: true }));
   });
 });
+
+describe('demostración 003', () => {
+  it('falla a propósito', () => {
+    expect(1).toBe(2);
+  });
+});
