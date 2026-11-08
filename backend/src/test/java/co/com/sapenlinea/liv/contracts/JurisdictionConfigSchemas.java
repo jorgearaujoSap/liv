@@ -1,12 +1,19 @@
 package co.com.sapenlinea.liv.contracts;
 
 import com.networknt.schema.Error;
+import com.networknt.schema.ExecutionContext;
 import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaContext;
 import com.networknt.schema.SchemaLocation;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SchemaRegistryConfig;
-import com.networknt.schema.SpecificationVersion;
+import com.networknt.schema.dialect.Dialect;
+import com.networknt.schema.dialect.Dialects;
+import com.networknt.schema.keyword.Keyword;
+import com.networknt.schema.keyword.KeywordValidator;
+import com.networknt.schema.keyword.TypeValidator;
 import com.networknt.schema.path.PathType;
+import com.networknt.schema.utils.JsonType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -32,9 +39,17 @@ final class JurisdictionConfigSchemas {
 
   private static final Pattern VERSION = Pattern.compile("[0-9]+\\.[0-9]+");
 
+  /**
+   * Draft 2020-12 with a stricter {@code type}: since Draft 6 the standard takes {@code 1000.0} for
+   * an integer, and the validator has no option to turn it off. ADR 0032 asks for the opposite, as
+   * the root validator does, so {@code integer} only takes a number written without a decimal part.
+   */
+  private static final Dialect DIALECT =
+      Dialect.builder(Dialects.getDraft202012()).keyword(new StrictType()).build();
+
   private static final SchemaRegistry REGISTRY =
       SchemaRegistry.withDefaultDialect(
-          SpecificationVersion.DRAFT_2020_12,
+          DIALECT,
           builder ->
               builder
                   .schemaRegistryConfig(
@@ -90,6 +105,31 @@ final class JurisdictionConfigSchemas {
       paths.add(path);
     }
     return paths;
+  }
+
+  /** The {@code type} keyword, where a decimal never matches {@code integer}. */
+  private static final class StrictType implements Keyword {
+
+    @Override
+    public String getValue() {
+      return "type";
+    }
+
+    @Override
+    public KeywordValidator newValidator(
+        SchemaLocation location, JsonNode node, Schema parent, SchemaContext context) {
+      return new TypeValidator(location, node, parent, context) {
+        @Override
+        public boolean equalsToSchemaType(JsonNode value, ExecutionContext execution) {
+          if (getSchemaType() == JsonType.INTEGER
+              && value.isNumber()
+              && !value.isIntegralNumber()) {
+            return false;
+          }
+          return super.equalsToSchemaType(value, execution);
+        }
+      };
+    }
   }
 
   /** A key as a JSON Pointer token (RFC 6901). */
