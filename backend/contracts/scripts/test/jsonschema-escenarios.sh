@@ -116,6 +116,13 @@ esq_confirmar cambia
 printf '{"esquema":"1.0"}\n' > "$esquemas/1.0.json"
 esq_caso cambio-revertido pasa '' 'config/1.0.json'
 
+# check juzga el commit: un cambio confirmado cuenta aunque el disco vuelva a ser el de la base.
+esq_repo cambio-confirmado-disco-restaurado
+printf '{"esquema":"otro"}\n' > "$esquemas/1.0.json"
+esq_confirmar cambia
+printf '{"esquema":"1.0"}\n' > "$esquemas/1.0.json"
+esq_check cambio-confirmado-disco-restaurado falla VERSION_CHANGED ''
+
 esq_repo esquema-quitado
 rm "$esquemas/1.0.json"
 esq_caso esquema-quitado falla VERSION_REMOVED ''
@@ -228,6 +235,24 @@ esq_repo nombre-repetido-con-openapi-nuevo
 esq_agregar_version muestra 1.0
 esq_caso nombre-repetido-con-openapi-nuevo falla NAME_CLASH ''
 
+# Lo que decide es lo que hay guardado en Git: un contrato solo en el índice choca, y uno solo en el disco, no.
+esq_repo contrato-solo-en-el-indice
+esq_en_indice 100644 contracts/openapi/config.yaml 'openapi: 3.0.3'
+esq_confirmar_indice contrato
+esq_check contrato-solo-en-el-indice falla NAME_CLASH ''
+
+esq_repo contrato-solo-en-el-disco
+cp "$pruebas/muestra.yaml" "$proyecto/contracts/openapi/config.yaml"
+esq_check contrato-solo-en-el-disco pasa '' 'config/1.0.json'
+
+# Un choque que ya estaba en la base no bloquea a los demás PR: solo se avisa. El que lo introduce sí falla.
+esq_repo nombre-repetido-ya-en-la-base
+cp "$pruebas/muestra.yaml" "$proyecto/contracts/openapi/config.yaml"
+esq_confirmar choque
+git -C "$repo" tag -f base > /dev/null
+esq_agregar_version config 1.1
+esq_caso nombre-repetido-ya-en-la-base pasa '' 'ya compartía nombre'
+
 # Si HEAD ya no tiene el script, sus dependencias o sus pruebas, falla: nunca pasa por omisión.
 for guarda in jsonschema.sh lib.sh test/run.sh test/fake-gh.sh test/jsonschema-escenarios.sh; do
   esq_repo "guarda-$(basename "$guarda")-quitada"
@@ -279,6 +304,21 @@ esq_confirmar suelto
 git -C "$repo" tag -f base > /dev/null
 esq_check suelto-en-la-base-queda falla UNEXPECTED_FILE ''
 
+# Una versión que ya estaba incompleta en la base nunca se pudo publicar: quitar lo que quedó es la salida.
+esq_repo incompleta-en-la-base-quitada
+printf '{}\n' > "$esquemas/9.9.casos.json"
+esq_confirmar incompleta
+git -C "$repo" tag -f base > /dev/null
+git -C "$repo" rm -q proyecto/contracts/jsonschema/config/9.9.casos.json
+esq_confirmar_indice quitada
+esq_check incompleta-en-la-base-quitada pasa '' 'estaba incompleta'
+
+esq_repo incompleta-en-la-base-queda
+printf '{}\n' > "$esquemas/9.9.casos.json"
+esq_confirmar incompleta
+git -C "$repo" tag -f base > /dev/null
+esq_check incompleta-en-la-base-queda falla INCOMPLETE_VERSION ''
+
 esq_repo referencia-inexistente
 resultado=$(correr "$repo.txt" env LIV_CONTRACTS_ROOT="$proyecto" LIV_CONTRACTS_WORK="$repo.trabajo" \
   sh "$backend/contracts/scripts/jsonschema.sh" check no-existe)
@@ -294,6 +334,39 @@ if MSYS=winsymlinks:nativestrict ln -s "$proyecto" "$repo/enlace" 2> /dev/null &
 else
   printf '  omitida    check/raiz-con-enlace: este sistema no crea enlaces simbólicos (corre en CI)\n'
 fi
+
+# Que el repositorio esté bajo un enlace simbólico no importa: solo cuenta la ruta dentro del repositorio.
+esq_repo padre-enlazado
+if MSYS=winsymlinks:nativestrict ln -s "$repo" "$repo.enlace" 2> /dev/null && [ -L "$repo.enlace" ]; then
+  resultado=$(correr "$repo.txt" env LIV_CONTRACTS_ROOT="$repo.enlace/proyecto" LIV_CONTRACTS_WORK="$repo.trabajo" \
+    sh "$backend/contracts/scripts/jsonschema.sh" check base)
+  verificar check/padre-enlazado "$resultado" pasa '' 'config/1.0.json' "$repo.txt"
+else
+  printf '  omitida    check/padre-enlazado: este sistema no crea enlaces simbólicos (corre en CI)\n'
+fi
+
+esq_repo proyecto-inexistente
+resultado=$(correr "$repo.txt" env LIV_CONTRACTS_ROOT="$repo/no-existe" LIV_CONTRACTS_WORK="$repo.trabajo" \
+    sh "$backend/contracts/scripts/jsonschema.sh" check base)
+verificar check/proyecto-inexistente "$resultado" falla PROJECT_MISSING '' "$repo.txt"
+
+# Como lo usa el CI: un clon superficial con el commit del PR y su padre, y HEAD^1 como base. Con un solo commit no
+# hay padre, y la falta de base es una falla, nunca un «nada que proteger».
+esq_repo clon-superficial
+printf '{"esquema":"otro"}\n' > "$esquemas/1.0.json"
+esq_confirmar cambia
+for profundidad in 2 1; do
+  clon="$repo.clon$profundidad"
+  rm -rf "$clon"
+  git clone -q --depth "$profundidad" "file://$repo" "$clon"
+  resultado=$(correr "$repo.txt" env LIV_CONTRACTS_ROOT="$clon/proyecto" LIV_CONTRACTS_WORK="$clon.trabajo" \
+    sh "$backend/contracts/scripts/jsonschema.sh" check 'HEAD^1')
+  if [ "$profundidad" = 2 ]; then
+    verificar "check/clon-superficial-profundidad-2" "$resultado" falla VERSION_CHANGED '' "$repo.txt"
+  else
+    verificar "check/clon-superficial-profundidad-1" "$resultado" falla GIT_ERROR '' "$repo.txt"
+  fi
+done
 
 echo "Esquemas JSON, publish:"
 # Como esq_repo, deja en las mismas variables globales (repo, proyecto, esquemas, prefijo_del_proyecto) el repositorio
@@ -515,6 +588,17 @@ resultado=$(correr "$dir/salida.txt" env LIV_CONTRACTS_ROOT="$repo" LIV_CONTRACT
 verificar publish/github-sha-no-es-un-commit "$resultado" falla '' 'GITHUB_SHA debe ser un commit completo' "$dir/salida.txt"
 caso_almacen esquema-github-sha-no-es-un-commit-sin-llamar-a-gh sin_llamadas
 
+# Si no se puede calcular el SHA-256, no se verifica nada ni se publica (un hash vacío no coincide con otro vacío).
+esq_publicacion sin-sha256sum
+mkdir -p "$dir/bin"
+printf '#!/bin/sh\nexit 0\n' > "$dir/bin/sha256sum"
+chmod +x "$dir/bin/sha256sum"
+resultado=$(correr "$dir/salida.txt" env PATH="$dir/bin:$PATH" LIV_CONTRACTS_ROOT="$repo" LIV_CONTRACTS_WORK="$dir/trabajo" \
+  LIV_GH="sh $pruebas/fake-gh.sh" FAKE_GH_STORE="$almacen" GH_REPO=liv/prueba \
+  GITHUB_SHA="$(git -C "$repo" rev-parse HEAD)" sh "$backend/contracts/scripts/jsonschema.sh" publish)
+verificar publish/sin-sha256sum "$resultado" falla PUBLISH_ERROR '' "$dir/salida.txt"
+caso_almacen esquema-sin-sha256sum-sin-crear sin_crear
+
 # --dry-run solo dice qué se publicaría, sin llamar a GitHub y sin necesidad de GH_REPO ni GITHUB_SHA.
 esq_publicacion simulacion
 resultado=$(correr "$dir/salida.txt" env LIV_CONTRACTS_ROOT="$repo" LIV_CONTRACTS_WORK="$dir/trabajo" \
@@ -527,6 +611,18 @@ resultado=$(correr "$dir/salida.txt" env -u GH_REPO -u GITHUB_SHA LIV_CONTRACTS_
   LIV_GH="sh $pruebas/fake-gh.sh" FAKE_GH_STORE="$almacen" sh "$backend/contracts/scripts/jsonschema.sh" publish)
 verificar publish/sin-repositorio "$resultado" falla '' 'Faltan GH_REPO o GITHUB_SHA' "$dir/salida.txt"
 caso_almacen esquema-sin-repositorio-sin-llamar-a-gh sin_llamadas
+
+# El ataque que el enlace permite: la raíz del repositorio alcanzada por un enlace dentro del mismo repositorio
+# (backend -> .). Git vería la carpeta de la base en otra ruta y no encontraría nada que proteger.
+esq_publicacion raiz-enlazada-a-si-misma
+git -C "$repo" tag base
+if MSYS=winsymlinks:nativestrict ln -s . "$repo/backend" 2> /dev/null && [ -L "$repo/backend" ]; then
+  resultado=$(correr "$dir/salida.txt" env LIV_CONTRACTS_ROOT="$repo/backend" LIV_CONTRACTS_WORK="$dir/trabajo" \
+    sh "$backend/contracts/scripts/jsonschema.sh" check base)
+  verificar check/raiz-enlazada-a-si-misma "$resultado" falla UNSAFE_ROOT '' "$dir/salida.txt"
+else
+  printf '  omitida    check/raiz-enlazada-a-si-misma: este sistema no crea enlaces simbólicos (corre en CI)\n'
+fi
 
 echo "Esquemas JSON, uso:"
 esq_publicacion uso

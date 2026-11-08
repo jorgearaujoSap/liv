@@ -78,25 +78,61 @@ if [ "$1" = publish ] && [ "$simulacion" = false ]; then
     echo "Faltan GH_REPO o GITHUB_SHA. Para ver qué se publicaría: sh contracts/scripts/jsonschema.sh publish --dry-run" >&2
     exit 2
   fi
-  if ! printf '%s' "$GITHUB_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+  # Sin grep: validaría línea por línea y dejaría pasar un valor con un salto de línea.
+  if [ "${#GITHUB_SHA}" -ne 40 ]; then sha_invalido=true; fi
+  case "$GITHUB_SHA" in *[!0-9a-f]*) sha_invalido=true ;; esac
+  if [ "${sha_invalido:-false}" = true ]; then
     echo "GITHUB_SHA debe ser un commit completo (40 dígitos hexadecimales)." >&2
     exit 2
   fi
 fi
 
 fallas=0
+if [ ! -d "${LIV_CONTRACTS_ROOT:-$proyecto}" ]; then
+  falla PROJECT_MISSING "${LIV_CONTRACTS_ROOT:-$proyecto}" "la carpeta del proyecto no existe."
+  exit 1
+fi
 prepare_workdir "${LIV_CONTRACTS_WORK:-$proyecto/target/jsonschema}" "${LIV_CONTRACTS_ROOT:-$proyecto}"
 cd "${LIV_CONTRACTS_ROOT:-$proyecto}" || exit 2
 error="$trabajo/error.txt"
-if [ "$(pwd -P)" != "$(pwd)" ]; then
-  falla UNSAFE_ROOT "$(pwd)" "la carpeta del proyecto pasa por un enlace simbólico; Git buscaría otra ruta."
-  exit 1
-fi
+
+# Ninguna parte de la ruta del proyecto que esté dentro del repositorio puede ser un enlace simbólico: Git buscaría
+# la ruta física, y un PR que mueva backend/ y deje un enlace en su lugar esconde la carpeta de la base. Lo que hay
+# por encima del repositorio (un /tmp enlazado, una carpeta de trabajo enlazada, o el propio repositorio alcanzado
+# por un enlace) no importa. Se sube desde la carpeta del proyecto mientras Git diga que sigue dentro del repositorio:
+#   - con un subdirectorio del repositorio detrás, un enlace en la ruta es siempre una falla;
+#   - al llegar a la raíz del repositorio, un enlace solo es una falla si su carpeta padre es de ese mismo
+#     repositorio (backend -> .), y no si el padre es otro lugar (un enlace al repositorio desde fuera).
+check_no_symlinks_in_root() {
+  actual=$(pwd)
+  while :; do
+    dentro=$(git -C "$actual" rev-parse --show-prefix 2> /dev/null) || break
+    if [ -L "$actual" ]; then
+      peligro=true
+      if [ -z "$dentro" ]; then
+        raiz_actual=$(git -C "$actual" rev-parse --show-toplevel)
+        raiz_padre=$(git -C "${actual%/*}" rev-parse --show-toplevel 2> /dev/null) || raiz_padre=
+        [ "$raiz_actual" = "$raiz_padre" ] || peligro=false
+      fi
+      if [ "$peligro" = true ]; then
+        falla UNSAFE_ROOT "$actual" "la carpeta del proyecto pasa por un enlace simbólico; Git buscaría otra ruta."
+        exit 1
+      fi
+    fi
+    [ -n "$dentro" ] || break
+    actual=${actual%/*}
+  done
+}
+check_no_symlinks_in_root
 
 # Verdadero si la ruta, relativa a contracts/jsonschema/, es <nombre>/<MAYOR.MENOR>[.casos].json.
 form_ok() { printf '%s' "$1" | grep -Eq "^$NOMBRE_RE/$VERSION_RE(\.casos)?\.json\$"; }
 
 FORMA="debe ser <nombre>/<MAYOR.MENOR>.json o <nombre>/<MAYOR.MENOR>.casos.json, con el nombre en minúsculas, dígitos y guiones."
+
+# Nombre de archivo apto para un mensaje o una anotación de Actions: sin «%», «,», «:» ni saltos de línea, que
+# podrían mover las propiedades de la anotación o abrir otra.
+safe_name() { printf '%s' "$1" | tr '%,:\r\n' '_____'; }
 
 # Salida de error de gh en una sola línea y sin «%», para que quepa en un mensaje o en una anotación de Actions.
 error_text() { tr '\r\n%' '   ' < "$error"; }
@@ -162,13 +198,13 @@ scan_ref() { # scan_ref REFERENCIA CARPETA_DESTINO estricto|tolerante
     rel=${ruta#"$SCHEMA_DIR"/}
     if [ "$tipo" != blob ] || [ "$modo" = 120000 ] || ! form_ok "$rel"; then
       if [ "$modo_de_forma" = estricto ]; then
-        falla UNEXPECTED_FILE "$rel" "$FORMA Tampoco enlaces simbólicos ni submódulos."
+        falla UNEXPECTED_FILE "$(safe_name "$rel")" "$FORMA Tampoco enlaces simbólicos ni submódulos."
         malo=1
       fi
       continue
     fi
     mkdir -p "$2/${rel%/*}" && git cat-file blob "$objeto" > "$2/$rel" || {
-      falla GIT_ERROR "$rel" "no se pudo leer en $1."
+      falla GIT_ERROR "$(safe_name "$rel")" "no se pudo leer en $1."
       return 2
     }
   done < "$lista"
@@ -185,10 +221,17 @@ check_immutability() { # check_immutability BASE CABEZA REFERENCIA
   list_files "$1" > "$trabajo/versiones-base.txt"
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
+    # Una versión que en la base ya estaba incompleta nunca se pudo publicar: no se exige conservar lo que quedó.
+    clave=${rel%.casos.json}
+    clave=${clave%.json}
+    if [ ! -f "$1/$clave.json" ] || [ ! -f "$1/$clave.casos.json" ]; then
+      echo "  $rel: la versión estaba incompleta en $3; no se exige conservarla"
+      continue
+    fi
     if [ ! -f "$2/$rel" ]; then
-      falla VERSION_REMOVED "$rel" "existe en $3 y se quitó: una versión no se quita."
+      falla VERSION_REMOVED "$(safe_name "$rel")" "existe en $3 y se quitó: una versión no se quita."
     elif ! cmp -s "$1/$rel" "$2/$rel"; then
-      falla VERSION_CHANGED "$rel" "cambió frente a $3: un cambio es una versión nueva, en archivos nuevos."
+      falla VERSION_CHANGED "$(safe_name "$rel")" "cambió frente a $3: un cambio es una versión nueva, en archivos nuevos."
     else
       ok "$rel: igual que en $3"
     fi
@@ -204,7 +247,7 @@ check_pairs() { # check_pairs CARPETA
   while IFS= read -r clave; do
     [ -n "$clave" ] || continue
     if [ ! -f "$1/$clave.json" ] || [ ! -f "$1/$clave.casos.json" ]; then
-      falla INCOMPLETE_VERSION "$clave" "cada versión lleva ${clave#*/}.json y ${clave#*/}.casos.json."
+      falla INCOMPLETE_VERSION "$(safe_name "$clave")" "cada versión lleva ${clave#*/}.json y ${clave#*/}.casos.json."
       incompletas=1
     fi
   done < "$trabajo/claves.txt"
@@ -212,13 +255,18 @@ check_pairs() { # check_pairs CARPETA
 }
 
 # Un esquema no puede llamarse como un contrato OpenAPI: el nombre nombra la release. CABEZA es la copia de las
-# versiones de HEAD (la carpeta que llenó scan_ref); el contrato se busca también en HEAD.
-check_name_clashes() { # check_name_clashes CABEZA
+# versiones de HEAD y BASE la de la base (las carpetas que llenó scan_ref); el contrato se busca en HEAD y en
+# la base. Un choque que ya estaba en la base (el esquema y el contrato) no bloquea a los demás PR: solo se avisa;
+# falla el que lo introduce.
+check_name_clashes() { # check_name_clashes CABEZA BASE REFERENCIA_BASE
   for carpeta in "$1"/*/; do
     [ -d "$carpeta" ] || continue
     nombre=$(basename "$carpeta")
-    if [ -n "$(tree_entry HEAD "$CONTRACT_DIR/$nombre.yaml")" ]; then
-      falla NAME_CLASH "$nombre" "también es el nombre del contrato $CONTRACT_DIR/$nombre.yaml."
+    [ -n "$(tree_entry "$head_sha" "$CONTRACT_DIR/$nombre.yaml")" ] || continue
+    if [ -d "$2/$nombre" ] && [ -n "$(tree_entry "$3" "$CONTRACT_DIR/$nombre.yaml")" ]; then
+      echo "  $nombre: ya compartía nombre con un contrato en la base; hay que renombrar uno de los dos"
+    else
+      falla NAME_CLASH "$(safe_name "$nombre")" "también es el nombre del contrato $CONTRACT_DIR/$nombre.yaml."
     fi
   done
 }
@@ -226,7 +274,7 @@ check_name_clashes() { # check_name_clashes CABEZA
 # Quitar el script o sus pruebas en el mismo PR no puede desactivar la comprobación.
 check_guards() {
   for guarda in $GUARDAS; do
-    if ! is_regular_file HEAD "$guarda"; then
+    if ! is_regular_file "$head_sha" "$guarda"; then
       falla SCRIPT_MISSING "$guarda" "mientras haya esquemas, HEAD conserva este script, lib.sh, run.sh, fake-gh.sh y los escenarios."
     fi
   done
@@ -236,11 +284,17 @@ run_check() { # run_check REFERENCIA
   base="$trabajo/base"
   cabeza="$trabajo/cabeza"
   mkdir -p "$base" "$cabeza"
+  # La base y HEAD se resuelven una sola vez: todas las comprobaciones juzgan los mismos dos commits aunque alguien
+  # confirme o traiga cambios mientras corre.
+  if ! base_sha=$(git rev-parse -q --verify "$1^{commit}") || ! head_sha=$(git rev-parse -q --verify 'HEAD^{commit}'); then
+    falla GIT_ERROR "$1" "no existe esa referencia de Git, o HEAD no es un commit."
+    exit 1
+  fi
   # La base se lee sin exigirle la forma: solo importan sus versiones bien escritas. A HEAD sí se le exige. Que
   # scan_ref salga con 1 es normal (hay algo mal escrito y ya quedó reportado); con 2 falló Git y no se puede seguir.
-  scan_ref "$1" "$base" tolerante
+  scan_ref "$base_sha" "$base" tolerante
   [ $? -eq 2 ] && exit 1
-  scan_ref HEAD "$cabeza" estricto
+  scan_ref "$head_sha" "$cabeza" estricto
   [ $? -eq 2 ] && exit 1
   archivos_base=$(list_files "$base")
   archivos_cabeza=$(list_files "$cabeza")
@@ -249,7 +303,7 @@ run_check() { # run_check REFERENCIA
   fi
   check_immutability "$base" "$cabeza" "$1"
   check_pairs "$cabeza"
-  check_name_clashes "$cabeza"
+  check_name_clashes "$cabeza" "$base" "$base_sha"
   if [ -n "$archivos_base" ] || [ -n "$archivos_cabeza" ]; then
     check_guards
   fi
