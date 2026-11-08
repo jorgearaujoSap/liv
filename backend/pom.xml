@@ -26,6 +26,7 @@
     <openapi-generator.version>7.26.0</openapi-generator.version>
     <openapi-diff.version>2.1.7</openapi-diff.version>
     <shedlock.version>7.10.1</shedlock.version>
+    <json-schema-validator.version>3.0.9</json-schema-validator.version>
   </properties>
 
   <dependencyManagement>
@@ -134,6 +135,14 @@
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
       <version>${archunit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Validador del esquema JSON de la configuración de jurisdicción (feature 004, ADR 0032). En
+         test mientras no haya código de producción que lo use; la opción 1.5.9 lo pasa a compile. -->
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>${json-schema-validator.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

@@ -620,5 +620,320 @@
       "aceptado": false,
       "motivo": "SINTAXIS"
     }
+  ],
+  "validacion": [
+    {
+      "caso": "configuración mínima: las seis secciones obligatorias",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "una fracción de 1.00 vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: 1.00\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: null\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "una fracción de 0 vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: 0\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: null\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "PENDIENTE en una fracción vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: PENDIENTE\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: null\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "un monto de 0 vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: 0.10\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: 0\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "POR_CONFIRMAR en un texto libre vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: POR_CONFIRMAR\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "PENDIENTE en un código DANE vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: PENDIENTE\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "null en departamento_padre_dane vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: null\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "PENDIENTE en una fecha vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: PENDIENTE\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "una fecha con forma válida vale aunque no exista",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-02-30\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": true
+    },
+    {
+      "caso": "un decimal en un campo entero",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026.0\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/vigencia/anio"
+      ]
+    },
+    {
+      "caso": "una fracción mayor que 1 por poco",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: 1.0000000000000001\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: null\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/beneficios/0/tasa"
+      ]
+    },
+    {
+      "caso": "una tasa en porcentaje",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: 1.5\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: null\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/beneficios/0/tasa"
+      ]
+    },
+    {
+      "caso": "una fracción negativa",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: -0.1\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: null\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/beneficios/0/tasa"
+      ]
+    },
+    {
+      "caso": "un monto negativo",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\nbeneficios:\n  - codigo: EJEMPLO\n    activo: false\n    tipo: DESCUENTO_PORCENTUAL\n    tasa: 0.10\n    aplica_a: {categoria: ELECTRICO}\n    anios_desde_matricula: null\n    tope_pesos: -1\n    norma: LEY_488_1998\n    estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/beneficios/0/tope_pesos"
+      ]
+    },
+    {
+      "caso": "una clave desconocida en la raíz",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\ntarifa: 0.01\n",
+      "valido": false,
+      "rutas": [
+        "/tarifa"
+      ]
+    },
+    {
+      "caso": "una clave desconocida anidada",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\n  alias: x\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/alias"
+      ]
+    },
+    {
+      "caso": "dos claves desconocidas",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\ntarifa: 0.01\nfecha_limite: 2026-04-30\n",
+      "valido": false,
+      "rutas": [
+        "/tarifa",
+        "/fecha_limite"
+      ]
+    },
+    {
+      "caso": "falta una sección obligatoria",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/normas"
+      ]
+    },
+    {
+      "caso": "falta una clave obligatoria anidada",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/administracion/nit"
+      ]
+    },
+    {
+      "caso": "estado fuera de la lista",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: APROBADO\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/estado"
+      ]
+    },
+    {
+      "caso": "estado en minúsculas",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: vigente\n",
+      "valido": false,
+      "rutas": [
+        "/distribucion_recaudo/estado"
+      ]
+    },
+    {
+      "caso": "tipo de jurisdicción fuera de la lista",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: CIUDAD\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/tipo"
+      ]
+    },
+    {
+      "caso": "PENDIENTE en un código",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: PENDIENTE\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/distribucion_recaudo/origen"
+      ]
+    },
+    {
+      "caso": "POR_CONFIRMAR en un código",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: POR_CONFIRMAR\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/distribucion_recaudo/origen"
+      ]
+    },
+    {
+      "caso": "un código en minúsculas",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: derivada\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/distribucion_recaudo/origen"
+      ]
+    },
+    {
+      "caso": "un texto libre vacío",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: ''\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/nombre"
+      ]
+    },
+    {
+      "caso": "PENDIENTE en un entero",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: PENDIENTE\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/vigencia/version_config"
+      ]
+    },
+    {
+      "caso": "un booleano como texto",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {PARTICIPACION_20: {activa: \"true\"}}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/competencia/modalidades/PARTICIPACION_20/activa",
+        "/competencia/modalidades/PARTICIPACION_20/liquida",
+        "/competencia/modalidades/PARTICIPACION_20/universo",
+        "/competencia/modalidades/PARTICIPACION_20/fuente_informacion",
+        "/competencia/modalidades/PARTICIPACION_20/control",
+        "/competencia/modalidades/PARTICIPACION_20/distribucion",
+        "/competencia/modalidades/PARTICIPACION_20/norma"
+      ]
+    },
+    {
+      "caso": "una modalidad desconocida",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {MODALIDAD_E: {activa: true}}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/competencia/modalidades/MODALIDAD_E"
+      ]
+    },
+    {
+      "caso": "una fecha con otro formato",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: \"01/01/2026\"\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/vigencia/inicio"
+      ]
+    },
+    {
+      "caso": "una fecha con mes 13",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-13-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/vigencia/inicio"
+      ]
+    },
+    {
+      "caso": "una fecha con día 32",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-32\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/vigencia/inicio"
+      ]
+    },
+    {
+      "caso": "un código DANE de 3 dígitos",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"523\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/codigo_dane"
+      ]
+    },
+    {
+      "caso": "un código DANE numérico",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: 52356\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/codigo_dane"
+      ]
+    },
+    {
+      "caso": "null donde no vale",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: null\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/jurisdiccion/nombre"
+      ]
+    },
+    {
+      "caso": "una lista donde va un objeto",
+      "yaml": "esquema_version: \"1.0\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: []\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/competencia/modalidades"
+      ]
+    },
+    {
+      "caso": "versión desconocida",
+      "yaml": "esquema_version: \"1.1\"\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/esquema_version"
+      ]
+    },
+    {
+      "caso": "versión numérica",
+      "yaml": "esquema_version: 1.0\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/esquema_version"
+      ]
+    },
+    {
+      "caso": "versión PENDIENTE",
+      "yaml": "esquema_version: PENDIENTE\njurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/esquema_version"
+      ]
+    },
+    {
+      "caso": "sin versión",
+      "yaml": "jurisdiccion:\n  tipo: MUNICIPIO\n  codigo_dane: \"52356\"\n  nombre: Ipiales\n  administracion:\n    nombre: Secretaría de Hacienda\n    nit: PENDIENTE\n  departamento_padre_dane: \"52\"\n  estado: VIGENTE\ncompetencia:\n  modalidades: {}\n  estado: VIGENTE\nvigencia:\n  anio: 2026\n  inicio: 2026-01-01\n  fin: 2026-12-31\n  version_config: 1\nnormas: []\ndistribucion_recaudo:\n  origen: DERIVADA_DE_COMPETENCIA\n  estado: VIGENTE\n",
+      "valido": false,
+      "rutas": [
+        "/esquema_version"
+      ]
+    },
+    {
+      "caso": "la raíz no es un objeto",
+      "yaml": "- esquema_version: \"1.0\"\n",
+      "valido": false,
+      "rutas": [
+        "/esquema_version"
+      ]
+    }
   ]
 }

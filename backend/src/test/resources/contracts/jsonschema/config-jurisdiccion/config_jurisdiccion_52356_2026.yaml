@@ -1,0 +1,386 @@
+# =====================================================================
+# CONFIGURACIÓN DE JURISDICCIÓN — IMPUESTO SOBRE VEHÍCULOS AUTOMOTORES
+# Municipio de IPIALES (Nariño) — DANE 52356 — vigencia fiscal 2026
+# ---------------------------------------------------------------------
+# Un archivo por jurisdicción y vigencia. Se carga en
+#   Menú 1.5.9 "Configuración de jurisdicción"
+# con el mismo ciclo del cargue de tablas:
+#   CARGADO -> VALIDADO -> APROBADO -> PUBLICADO (inmutable; corrección = nueva versión)
+#
+# Convenciones:
+#   - Montos en PESOS (no en miles). Las tablas del Ministerio sí vienen en
+#     miles; su multiplicador se declara en base_gravable.multiplicador_tablas.
+#   - Tarifas como fracción: 0.015 = 1,5 %.
+#   - Cada regla lleva `fuente` y `estado`:
+#       VIGENTE        -> verificada contra la norma citada
+#       POR_CONFIRMAR  -> valor propuesto; jurídica debe validarlo antes de publicar
+#       PENDIENTE      -> el equipo debe diligenciarlo
+#   - El validador rechaza la publicación si queda algún PENDIENTE en una
+#     regla marcada como `obligatoria: true`.
+# =====================================================================
+
+esquema_version: "1.0"
+
+jurisdiccion:
+  tipo: MUNICIPIO               # DEPARTAMENTO | DISTRITO_CAPITAL | DISTRITO | MUNICIPIO
+  codigo_dane: "52356"          # DIVIPOLA municipio
+  codigo_divipola_8: "52356000" # cabecera municipal (dato entregado por el equipo)
+  nombre: "Ipiales"
+  departamento: "Nariño"
+  departamento_padre_dane: "52"
+  zona_frontera: true           # limítrofe con Ecuador; confirmar acto que lo declara UEDF
+  administracion:
+    nombre: "Secretaría de Hacienda Municipal de Ipiales"   # POR_CONFIRMAR denominación exacta
+    nit: "PENDIENTE"
+  estado: VIGENTE
+
+# ---------------------------------------------------------------------
+# 0. Competencia — QUÉ vehículos liquida o controla esta administración
+#    Ley 488/1998: el impuesto de vehículos matriculados lo administra el
+#    DEPARTAMENTO (Nariño); el municipio recibe el 20 % (art. 150).
+#    Ley 633/2000 art. 85 y Ley 1955/2019 art. 123: el impuesto de vehículos
+#    INTERNADOS TEMPORALMENTE se causa 100 % a favor de la UEDF.
+# ---------------------------------------------------------------------
+competencia:
+  # ------------------------------------------------------------------
+  # El ADMINISTRADOR DEL SISTEMA activa una o varias modalidades (activa: true/false).
+  # Reglas de compatibilidad (validador CJ12):
+  #   - Debe haber al menos una modalidad activa.
+  #   - CONVENIO_DEPTO y PARTICIPACION_20 son EXCLUYENTES: con convenio, el municipio
+  #     liquida y recauda los matriculados (gira 80 % a Nariño y el 20 % va al municipio de la dirección declarada);
+  #     sin convenio, solo controla el 20 % que le giran por declaraciones con dirección en el municipio.
+  #   - UEDF_INTERNACION es compatible con cualquiera de las otras dos.
+  #   - Combinaciones válidas: A | B | C | A+B | A+C.   Inválidas: B+C | A+B+C | ninguna.
+  # El universo de vehículos y la distribución del recaudo se DERIVAN de lo activado.
+  # ------------------------------------------------------------------
+  modalidades:
+    UEDF_INTERNACION:                        # A — liquida solo los internados temporalmente
+      activa: true
+      liquida: true
+      universo: INTERNADOS_TEMPORALMENTE
+      ajuste_base: INTERNACION_TEMPORAL      # 50 % del valor de tabla (Res. 2026 art. 7)
+      requiere: {jurisdiccion.zona_frontera: true}
+      distribucion: [{beneficiario: MUNICIPIO, porcentaje: 1.00}]   # Ley 633/2000 art. 85
+      norma: LEY_633_2000
+    CONVENIO_DEPTO:                          # B — liquida también los matriculados, por convenio con Nariño
+      activa: false
+      liquida: true
+      universo: MATRICULADOS_EN_JURISDICCION
+      convenio:                              # obligatorio si activa = true
+        numero: null
+        fecha_inicio: null
+        fecha_fin: null
+        periodicidad_giro_departamento: MENSUAL
+      distribucion:
+        - {beneficiario: DEPARTAMENTO_NARINO, porcentaje: 0.80, tratamiento: GIRO}
+        - {beneficiario: MUNICIPIO_DIRECCION_DECLARADA, porcentaje: 0.20, tratamiento: RETENCION_O_GIRO}   # si la dirección es de otro municipio, se le gira a él
+      norma: LEY_488_1998
+    PARTICIPACION_20:                        # C — no liquida; solo controla su 20 %
+      activa: true
+      liquida: false
+      universo: DECLARACIONES_CON_DIRECCION_EN_EL_MUNICIPIO   # sin importar dónde esté matriculado el vehículo (DUR 1625/2016 art. 2.2.4.5)
+      fuente_informacion: REPORTE_DEPARTAMENTO # archivo periódico de recaudo del depto.
+      control: CONCILIAR_PARTICIPACION         # recaudo informado × 20 % vs. giros recibidos
+      distribucion: [{beneficiario: MUNICIPIO, porcentaje: 0.20, tratamiento: PARTICIPACION_RECIBIDA}]
+      norma: LEY_488_1998
+  estado: VIGENTE                            # valor inicial A + C; el administrador puede cambiarlo
+
+vigencia:
+  anio: 2026
+  inicio: 2026-01-01
+  fin: 2026-12-31
+  version_config: 1
+
+# ---------------------------------------------------------------------
+# 1. Normas que soportan esta configuración (documents.legal_instrument)
+# ---------------------------------------------------------------------
+normas:
+  - id: RES_MT_BG_2026
+    tipo: RESOLUCION
+    numero: "20253040048935"
+    fecha: 2025-11-26
+    autoridad: Ministerio de Transporte
+    descripcion: Base gravable vigencia fiscal 2026 (tablas 1 a 9)
+    estado: VIGENTE
+  - id: DEC_MH_RANGOS_2026
+    tipo: DECRETO
+    numero: "1457"
+    fecha: 2025-12-01          # POR_CONFIRMAR día exacto de expedición
+    autoridad: Ministerio de Hacienda y Crédito Público
+    descripcion: Reajuste de valores absolutos art. 145 Ley 488/1998, año gravable 2026
+    estado: POR_CONFIRMAR
+  - id: LEY_488_1998
+    tipo: LEY
+    numero: "488"
+    fecha: 1998-12-24
+    descripcion: Capítulo VI, arts. 138 a 151 — impuesto sobre vehículos automotores
+    estado: VIGENTE
+  - id: LEY_633_2000
+    tipo: LEY
+    numero: "633"
+    descripcion: Art. 90 — base de vehículos nuevos = factura sin IVA
+    estado: VIGENTE
+  - id: LEY_1964_2019
+    tipo: LEY
+    numero: "1964"
+    descripcion: Art. 3 (par. 5 art. 145 Ley 488) — tarifa de eléctricos no superior al 1 %
+    estado: VIGENTE
+  - id: ESTATUTO_TERRITORIAL
+    tipo: ACUERDO
+    numero: "032 de 2018"
+    autoridad: Concejo Municipal de Ipiales
+    descripcion: Estatuto de Rentas del Municipio de Ipiales (modificado por Acuerdo 028 de 2024)
+    estado: POR_CONFIRMAR      # verificar que regule calendario, descuento y redondeo del impuesto vehicular
+  - id: ORDENANZA_NARINO_028_2010
+    tipo: ORDENANZA
+    numero: "028 de 2010"
+    autoridad: Asamblea Departamental de Nariño
+    descripcion: Estatuto Tributario Departamental de Nariño, capítulo del impuesto vehicular
+    estado: POR_CONFIRMAR
+  - id: DEFINICION_ADMINISTRACION_2026
+    tipo: ACTO_ADMINISTRATIVO
+    numero: "PENDIENTE"
+    descripcion: Acto que fija calendario 2026, descuento 10 %, plazo sin intereses y redondeo a $1.000
+    estado: PENDIENTE          # parámetros entregados por el equipo; falta el número del acto soporte
+
+# ---------------------------------------------------------------------
+# 2. Base gravable
+# ---------------------------------------------------------------------
+base_gravable:
+  catalogo_ministerio:
+    norma: RES_MT_BG_2026
+    multiplicador_tablas: 1000          # cifras de las tablas en miles de pesos (21.600 -> $21.600.000)
+    llave_referencia: CTR               # código único en las 9 tablas
+    columna_anio_base: "2001 y Anteriores"
+    anio_base: 2001
+    tablas:
+      - {numero: 1, nombre: Automóviles,                   atributos: [tipo, clase, marca, linea, cilindraje]}
+      - {numero: 2, nombre: Camionetas y camperos,         atributos: [tipo, clase, marca, linea, cilindraje]}
+      - {numero: 3, nombre: Camionetas doble cabina,       atributos: [tipo, clase, marca, linea, cilindraje]}
+      - {numero: 4, nombre: Eléctricos,                    atributos: [tipo, clase, marca, linea], unidad_potencia: KW}
+      - {numero: 5, nombre: Motocicletas y motocarros,     atributos: [tipo, clase, marca, linea, cilindraje], unidad_potencia_electricos: KW}
+      - {numero: 6, nombre: Pasajeros,                     atributos: [tipo, clase, marca, linea, cilindraje, pasajeros]}
+      - {numero: 7, nombre: Carga,                         atributos: [tipo, clase, marca, linea, cilindraje, tonelaje]}
+      - {numero: 8, nombre: Ambulancias,                   atributos: [tipo, clase, marca, linea, cilindraje]}
+      - {numero: 9, nombre: Híbridos,                      atributos: [tipo, clase, marca, linea, cilindraje]}
+    estado: VIGENTE
+
+  vehiculo_nuevo:
+    fuente_base: FACTURA               # FACTURA | DECLARACION_IMPORTACION (importación directa)
+    incluye_iva: false                 # Ley 633/2000 art. 90
+    estado: VIGENTE
+
+  reglas_ubicacion:
+    modelo_igual_o_anterior_anio_base:
+      usar_columna: "2001 y Anteriores"                       # art. 6
+      linea_no_encontrada: usar_fila_generica_marca           # art. 6 par.: "LÍNEAS Y CILINDRAJES NO INCLUIDOS…"
+      estado: VIGENTE
+    aproximacion_cilindraje:                                  # art. 3 par. 3
+      aplica_cuando: linea_existe_cilindraje_no
+      metodo: CENTENA
+      umbral_redondeo_superior: 50     # termina < 50 -> centena inferior; >= 50 -> centena superior
+      estado: VIGENTE
+    no_incluido_en_tablas:                                    # art. 10 y Ley 488 art. 143 par.
+      metodo: VEHICULO_SIMILAR
+      requiere_aprobacion_segundo_usuario: true
+      reportar_a_sibga: true
+      estado: VIGENTE
+    autoliquidacion_superior_voluntaria: true                 # art. 12
+    vigencias_anteriores:                                     # art. 9
+      permite_modificar_base_publicada: false
+      no_incluido: VEHICULO_SIMILAR_DE_ESA_VIGENCIA
+
+  ajustes:                                                    # se aplican sobre el valor de tabla
+    - {codigo: BLINDADO,             factor: 1.10, norma: RES_MT_BG_2026, articulo: "5", estado: VIGENTE}
+    - {codigo: ANTIGUO_CLASICO,      factor: 0.50, sobre: VALOR_ANIO_BASE, norma: RES_MT_BG_2026, articulo: "4", estado: VIGENTE}
+    - {codigo: INTERNACION_TEMPORAL, factor: 0.50, norma: RES_MT_BG_2026, articulo: "7", estado: VIGENTE}
+  orden_ajustes: [ANTIGUO_CLASICO, BLINDADO, INTERNACION_TEMPORAL]   # POR_CONFIRMAR acumulación
+  # SAN_ANDRES (45 %) no aplica: jurisdicción distinta de DANE 88
+
+# ---------------------------------------------------------------------
+# 3. Sujeción: vehículos no gravados y servicio público
+# ---------------------------------------------------------------------
+sujecion:
+  no_gravados:                                                # Ley 488 art. 141 — POR_CONFIRMAR redacción vigente
+    - {codigo: MOTO_HASTA_125CC,   clases: [MOTOCICLETA, MOTONETA, CICLOMOTOR], cilindraje_max: 125}
+    - {codigo: MOTOCARRO_HASTA_185CC, clases: [MOTOCARRO], cilindraje_max: 185}
+    - {codigo: MAQUINARIA_AGRICOLA}
+    - {codigo: MAQUINARIA_CONSTRUCCION_VIAS}
+    - {codigo: USO_INDUSTRIAL_NO_VIAS_PUBLICAS}
+    - {codigo: SERVICIO_PUBLICO_PASAJEROS_CARGA, excepto_si: servicio_publico.gravado}
+    - {codigo: SERVICIO_OFICIAL}         # sin tarifa legal (jurisprudencia Consejo de Estado) — POR_CONFIRMAR
+  # Criterio para motos eléctricas sin cilindraje (potencia en kW): PENDIENTE
+  motos_electricas_criterio_sujecion: PENDIENTE
+  servicio_publico:                                           # Res. 2026 art. 3 par. 4
+    gravado: false
+    municipios_donde_esta_gravado: []                         # lista DANE si aplica
+    estado: POR_CONFIRMAR
+  estado: POR_CONFIRMAR
+
+# ---------------------------------------------------------------------
+# 4. Categorías de tarifa (tax.vehicle_category_map)
+#    Se evalúan en orden; gana la primera que cumpla.
+# ---------------------------------------------------------------------
+categorias:
+  estado: POR_CONFIRMAR
+  reglas:
+    - {codigo: ELECTRICO,  si: {tecnologia: ELECTRICO}}                     # Tabla 4 y eléctricos de Tabla 5
+    - {codigo: MOTO,       si: {tabla: 5, tecnologia: COMBUSTION}}
+    - {codigo: PUBLICO,    si: {servicio: PUBLICO}}
+    - {codigo: PARTICULAR, si: {}}                                            # resto: tablas 1,2,3,6,7,8,9
+
+# ---------------------------------------------------------------------
+# 5. Tarifas (tax.tax_rate). Límite superior inclusivo ("hasta"), inferior exclusivo ("más de").
+# ---------------------------------------------------------------------
+tarifas:
+  - categoria: PARTICULAR
+    norma: DEC_MH_RANGOS_2026
+    rangos:
+      - {desde_exclusivo: 0,          hasta_inclusivo: 57349000,  tarifa: 0.015}
+      - {desde_exclusivo: 57349000,   hasta_inclusivo: 129032000, tarifa: 0.025}
+      - {desde_exclusivo: 129032000,  hasta_inclusivo: null,      tarifa: 0.035}
+    estado: VIGENTE
+  - categoria: MOTO                     # Ley 488 art. 145 num. 2 (motos > 125 cc)
+    norma: LEY_488_1998
+    rangos: [{desde_exclusivo: 0, hasta_inclusivo: null, tarifa: 0.015}]
+    estado: POR_CONFIRMAR
+  - categoria: ELECTRICO                # Ley 1964/2019: tarifa no superior al 1 % del valor comercial
+    norma: LEY_1964_2019
+    tarifa_maxima: 0.01
+    rangos: [{desde_exclusivo: 0, hasta_inclusivo: null, tarifa: 0.01}]   # la jurisdicción puede fijar menos
+    estado: VIGENTE
+  - categoria: PUBLICO
+    rangos: []                          # solo si sujecion.servicio_publico.gravado = true
+    estado: PENDIENTE
+
+conservacion_tarifa:                    # mantener tarifa del año anterior si sube de rango por la nueva tabla
+  activa: false
+  estado: POR_CONFIRMAR
+
+# ---------------------------------------------------------------------
+# 6. Causación y proporcionalidad
+# ---------------------------------------------------------------------
+causacion:
+  general: "01-01"
+  vehiculo_nuevo: FECHA_SOLICITUD_INSCRIPCION_RTA
+  proporcionalidad_nuevos:
+    activa: true
+    fraccion_mes_cuenta_completo: true
+    formula_meses: "12 - mes(causacion) + 1"
+    estado: POR_CONFIRMAR
+
+# ---------------------------------------------------------------------
+# 7. Calendario y descuentos (tax.tax_calendar / tax.tax_benefit)
+# ---------------------------------------------------------------------
+calendario:
+  norma: DEFINICION_ADMINISTRACION_2026
+  # Fechas parametrizables por el administrador. Validador CJ13:
+  #   fecha_inicio_pago <= fecha_limite_descuento <= fecha_limite_pago_sin_intereses
+  #   y fecha_limite_pago_sin_intereses dentro de la vigencia (advertencia si la excede).
+  grupos:                               # un solo grupo (no hay calendario por dígito de placa)
+    - grupo: TODOS
+      fecha_inicio_pago: 2026-01-01
+      fecha_limite_descuento: 2026-04-30
+      fecha_limite_pago_sin_intereses: 2026-04-30   # fecha máxima sin multas ni intereses
+  inicio_mora: DIA_SIGUIENTE_A_LIMITE_SIN_INTERESES  # intereses y sanciones desde el 1-may-2026
+  descuento_pronto_pago:
+    tarifa: 0.10                        # 10 % sobre el impuesto neto, pagando hasta fecha_limite_descuento
+    base: IMPUESTO_NETO_REDONDEADO
+    resultado_redondeado: true
+  vehiculos_nuevos:                     # la ley no establece plazo: parámetro administrativo (CJ14)
+    causacion_hasta_limite_general: USAR_FECHAS_GENERALES   # si se matricula antes del 30-abr, aplica el calendario general
+    plazo_pago_sin_intereses:
+      modo: FIN_DE_VIGENCIA             # FIN_DE_VIGENCIA | DIAS_DESDE_CAUSACION | FECHA_FIJA
+      dias: null                        # obligatorio si modo = DIAS_DESDE_CAUSACION
+      fecha: null                       # obligatorio si modo = FECHA_FIJA
+    descuento:
+      modo: NO_APLICA                   # NO_APLICA | DIAS_DESDE_CAUSACION
+      dias: null
+  obligatoria: true
+  estado: VIGENTE                       # dato definido por el equipo
+
+beneficios:                             # se aplican en el orden listado
+  - codigo: EJEMPLO_DESCUENTO_ELECTRICO
+    activo: false
+    tipo: DESCUENTO_PORCENTUAL         # DESCUENTO_PORCENTUAL | EXENCION_TOTAL | VALOR_FIJO
+    tasa: 0.0
+    aplica_a: {categoria: ELECTRICO}
+    anios_desde_matricula: null
+    tope_pesos: null
+    norma: ESTATUTO_TERRITORIAL
+    estado: PENDIENTE
+
+# ---------------------------------------------------------------------
+# 8. Redondeo
+# ---------------------------------------------------------------------
+redondeo:
+  momento: FINAL                        # cálculos internos sin redondeo
+  metodo: MULTIPLO_MAS_CERCANO          # MULTIPLO_MAS_CERCANO | MULTIPLO_SUPERIOR | SIN_REDONDEO
+  multiplo: 1000
+  empate: HACIA_ARRIBA                  # $x.500 exacto sube al múltiplo superior — POR_CONFIRMAR
+  aplica_a: [IMPUESTO_NETO, VALOR_CON_DESCUENTO]
+  obligatoria: true
+  estado: VIGENTE                       # dato definido por el equipo
+
+# ---------------------------------------------------------------------
+# 9. Distribución del recaudo (ledger.revenue_distribution)
+# ---------------------------------------------------------------------
+distribucion_recaudo:
+  origen: DERIVADA_DE_COMPETENCIA       # cada modalidad activa trae su propia distribución
+  estado: VIGENTE
+
+# ---------------------------------------------------------------------
+# 9b. Recaudo, imputación y distribución (Módulo 4)
+# ---------------------------------------------------------------------
+recaudo:
+  canales: [BANCO_CONVENIO, PSE, VENTANILLA]      # POR_CONFIRMAR bancos y pasarela
+  recibo_pago:
+    referencia: NUMERICA_UNICA_CON_DIGITO_VERIFICACION
+    codigo_barras: GS1_128                          # POR_CONFIRMAR con los bancos
+    validez_antes_limite_descuento: HASTA_LIMITE_DESCUENTO
+    validez_en_mora: MISMO_DIA                      # los intereses cambian a diario
+  archivo_banco:
+    formato: POR_CONFIRMAR                          # p. ej. Asobancaria 2001 o formato propio del banco
+    frecuencia: DIARIA
+  imputacion:
+    entre_vigencias: LA_QUE_INDIQUE_EL_CONTRIBUYENTE   # art. 804 ET; sin indicación -> regla siguiente
+    sin_indicacion: MAS_ANTIGUA_PRIMERO                # POR_CONFIRMAR
+    dentro_de_la_obligacion: PROPORCIONAL              # art. 804 ET (mod. Ley 1066/2006 art. 6), vía Ley 788/2002 art. 59
+    redondeo_componentes: PESO_RESIDUO_AL_IMPUESTO
+  descuento_pago_parcial: NO_APLICA                 # NO_APLICA | PROPORCIONAL — el 10 % solo si paga el total con descuento
+  saldo_a_favor:
+    usos: [COMPENSACION, DEVOLUCION]
+    compensacion_automatica: false                  # requiere solicitud o acto
+    valor_minimo_devolucion: 0
+  distribucion:
+    base: [IMPUESTO, INTERESES, SANCIONES]          # DUR 1625/2016 art. 2.2.4.6
+    dias_maximos_giro: 20                           # dentro de los 20 días siguientes al recaudo (art. 2.2.4.6)
+    redondeo: DEPARTAMENTO_REDONDEADO_RESIDUO_MUNICIPIO
+  estado: POR_CONFIRMAR
+
+# ---------------------------------------------------------------------
+# 10. Reportes obligatorios
+# ---------------------------------------------------------------------
+reportes:
+  sibga_mensual:                        # Res. 2026 art. 11
+    activo: true
+    contenido: vehiculos_registrados_asimilados_o_ajustados
+    soportes: [licencia_transito, factura, comprobante_pago_ultimo_anio]
+    estado: VIGENTE
+
+# ---------------------------------------------------------------------
+# 11. Umbrales operativos del sistema (no normativos)
+# ---------------------------------------------------------------------
+parametros_sistema:
+  homologacion:
+    auto_aprobacion_min: 95
+    revision_min: 70
+    tolerancia_cilindraje_cc: 50
+  importacion:
+    rango_valor_pesos: {min: 50000, max: 10000000000}
+    rango_valor_pesos_tabla_5: {min: 10000, max: 1000000000}
+    mediana_lote_pesos: {min: 1000000, max: 500000000}
+  exportacion:
+    filas_descarga_inmediata: 50000
+  liquidacion_masiva:
+    tamano_bloque: 1000
