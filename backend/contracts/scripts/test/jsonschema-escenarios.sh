@@ -108,7 +108,7 @@ esq_repo archivo-suelto-con-forma-de-version
 printf '{}\n' > "$proyecto/contracts/jsonschema/1.0.json"
 esq_check archivo-suelto-con-forma-de-version falla UNEXPECTED_FILE ''
 
-for nombre_malo in 1.json v1.0.json 1.0.0.json 01.0.json 1.0.yaml 1.0.CASOS.json 1.0.casos.json.bak 1.0.json~ .1.0.json 1.0.casos.casos.json 1.0.1.casos.json; do
+for nombre_malo in 1.json v1.0.json 1.0.0.json 01.0.json 1.0.yaml 2.0.JSON 1.0.casos.json.bak 1.0.json~ .1.0.json 1.0.casos.casos.json 1.0.1.casos.json; do
   esq_repo "nombre-$nombre_malo"
   printf '{}\n' > "$esquemas/$nombre_malo"
   esq_check "nombre-$nombre_malo" falla UNEXPECTED_FILE ''
@@ -126,20 +126,33 @@ mkdir -p "$esquemas/viejo"
 printf '{}\n' > "$esquemas/viejo/1.0.json"
 esq_check subcarpeta falla UNEXPECTED_FILE ''
 
-# Un enlace simbólico se lee distinto en el disco (su destino) que en Git (su ruta), así que no puede pasar. Windows
-# sin permiso no los crea: ahí el escenario se omite a la vista, y corre en CI.
-caso_enlace() { # caso_enlace NOMBRE DESTINO RUTA_DEL_ENLACE
+# Un enlace simbólico se lee distinto en el disco (su destino) que en Git (su ruta), así que no puede pasar.
+# Windows sin permiso no los crea (MSYS=winsymlinks:nativestrict los pide nativos): ahí el escenario se omite a la
+# vista, y corre en CI.
+caso_enlace() { # caso_enlace NOMBRE DESTINO RUTA_DEL_ENLACE_EN_EL_PROYECTO
   esq_repo "$1"
-  if ln -s "$2" "$3" 2> /dev/null && [ -L "$3" ]; then
+  enlace="$proyecto/$3"
+  if MSYS=winsymlinks:nativestrict ln -s "$2" "$enlace" 2> /dev/null && [ -L "$enlace" ]; then
     esq_check "$1" falla UNEXPECTED_FILE ''
   else
     printf '  omitida    check/%s: este sistema no crea enlaces simbólicos (corre en CI)
 ' "$1"
   fi
 }
-caso_enlace enlace-simbolico 1.0.json "$esquemas/1.1.json"
-caso_enlace enlace-simbolico-roto no-existe "$esquemas/1.1.json"
-caso_enlace enlace-simbolico-a-carpeta config "$proyecto/contracts/jsonschema/otro"
+caso_enlace enlace-simbolico 1.0.json contracts/jsonschema/config/1.1.json
+caso_enlace enlace-simbolico-roto no-existe contracts/jsonschema/config/1.1.json
+caso_enlace enlace-simbolico-a-carpeta config contracts/jsonschema/otro
+
+# Un nombre con salto de línea partiría las listas del script: se rechaza antes. Windows no admite ese nombre.
+esq_repo nombre-con-salto-de-linea
+if printf '{}
+' > "$esquemas/1.1
+.json" 2> /dev/null; then
+  esq_check nombre-con-salto-de-linea falla UNEXPECTED_FILE ''
+else
+  printf '  omitida    check/nombre-con-salto-de-linea: este sistema no admite saltos de línea en un nombre (corre en CI)
+'
+fi
 
 # El nombre nombra la release: no puede repetirse con un contrato OpenAPI.
 esq_repo nombre-repetido-con-openapi
@@ -350,13 +363,14 @@ caso_almacen esquema-error-api-sin-crear sin_crear
 
 # Cada versión necesita sus dos archivos: sin los casos o sin el esquema no se publica nada.
 esq_publicacion sin-casos
-git -C "$repo" rm -q --cached contracts/jsonschema/config/1.0.casos.json
+# git rm quita el archivo del disco y del índice: el commit ya no lo tiene.
+git -C "$repo" rm -q contracts/jsonschema/config/1.0.casos.json
 esq_confirmar sin-casos
 esq_publicar sin-casos falla INCOMPLETE_VERSION ''
 caso_almacen esquema-sin-casos-sin-crear sin_crear
 
 esq_publicacion casos-sin-esquema
-git -C "$repo" rm -q --cached contracts/jsonschema/config/1.0.json
+git -C "$repo" rm -q contracts/jsonschema/config/1.0.json
 esq_confirmar casos-sin-esquema
 esq_publicar casos-sin-esquema falla INCOMPLETE_VERSION ''
 caso_almacen esquema-casos-sin-esquema-sin-crear sin_crear
@@ -371,12 +385,12 @@ caso_almacen esquema-fuera-de-forma-sin-crear sin_crear
 esq_publicacion enlace-simbolico
 blob_del_enlace=$(printf '1.0.json' | git -C "$repo" hash-object -w --stdin)
 git -C "$repo" update-index --add --cacheinfo "120000,$blob_del_enlace,contracts/jsonschema/config/1.1.json"
-esq_confirmar enlace
+git -C "$repo" commit -q -m enlace
 esq_publicar enlace-simbolico falla UNEXPECTED_FILE ''
 caso_almacen esquema-enlace-simbolico-sin-crear sin_crear
 
 esq_publicacion sin-esquemas
-git -C "$repo" rm -q -r --cached contracts/jsonschema
+git -C "$repo" rm -q -r contracts/jsonschema
 esq_confirmar sin-esquemas
 esq_publicar sin-esquemas falla NO_SCHEMAS ''
 
