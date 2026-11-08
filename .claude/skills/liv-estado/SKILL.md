@@ -7,6 +7,8 @@ description: Actualiza ESTADO.md, el registro del estado del proyecto LIV, al in
 
 `ESTADO.md` es el único lugar que dice dónde está el proyecto. Se actualiza **en el mismo cambio** que inicia, completa o bloquea una tarea. Una tarea no está terminada hasta que `ESTADO.md` la refleja (`AGENTS.md` §7).
 
+**Si la feature la dirige un orquestador** (`liv-orquestador`, ADR 0033), solo él usa esta *skill*: las sesiones de las tareas no tocan `ESTADO.md` y se lo reportan, y con eso cumplen (`AGENTS.md` §7). Un cambio ajeno a la feature escribe solo su entrada de la bitácora. El orquestador también lleva el tablero «Trabajo en curso» de §1.
+
 ## Pasos
 
 1. **Lee `ESTADO.md` completo** antes de tocarlo: otra persona u otro agente puede haberlo cambiado.
@@ -16,6 +18,7 @@ description: Actualiza ESTADO.md, el registro del estado del proyecto LIV, al in
 | Sección | Cuándo se toca |
 |---|---|
 | 1. Resumen | Cambia la fase, el estado de la arquitectura, de Figma o de las decisiones |
+| 1. Trabajo en curso | Solo el orquestador: empieza o se cierra una feature, se abre o se integra un PR de sus tareas, o algo se bloquea |
 | 2. Documentación | Se crea, mueve o cambia de versión o estado un documento |
 | 3. Entregables de la Fase 0 | Avanza un entregable F0‑xx (mientras dure la Fase 0) |
 | 4. Figma | Cambian páginas, estilos, componentes o pantallas, o su aprobación |
@@ -32,4 +35,4 @@ description: Actualiza ESTADO.md, el registro del estado del proyecto LIV, al in
 
 - No reescribas ni borres entradas antiguas de la bitácora; si algo estaba mal, agrega una entrada nueva que lo corrija.
 - No marques ✅ algo que no se verificó.
-- No dejes la actualización para un commit aparte: va con el cambio que la origina.
+- No dejes la actualización para un commit aparte: va con el cambio que la origina. La excepción es el orquestador, que la lleva en su propio PR (ADR 0033).

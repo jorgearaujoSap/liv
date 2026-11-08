@@ -1,7 +1,7 @@
 # Estado del proyecto
 
 > **Última actualización:** 2026-11-08
-> **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1).
+> **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
 ---
@@ -16,6 +16,12 @@
 | Arquitectura (00–05) | ✅ **Aprobada** el 2026-11-01: ADR 0001–0020 aceptados sin ajustes (Java 21 LTS en lugar de 25); ADR 0021 (backend con Maven y la base del equipo) y ADR 0022 (librería como proyecto `ui/` publicado en npm) aceptados el mismo día |
 | Diseño en Figma | 🔄 Estilos, hoja de fundamentos, variables de espaciado y radios, 38 iconos y logotipo hechos; 20 componentes y 15 pantallas de la feature 001 (versión 2, rediseñada) aprobados por el responsable funcional (2026-11-01) |
 | Decisiones del equipo | ✅ 8 de 10 decididas; P6 espera a la entidad y P7 es provisional (§5) |
+
+### Trabajo en curso
+
+Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
+
+**Sin orquestador activo.** La feature 004 (F0‑10) empezó antes del ADR 0033 y termina con las reglas anteriores; el orquestador se aplica desde la siguiente feature.
 
 ---
 
@@ -149,6 +155,14 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-08
 
+- **Orquestador de la feature en curso (ADR 0033), decidido por el responsable:**
+  - la *skill* `liv-orquestador` dirige la feature en curso: lanza cada fase y cada tarea en una sesión nueva, paraleliza solo dentro de la feature lo que no depende de otra tarea ni comparte recursos (hasta tres sesiones a la vez), supervisa, valida y escala a la persona;
+  - se mantiene una sola feature a la vez; la persona elige cuál empieza, aprueba H1, H2 y H3 de cada PR y lo integra. El orquestador no integra de ninguna forma;
+  - las plantillas de `tasks.md` y `plan.md` declaran el proyecto, las dependencias y los recursos;
+  - solo el orquestador escribe `ESTADO.md`, el roadmap, el glosario y las marcas de `tasks.md` y `spec.md`, y eso prevalece sobre las demás reglas; `ESTADO.md` tiene ahora el tablero «Trabajo en curso» en §1;
+  - la feature 004 termina con las reglas anteriores;
+  - cambian `AGENTS.md` §4.3, §4.4, §7, §9, §10 y §11, `CLAUDE.md`, el doc. 05 (versión 1.1), las *skills* `liv-estado`, `liv-sdd-feature` y `liv-figma`, `spec/README.md` y el roadmap;
+  - pasó una revisión de legibilidad y una adversarial de nivel alto, y sus hallazgos se corrigieron.
 - **Feature 004 · paso 1 (T1 a T3) en el PR #141:** el esquema `backend/contracts/jsonschema/config-jurisdiccion/1.0.json`, sus casos comunes de carga y de validación (`1.0.casos.json`) y las pruebas del backend: carga segura del YAML con el subconjunto portable, un caso por criterio, mutación de cada nodo de las copias de los anexos contra la clase de cada campo y meta‑prueba (004‑11). Revisión adversarial con dos revisores de nivel alto y las cuatro lentes, en dos rondas: sin críticos; los altos y los medios propios se corrigieron. Quedan para el responsable, antes de integrar: aceptar las reglas de carga y el anclaje de los patrones que la revisión agregó al plan, y cinco decisiones de contenido del esquema (descritas en el PR).
 - **Feature 004 · tareas:** `spec/features/004-esquema-configuracion-jurisdiccion/tasks.md`, con las tareas T1 a T12 de los seis pasos del plan, un PR por paso y en su orden. No entró en el PR #138.
 - **Feature 004 · Esquema de la configuración de jurisdicción (F0‑10), spec (H1) y plan (H2) aprobados:** `spec/features/004-esquema-configuracion-jurisdiccion/` (PR #138).

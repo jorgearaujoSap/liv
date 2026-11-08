@@ -2,7 +2,7 @@
 
 _Orden y estado de las features. Es la vista de "qué hay hecho, qué toca ahora y qué viene". Cada entrada apunta a su carpeta en `features/`._
 
-> Las fases y sus criterios de salida están en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8. El estado general del proyecto (entregables de la Fase 0, decisiones abiertas, Figma, bitácora) está en `ESTADO.md`. Al mover una feature de sección, se actualizan este archivo y `ESTADO.md` en el mismo cambio.
+> Las fases y sus criterios de salida están en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8. El estado general del proyecto (entregables de la Fase 0, decisiones abiertas, Figma, bitácora) está en `ESTADO.md`. Al mover una feature de sección, se actualizan este archivo y `ESTADO.md` en el mismo cambio. Bajo un orquestador, lo hace él en su PR (ADR 0033). La feature en curso es la que figura en el tablero «Trabajo en curso» de `ESTADO.md`.
 
 ## Hecho ✅
 
