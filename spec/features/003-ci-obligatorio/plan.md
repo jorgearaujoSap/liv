@@ -135,3 +135,15 @@ Un PR de la raíz (`.github/`, `docs/`, `ESTADO.md`; `AGENTS.md` §4.6). Despué
     - `*.md` solo es neutro en la raíz.
   - Todos resueltos. No quedan hallazgos críticos ni altos.
 - [x] Aprobación H2: el responsable del proyecto, 2026-11-07 (equipo de una persona, `AGENTS.md` §4.3).
+
+## Ajustes durante la implementación
+
+_Salieron de la revisión adversarial y de las cuatro lentes de la implementación (2026-11-07); el resumen está en la descripción del PR._
+
+- **Archivos ocultos de `backend/`:** un archivo oculto directamente en `backend/` (`.gitattributes`, `.gitignore`) también configura al BFF que vive dentro, así que `aplica.sh` lo trata como desconocido y hace aplicar a todos (también a frontend y ui, por simplicidad). Los de subcarpetas (`.mvn/`) siguen siendo del backend.
+- **Nombre del trabajo de contratos:** en `backend-contracts-pr` es `contratos · cambios` (el proyecto de `aplica.sh` es `contratos`), para no repetir `backend · cambios` de `backend-pr`. No es un check obligatorio.
+- **Agregado:** el paso de `backend · contratos` lleva `if: always()`, por si GitHub no vuelve a evaluar el trabajo en una cancelación (probablemente es redundante; no puede aprobar en falso). Se incluye en la demostración de T6.
+- **`git diff … --`:** el `--` evita que un archivo llamado `HEAD` en la raíz haga fallar la consulta.
+- **Arnés:** además de `aplica.sh`, comprueba por texto que los cinco *workflows* conservan la condición de omisión, `needs: cambios` y los nombres de los trabajos; aborta si falla la preparación de un caso; compara la salida estándar y la de error juntas.
+- **`sistema · scripts de CI`:** `timeout-minutes: 10`.
+- **Pendiente para T6:** demostrar, antes de T5, el camino de omisión en GitHub (PR de solo `docs/`), y confirmar qué conclusión queda en una cancelación forzada de `cambios` con `verify` aún sin empezar.

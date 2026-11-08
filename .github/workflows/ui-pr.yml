@@ -2,14 +2,14 @@
 # Compuertas cubiertas hoy: Q01 (lint, formato y empaquetado). Pruebas, historias, regresión visual y
 # accesibilidad (Q02, Q14) se agregan con el primer componente (tarea T03 de la feature 001).
 # Este workflow nunca publica en npm: solo un humano publica (AGENTS.md §4.5).
+# Corre en todos los PR, sin filtro de rutas: «ui · cambios» decide si «ui · verify» corre o se omite
+# (.github/scripts/aplica.sh). Los nombres de los trabajos son los de los checks obligatorios del ruleset «main»:
+# no se cambian sin cambiar también la protección, o el check obligatorio queda esperando para siempre.
 name: ui-pr
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'ui/**'
-      - '.github/workflows/ui-pr.yml'
 
 permissions:
   contents: read
@@ -19,8 +19,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decide si el PR toca algo que afecte al proyecto (.github/scripts/aplica.sh). Corre en todos los PR: así el
+  # check «ui · verify» existe siempre y puede ser obligatorio. Usa el script de la rama base, no el del PR.
+  cambios:
+    name: ui · cambios
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      aplica: ${{ steps.aplica.outputs.aplica }}
+    steps:
+      # El checkout es el merge del PR con main; con fetch-depth 2 trae también su primer padre, la punta de main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: ¿Cambia el PR algo que afecte a ui?
+        id: aplica
+        run: |
+          if git cat-file -e HEAD^1:.github/scripts/aplica.sh 2> /dev/null; then
+            git show HEAD^1:.github/scripts/aplica.sh > "$RUNNER_TEMP/aplica.sh"
+            bash "$RUNNER_TEMP/aplica.sh" ui >> "$GITHUB_OUTPUT"
+          else
+            echo "La base aún no tiene el script (el PR que lo agrega): aplica."
+            echo "aplica=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
     name: ui · verify
+    needs: cambios
+    if: ${{ always() && (needs.cambios.result != 'success' || needs.cambios.outputs.aplica != 'false') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:

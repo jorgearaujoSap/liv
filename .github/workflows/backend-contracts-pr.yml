@@ -10,6 +10,10 @@
 # Va aparte de backend-pr para que poner o quitar la etiqueta contrato-incompatible vuelva a correr solo esta
 # comprobación y no el verify completo. La etiqueta es la aprobación del responsable; la pone una persona con
 # permiso de escritura, nunca un agente.
+# Corre en todos los PR, sin filtro de rutas: «contratos · cambios» decide si el comparador y sus pruebas corren o se
+# omiten (.github/scripts/aplica.sh, proyecto «contratos»). Un trabajo de matriz omitido publica su check con el nombre
+# sin expandir, que nadie puede exigir; por eso «backend · contratos» es el agregado y el check obligatorio del ruleset
+# «main». Los nombres de los trabajos son los de la protección: no se cambian sin cambiar también el ruleset.
 name: backend-contracts-pr
 
 on:
@@ -17,13 +21,6 @@ on:
     branches: [main]
     # edited: si el PR cambia de rama base, se vuelve a comparar.
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
-    paths:
-      - 'backend/contracts/**'
-      - 'backend/pom.xml'
-      - 'backend/bff/contracts/**'
-      - 'backend/bff/pom.xml'
-      - '.github/workflows/backend-contracts-pr.yml'
-      - '.github/workflows/backend-main.yml'
 
 permissions:
   contents: read
@@ -33,10 +30,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decide si el PR toca contratos, pom.xml o el wrapper de Maven (.github/scripts/aplica.sh). Corre en todos los PR:
+  # así «backend · contratos» existe siempre y puede ser obligatorio. Usa el script de la rama base, no el del PR.
+  cambios:
+    name: contratos · cambios
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      aplica: ${{ steps.aplica.outputs.aplica }}
+    steps:
+      # El checkout es el merge del PR con main; con fetch-depth 2 trae también su primer padre, la punta de main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: ¿Cambia el PR los contratos o el Maven del comparador?
+        id: aplica
+        run: |
+          if git cat-file -e HEAD^1:.github/scripts/aplica.sh 2> /dev/null; then
+            git show HEAD^1:.github/scripts/aplica.sh > "$RUNNER_TEMP/aplica.sh"
+            bash "$RUNNER_TEMP/aplica.sh" contratos >> "$GITHUB_OUTPUT"
+          else
+            echo "La base aún no tiene el script (el PR que lo agrega): aplica."
+            echo "aplica=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # Pruebas de los scripts tal como quedan en el PR. Van aparte del juez para que nada de lo que ejecutan llegue
   # al trabajo que compara.
   test:
     name: ${{ matrix.project }} · pruebas del comparador
+    needs: cambios
+    if: ${{ always() && (needs.cambios.result != 'success' || needs.cambios.outputs.aplica != 'false') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -83,6 +108,8 @@ jobs:
 
   compare:
     name: ${{ matrix.project }} · contratos (Q08)
+    needs: cambios
+    if: ${{ always() && (needs.cambios.result != 'success' || needs.cambios.outputs.aplica != 'false') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -166,3 +193,29 @@ jobs:
           LIV_CONTRACTS_ROOT: ${{ github.workspace }}/${{ matrix.project }}
           LIV_CONTRACTS_BREAKING_APPROVED: ${{ steps.label.outputs.approved }}
         run: sh "$JUDGE/contracts/scripts/compare.sh" HEAD^1
+
+  # El check obligatorio de los contratos (ruleset «main»). Corre siempre y aprueba solo en dos casos; cualquier otra
+  # combinación (failure, cancelled, un resultado inesperado) lo deja en rojo.
+  contratos:
+    name: backend · contratos
+    needs: [cambios, test, compare]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Resultado de los contratos
+        if: ${{ always() }}
+        env:
+          CAMBIOS: ${{ needs.cambios.result }}
+          APLICA: ${{ needs.cambios.outputs.aplica }}
+          TEST: ${{ needs.test.result }}
+          COMPARE: ${{ needs.compare.result }}
+        run: |
+          if [ "$CAMBIOS" = success ] && [ "$APLICA" = false ] && [ "$TEST" = skipped ] && [ "$COMPARE" = skipped ]; then
+            echo "El PR no cambia contratos, pom.xml ni wrapper de Maven: no hay nada que comparar."
+          elif [ "$TEST" = success ] && [ "$COMPARE" = success ]; then
+            echo "Las pruebas del comparador y los contratos pasaron."
+          else
+            echo "::error::Contratos sin aprobar (cambios: $CAMBIOS, pruebas: $TEST, comparación: $COMPARE)."
+            exit 1
+          fi
