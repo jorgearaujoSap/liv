@@ -1,0 +1,269 @@
+package co.com.sapenlinea.liv.contracts;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.BigIntegerNode;
+import tools.jackson.databind.node.DecimalNode;
+import tools.jackson.databind.node.JsonNodeFactory;
+
+/**
+ * The class of every field of the jurisdiction configuration, written from the plan of the feature
+ * 004 ("Contenido del esquema 1.0": text classes, fractions, amounts, integers, dates, DANE codes
+ * and closed lists), not from the schema. Each class has probes, values with their expected result,
+ * that {@link JurisdictionConfigSchemaMutationTest} writes in every field of that class. Paths use
+ * {@code []} for any index; an item of a list of scalars is the path of the list plus {@code []}.
+ */
+final class JurisdictionConfigFieldClasses {
+
+  private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
+
+  /** A value and whether the field accepts it. */
+  record Probe(JsonNode value, boolean valid) {}
+
+  /** A class of field and its probes. */
+  record FieldClass(String name, List<Probe> probes) {}
+
+  static final FieldClass CODE =
+      of(
+          "código",
+          ok(text("OTRO_CODIGO_2")),
+          no(text("abc")),
+          no(text("PENDIENTE")),
+          no(text("POR_CONFIRMAR")),
+          no(text("A B")),
+          no(integer(1)),
+          no(bool(true)));
+  static final FieldClass IDENTIFIER =
+      of(
+          "identificador",
+          ok(text("otro_id_2")),
+          no(text("Otro")),
+          no(text("PENDIENTE")),
+          no(text("a.b")),
+          no(text("")));
+  static final FieldClass FIELD_PATH =
+      of(
+          "ruta",
+          ok(text("seccion.campo_2")),
+          no(text("campo")),
+          no(text("PENDIENTE")),
+          no(text("Seccion.campo")));
+  static final FieldClass TECHNICAL_TEXT =
+      of(
+          "texto técnico",
+          ok(text("Columna 2001")),
+          ok(text("POR_CONFIRMAR")),
+          no(text("PENDIENTE")),
+          no(text("")),
+          no(integer(1)));
+  static final FieldClass FREE_TEXT =
+      of(
+          "texto libre",
+          ok(text("Un texto")),
+          ok(text("PENDIENTE")),
+          ok(text("POR_CONFIRMAR")),
+          no(text("")),
+          no(integer(1)));
+  static final FieldClass FRACTION =
+      of(
+          "fracción",
+          ok(decimal("0.5")),
+          ok(integer(0)),
+          ok(integer(1)),
+          ok(decimal("1.00")),
+          ok(text("PENDIENTE")),
+          no(decimal("1.5")),
+          no(decimal("1.0000000000000001")),
+          no(decimal("-0.1")),
+          no(text("0.5")));
+  static final FieldClass FACTOR =
+      of(
+          "factor",
+          ok(decimal("1.5")),
+          ok(decimal("0.5")),
+          no(integer(0)),
+          no(integer(-1)),
+          no(text("PENDIENTE")));
+  static final FieldClass AMOUNT =
+      of(
+          "monto",
+          ok(integer(0)),
+          ok(decimal("1000.5")),
+          no(integer(-1)),
+          no(text("PENDIENTE")),
+          no(text("1000")));
+  static final FieldClass INTEGER =
+      of(
+          "entero",
+          ok(integer(0)),
+          ok(integer(7)),
+          no(integer(-1)),
+          no(decimal("7.0")),
+          no(decimal("0.5")),
+          no(text("PENDIENTE")),
+          no(text("7")));
+  static final FieldClass DATE =
+      of(
+          "fecha",
+          ok(text("2026-04-30")),
+          ok(text("2026-02-30")),
+          ok(text("PENDIENTE")),
+          no(text("2026-13-01")),
+          no(text("2026-00-10")),
+          no(text("2026-04-32")),
+          no(text("2026-04-00")),
+          no(text("30/04/2026")),
+          no(text("2026-4-30")));
+  static final FieldClass MONTH_DAY =
+      of(
+          "mes-día",
+          ok(text("12-31")),
+          ok(text("01-01")),
+          no(text("13-01")),
+          no(text("00-10")),
+          no(text("01-32")),
+          no(text("01-00")),
+          no(text("2026-01-01")),
+          no(text("PENDIENTE")));
+  static final FieldClass DANE =
+      of(
+          "DANE",
+          ok(text("52")),
+          ok(text("52356")),
+          ok(text("PENDIENTE")),
+          no(text("523")),
+          no(text("5235A")),
+          no(integer(52)));
+  static final FieldClass DANE_DEPARTMENT =
+      of(
+          "DANE de departamento",
+          ok(text("52")),
+          ok(text("PENDIENTE")),
+          no(text("52356")),
+          no(text("5")));
+  static final FieldClass DIVIPOLA =
+      of(
+          "DIVIPOLA de 8 dígitos",
+          ok(text("52356000")),
+          ok(text("PENDIENTE")),
+          no(text("52356")),
+          no(text("5235600A")));
+  static final FieldClass DANE_IN_LIST =
+      of(
+          "DANE de una lista",
+          ok(text("52")),
+          ok(text("52356")),
+          no(text("PENDIENTE")),
+          no(text("523")));
+  static final FieldClass BOOLEAN =
+      of(
+          "booleano",
+          ok(bool(true)),
+          ok(bool(false)),
+          no(text("true")),
+          no(integer(1)),
+          no(text("PENDIENTE")));
+  static final FieldClass ESTADO = closed("estado", "VIGENTE", "POR_CONFIRMAR", "PENDIENTE");
+
+  /** The closed lists of 004-05, by field, with their exact values. */
+  static final Map<String, List<String>> CLOSED_LISTS =
+      Map.of(
+          "/jurisdiccion/tipo",
+              List.of("DEPARTAMENTO", "DISTRITO_CAPITAL", "DISTRITO", "MUNICIPIO"),
+          "/base_gravable/vehiculo_nuevo/fuente_base",
+              List.of("FACTURA", "DECLARACION_IMPORTACION"),
+          "/beneficios[]/tipo", List.of("DESCUENTO_PORCENTUAL", "EXENCION_TOTAL", "VALOR_FIJO"),
+          "/redondeo/metodo", List.of("MULTIPLO_MAS_CERCANO", "MULTIPLO_SUPERIOR", "SIN_REDONDEO"),
+          "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/modo",
+              List.of("FIN_DE_VIGENCIA", "DIAS_DESDE_CAUSACION", "FECHA_FIJA"),
+          "/calendario/vehiculos_nuevos/descuento/modo",
+              List.of("NO_APLICA", "DIAS_DESDE_CAUSACION"),
+          "/recaudo/descuento_pago_parcial", List.of("NO_APLICA", "PROPORCIONAL"));
+
+  private JurisdictionConfigFieldClasses() {}
+
+  /**
+   * The class of a field, or null if the plan gives it none ({@code esquema_version}, which has its
+   * own tests). Every {@code estado} has the class estado.
+   */
+  static FieldClass of(String generalPath) {
+    if (generalPath.endsWith("/estado")) {
+      return ESTADO;
+    }
+    return JurisdictionConfigFieldTable.CLASSES.get(generalPath);
+  }
+
+  /** Every classified field, to check that the configurations have no field without a class. */
+  static Map<String, FieldClass> all() {
+    return Map.copyOf(JurisdictionConfigFieldTable.CLASSES);
+  }
+
+  /** The class of a closed list of 004-05, with its documented values. */
+  static FieldClass closedList(String path, List<String> values) {
+    return closed(path, values.toArray(String[]::new));
+  }
+
+  private static FieldClass closed(String name, String... values) {
+    List<Probe> probes = new ArrayList<>();
+    for (String value : values) {
+      probes.add(ok(text(value)));
+    }
+    probes.add(no(text("OTRO_VALOR")));
+    probes.add(no(text(values[0].toLowerCase(java.util.Locale.ROOT))));
+    if (!List.of(values).contains("PENDIENTE")) {
+      probes.add(no(text("PENDIENTE")));
+    }
+    return of("lista cerrada " + name, probes.toArray(Probe[]::new));
+  }
+
+  /**
+   * A class with its own probes plus one of each JSON type it never accepts: an object, a list and,
+   * unless it is the type of the class, a boolean, a number and a text.
+   */
+  private static FieldClass of(String name, Probe... probes) {
+    List<Probe> all = new ArrayList<>(List.of(probes));
+    boolean text = all.stream().anyMatch(p -> p.valid() && p.value().isString());
+    boolean number = all.stream().anyMatch(p -> p.valid() && p.value().isNumber());
+    boolean bool = all.stream().anyMatch(p -> p.valid() && p.value().isBoolean());
+    all.add(no(NODES.objectNode()));
+    all.add(no(NODES.arrayNode()));
+    if (!bool) {
+      all.add(no(bool(true)));
+    }
+    if (!number) {
+      all.add(no(decimal("1.5")));
+    }
+    if (!text) {
+      all.add(no(text("x")));
+    }
+    return new FieldClass(name, List.copyOf(all));
+  }
+
+  private static Probe ok(JsonNode value) {
+    return new Probe(value, true);
+  }
+
+  private static Probe no(JsonNode value) {
+    return new Probe(value, false);
+  }
+
+  private static JsonNode text(String value) {
+    return NODES.stringNode(value);
+  }
+
+  private static JsonNode decimal(String value) {
+    return DecimalNode.valueOf(new BigDecimal(value));
+  }
+
+  private static JsonNode integer(long value) {
+    return BigIntegerNode.valueOf(BigInteger.valueOf(value));
+  }
+
+  private static JsonNode bool(boolean value) {
+    return NODES.booleanNode(value);
+  }
+}
