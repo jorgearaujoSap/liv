@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,8 +46,13 @@ import tools.jackson.databind.node.ObjectNode;
  */
 final class SafeYamlLoader {
 
-  /** Why a document is rejected. The root validator gives the same codes for the same cases. */
+  /**
+   * Why a document is rejected. The names are the codes of the field {@code motivo} of the common
+   * cases, which the root validator gives too, so they stay in Spanish like the cases.
+   */
   enum Reason {
+    CODIFICACION,
+    TAMANO,
     SINTAXIS,
     CARACTER_DE_CONTROL,
     DIRECTIVA,
@@ -57,7 +64,9 @@ final class SafeYamlLoader {
     CLAVE_NO_TEXTO,
     CLAVE_REPETIDA,
     ESCALAR_AMBIGUO,
-    VALOR_VACIO
+    VALOR_VACIO,
+    PROFUNDIDAD,
+    NUMERO_LARGO
   }
 
   /** The document is outside the portable subset. */
@@ -75,13 +84,23 @@ final class SafeYamlLoader {
     }
   }
 
-  /** Control characters anywhere in the text, except the line breaks LF and CR. */
+  /**
+   * Control and invisible characters anywhere in the text, comments included, except the line
+   * breaks LF and CR: NEL, U+2028 and U+2029 are line breaks in YAML 1.1 and not in 1.2, and the
+   * file is UTF-8 without a byte order mark.
+   */
   private static final Pattern RAW_CONTROL =
-      Pattern.compile("[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F\\u2028\\u2029]");
+      Pattern.compile("[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F\\u2028\\u2029\\uFEFF]");
 
-  /** Control characters in a key or a value, after escapes and block scalars. */
+  /** The same characters in a key or a value, after escapes and block scalars, line breaks too. */
   private static final Pattern VALUE_CONTROL =
-      Pattern.compile("[\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]");
+      Pattern.compile("[\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029\\uFEFF]");
+
+  /** Limits of the subset, the same in the root validator. */
+  static final int MAX_BYTES = 1024 * 1024;
+
+  static final int MAX_DEPTH = 20;
+  static final int MAX_DIGITS = 30;
 
   private static final Pattern INTEGER = Pattern.compile("-?(0|[1-9][0-9]*)");
   private static final Pattern DECIMAL = Pattern.compile("-?(0|[1-9][0-9]*)\\.[0-9]+");
@@ -101,10 +120,24 @@ final class SafeYamlLoader {
   private SafeYamlLoader() {}
 
   static JsonNode load(Path file) throws IOException {
-    return load(Files.readString(file, StandardCharsets.UTF_8));
+    String text;
+    try {
+      ByteBuffer bytes = ByteBuffer.wrap(Files.readAllBytes(file));
+      text = StandardCharsets.UTF_8.newDecoder().decode(bytes).toString();
+    } catch (CharacterCodingException e) {
+      throw new UnsafeYamlException(Reason.CODIFICACION, "el archivo no es UTF-8 válido");
+    }
+    return load(text);
   }
 
+  /**
+   * Loads a text with the rules in their order: size, control characters, syntax and then, in the
+   * order of the document, the rules of each event.
+   */
   static JsonNode load(String text) {
+    if (text.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
+      throw new UnsafeYamlException(Reason.TAMANO, "el texto pasa de " + MAX_BYTES + " bytes");
+    }
     if (RAW_CONTROL.matcher(text).find()) {
       throw new UnsafeYamlException(
           Reason.CARACTER_DE_CONTROL, "el texto tiene un carácter de control");
@@ -114,7 +147,9 @@ final class SafeYamlLoader {
     try {
       new Yaml(new LoaderOptions()).parse(new StringReader(text)).forEach(events::add);
     } catch (YAMLException e) {
-      throw new UnsafeYamlException(Reason.SINTAXIS, e.getMessage());
+      // One line, so that a fragment of the YAML can never start a line of a log.
+      String detail = String.valueOf(e.getMessage()).replaceAll("\\s+", " ");
+      throw new UnsafeYamlException(Reason.SINTAXIS, detail);
     }
     return new Reader(events.iterator()).stream();
   }
@@ -135,7 +170,7 @@ final class SafeYamlLoader {
           if (++documents > 1) {
             throw unsafe(Reason.DOCUMENTOS, "más de un documento", event);
           }
-          document = node(events.next());
+          document = node(events.next(), 0);
         }
       }
       if (documents == 0) {
@@ -144,27 +179,31 @@ final class SafeYamlLoader {
       return document;
     }
 
-    private JsonNode node(Event event) {
+    private JsonNode node(Event event, int parentDepth) {
       checkNode(event);
       if (event instanceof ScalarEvent scalar) {
         return scalar(scalar);
+      }
+      int depth = parentDepth + 1;
+      if (depth > MAX_DEPTH) {
+        throw unsafe(Reason.PROFUNDIDAD, "más de " + MAX_DEPTH + " niveles de colecciones", event);
       }
       if (event instanceof SequenceStartEvent) {
         ArrayNode array = NODES.arrayNode();
         for (Event next = events.next();
             !(next instanceof SequenceEndEvent);
             next = events.next()) {
-          array.add(node(next));
+          array.add(node(next, depth));
         }
         return array;
       }
       if (event instanceof MappingStartEvent) {
-        return mapping();
+        return mapping(depth);
       }
       throw unsafe(Reason.SINTAXIS, "evento inesperado " + event, event);
     }
 
-    private ObjectNode mapping() {
+    private ObjectNode mapping(int depth) {
       ObjectNode object = NODES.objectNode();
       for (Event key = events.next(); !(key instanceof MappingEndEvent); key = events.next()) {
         checkNode(key);
@@ -184,7 +223,7 @@ final class SafeYamlLoader {
         if (object.has(name)) {
           throw unsafe(Reason.CLAVE_REPETIDA, "clave repetida " + name, key);
         }
-        object.set(name, node(events.next()));
+        object.set(name, node(events.next(), depth));
       }
       return object;
     }
@@ -201,11 +240,15 @@ final class SafeYamlLoader {
       if (value.equals("null")) {
         return NODES.nullNode();
       }
-      if (INTEGER.matcher(value).matches()) {
-        return BigIntegerNode.valueOf(new BigInteger(value));
-      }
-      if (DECIMAL.matcher(value).matches()) {
-        return DecimalNode.valueOf(new BigDecimal(value));
+      boolean integer = INTEGER.matcher(value).matches();
+      if (integer || DECIMAL.matcher(value).matches()) {
+        if (value.chars().filter(Character::isDigit).count() > MAX_DIGITS) {
+          throw unsafe(
+              Reason.NUMERO_LARGO, "un número de más de " + MAX_DIGITS + " dígitos", scalar);
+        }
+        return integer
+            ? BigIntegerNode.valueOf(new BigInteger(value))
+            : DecimalNode.valueOf(new BigDecimal(value));
       }
       if (DATE.matcher(value).matches()) {
         return NODES.stringNode(value);
