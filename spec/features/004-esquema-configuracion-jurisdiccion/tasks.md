@@ -20,10 +20,10 @@ Un solo PR, que pasa de ~400 líneas y se justifica en su descripción (Q12), co
 
 ## Paso 2 · Backend: inmutabilidad y publicación (rama `feat/004-esquema-publicacion`)
 
-- [ ] **T4** · `jsonschema.sh check` y `jsonschema.sh publish`.
+- [x] **T4** · `jsonschema.sh check` y `jsonschema.sh publish`. En el PR #142, con la revisión adversarial y las cuatro lentes en dos rondas.
   - **Archivos:** `backend/contracts/scripts/jsonschema.sh`, sus escenarios en `backend/contracts/scripts/test/`, `backend/contracts/scripts/test/run.sh` (las incluye y falla si faltan).
   - **Prueba primero:** los escenarios de `check` (versión cambiada o quitada, archivo fuera de la forma, enlace simbólico, nombre repetido con `openapi/`, *script* o pruebas quitados) y de `publish` (con el `gh` falso: borrador, subir, verificar descargado, publicar, volver a correr, otro contenido), en rojo sin el *script*.
-- [ ] **T5** · Documentación del paso 2.
+- [x] **T5** · Documentación del paso 2. En el PR #142.
   - **Archivos:** `backend/README.md` y `backend/CHANGELOG.md`.
 
 ## Paso 3 · CI de contratos (rama `ci/004-esquema-contratos`; ruta crítica, aprobación explícita del responsable)
