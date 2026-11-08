@@ -139,3 +139,5 @@ El contrato con el frontend es `contracts/openapi/bff.yaml` (*contract‑first*,
 ## Estado
 
 Inicio y cierre de sesión, reenvío a la API, CSRF, límites de sesión, `keepalive` y `/bff/session` (feature 001, T17 y T18). Falta, con la tarea siguiente de la feature 001 (`tasks.md`): el endurecimiento antes de producción (T19): el terminador de sesiones vencidas que nadie vuelve a leer, el cierre por canal trasero, la limitación de tasa y las cabeceras de seguridad. Ver `CHANGELOG.md` y el `ESTADO.md` del repositorio de plataforma.
+
+Demostración 003.
