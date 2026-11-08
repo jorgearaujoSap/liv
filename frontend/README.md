@@ -114,3 +114,5 @@ Verificación en un contenedor real, al cambiar `nginx.conf`, el `Dockerfile` o 
 ## Estado
 
 Esqueleto de la Fase 0 (entregable F0‑05): Tailwind, *tokens* desde `liv-components`, ESLint con reglas de frontera, Prettier y Vitest. El núcleo de sesión (T21) y las pantallas de la feature 001 (T22) están hechos; cada pantalla nueva necesita antes su diseño aprobado en Figma.
+
+Demostración 003, cancelación.
