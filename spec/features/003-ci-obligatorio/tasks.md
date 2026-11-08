@@ -21,16 +21,16 @@ Rama de implementación: `feat/003-ci-obligatorio-github`. **T1 a T4 van en un s
   - **Prueba:** la ejecución del propio PR. Todo corre porque toca `.github/`, y `backend · contratos` queda en verde.
 - [x] **T4** · Documentación (plan, paso 8).
   - **Archivos:** `docs/arquitectura/04_Calidad_Testing_y_CI.md` (§9 y su versión) y `ESTADO.md` (F0‑07 y bitácora).
-- [ ] **T5** · Protección de `main` (plan, paso 6). Después de integrar el PR de T1 a T4, y **con la aprobación explícita del responsable** en la sesión (`AGENTS.md` §4.5).
+- [x] **T5** · Protección de `main` (plan, paso 6). Después de integrar el PR de T1 a T4, y **con la aprobación explícita del responsable** en la sesión (`AGENTS.md` §4.5).
   - **Qué se hace:** los seis *checks* nuevos al *ruleset* `main` (id 26341460), sin actores que se la salten y sin exigir la rama al día.
   - **Archivos:** `spec.md`, con el JSON resultante como prueba de 003-06.
-- [ ] **T6** · Demostración (plan, paso 7). PR de prueba que se cierran sin integrar.
+- [x] **T6** · Demostración (plan, paso 7). PR de prueba que se cierran sin integrar.
   - **Archivos:** solo los de cada PR de prueba, y `spec.md` con sus enlaces y su `mergeStateStatus`, como prueba de 003-01 a 003-05.
   - **003-07:** la salida de `git diff` sobre los `uses:`.
-- [ ] Revisión adversarial independiente de lo implementado (dos revisores de nivel alto) y las cuatro lentes de `liv-revision-4r`: es un cambio crítico.
-- [ ] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
-- [ ] Compuertas de CI en verde y PR integrado por un humano (H3).
-- [ ] Cerrar:
+- [x] Revisión adversarial independiente de lo implementado (dos revisores de nivel alto) y las cuatro lentes de `liv-revision-4r`: es un cambio crítico. Hecha en el PR #125, en dos rondas, sin hallazgos críticos ni altos.
+- [x] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra (PR de demostración #126 a #133, cerrados sin integrar).
+- [x] Compuertas de CI en verde y PR integrado por un humano (H3): #124 y #125.
+- [x] Cerrar:
   - mover F0‑07 en `ESTADO.md` (condición 2 del ADR 0031 cumplida);
   - la feature a «Hecho» en `../../constitution/roadmap.md`.
 
