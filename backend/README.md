@@ -27,6 +27,7 @@ backend/
 ├── pom.xml                         ← un solo artefacto: liv-api
 ├── mvnw, mvnw.cmd, .mvn/           ← Maven wrapper
 ├── contracts/openapi/              ← contratos OpenAPI, uno por módulo (contract-first)
+├── contracts/jsonschema/          ← esquemas JSON de configuraciones, una versión inmutable por archivo
 ├── contracts/scripts/              ← comparador de cambios incompatibles y publicación de los contratos
 └── src/
     ├── main/java/co/com/sapenlinea/liv/
@@ -76,6 +77,16 @@ La API es *contract-first* (ADR 0005, doc. 01 §10): primero se escribe el OpenA
 | `core.yaml` | `GET /api/v1/me` | `core.api.contract.CurrentUserApi` |
 | `platform.yaml` | `GET /api/v1/me/capabilities` | `platform.api.contract.CapabilitiesApi` |
 | `core-internal.yaml` | `POST /internal/v1/sessions`, `POST /internal/v1/sessions/{sid}/end` (solo el BFF, ADR 0025) | `core.api.contract.internal.InternalSessionsApi` |
+
+## Esquema de la configuración de jurisdicción
+
+`contracts/jsonschema/config-jurisdiccion/1.0.json` es el esquema 1.0 del YAML de configuración de jurisdicción y vigencia (Doc. 03 §5; feature 004, ADR 0032). El backend es su dueño, como de los contratos OpenAPI.
+
+- **Qué valida:** solo la forma del archivo (CJ01): las seis secciones obligatorias (`esquema_version`, `jurisdiccion`, `competencia`, `vigencia`, `normas` y `distribucion_recaudo`), las claves de cada objeto (rechaza las que no declara, en cualquier nivel), los tipos, `estado` y las listas cerradas, las fracciones entre 0 y 1, los montos y enteros no negativos, las fechas `AAAA-MM-DD`, los códigos DANE y en qué campos vale `PENDIENTE` o `null`. Cada campo de texto tiene una clase (código, identificador, ruta, texto técnico o texto libre) que el esquema describe en `$defs`. No fija ningún valor tributario: sus únicos límites son 0 y 1. Las reglas CJ02 a CJ14 son del validador de la opción 1.5.9.
+- **Versiones:** `MAYOR.MENOR`, el mismo número del `esquema_version` del YAML. Cada versión es un archivo inmutable: un cambio es una versión nueva, en un archivo nuevo, y cada configuración se valida contra la versión que declara. Una versión que no existe es un error, nunca se valida contra otra.
+- **Casos comunes:** `1.0.casos.json`, uno por versión. `carga` tiene los casos del subconjunto portable de YAML (sin etiquetas, anclas, alias, fusiones ni directivas; un solo documento; claves de texto sin repetir; escalares sin comillas solo como `true`, `false`, `null`, enteros y decimales sin exponente, fechas, que quedan como texto, y textos que no empiezan con un dígito, un signo o un punto; sin caracteres de control) con el motivo de cada rechazo, y `validacion` tiene configuraciones con las rutas de sus errores. Los corren las pruebas del backend y el validador de los anexos de la raíz, y el cargador de producción de la 1.5.9 debe pasarlos.
+- **Subconjunto portable de Draft 2020‑12:** sin `format`, `$dynamicRef`, `unevaluatedProperties` ni `$ref` externos, y todo `pattern` con `type: string`, para que Java y Python den lo mismo. El validador de Java (`networknt json-schema-validator`, en `test`) corre sin carga remota y con un `type` estricto: el estándar toma `1000.0` por entero, y aquí un decimal no vale en un campo entero.
+- **Pruebas** (`src/test/java/co/com/sapenlinea/liv/contracts/`): `SafeYamlLoaderTest` (casos de carga), `JurisdictionConfigSchemaTest` (un caso por criterio de la feature), `JurisdictionConfigSchemaMutationTest` (cambia cada nodo de las dos configuraciones de prueba y compara con la regla general del plan), `JurisdictionConfigCommonCasesTest` (casos de validación) y `JsonSchemaFilesTest` (nombres de archivo, metaesquema, `$id` y el subconjunto). Las configuraciones de prueba son copias de los anexos de la raíz (`src/test/resources/contracts/jsonschema/config-jurisdiccion/`): una instantánea, porque el backend no lee fuera de `backend/`.
 
 ## Seguridad
 
