@@ -10,7 +10,7 @@
 # Va aparte de backend-pr para que poner o quitar la etiqueta contrato-incompatible vuelva a correr solo esta
 # comprobación y no el verify completo. La etiqueta es la aprobación del responsable; la pone una persona con
 # permiso de escritura, nunca un agente.
-# Corre en todos los PR, sin filtro de rutas: «backend · cambios» decide si el comparador y sus pruebas corren o se
+# Corre en todos los PR, sin filtro de rutas: «contratos · cambios» decide si el comparador y sus pruebas corren o se
 # omiten (.github/scripts/aplica.sh, proyecto «contratos»). Un trabajo de matriz omitido publica su check con el nombre
 # sin expandir, que nadie puede exigir; por eso «backend · contratos» es el agregado y el check obligatorio del ruleset
 # «main». Los nombres de los trabajos son los de la protección: no se cambian sin cambiar también el ruleset.

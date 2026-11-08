@@ -62,19 +62,20 @@ blob() {
 }
 
 # Acciones sobre el índice en GIT_INDEX_FILE: +ruta crea o modifica, -ruta borra, ~origen>destino mueve.
+# Cualquier fallo de Git aborta el arnés: una acción perdida dejaría el caso con menos cobertura de la que declara.
 aplicar() {
   local a par origen destino sha
   for a in "$@"; do
     case "$a" in
-      +*) git -C "$repo" update-index --add --cacheinfo "100644,$(blob),${a#+}" ;;
-      -*) git -C "$repo" update-index --force-remove -- "${a#-}" ;;
+      +*) git -C "$repo" update-index --add --cacheinfo "100644,$(blob),${a#+}" || aborta "no se pudo agregar «$a»" ;;
+      -*) git -C "$repo" update-index --force-remove -- "${a#-}" || aborta "no se pudo quitar «$a»" ;;
       '~'*)
         par=${a#\~}
         origen=${par%%>*}
         destino=${par#*>}
-        sha=$(git -C "$repo" rev-parse --verify ":0:$origen")
-        git -C "$repo" update-index --force-remove -- "$origen"
-        git -C "$repo" update-index --add --cacheinfo "100644,$sha,$destino"
+        sha=$(git -C "$repo" rev-parse --verify ":0:$origen") || aborta "no existe el origen de «$a»"
+        git -C "$repo" update-index --force-remove -- "$origen" || aborta "no se pudo mover «$a»"
+        git -C "$repo" update-index --add --cacheinfo "100644,$sha,$destino" || aborta "no se pudo mover «$a»"
         ;;
     esac
   done
@@ -152,7 +153,7 @@ pr() {
   merge=$(git -C "$repo" commit-tree "$(git -C "$repo" write-tree)" -p "$main" -p "$commit_pr" -m merge)
   apunta_pr "$merge"
   # El caso tiene que haber cambiado algo: con un fixture mal armado el diff queda vacío y el script da TTTTT.
-  [ -n "$(git -C "$repo" diff --name-only HEAD^1 HEAD)" ] || aborta "el caso «$nombre» no cambia ningún archivo"
+  [ -n "$(git -C "$repo" diff --name-only HEAD^1 HEAD --)" ] || aborta "el caso «$nombre» no cambia ningún archivo"
   verifica_proyectos "$nombre" "$esperado" "$repo"
 }
 
@@ -216,7 +217,7 @@ pr "backend movido al BFF"                   TTFFF  '~backend/src/main/java/A.ja
 pr "archivo de la raíz borrado"              $TODOS -Makefile
 pr "backend/.gitattributes llega al BFF"      $TODOS +backend/.gitattributes
 pr "backend/.mvn/ es del wrapper, no un dotfile" TFFFT +backend/.mvn/wrapper/x
-pr "archivo que se llama HEAD"               $TODOS +HEAD
+pr "archivo que se llama HEAD (el arnés no lo crea en disco: solo prueba que no rompe)" $TODOS +HEAD
 pr "carpeta con prefijo backend/bff sin barra" TFFFF +backend/bffx/x.txt
 
 # *.md solo es neutro en la raíz.
@@ -338,8 +339,22 @@ aparece() {
     falla "$1" "«$3» aparece $veces veces en $2 y debía aparecer ${4:-1}"
   fi
 }
+
+# Igual que aparece, pero solo dentro del trabajo $3 (desde «  $3:» hasta el siguiente trabajo o comentario de trabajo);
+# $4 es la línea completa. Así una condición movida a otro trabajo no pasa.
+aparece_en_trabajo() {
+  local veces
+  veces=$(tr -d '\r' < "$workflows/$2" | awk -v t="  $3:" '$0 == t { dentro = 1; next } /^  [A-Za-z#]/ { if (dentro) exit } dentro' |
+    grep -cxF -- "$4" || true)
+  if [ "$veces" -eq 1 ]; then
+    ok "$1"
+  else
+    falla "$1" "«$4» aparece $veces veces en el trabajo $3 de $2 y debía aparecer una"
+  fi
+}
+
 sin_filtro_de_rutas() {
-  if grep -q '^    paths:' "$workflows/$2"; then falla "$1" "$2 filtra por ruta"; else ok "$1"; fi
+  if grep -Eq '^    paths(-ignore)?:' "$workflows/$2"; then falla "$1" "$2 filtra por ruta"; else ok "$1"; fi
 }
 
 for par in backend-pr:backend bff-pr:bff frontend-pr:frontend ui-pr:ui; do
@@ -357,14 +372,16 @@ aparece "$w · trabajo «contratos · cambios»" "$w" "    name: contratos · ca
 aparece "$w · check obligatorio «backend · contratos»" "$w" "    name: backend · contratos"
 aparece "$w · pruebas y comparación se omiten solo con success y false" "$w" "    $condicion" 2
 aparece "$w · pruebas y comparación esperan a cambios" "$w" "    needs: cambios" 2
-aparece "$w · el agregado corre siempre" "$w" "    if: \${{ always() }}"
-aparece "$w · el paso del agregado corre siempre" "$w" "        if: \${{ always() }}"
+aparece_en_trabajo "$w · el agregado corre siempre" "$w" contratos '    if: ${{ always() }}'
+aparece_en_trabajo "$w · el paso del agregado corre siempre" "$w" contratos '        if: ${{ always() }}'
+aparece_en_trabajo "$w · el agregado espera a los tres trabajos" "$w" contratos '    needs: [cambios, test, compare]'
 sin_filtro_de_rutas "$w · sin filtro de rutas" "$w"
 
 w=sistema-pr.yml
 aparece "$w · título" "$w" "    name: sistema · título Conventional Commits"
 aparece "$w · secretos" "$w" "    name: sistema · secretos"
 aparece "$w · scripts de CI" "$w" "    name: sistema · scripts de CI"
+sin_filtro_de_rutas "$w · sin filtro de rutas" "$w"
 
 # ---------------------------------------------------------------------------------------------------------------
 echo

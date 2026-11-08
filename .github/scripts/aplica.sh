@@ -23,8 +23,8 @@ set -euo pipefail
 # que afecta a todos).
 clasifica() {
   case "$1" in
-    # Un archivo oculto directamente en backend/ (.gitattributes, .gitignore, .editorconfig) también configura al BFF que
-    # vive dentro: aplica a todos. Los de las subcarpetas (.mvn/) son del backend.
+    # Un archivo oculto directamente en backend/ (.gitattributes, .gitignore) también configura al BFF que
+    # vive dentro: aplica a todos (también frontend y ui, por simplicidad). Los de las subcarpetas (.mvn/) son del backend.
     backend/.*) if [[ "${1#backend/}" == */* ]]; then clase=backend; else clase=otro; fi ;;
     # El BFF vive dentro de backend/ pero es otro proyecto Maven: va antes que backend/*.
     backend/bff/*) clase=bff ;;
