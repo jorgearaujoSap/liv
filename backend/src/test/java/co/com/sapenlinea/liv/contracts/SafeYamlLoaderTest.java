@@ -3,10 +3,15 @@ package co.com.sapenlinea.liv.contracts;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import co.com.sapenlinea.liv.contracts.SafeYamlLoader.Reason;
 import co.com.sapenlinea.liv.contracts.SafeYamlLoader.UnsafeYamlException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -15,32 +20,38 @@ import tools.jackson.databind.JsonNode;
 /**
  * The portable YAML subset of the jurisdiction configuration (feature 004, plan "Subconjunto
  * portable de YAML"; ADR 0032), run over the load cases of {@code 1.0.casos.json}, which the root
- * validator also runs.
+ * validator also runs. The rules and their order are in the {@code $comment} of that file.
  */
 @Tag("004-10")
 @DisplayName("Carga segura del YAML de la configuración de jurisdicción (004-10)")
 class SafeYamlLoaderTest {
 
   static Stream<Arguments> accepted() {
-    return CommonCases.load("1.0")
-        .withArray("carga")
-        .valueStream()
-        .filter(c -> c.get("aceptado").booleanValue())
-        .map(c -> Arguments.of(c.get("caso").stringValue(), c));
+    return cases(true);
   }
 
   static Stream<Arguments> rejected() {
+    return cases(false);
+  }
+
+  private static Stream<Arguments> cases(boolean accepted) {
     return CommonCases.load("1.0")
         .withArray("carga")
         .valueStream()
-        .filter(c -> !c.get("aceptado").booleanValue())
+        .filter(c -> c.get("aceptado").booleanValue() == accepted)
         .map(c -> Arguments.of(c.get("caso").stringValue(), c));
+  }
+
+  /** The YAML of a case: its text, repeated when the case says so (a file too big to write). */
+  private static String yaml(JsonNode testCase) {
+    int times = testCase.has("repetir") ? testCase.get("repetir").intValue() : 1;
+    return testCase.get("yaml").stringValue().repeat(times);
   }
 
   @ParameterizedTest(name = "004-10 · se acepta: {0}")
   @MethodSource("accepted")
   void acceptsThePortableSubset(String name, JsonNode testCase) {
-    JsonNode tree = SafeYamlLoader.load(testCase.get("yaml").stringValue());
+    JsonNode tree = SafeYamlLoader.load(yaml(testCase));
 
     assertThat(tree).isEqualTo(testCase.get("arbol"));
   }
@@ -48,11 +59,33 @@ class SafeYamlLoaderTest {
   @ParameterizedTest(name = "004-10 · se rechaza: {0}")
   @MethodSource("rejected")
   void rejectsEverythingElse(String name, JsonNode testCase) {
-    String yaml = testCase.get("yaml").stringValue();
+    String yaml = yaml(testCase);
 
     assertThatThrownBy(() -> SafeYamlLoader.load(yaml))
         .isInstanceOf(UnsafeYamlException.class)
         .extracting(e -> ((UnsafeYamlException) e).reason().name())
         .isEqualTo(testCase.get("motivo").stringValue());
+  }
+
+  @Test
+  @DisplayName("004-10 · un archivo que no es UTF-8 válido se rechaza con CODIFICACION")
+  void invalidUtf8(@TempDir Path folder) throws Exception {
+    Path file = folder.resolve("config.yaml");
+    Files.write(file, new byte[] {'a', ':', ' ', (byte) 0xC3, (byte) 0x28, '\n'});
+
+    assertThatThrownBy(() -> SafeYamlLoader.load(file))
+        .isInstanceOf(UnsafeYamlException.class)
+        .extracting(e -> ((UnsafeYamlException) e).reason())
+        .isEqualTo(Reason.CODIFICACION);
+  }
+
+  @Test
+  @DisplayName("004-10 · el mensaje de un error de sintaxis ocupa una sola línea")
+  void syntaxErrorInOneLine() {
+    assertThatThrownBy(() -> SafeYamlLoader.load("a: [1, 2\n"))
+        .isInstanceOf(UnsafeYamlException.class)
+        .extracting(Throwable::getMessage)
+        .asString()
+        .doesNotContain("\n", "\r");
   }
 }

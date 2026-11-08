@@ -1,5 +1,5 @@
 {
-  "$comment": "Casos comunes del esquema 1.0 de la configuración de jurisdicción (ADR 0032). Todo cargador y todo validador de esta versión deben dar lo mismo: las pruebas del backend y las del validador de la raíz corren este archivo. 'carga': el subconjunto portable de YAML; si se rechaza, 'motivo' es el código que debe dar el cargador. 'validacion': el YAML se carga y se valida contra el esquema; si es inválido, 'rutas' son las rutas JSON Pointer de los errores, con la de la clave en 'required' y 'additionalProperties'.",
+  "$comment": "Casos comunes del esquema 1.0 de la configuración de jurisdicción (ADR 0032). Todo cargador y todo validador de esta versión deben dar lo mismo: las pruebas del backend y las del validador de la raíz corren este archivo. 'carga': el subconjunto portable de YAML; si se rechaza, 'motivo' es el código que debe dar el cargador. 'validacion': el YAML se carga y se valida contra el esquema; si es inválido, 'rutas' son las rutas JSON Pointer de los errores, con la de la clave en 'required' y 'additionalProperties'. Si un caso trae 'repetir', el YAML es su texto repetido ese número de veces. El árbol se compara con tipo y escala: un entero no es igual a un decimal (1000 frente a 1000.0), un booleano no es un número y 0.10 no es igual a 0.1. Reglas de carga, en este orden: (1) el texto en UTF-8, de hasta 1 MiB (TAMANO); (2) sin caracteres U+0000 a U+001F, salvo el salto de línea y el retorno de carro, ni U+007F a U+009F, U+2028, U+2029 o U+FEFF, también en los comentarios (CARACTER_DE_CONTROL); (3) YAML bien formado (SINTAXIS); (4) en el orden del documento: sin directivas, un solo documento, sin etiquetas, anclas, alias ni fusiones, hasta 20 niveles de colecciones, claves de texto sin repetir, sin caracteres de control en claves y valores, y escalares sin comillas solo como true, false, null, enteros y decimales sin exponente de hasta 30 dígitos, fechas AAAA-MM-DD (que quedan como texto) y textos que no empiezan con un dígito o un punto, ni con un signo seguido de un dígito o un punto, ni son y, n, yes, no, on, off, true, false o null en otras mayúsculas, ni ~, << o =. Un archivo que no es UTF-8 válido se rechaza con CODIFICACION.",
   "esquema": "config-jurisdiccion",
   "version": "1.0",
   "carga": [
@@ -126,6 +126,68 @@
       "aceptado": true,
       "arbol": {
         "a": "primera segunda"
+      }
+    },
+    {
+      "caso": "un texto puede empezar con un signo si no sigue un dígito ni un punto",
+      "yaml": "a: -texto\nb: +abc\n",
+      "aceptado": true,
+      "arbol": {
+        "a": "-texto",
+        "b": "+abc"
+      }
+    },
+    {
+      "caso": "20 niveles de colecciones",
+      "yaml": "a: [[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]\n",
+      "aceptado": true,
+      "arbol": {
+        "a": [
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            []
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "caso": "números de 30 dígitos",
+      "yaml": "a: 999999999999999999999999999999\nb: -0.11111111111111111111111111111\n",
+      "aceptado": true,
+      "arbol": {
+        "a": 999999999999999999999999999999,
+        "b": -0.11111111111111111111111111111
       }
     },
     {
@@ -574,7 +636,7 @@
     },
     {
       "caso": "DEL sin escapar",
-      "yaml": "a: xy\n",
+      "yaml": "a: x\u007fy\n",
       "aceptado": false,
       "motivo": "CARACTER_DE_CONTROL"
     },
@@ -586,7 +648,7 @@
     },
     {
       "caso": "salto de línea de YAML 1.1 (NEL)",
-      "yaml": "a: xy\n",
+      "yaml": "a: x\u0085y\n",
       "aceptado": false,
       "motivo": "CARACTER_DE_CONTROL"
     },
@@ -598,7 +660,7 @@
     },
     {
       "caso": "separador de línea de YAML 1.1",
-      "yaml": "a: x y\n",
+      "yaml": "a: x\u2028y\n",
       "aceptado": false,
       "motivo": "CARACTER_DE_CONTROL"
     },
@@ -619,6 +681,67 @@
       "yaml": "a: 1\n b: 2\n",
       "aceptado": false,
       "motivo": "SINTAXIS"
+    },
+    {
+      "caso": "BOM al inicio",
+      "yaml": "\ufeffa: 1\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "BOM en medio de un valor",
+      "yaml": "a: x\ufeffy\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "más de 20 niveles de listas",
+      "yaml": "a: [[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]\n",
+      "aceptado": false,
+      "motivo": "PROFUNDIDAD"
+    },
+    {
+      "caso": "más de 20 niveles de objetos",
+      "yaml": "a: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: {b: 1}}}}}}}}}}}}}}}}}}}}\n",
+      "aceptado": false,
+      "motivo": "PROFUNDIDAD"
+    },
+    {
+      "caso": "entero de más de 30 dígitos",
+      "yaml": "a: 1111111111111111111111111111111\n",
+      "aceptado": false,
+      "motivo": "NUMERO_LARGO"
+    },
+    {
+      "caso": "decimal de más de 30 dígitos",
+      "yaml": "a: 0.111111111111111111111111111111\n",
+      "aceptado": false,
+      "motivo": "NUMERO_LARGO"
+    },
+    {
+      "caso": "archivo de más de 1 MiB",
+      "yaml": "# 1 MiB\n",
+      "aceptado": false,
+      "motivo": "TAMANO",
+      "repetir": 131073
+    },
+    {
+      "caso": "carácter de control y error de sintaxis",
+      "yaml": "a: [1,\t\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "error de sintaxis y escalar ambiguo",
+      "yaml": "a: yes\n b: 2\n",
+      "aceptado": false,
+      "motivo": "SINTAXIS"
+    },
+    {
+      "caso": "el primer problema del documento gana",
+      "yaml": "a: yes\nb: &x 1\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
     }
   ],
   "validacion": [
