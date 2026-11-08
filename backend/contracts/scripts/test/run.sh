@@ -1,12 +1,15 @@
 #!/bin/sh
 # Pruebas del comparador (compare.sh) y de la publicación (publish.sh) de los contratos (compuerta Q08, doc. 04 §8;
-# ADR 0027). Tres grupos:
+# ADR 0027) y de la inmutabilidad y la publicación de los esquemas JSON (jsonschema.sh; feature 004, ADR 0032).
+# Cuatro grupos:
 #   comparar  cada carpeta de comparar/ es un escenario: muestra.yaml (la versión de main) contra head.yaml (la del
 #             PR), con un archivo caso;
 #   git       compare.sh con una referencia de Git, sobre repositorios temporales con el proyecto en una
 #             subcarpeta (como corre en CI);
 #   publicar  publish.sh con un gh falso (fake-gh.sh) sobre repositorios temporales, sin tocar GitHub: juzga
-#             cada versión contra la release publicada más alta de su contrato.
+#             cada versión contra la release publicada más alta de su contrato;
+#   esquemas  jsonschema.sh (check y publish) con ese mismo gh falso; sus escenarios están en
+#             jsonschema-escenarios.sh, que este archivo carga, y si falta, falla.
 # El archivo caso de cada escenario de comparar/ dice:
 #   esperado=pasa|falla
 #   aprobado=si|no                si el PR tiene la etiqueta contrato-incompatible
@@ -375,6 +378,14 @@ caso_publicar release-mas-alta-numerica falla VERSION_NOT_BUMPED ''
 repo_publicacion sin-contratos
 commit_vacio
 caso_publicar sin-contratos falla NO_CONTRACTS ''
+
+# Los escenarios de los esquemas comparten las funciones y las variables de arriba. Que falten es una falla.
+if [ -f "$pruebas/jsonschema-escenarios.sh" ]; then
+  . "$pruebas/jsonschema-escenarios.sh"
+else
+  printf '  FALLA      faltan los escenarios de jsonschema.sh: %s\n' "$pruebas/jsonschema-escenarios.sh"
+  fallas=$((fallas + 1))
+fi
 
 if [ "$fallas" -gt 0 ]; then
   echo "$fallas pruebas no dieron lo esperado."
