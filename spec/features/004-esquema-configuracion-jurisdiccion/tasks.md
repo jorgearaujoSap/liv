@@ -28,9 +28,9 @@ Un solo PR, que pasa de ~400 líneas y se justifica en su descripción (Q12), co
 
 ## Paso 3 · CI de contratos (rama `ci/004-esquema-contratos`; ruta crítica, aprobación explícita del responsable)
 
-- [ ] **T6** · Juez de inmutabilidad y publicación del esquema.
+- [x] **T6** · Juez de inmutabilidad y publicación del esquema. En el PR #144, con la revisión adversarial y las cuatro lentes en dos rondas.
   - **Archivos:** `.github/workflows/backend-contracts-pr.yml` (paso nuevo en «contratos (Q08)», solo en la pierna `backend`) y `.github/workflows/backend-main.yml` (trabajo propio de publicación, solo en `main`).
-  - **Prueba:** la ejecución del propio PR (`backend · contratos` en verde, con el paso que dice que la base aún no tiene `contracts/jsonschema/`), el caso de falla cerrada sin *script* en la base ni en el PR, y al integrarlo la *release* `jsonschema-config-jurisdiccion-v1.0`. El cambio de `1.0.json` se demuestra en T11. `aplica.sh` y los nombres de los *checks* no cambian.
+  - **Prueba:** la ejecución del propio PR (`backend · contratos` en verde: como la base ya tiene `contracts/jsonschema/` y el *script* desde los PR #141 y #142, el paso corre el `check` real contra la base y no el mensaje de «base sin carpeta»), las ramas del paso extraídas de los *workflows* y corridas sobre repositorios de prueba con un commit de merge (base sin carpeta, sin *script* en la base ni en el PR, *script* debilitado por el PR, sin `HEAD^1`) y, al integrarlo, la *release* `jsonschema-config-jurisdiccion-v1.0`. El cambio de `1.0.json` en CI se demuestra en T11. `aplica.sh` y los nombres de los *checks* no cambian.
 
 ## Paso 4 · Raíz: validador de los anexos (rama `feat/004-validador-anexos`; después de la *release* 1.0)
 
