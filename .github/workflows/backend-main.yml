@@ -1,7 +1,8 @@
-# Publicación del backend al integrar en main (doc. 04 §9). Por ahora solo los contratos OpenAPI, como releases
-# versionadas que descarga el frontend (plan de la feature 001, paso 6; ADR 0027), de la API (backend/) y del BFF
-# (backend/bff/, desde que tenga su copia de los scripts en T18). La imagen, el SBOM, la firma y el despliegue a
-# staging se agregan con sus tareas (T16 y el resto de F0‑07).
+# Publicación del backend al integrar en main (doc. 04 §9). Por ahora solo sus contratos, como releases versionadas:
+# los OpenAPI, que descarga el frontend (plan de la feature 001, paso 6; ADR 0027), de la API (backend/) y del BFF
+# (backend/bff/, desde que tenga su copia de los scripts en T18), y los esquemas JSON del backend (feature 004,
+# ADR 0032), que descarga la raíz para validar los anexos. La imagen, el SBOM, la firma y el despliegue a staging se
+# agregan con sus tareas (T16 y el resto de F0‑07).
 # publish.sh juzga cada versión nueva contra la release publicada más alta de su contrato antes de publicarla:
 # como Q08 todavía no es un check obligatorio, así no se publica lo que no la cumple frente a lo ya publicado.
 name: backend-main
@@ -110,3 +111,76 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: sh "$JUDGE/contracts/scripts/publish.sh"
+
+  # Los esquemas JSON del backend (feature 004, ADR 0032), como releases jsonschema-<nombre>-v<MAYOR.MENOR>. Va en un
+  # trabajo propio, sin needs, para que una falla al publicar un contrato OpenAPI no deje el esquema sin publicar, ni
+  # al revés. Solo el backend tiene esquemas. Las versiones no cambian: si la release ya existe con otro contenido,
+  # falla; si ya existe igual, no la toca; así que correrlo de nuevo es seguro. Para reintentar, mejor
+  # workflow_dispatch desde main que «Re-run» de una ejecución vieja, que usa el workflow de aquel commit y el
+  # script de su commit anterior.
+  # Como publish.sh, usa el script del commit anterior (la base); si aún no lo tiene (la integración que lo agrega),
+  # el de este commit; y si hay esquemas y ningún script, falla. Ningún paso antes del juez escribe LIV_GH, la
+  # variable con la que las pruebas cambian gh por uno falso: no se agrega aquí ninguna que la defina.
+  schemas:
+    name: backend · publicar esquemas
+    # Un workflow_dispatch desde otra rama no publica un borrador como versión inmutable.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      # Crear las releases y sus etiquetas.
+      contents: write
+    # Sin cancelar lo que ya corre, y declarado en el propio trabajo: el grupo del workflow ya pone las publicaciones
+    # en fila, y este mantiene esa garantía aunque alguien cambie aquel. Dos publicaciones a la vez crearían dos
+    # borradores con la misma etiqueta. GitHub sigue descartando una ejecución en espera si llega otra detrás: cada
+    # publicación converge al árbol de su commit, así que la siguiente completa lo que faltó. Si un workflow_dispatch
+    # desde otra rama desplaza una en espera, se publica con workflow_dispatch desde main. Tiene otro nombre que el
+    # del workflow: con el mismo, el trabajo esperaría a su propio workflow.
+    concurrency:
+      group: backend-main-esquemas
+      cancel-in-progress: false
+    steps:
+      # Con fetch-depth 2 trae el commit anterior de main (squash e historia lineal), del que sale el script.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Script de los esquemas que juzga y publica
+        id: judge
+        run: |
+          if ! git rev-parse -q --verify 'HEAD^1^{commit}' > /dev/null; then
+            echo "::error::HEAD no tiene primer padre: no se puede elegir el script de la base. Se espera fetch-depth 2."
+            exit 1
+          fi
+          if ! git cat-file -e "HEAD:backend/contracts/jsonschema" 2> /dev/null; then
+            echo "backend no tiene esquemas en contracts/jsonschema/: no hay nada que publicar."
+            exit 0
+          fi
+          if git cat-file -e "HEAD^1:backend/contracts/scripts/jsonschema.sh" 2> /dev/null; then
+            git worktree add --detach "$RUNNER_TEMP/base" HEAD^1
+            echo "dir=$RUNNER_TEMP/base/backend" >> "$GITHUB_OUTPUT"
+          elif [ -f backend/contracts/scripts/jsonschema.sh ]; then
+            # Con el script de este commit se exige que los esquemas no cambien frente al commit anterior (abajo).
+            echo "::warning::El commit anterior no tiene el script: se usa el de este commit, que lo agrega o restaura."
+            base_tree=$(git rev-parse -q --verify HEAD^1:backend/contracts/jsonschema) || base_tree=
+            head_tree=$(git rev-parse -q --verify HEAD:backend/contracts/jsonschema) || head_tree=
+            if [ "$base_tree" != "$head_tree" ]; then
+              echo "::error::Un commit que agrega o restaura jsonschema.sh no cambia también los esquemas."
+              exit 1
+            fi
+            echo "dir=$GITHUB_WORKSPACE/backend" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::backend tiene esquemas pero no contracts/scripts/jsonschema.sh."
+            exit 1
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar los esquemas
+        if: steps.judge.outputs.enabled == 'true'
+        env:
+          JUDGE: ${{ steps.judge.outputs.dir }}
+          LIV_CONTRACTS_ROOT: ${{ github.workspace }}/backend
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: sh "$JUDGE/contracts/scripts/jsonschema.sh" publish
