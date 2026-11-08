@@ -75,7 +75,8 @@ final class SafeYamlLoader {
     private final Reason reason;
 
     UnsafeYamlException(Reason reason, String detail) {
-      super(reason + ": " + detail);
+      // One line: a fragment of the YAML (a tag, a key) can never start a line of a log.
+      super(reason + ": " + VALUE_CONTROL.matcher(detail).replaceAll(" ").replaceAll("\\s+", " "));
       this.reason = reason;
     }
 
@@ -85,16 +86,17 @@ final class SafeYamlLoader {
   }
 
   /**
-   * Control and invisible characters anywhere in the text, comments included, except the line
-   * breaks LF and CR: NEL, U+2028 and U+2029 are line breaks in YAML 1.1 and not in 1.2, and the
-   * file is UTF-8 without a byte order mark.
+   * Control characters anywhere in the text, comments included, except the line breaks LF and CR:
+   * NEL, U+2028 and U+2029 are line breaks in YAML 1.1 and not in 1.2, the file is UTF-8 without a
+   * byte order mark, and U+FFFE and U+FFFF are not characters.
    */
   private static final Pattern RAW_CONTROL =
-      Pattern.compile("[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F\\u2028\\u2029\\uFEFF]");
+      Pattern.compile(
+          "[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F\\u2028\\u2029\\uFEFF\\uFFFE\\uFFFF]");
 
   /** The same characters in a key or a value, after escapes and block scalars, line breaks too. */
   private static final Pattern VALUE_CONTROL =
-      Pattern.compile("[\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029\\uFEFF]");
+      Pattern.compile("[\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029\\uFEFF\\uFFFE\\uFFFF]");
 
   /** Limits of the subset, the same in the root validator. */
   static final int MAX_BYTES = 1024 * 1024;
@@ -119,7 +121,11 @@ final class SafeYamlLoader {
 
   private SafeYamlLoader() {}
 
+  /** Loads a file: first its size, before reading it, and then its encoding. */
   static JsonNode load(Path file) throws IOException {
+    if (Files.size(file) > MAX_BYTES) {
+      throw new UnsafeYamlException(Reason.TAMANO, "el archivo pasa de " + MAX_BYTES + " bytes");
+    }
     String text;
     try {
       ByteBuffer bytes = ByteBuffer.wrap(Files.readAllBytes(file));

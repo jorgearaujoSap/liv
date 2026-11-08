@@ -268,7 +268,7 @@
               }
             },
             "PARTICIPACION_20": {
-              "description": "C: no liquida; controla el 20 % que recibe.",
+              "description": "C: no liquida; controla la participación que recibe.",
               "type": "object",
               "additionalProperties": false,
               "required": [
@@ -1517,7 +1517,7 @@
     "texto_tecnico": {
       "description": "Texto que lee la máquina (columnas de las tablas, fórmulas, números de artículo). Nunca PENDIENTE.",
       "type": "string",
-      "pattern": "^(?!PENDIENTE(?![\\s\\S]))[\\s\\S]+(?![\\s\\S])"
+      "pattern": "^(?!PENDIENTE(?![\\s\\S]))[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+(?![\\s\\S])"
     },
     "texto_libre": {
       "description": "Texto que escribe una persona (nombres, NIT, números de normas, descripciones). Admite PENDIENTE y POR_CONFIRMAR.",
@@ -1548,7 +1548,7 @@
       "minimum": 0
     },
     "entero": {
-      "description": "Entero mayor o igual que 0: años, días, multiplicadores, múltiplos, umbrales, contadores. Un decimal no vale (1000.0 no es 1000).",
+      "description": "Entero mayor o igual que 0: años, días, multiplicadores, múltiplos, umbrales, contadores. Un decimal no vale (1.0 no es 1).",
       "type": "integer",
       "minimum": 0
     },
