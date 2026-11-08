@@ -154,6 +154,7 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 | 0029 | `axe-core` 4.14.0 como dependencia de desarrollo de `frontend/`, para la prueba de accesibilidad de cada pantalla (001-19); el contraste lo cubre el e2e de T23 | Aceptado (2026-11-05) | `docs/adr/ADR-0029-…`, `AGENTS.md` §4.5, feature 001 T22 |
 | 0030 | Pruebas de navegador (`e2e/`, Playwright) contra el entorno local de desarrollo hasta antes de producción; las imágenes publicadas, `infra/` con TLS y el CI de e2e (IN‑09, F0‑12) quedan para antes de producción | Aceptado (2026-11-06) | `docs/adr/ADR-0030-…`, 01 §14.1 (IN‑09), `AGENTS.md` §4.2 |
 | 0031 | Criterio de cierre de la Fase 0: *walking skeleton* en el entorno local con las pruebas de navegador en verde, CI de cada proyecto en verde y obligatorio, y F0‑02, F0‑10 y F0‑11 hechos; *staging* antes de la primera entrega a usuarios y cada pendiente restante con su momento | Aceptado (2026-11-07) | `docs/adr/ADR-0031-…`, §8 |
+| 0032 | Esquema de la configuración de jurisdicción: validadores `networknt` 3.0.9 (backend) y `jsonschema` 4.26.0 (raíz), con un subconjunto portable de JSON Schema y de YAML; versiones inmutables en *releases* `jsonschema-<nombre>-vMAYOR.MENOR` | Aceptado (2026-11-08) | `docs/adr/ADR-0032-…`, 01 §5.3, feature 004 |
 
 ---
 
