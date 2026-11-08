@@ -5,33 +5,40 @@
 # un cambio es una versión nueva, en archivos nuevos. El nombre de la carpeta nombra la release, así que no se
 # puede repetir con un contrato de contracts/openapi/.
 #
-#   check <referencia-base>   juzga el árbol de trabajo contra una referencia de Git (rama, etiqueta o commit):
-#       - una versión (esquema o casos) que existe en la base no cambia de contenido ni se quita (se comparan sin
-#         retornos de carro, como en lib.sh);
+# Los dos juzgan lo que hay guardado en Git (los blobs del commit, sin conversiones de fin de línea ni de
+# codificación), que es lo que se publica; nunca el árbol de trabajo, que un .gitattributes puede hacer distinto.
+# Por eso hay que confirmar los cambios antes de juzgarlos. La carpeta del proyecto no puede ser (ni estar dentro
+# de) un enlace simbólico: Git buscaría la ruta física, y un PR que mueva backend/ y deje un enlace en su lugar
+# esconde la carpeta de la base.
+#
+#   check <referencia-base>   juzga el commit HEAD contra una referencia de Git (rama, etiqueta o commit):
+#       - una versión (esquema o casos) que existe en la base no cambia de contenido ni se quita;
 #       - todo lo que hay en contracts/jsonschema/ es <nombre>/<MAYOR.MENOR>.json o
 #         <nombre>/<MAYOR.MENOR>.casos.json (nombre en minúsculas, dígitos y guiones): ni archivos sueltos, ni
-#         subcarpetas, ni archivos ocultos, ni enlaces simbólicos;
+#         subcarpetas, ni archivos ocultos, ni enlaces simbólicos ni submódulos; y cada versión tiene sus dos
+#         archivos;
 #       - ningún nombre se repite con un contrato de contracts/openapi/;
-#       - mientras la base o el árbol tengan esquemas, el árbol conserva este script, run.sh y los escenarios de
-#         este script: quitarlos no desactiva la comprobación.
+#       - mientras la base o HEAD tengan esquemas, HEAD conserva este script, lib.sh, run.sh, fake-gh.sh y los
+#         escenarios de este script: quitarlos no desactiva la comprobación.
 #     Lo que ya estaba mal en la base no bloquea al PR que lo corrige: de la base solo cuentan las versiones bien
 #     escritas.
 #   publish [--dry-run]       publica cada versión como la release jsonschema-<nombre>-v<MAYOR.MENOR>, con
 #       <nombre>-<MAYOR.MENOR>.json, <nombre>-<MAYOR.MENOR>.casos.json y el .sha256 de cada uno. Es el protocolo de
 #       publish.sh (ADR 0027):
-#       - publica el contenido del commit GITHUB_SHA, no el del árbol de trabajo;
+#       - publica el commit GITHUB_SHA (con --dry-run, HEAD), con las mismas reglas de forma que check;
 #       - la release se crea como borrador, se suben los archivos, se verifican descargados y solo entonces se
 #         publica; no se marca como la más reciente;
 #       - se puede correr de nuevo: un borrador a medias se completa y una versión ya publicada con el mismo
 #         contenido no se toca;
 #       - si la versión ya está publicada con otro contenido, o incompleta, falla: lo publicado no cambia;
 #       - el prefijo jsonschema- evita que se mezcle con las releases contract-<nombre>-v... de publish.sh.
-#     Necesita gh con GH_TOKEN (permiso contents: write), GH_REPO (dueño/repositorio) y GITHUB_SHA. Las pruebas
-#     cambian gh por uno falso con LIV_GH, y usan LIV_CONTRACTS_ROOT y LIV_CONTRACTS_WORK como compare.sh.
+#     Necesita gh con GH_TOKEN (permiso contents: write), GH_REPO (dueño/repositorio) y GITHUB_SHA (40 dígitos
+#     hexadecimales). Las pruebas cambian gh por uno falso con LIV_GH, y usan LIV_CONTRACTS_ROOT y
+#     LIV_CONTRACTS_WORK como compare.sh.
 # Uso, desde backend/:
 #   sh contracts/scripts/jsonschema.sh check origin/main
 #   sh contracts/scripts/jsonschema.sh publish             publica el commit GITHUB_SHA
-#   sh contracts/scripts/jsonschema.sh publish --dry-run   solo dice qué versiones hay en el árbol de trabajo
+#   sh contracts/scripts/jsonschema.sh publish --dry-run   solo dice qué versiones tiene el commit HEAD
 # Sale con 0 si todo está bien, con 1 si algo falla y con 2 si se usa mal.
 set -u
 scripts=$(cd "$(dirname "$0")" && pwd)
@@ -41,8 +48,10 @@ proyecto=$(cd "$scripts/../.." && pwd)
 SCHEMA_DIR=contracts/jsonschema
 NOMBRE_RE='[a-z][a-z0-9-]*'
 VERSION_RE='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
-# Lo que debe existir en el árbol mientras haya esquemas: este script, las pruebas y su lista de escenarios.
-GUARDAS="contracts/scripts/jsonschema.sh contracts/scripts/test/run.sh contracts/scripts/test/jsonschema-escenarios.sh"
+# Lo que debe existir en HEAD mientras haya esquemas: este script, sus dependencias, las pruebas y su lista de
+# escenarios.
+GUARDAS="contracts/scripts/jsonschema.sh contracts/scripts/lib.sh contracts/scripts/test/run.sh
+contracts/scripts/test/fake-gh.sh contracts/scripts/test/jsonschema-escenarios.sh"
 
 gh() { ${LIV_GH:-command gh} "$@"; }
 
@@ -52,7 +61,11 @@ uso() {
 }
 
 case "${1:-}:$#" in
-  check:2) base_ref=$2 ;;
+  check:2)
+    # Una referencia que empieza por «-» la leería Git como una opción.
+    case "$2" in -*) uso ;; esac
+    base_ref=$2
+    ;;
   publish:1) simulacion=false ;;
   publish:2)
     [ "$2" = --dry-run ] || uso
@@ -60,98 +73,107 @@ case "${1:-}:$#" in
     ;;
   *) uso ;;
 esac
-if [ "$1" = publish ] && [ "$simulacion" = false ] && { [ -z "${GH_REPO:-}" ] || [ -z "${GITHUB_SHA:-}" ]; }; then
-  echo "Faltan GH_REPO o GITHUB_SHA. Para ver qué se publicaría: sh contracts/scripts/jsonschema.sh publish --dry-run" >&2
-  exit 2
+if [ "$1" = publish ] && [ "$simulacion" = false ]; then
+  if [ -z "${GH_REPO:-}" ] || [ -z "${GITHUB_SHA:-}" ]; then
+    echo "Faltan GH_REPO o GITHUB_SHA. Para ver qué se publicaría: sh contracts/scripts/jsonschema.sh publish --dry-run" >&2
+    exit 2
+  fi
+  if ! printf '%s' "$GITHUB_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+    echo "GITHUB_SHA debe ser un commit completo (40 dígitos hexadecimales)." >&2
+    exit 2
+  fi
 fi
 
 fallas=0
 prepare_workdir "${LIV_CONTRACTS_WORK:-$proyecto/target/jsonschema}" "${LIV_CONTRACTS_ROOT:-$proyecto}"
 cd "${LIV_CONTRACTS_ROOT:-$proyecto}" || exit 2
 error="$trabajo/error.txt"
+if [ "$(pwd -P)" != "$(pwd)" ]; then
+  falla UNSAFE_ROOT "$(pwd)" "la carpeta del proyecto pasa por un enlace simbólico; Git buscaría otra ruta."
+  exit 1
+fi
 
 # Verdadero si la ruta, relativa a contracts/jsonschema/, es <nombre>/<MAYOR.MENOR>[.casos].json.
 form_ok() { printf '%s' "$1" | grep -Eq "^$NOMBRE_RE/$VERSION_RE(\.casos)?\.json\$"; }
 
 FORMA="debe ser <nombre>/<MAYOR.MENOR>.json o <nombre>/<MAYOR.MENOR>.casos.json, con el nombre en minúsculas, dígitos y guiones."
 
-# Copia a la carpeta destino las versiones del árbol de trabajo, sin retornos de carro, y reporta con falla() lo que no
-# tiene la forma de una versión. Sale con 1 si hubo algo así; las versiones bien escritas se copian de todos modos.
-# Quien la llama puede ignorar el código de salida: cada problema ya quedó contado en fallas.
-scan_worktree() { # scan_worktree CARPETA_DESTINO
-  [ -e "$SCHEMA_DIR" ] || [ -L "$SCHEMA_DIR" ] || return 0
-  if [ -L "$SCHEMA_DIR" ] || [ ! -d "$SCHEMA_DIR" ]; then
-    falla UNEXPECTED_FILE "$SCHEMA_DIR" "debe ser una carpeta, no un archivo ni un enlace simbólico."
-    return 1
-  fi
-  # Un nombre con salto de línea partiría la lista de abajo en dos entradas; el patrón es «cualquier cosa, salto, cualquier cosa».
-  salto='
-'
-  if [ -n "$(find "$SCHEMA_DIR" -name "*${salto}*" -print)" ]; then
-    falla UNEXPECTED_FILE "$SCHEMA_DIR" "hay un nombre con saltos de línea."
-    return 1
-  fi
-  malo=0
-  find "$SCHEMA_DIR" -mindepth 1 | sort > "$1.lista"
-  while IFS= read -r entrada; do
-    rel=${entrada#"$SCHEMA_DIR"/}
-    if [ -L "$entrada" ]; then
-      falla UNEXPECTED_FILE "$rel" "en $SCHEMA_DIR/ no van enlaces simbólicos."
-      malo=1
-    elif [ -d "$entrada" ]; then
-      # La carpeta de un esquema; lo que va dentro lo juzga cada archivo.
-      if ! printf '%s' "$rel" | grep -Eq "^$NOMBRE_RE\$"; then
-        falla UNEXPECTED_FILE "$rel" "la carpeta de un esquema lleva el nombre en minúsculas, dígitos y guiones, sin subcarpetas."
-        malo=1
-      fi
-    elif [ -f "$entrada" ] && form_ok "$rel"; then
-      mkdir -p "$1/${rel%/*}"
-      tr -d '\r' < "$entrada" > "$1/$rel"
-    else
-      falla UNEXPECTED_FILE "$rel" "$FORMA"
-      malo=1
-    fi
-  done < "$1.lista"
-  return $malo
+# Salida de error de gh en una sola línea y sin «%», para que quepa en un mensaje o en una anotación de Actions.
+error_text() { tr '\r\n%' '   ' < "$error"; }
+
+# Imprime el SHA-256 del archivo. Si no lo pudo calcular no imprime nada y sale con 1: un hash vacío nunca debe
+# coincidir con otro hash vacío y dar por verificado lo que no se verificó.
+sha_de() { # sha_de ARCHIVO
+  suma=$(sha256sum < "$1" | cut -d ' ' -f 1)
+  [ "${#suma}" -eq 64 ] || return 1
+  case "$suma" in *[!0-9a-f]*) return 1 ;; esac
+  printf '%s\n' "$suma"
 }
 
-# Lo mismo con las versiones de una referencia de Git. Con "estricto", lo que no tiene la forma de una versión es
-# una falla; con "tolerante", se ignora (es la base de check). Cada orden de Git se comprueba: un error no puede
-# dejar la base vacía, porque todo pasaría como versión nueva.
+# Línea de ls-tree («modo tipo objeto<tab>ruta») de una ruta en una referencia, o nada si no existe.
+tree_entry() { # tree_entry REFERENCIA RUTA
+  git ls-tree "$1" -- "$2"
+}
+
+# Verdadero si la ruta es un archivo normal (no enlace simbólico ni submódulo) en la referencia.
+is_regular_file() { # is_regular_file REFERENCIA RUTA
+  case "$(tree_entry "$1" "$2")" in
+    "100644 blob "* | "100755 blob "*) return 0 ;;
+  esac
+  return 1
+}
+
+# Copia a la carpeta destino las versiones de contracts/jsonschema/ de una referencia de Git, tal como están
+# guardadas. Con "estricto", lo que no tiene la forma de una versión (otra ruta, un enlace simbólico, un submódulo)
+# se reporta con falla(); con "tolerante" se ignora (es la base de check). Sale con 0 si todo está bien, con 1 si
+# hubo algo mal escrito (lo bien escrito se copia de todos modos) y con 2 si falla Git: cada orden se comprueba,
+# porque un error no puede dejar la base vacía y hacer que todo pase como versión nueva.
 scan_ref() { # scan_ref REFERENCIA CARPETA_DESTINO estricto|tolerante
   modo_de_forma=$3
   if ! git rev-parse -q --verify "$1^{commit}" > /dev/null; then
     falla GIT_ERROR "$1" "no existe esa referencia de Git."
-    return 1
+    return 2
   fi
   lista="$2.ls-tree"
-  if ! git ls-tree -r "$1" -- "$SCHEMA_DIR/" > "$lista"; then
+  if ! git ls-tree -r "$1" -- "$SCHEMA_DIR/" > "$lista" || ! raiz=$(tree_entry "$1" "$SCHEMA_DIR"); then
     falla GIT_ERROR "$1" "no se pudo listar $SCHEMA_DIR/."
-    return 1
+    return 2
   fi
   malo=0
-  # Cada línea de ls-tree: modo, tipo y objeto, y tras un tabulador la ruta. El modo 120000 es un enlace simbólico.
-  while read -r modo tipo _objeto ruta; do
+  # contracts/jsonschema tiene que ser una carpeta; si es un archivo, un enlace o un submódulo, no hay nada que leer.
+  case "$raiz" in
+    '' | "040000 tree "*) ;;
+    *)
+      if [ "$modo_de_forma" = estricto ]; then
+        falla UNEXPECTED_FILE "$SCHEMA_DIR" "debe ser una carpeta, no un archivo, un enlace simbólico ni un submódulo."
+        malo=1
+      fi
+      ;;
+  esac
+  # Cada línea de ls-tree: modo, tipo y objeto, y tras un tabulador la ruta (Git entrecomilla las rutas con
+  # caracteres de control o fuera de ASCII, y esas no tienen la forma). Solo el tabulador separa: un nombre con
+  # espacios al final no puede perderlos al leerse.
+  tabulador=$(printf '\t')
+  while IFS=$tabulador read -r meta ruta; do
+    modo=${meta%% *}
+    resto=${meta#* }
+    tipo=${resto%% *}
+    objeto=${resto#* }
     rel=${ruta#"$SCHEMA_DIR"/}
     if [ "$tipo" != blob ] || [ "$modo" = 120000 ] || ! form_ok "$rel"; then
       if [ "$modo_de_forma" = estricto ]; then
-        falla UNEXPECTED_FILE "$rel" "$FORMA Tampoco enlaces simbólicos."
+        falla UNEXPECTED_FILE "$rel" "$FORMA Tampoco enlaces simbólicos ni submódulos."
         malo=1
       fi
       continue
     fi
-    # MSYS_NO_PATHCONV: Git Bash no convierte «referencia:ruta» como si fuera una ruta de Windows.
-    if ! MSYS_NO_PATHCONV=1 git show "$1:./$ruta" > "$lista.contenido"; then
+    mkdir -p "$2/${rel%/*}" && git cat-file blob "$objeto" > "$2/$rel" || {
       falla GIT_ERROR "$rel" "no se pudo leer en $1."
-      return 1
-    fi
-    mkdir -p "$2/${rel%/*}"
-    tr -d '\r' < "$lista.contenido" > "$2/$rel"
+      return 2
+    }
   done < "$lista"
   return $malo
 }
-
-sha_de() { sha256sum < "$1" | cut -d ' ' -f 1; }
 
 # Rutas, relativas a la carpeta dada, de todos los archivos que tiene.
 list_files() { # list_files CARPETA
@@ -173,12 +195,29 @@ check_immutability() { # check_immutability BASE CABEZA REFERENCIA
   done < "$trabajo/versiones-base.txt"
 }
 
-# Un esquema no puede llamarse como un contrato OpenAPI: el nombre nombra la release.
+# Cada versión lleva su esquema y sus casos: sin uno de los dos no se puede publicar. Deja en claves.txt las
+# versiones de la carpeta (<nombre>/<MAYOR.MENOR>), que run_publish lee después, y sale con 1 si a alguna le falta un
+# archivo.
+check_pairs() { # check_pairs CARPETA
+  incompletas=0
+  list_files "$1" | sed -e 's|\.casos\.json$||' -e 's|\.json$||' | sort -u > "$trabajo/claves.txt"
+  while IFS= read -r clave; do
+    [ -n "$clave" ] || continue
+    if [ ! -f "$1/$clave.json" ] || [ ! -f "$1/$clave.casos.json" ]; then
+      falla INCOMPLETE_VERSION "$clave" "cada versión lleva ${clave#*/}.json y ${clave#*/}.casos.json."
+      incompletas=1
+    fi
+  done < "$trabajo/claves.txt"
+  return $incompletas
+}
+
+# Un esquema no puede llamarse como un contrato OpenAPI: el nombre nombra la release. CABEZA es la copia de las
+# versiones de HEAD (la carpeta que llenó scan_ref); el contrato se busca también en HEAD.
 check_name_clashes() { # check_name_clashes CABEZA
   for carpeta in "$1"/*/; do
     [ -d "$carpeta" ] || continue
     nombre=$(basename "$carpeta")
-    if [ -e "$CONTRACT_DIR/$nombre.yaml" ] || [ -L "$CONTRACT_DIR/$nombre.yaml" ]; then
+    if [ -n "$(tree_entry HEAD "$CONTRACT_DIR/$nombre.yaml")" ]; then
       falla NAME_CLASH "$nombre" "también es el nombre del contrato $CONTRACT_DIR/$nombre.yaml."
     fi
   done
@@ -187,8 +226,8 @@ check_name_clashes() { # check_name_clashes CABEZA
 # Quitar el script o sus pruebas en el mismo PR no puede desactivar la comprobación.
 check_guards() {
   for guarda in $GUARDAS; do
-    if [ ! -f "$guarda" ] || [ -L "$guarda" ]; then
-      falla SCRIPT_MISSING "$guarda" "mientras haya esquemas, el árbol conserva este script, run.sh y los escenarios."
+    if ! is_regular_file HEAD "$guarda"; then
+      falla SCRIPT_MISSING "$guarda" "mientras haya esquemas, HEAD conserva este script, lib.sh, run.sh, fake-gh.sh y los escenarios."
     fi
   done
 }
@@ -197,17 +236,21 @@ run_check() { # run_check REFERENCIA
   base="$trabajo/base"
   cabeza="$trabajo/cabeza"
   mkdir -p "$base" "$cabeza"
-  # Aquí solo falla un error de Git; las entradas mal escritas de la base se ignoran.
-  scan_ref "$1" "$base" tolerante || exit 1
-  scan_worktree "$cabeza"
+  # La base se lee sin exigirle la forma: solo importan sus versiones bien escritas. A HEAD sí se le exige. Que
+  # scan_ref salga con 1 es normal (hay algo mal escrito y ya quedó reportado); con 2 falló Git y no se puede seguir.
+  scan_ref "$1" "$base" tolerante
+  [ $? -eq 2 ] && exit 1
+  scan_ref HEAD "$cabeza" estricto
+  [ $? -eq 2 ] && exit 1
   archivos_base=$(list_files "$base")
-  archivos_arbol=$(list_files "$cabeza")
+  archivos_cabeza=$(list_files "$cabeza")
   if [ -z "$archivos_base" ]; then
     echo "  $1 no tiene esquemas en $SCHEMA_DIR/: nada que proteger"
   fi
   check_immutability "$base" "$cabeza" "$1"
+  check_pairs "$cabeza"
   check_name_clashes "$cabeza"
-  if [ -n "$archivos_base" ] || [ -n "$archivos_arbol" ] || [ -d "$SCHEMA_DIR" ]; then
+  if [ -n "$archivos_base" ] || [ -n "$archivos_cabeza" ]; then
     check_guards
   fi
   if [ "$fallas" -gt 0 ]; then
@@ -218,14 +261,14 @@ run_check() { # run_check REFERENCIA
 }
 
 # Descarga los archivos de la release y comprueba que cada uno, y su .sha256, coinciden con los de la carpeta dada.
-# Sale con 1 si no coinciden o falta alguno, y con 2 si no se pudo descargar.
-published_matches() { # published_matches ETIQUETA CARPETA_DE_LOS_ARCHIVOS_ESPERADOS
+# Sale con 1 si no coinciden o falta alguno, y con 2 si no se pudo descargar o calcular.
+published_matches() { # published_matches ETIQUETA CARPETA NOMBRE VERSION
   descargados="$trabajo/descargados/$1"
   rm -rf "$descargados"
   mkdir -p "$descargados"
-  for archivo in "$2"/*.json; do
-    asset=$(basename "$archivo")
-    esperado=$(sha_de "$archivo")
+  for sufijo in .json .casos.json; do
+    asset="$3-$4$sufijo"
+    esperado=$(sha_de "$2/$asset") || return 2
     for pedido in "$asset" "$asset.sha256"; do
       if ! gh release download "$1" --pattern "$pedido" --dir "$descargados" --clobber 2> "$error"; then
         grep -q 'no assets' "$error" && return 1
@@ -245,17 +288,17 @@ notes() { # notes NOMBRE VERSION CARPETA
 
 # Publica un borrador que ya tiene los archivos, después de verificarlos.
 publish_draft() { # publish_draft CLAVE NOMBRE VERSION ETIQUETA CARPETA
-  published_matches "$4" "$5"
+  published_matches "$4" "$5" "$2" "$3"
   case $? in
     0) ;;
     1) falla PUBLISH_ERROR "$1" "el borrador $4 no quedó con los archivos correctos; no se publicó."; return ;;
-    *) falla PUBLISH_ERROR "$1" "no se pudo verificar el borrador $4: $(cat "$error")"; return ;;
+    *) falla PUBLISH_ERROR "$1" "no se pudo verificar el borrador $4: $(error_text)"; return ;;
   esac
   if gh release edit "$4" --draft=false --latest=false --target "$GITHUB_SHA" \
       --notes "$(notes "$2" "$3" "$5")" 2> "$error"; then
     ok "$1: publicada $4"
   else
-    falla PUBLISH_ERROR "$1" "no se pudo publicar el borrador $4: $(cat "$error")"
+    falla PUBLISH_ERROR "$1" "no se pudo publicar el borrador $4: $(error_text)"
   fi
 }
 
@@ -264,18 +307,18 @@ publish_version() { # publish_version CLAVE NOMBRE VERSION ETIQUETA CARPETA
   # found» es la respuesta de release view, y «HTTP 404» la de la API al consultar la etiqueta.
   if es_borrador=$(gh release view "$4" --json isDraft --jq .isDraft 2> "$error"); then
     if [ "$es_borrador" != true ]; then
-      published_matches "$4" "$5"
+      published_matches "$4" "$5" "$2" "$3"
       case $? in
         0) ok "$1: $4 ya está publicada" ;;
-        1) falla PUBLISHED_CHANGED "$1" "$4 ya está publicada con otro contenido o incompleta; un cambio es una versión nueva." ;;
-        *) falla PUBLISH_ERROR "$1" "no se pudo descargar la release $4 para verificarla: $(cat "$error")" ;;
+        1) falla PUBLISHED_CHANGED "$1" "$4 ya está publicada con otro contenido o incompleta; un cambio es una versión nueva. Si solo le falta un archivo, revísala a mano." ;;
+        *) falla PUBLISH_ERROR "$1" "no se pudo descargar la release $4 para verificarla: $(error_text)" ;;
       esac
       return
     fi
   elif grep -q 'release not found' "$error"; then
     es_borrador=false
   else
-    falla PUBLISH_ERROR "$1" "no se pudo consultar la release $4: $(cat "$error")"
+    falla PUBLISH_ERROR "$1" "no se pudo consultar la release $4: $(error_text)"
     return
   fi
 
@@ -284,50 +327,47 @@ publish_version() { # publish_version CLAVE NOMBRE VERSION ETIQUETA CARPETA
     if gh release upload "$4" "$5"/*.json "$5"/*.sha256 --clobber 2> "$error"; then
       publish_draft "$1" "$2" "$3" "$4" "$5"
     else
-      falla PUBLISH_ERROR "$1" "no se pudieron subir los archivos al borrador $4: $(cat "$error")"
+      falla PUBLISH_ERROR "$1" "no se pudieron subir los archivos al borrador $4: $(error_text)"
     fi
   elif gh api "repos/$GH_REPO/git/ref/tags/$4" > /dev/null 2> "$error"; then
     falla PUBLISH_ERROR "$1" "la etiqueta $4 existe sin release; revísala antes de publicar."
   elif ! grep -q 'HTTP 404' "$error"; then
-    falla PUBLISH_ERROR "$1" "no se pudo consultar la etiqueta $4: $(cat "$error")"
+    falla PUBLISH_ERROR "$1" "no se pudo consultar la etiqueta $4: $(error_text)"
   elif gh release create "$4" "$5"/*.json "$5"/*.sha256 --draft --latest=false --target "$GITHUB_SHA" \
       --title "Esquema $2 $3" --notes "$(notes "$2" "$3" "$5")" 2> "$error"; then
     publish_draft "$1" "$2" "$3" "$4" "$5"
   else
-    falla PUBLISH_ERROR "$1" "no se pudo crear el borrador $4: $(cat "$error")"
+    falla PUBLISH_ERROR "$1" "no se pudo crear el borrador $4: $(error_text)"
   fi
 }
 
 run_publish() {
   versiones="$trabajo/versiones"
   mkdir -p "$versiones"
-  if [ "$simulacion" = true ]; then
-    scan_worktree "$versiones" || exit 1
-  else
-    scan_ref "$GITHUB_SHA" "$versiones" estricto || exit 1
-  fi
-  # <nombre>/<versión>, una vez por pareja de archivos.
-  list_files "$versiones" | sed -e 's|\.casos\.json$||' -e 's|\.json$||' | sort -u > "$trabajo/claves.txt"
-  if [ ! -s "$trabajo/claves.txt" ]; then
+  # Con --dry-run se lee HEAD en lugar de GITHUB_SHA, que puede no estar.
+  if [ "$simulacion" = true ]; then commit=HEAD; else commit=$GITHUB_SHA; fi
+  scan_ref "$commit" "$versiones" estricto || exit 1
+  if [ -z "$(list_files "$versiones")" ]; then
     falla NO_SCHEMAS "$SCHEMA_DIR" "el proyecto no tiene esquemas que publicar."
     exit 1
   fi
+  # Una versión a medias detiene todo antes de llamar a GitHub.
+  check_pairs "$versiones" || exit 1
 
   while IFS= read -r clave; do
     nombre=${clave%/*}
     version=${clave#*/}
-    if [ ! -f "$versiones/$clave.json" ] || [ ! -f "$versiones/$clave.casos.json" ]; then
-      falla INCOMPLETE_VERSION "$clave" "cada versión lleva $version.json y $version.casos.json."
-      continue
-    fi
     etiqueta="jsonschema-$nombre-v$version"
     # Los archivos de la release, con el nombre que lleva en GitHub y el .sha256 de cada uno.
     carpeta="$trabajo/archivos/$etiqueta"
-    mkdir -p "$carpeta"
+    mkdir -p "$carpeta" || exit 1
     for sufijo in .json .casos.json; do
-      cp "$versiones/$clave$sufijo" "$carpeta/$nombre-$version$sufijo"
-      sha=$(sha_de "$carpeta/$nombre-$version$sufijo")
-      printf '%s  %s\n' "$sha" "$nombre-$version$sufijo" > "$carpeta/$nombre-$version$sufijo.sha256"
+      cp "$versiones/$clave$sufijo" "$carpeta/$nombre-$version$sufijo" || exit 1
+      if ! sha=$(sha_de "$carpeta/$nombre-$version$sufijo"); then
+        falla PUBLISH_ERROR "$clave" "no se pudo calcular el SHA-256 de $nombre-$version$sufijo."
+        exit 1
+      fi
+      printf '%s  %s\n' "$sha" "$nombre-$version$sufijo" > "$carpeta/$nombre-$version$sufijo.sha256" || exit 1
     done
     if [ "$simulacion" = true ]; then
       ok "$clave: $etiqueta (SHA-256 del esquema $(cut -d ' ' -f 1 "$carpeta/$nombre-$version.json.sha256"))"
