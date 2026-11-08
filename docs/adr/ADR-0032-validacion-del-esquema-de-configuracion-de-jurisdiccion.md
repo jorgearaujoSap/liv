@@ -1,8 +1,8 @@
 # ADR-0032 · Validación y publicación del esquema de la configuración de jurisdicción
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 2026-11-08
-- **Decisores:** responsable del proyecto, en la aprobación H2 de la feature 004 (equipo de una persona, `AGENTS.md` §4.3)
+- **Decisores:** responsable del proyecto, que lo aceptó el 2026-11-08 en la aprobación H2 de la feature 004 (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** feature 004 (`spec/features/004-esquema-configuracion-jurisdiccion/`); `docs/arquitectura/00` §5 (*stack*: «validador JSON Schema») y §8.1 (F0‑10); `docs/arquitectura/01` §5.3 y §14.1 (IN‑02, IN‑08, IN‑11); `docs/arquitectura/04` §2 y §6 (Q09); ADR 0005, ADR 0016, ADR 0027, ADR 0031; `AGENTS.md` §4.5
 
 ## Contexto

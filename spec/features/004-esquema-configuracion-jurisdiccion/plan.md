@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador
+**Estado:** aprobado (H2) — 2026-11-08, por el responsable
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -97,6 +97,7 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
    - `backend-main.yml`: `jsonschema.sh publish` en un trabajo propio, sin `needs`, para que un fallo al publicar un contrato OpenAPI no deje el esquema sin publicar; con `if: github.ref == 'refs/heads/main'`, para que un `workflow_dispatch` desde otra rama no publique un borrador como versión inmutable; y con la misma regla de falla cerrada. El *workflow* se dispara por `backend/contracts/**` y por su propio archivo, así que al integrar este PR se publica la versión 1.0.
    - `aplica.sh` y los nombres de los *checks* obligatorios no cambian.
 4. **Raíz · validador de los anexos** (`tools/`, rama `feat/004-validador-anexos`; después de que exista la *release* 1.0).
+   - `AGENTS.md` §4.3: `tools/config-jurisdiccion/**` en la lista de rutas críticas (decisión 3 de la H2).
    - `tools/config-jurisdiccion/validar.py`:
      - valida cada `docs/funcional/anexos/config_jurisdiccion_*.yaml`; falla si no encuentra ninguno y si en `anexos/` hay un `.yml` o `.yaml` que no siga la convención `config_jurisdiccion_<DANE o plantilla>_<AÑO>.yaml` (`AGENTS.md` §5.2), para que ningún anexo se salga de la validación por su nombre;
      - carga con el subconjunto portable; la `esquema_version` tiene que ser texto y estar en `esquemas.json` **antes** de construir la URL (004‑09);
@@ -214,4 +215,4 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
     - 004‑05: `normas[].tipo` queda abierto aunque la plantilla documente tres opciones para el estatuto territorial, porque Ipiales usa otras cuatro;
     - 004‑07: la validez real de una fecha (30 de febrero) queda en el validador de la 1.5.9;
     - `tools/config-jurisdiccion/**` pasa a ser ruta crítica (`AGENTS.md` §4.3).
-- [ ] Aprobación H2: <quién, fecha>.
+- [x] **Aprobación H2:** el responsable, el 2026-11-08. Aprobó el plan con los dos altos de la segunda ronda ya corregidos, aceptó el ADR 0032 y los tres ajustes de criterios (004‑05, 004‑07 y 004‑08, en la spec), y decidió que `tools/config-jurisdiccion/**` sea ruta crítica (paso 4).

@@ -1,6 +1,6 @@
 # 004 · Esquema de la configuración de jurisdicción
 
-**Estado:** aprobada (H1) — 2026-11-08, por el responsable funcional
+**Estado:** aprobada (H1) — 2026-11-08, por el responsable funcional; criterios 004‑05, 004‑07 y 004‑08 ajustados en la H2 el mismo día
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
 **Módulo:** `jurisdiction` (contrato del backend; sin código de negocio) · **Menú:** ninguno (prepara la 1.5.9) · **Tipo de cambio:** crítico: contrato del backend, configuración de jurisdicción y CI (`AGENTS.md` §4.3)
@@ -31,6 +31,7 @@ El esquema **no** decide si la configuración es correcta como norma: eso es el 
 | `CJ09`, `CJ10`, `CJ11` | No | Necesitan datos de fuera del archivo: tablas cargadas, catálogo publicado, versión anterior |
 | `CJ12` — compatibilidad de modalidades | No (solo los nombres de las modalidades y que `activa` sea booleano) | Combina varias modalidades; la plantilla las trae todas inactivas y tiene que ser válida |
 | `CJ13` — orden de las fechas del calendario | No (solo que cada fecha tenga formato de fecha) | Compara fechas |
+| Que una fecha exista en el calendario (p. ej. no `2026-02-30`) | No (solo mes de 01 a 12 y día de 01 a 31) | El patrón no conoce el largo de cada mes; lo revisa el validador de la 1.5.9 (decisión 2 de la H2) |
 | `CJ14` — plazos de los vehículos nuevos | No (solo los valores permitidos de cada `modo`) | Un campo es obligatorio según el valor de otro y compara días: es regla de negocio con su código, y se queda entera en el validador para no partirla en dos |
 
 ## Por qué
@@ -46,10 +47,10 @@ El esquema **no** decide si la configuración es correcta como norma: eso es el 
 - [ ] **004-02** — Dado un YAML con una clave que el esquema no declara, en cualquier nivel (p. ej. `fecha_limite_pago_sin_interes` o una sección `tarifa`), cuando se valida, entonces es inválido y el error da la ruta de la clave (decisión 3 de la H1). _Prueba:_ pendiente
 - [ ] **004-03** — Dado un `estado` con un valor distinto de `VIGENTE`, `POR_CONFIRMAR` o `PENDIENTE` (p. ej. `APROBADO` o `vigente`), cuando se valida, entonces es inválido. En cada objeto que hoy lleva `estado` en los dos YAML, el `estado` es obligatorio. _Prueba:_ pendiente
 - [ ] **004-04** — Dada `competencia.modalidades`, cuando trae una clave distinta de `UEDF_INTERNACION`, `CONVENIO_DEPTO`, `PARTICIPACION_20` o `ADMINISTRACION_DIRECTA`, o una modalidad sin `activa` o con `activa` no booleano, entonces es inválido. Una modalidad ausente es válida (Ipiales no trae `ADMINISTRACION_DIRECTA`). Qué combinaciones están permitidas lo decide `CJ12`, no el esquema. _Prueba:_ pendiente
-- [ ] **004-05** — Dados los campos de tipo cerrado, cuando traen un valor fuera de su lista, entonces es inválido: `jurisdiccion.tipo` (`DEPARTAMENTO`, `DISTRITO_CAPITAL`, `DISTRITO`, `MUNICIPIO`), `redondeo.metodo`, los `modo` de `calendario.vehiculos_nuevos` y los demás que el YAML documenta con sus opciones (`A | B | C`). La lista completa va en el plan. _Prueba:_ pendiente
+- [ ] **004-05** — Dados los campos de tipo cerrado, cuando traen un valor fuera de su lista, entonces es inválido: `jurisdiccion.tipo` (`DEPARTAMENTO`, `DISTRITO_CAPITAL`, `DISTRITO`, `MUNICIPIO`), `redondeo.metodo`, los `modo` de `calendario.vehiculos_nuevos` y los demás que el YAML documenta completos con sus opciones (`A | B | C`). `normas[].tipo` queda abierto: el comentario de la plantilla solo da tres opciones para el estatuto territorial, e Ipiales usa otras cuatro (decisión 2 de la H2). La lista completa va en el plan. _Prueba:_ pendiente
 - [ ] **004-06** — Dada una tasa o un porcentaje, cuando no es una fracción entre 0 y 1 (p. ej. `tarifa: 1.5` en vez de `0.015`), entonces es inválido (`AGENTS.md` §5.2). Un monto en pesos negativo también es inválido. _Prueba:_ pendiente
-- [ ] **004-07** — Dada una fecha, cuando no tiene la forma `AAAA-MM-DD` (p. ej. `30/04/2026`), entonces es inválida. Dado un código DANE, cuando no tiene 2 dígitos (departamento) o 5 (municipio), entonces es inválido. _Prueba:_ pendiente
-- [ ] **004-08** — Dado un campo que el equipo debe diligenciar (fechas, tasas, códigos DANE, NIT y números de normas o actos), cuando trae el texto `PENDIENTE`, entonces es válido, como hoy en la plantilla y en el NIT de Ipiales. En cualquier otro campo (p. ej. `redondeo.multiplo`), `PENDIENTE` es inválido. Que no quede ningún `PENDIENTE` al publicar lo decide `CJ02`. _Prueba:_ pendiente
+- [ ] **004-07** — Dada una fecha, cuando no tiene la forma `AAAA-MM-DD` con mes de 01 a 12 y día de 01 a 31 (p. ej. `30/04/2026` o `2026-13-01`), entonces es inválida. Dado un código DANE, cuando no tiene 2 dígitos (departamento) o 5 (municipio), entonces es inválido. _Prueba:_ pendiente
+- [ ] **004-08** — Dado un campo que el equipo debe diligenciar (fechas, tasas, códigos DANE y los textos libres que lista el plan: nombres, NIT, números de normas o actos, `motos_electricas_criterio_sujecion`…), cuando trae el texto `PENDIENTE`, entonces es válido, como hoy en la plantilla y en el NIT de Ipiales (decisión 2 de la H2). En cualquier otro campo (p. ej. `redondeo.multiplo`, un código como `universo` o un texto técnico como `formula_meses`), `PENDIENTE` es inválido. Que no quede ningún `PENDIENTE` al publicar lo decide `CJ02`. _Prueba:_ pendiente
 - [ ] **004-09** — Dado un YAML con `esquema_version` distinto de una versión publicada del esquema, cuando se valida, entonces la validación falla y lo dice; nunca se valida contra otra versión. _Prueba:_ pendiente
 - [ ] **004-10** — Dado un YAML con una clave repetida en el mismo objeto, con anclas o alias (`&`, `*`) o con etiquetas (`!!python/…`), cuando se carga, entonces se rechaza antes de validar: una clave repetida no puede pisar a otra en silencio. _Prueba:_ pendiente
 - [ ] **004-11** — Dado el esquema, entonces no fija ningún valor tributario: ni tarifas, rangos, fechas, porcentajes, multiplicadores ni redondeos. Sus únicos límites numéricos son los de la convención (0 y 1 en las fracciones; 0 como mínimo de montos, días y contadores) (`AGENTS.md` §4.5). _Prueba:_ pendiente
@@ -77,6 +78,17 @@ Decididas por el responsable funcional el 2026-11-08, todas con la opción propu
 2. **El esquema exige solo las seis secciones mínimas** (004‑01): `esquema_version`, `jurisdiccion`, `competencia`, `vigencia`, `normas` y `distribucion_recaudo`. Un municipio que solo recibe el 20 % no liquida (Doc. 03 §5.5). Que estén las secciones de liquidación cuando alguna modalidad activa liquida lo exige el validador de la feature 1.5.9. Se descartó exigir las 18 siempre.
 3. **El esquema es estricto en todos los niveles** (004‑02): rechaza las claves que no declara. Las claves que trae solo uno de los dos YAML se declaran opcionales. Se descartó aceptar claves desconocidas, porque una errata en un nombre pasaría como un campo ausente.
 4. **El esquema 1.0 describe los dos YAML tal como están, sin tocarlos:** `norma` es opcional donde aparece y `estado` es obligatorio donde ya está. No se exige `fuente`, que no existe en ningún YAML. La redacción de `AGENTS.md` §5.2 y del comentario de los anexos («cada regla lleva `fuente` y `estado`») se corrige aparte (hallazgo 1). Se descartó exigir `fuente` y `estado` en todas las reglas, que obligaba a cambiar los anexos y el Doc. 03 antes de cerrar la Fase 0.
+
+## Decisiones tomadas en la H2
+
+Decididas por el responsable el 2026-11-08, al aprobar el plan (H2), todas con la opción propuesta.
+
+1. **Plan aprobado y ADR 0032 aceptado**, con los dos hallazgos altos de la segunda ronda de la revisión ya corregidos en el plan, sin tercera ronda.
+2. **Tres ajustes de criterios** que salieron de la revisión adversarial del plan:
+   - 004‑08: `PENDIENTE` también vale en los textos libres que lista el plan, incluido `motos_electricas_criterio_sujecion`, cuya forma aún no está definida. Sin esto, la plantilla no sería válida (`jurisdiccion.nombre: "PENDIENTE"`);
+   - 004‑05: `normas[].tipo` queda abierto. Cerrarlo con las opciones del comentario de la plantilla haría inválida a Ipiales, y cerrarlo con otras sería inventar una lista;
+   - 004‑07: el esquema solo comprueba la forma de la fecha; que la fecha exista en el calendario lo revisa el validador de la feature 1.5.9.
+3. **`tools/config-jurisdiccion/**` pasa a ser ruta crítica** (`AGENTS.md` §4.3): un cambio en el validador de los anexos no puede ir por el flujo directo. Se agrega en el PR del paso 4 del plan, que crea la carpeta.
 
 ## Hallazgos para otras features
 
