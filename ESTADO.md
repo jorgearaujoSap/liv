@@ -48,14 +48,14 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 **Criterio de cierre (ADR 0031, decidido por el responsable el 2026-11-07).** La Fase 0 se cierra cuando se cumplan tres condiciones:
 - el *walking skeleton* (feature 001) funciona en el entorno local, con las pruebas de navegador en verde (ya se cumple);
 - el CI de cada proyecto está en verde y es obligatorio en `main` (se cumple desde el 2026-11-07, feature 003);
-- están hechos F0‑02, F0‑10 y F0‑11.
+- están hechos F0‑02 (hecho el 2026-11-07), F0‑10 y F0‑11.
 
 *Staging* queda para antes de la primera entrega a usuarios, con la T24 de la feature 001. Cada pendiente que no bloquea el cierre tiene su momento en el ADR.
 
 | # | Entregable | Estado | Detalle |
 |---|---|---|---|
 | F0‑01 | Monorepo y traslado de documentos a `docs/` | ✅ | Documentación en `docs/`; `backend/`, `frontend/` y `ui/` creados como proyectos autónomos, sin referencias entre ellos ni herramientas compartidas en la raíz (verificado) |
-| F0‑02 | ADR 0001–0022 aceptados | 🔄 **Bloquea el cierre** | Los 25 aceptados el 2026-11-01 (tabla del doc. 00 §6). Con archivo en `docs/adr/`: 0023–0031 (0031, criterio de cierre de la Fase 0, aceptado el 2026-11-07). Faltan los archivos de los ADR 0001–0022, con la *skill* `liv-adr` |
+| F0‑02 | ADR 0001–0022 aceptados | ✅ | Los ADR 0001–0031 aceptados (tabla del doc. 00 §6), cada uno con su archivo en `docs/adr/`. Los de 0001 a 0022 se crearon el 2026-11-07 a partir de lo ya documentado, sin cambiar ninguna decisión (PR #135, #136 y #137) |
 | F0‑03 | `AGENTS.md`/`CLAUDE.md`, *skills*, plantillas SDD, ganchos | 🔄 No bloquea el cierre | Hechos: `AGENTS.md` y `CLAUDE.md` de la raíz y de cada proyecto, `ESTADO.md`, plantillas SDD (`spec/`), *skills* de proceso (`.claude/skills/`) y de código de cada proyecto (`liv-migracion`, `liv-endpoint`, `liv-pantalla`, `liv-componente` y `liv-prueba-e2e`, PR #115–#119), servidor MCP de Angular y política de modelos con 4 subagentes por nivel (`AGENTS.md` §10, `.claude/agents/`). Faltan la plantilla de PR y los ganchos del agente y de Git: no bloquean el cierre (ADR 0031), pero conviene tenerlos antes de que empiece el desarrollador |
 | F0‑04 | Esqueleto de backend con reglas de arquitectura | ✅ | Maven (*wrapper* 3.10.0, un artefacto `liv-api` en la raíz de `backend/`), Java 21, Spring Boot 4.1.2, Spring Modulith 2.1.1; base del equipo mejorada (ADR 0021): módulos `shared`, `platform` y 8 de negocio como paquetes con capas `api`/`application`/`domain`/`infrastructure`. 12 pruebas: arranque, fronteras (Modulith), catálogo de módulos y capas, 6 reglas de arquitectura y tamaño de clases, comprobadas también con violaciones a propósito; Google Java Format con Spotless. Paquete `co.com.sapenlinea.liv`. Contratos OpenAPI en `contracts/openapi/` con interfaces generadas (T11, PR #40). Seguridad de `platform` con OIDC estándar: servidor de recursos, usuario resuelto en el registro de LIV, Problem Details y enmascarado de credenciales (T12 parte 1, PR #45). Esqueleto del BFF en `backend/bff/` (`liv-bff`, Spring Cloud Gateway Server MVC; T16, PR #66) con inicio y cierre de sesión OIDC, sesión en el servidor y *tokens* cifrados (T17, PR #79), reenvío a la API, CSRF, límites de sesión, `keepalive` y `bff.yaml` (T18, PR #80). Pendiente que no bloquea el cierre: Error Prone y NullAway (F0‑07, ADR 0031) |
 | F0‑05 | Esqueleto de frontend | ✅ | Workspace Angular 21.2, Tailwind 4 y `liv-components` 0.3.1 instalada desde npm con versión exacta; ESLint con reglas de frontera, Prettier y Vitest. Contratos `core`, `platform` y `bff` fijados en `api-spec/` con su SHA-256 y cliente generado (T20, PR #82). Núcleo de sesión con guardas, interceptor e inactividad (T21, PR #84 y #97), pantallas, estructura general y menú de tres niveles (T22, T22a y T22b; PR #89, #90, #95 y #99) y pantallas con `OnPush` y carga diferida (PR #120) |
@@ -149,6 +149,15 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-07
 
+- **F0‑02 hecho:** cada ADR del 0001 al 0022 tiene su archivo en `docs/adr/` (PR #135, #136 y #137). Resumen solo lo que ya estaba documentado, sin cambiar ninguna decisión. Cada uno pasó una revisión de exactitud contra las secciones que cita.
+  - **Pendientes documentados que quedaron a la vista:**
+    - el esquema de la configuración de jurisdicción: `jurisdiction` en el doc. 01 frente a `core` en el documento funcional 03 (ADR 0003);
+    - la retención documental (P7, ADR 0011);
+    - el idioma de los mensajes de *commit* (ADR 0015);
+    - el archivo `docs/glosario.md`, que el doc. 01 §15 nombra y no existe (ADR 0017);
+    - la región de AWS (ADR 0020).
+  - La fila del ADR 0018 en el doc. 00 §6 suma que el ADR 0022 también lo modificó.
+  - Para cerrar la Fase 0 quedan F0‑10 y F0‑11.
 - **Feature 003 · CI obligatorio en `main`: hecha.** La protección de `main` exige ahora la verificación de cada proyecto, los contratos y los *scripts* de CI, además del título y los secretos, y nadie puede saltársela (T5, aprobado por el responsable). Los PR de demostración #126 a #133, cerrados sin integrar, prueban cada criterio: la omisión cuando el proyecto no cambia, el bloqueo con una prueba rota o un contrato incompatible, un archivo movido, `.gitattributes` y las dos formas de cancelar. Con esto se cumple la condición 2 del cierre de la Fase 0 (ADR 0031). Faltan F0‑02, F0‑10 y F0‑11.
 - **Feature 003, CI obligatorio en `main` (F0‑07), T1 a T4 en un PR de la raíz (integrado en el PR #125):** los *workflows* de PR de cada proyecto dejan de filtrar por ruta y corren en todos los PR.
   - **Decisión:** el trabajo `<proyecto> · cambios` llama a `.github/scripts/aplica.sh` (el de la rama base) y la verificación solo se omite si `cambios` terminó bien y dijo `false`. La regla es una lista de lo que no afecta (otros proyectos y documentación); `.github/`, la raíz y cualquier ruta desconocida hacen correr todo.
