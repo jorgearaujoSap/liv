@@ -39,6 +39,8 @@ Antes de escribir una spec, el agente evalúa la solicitud con los criterios de 
    - **Aprobación H3:** revisión humana del PR. Solo un humano integra a `main`.
 8. Cerrar: mover la feature a "Hecho" en `constitution/roadmap.md` y actualizar `ESTADO.md` en el mismo cambio.
 
+Si la feature la dirige un orquestador (*skill* `liv-orquestador`, ADR 0033), solo él marca el progreso de `tasks.md`, los criterios de `spec.md`, el roadmap y `ESTADO.md`; las sesiones de las tareas se lo reportan.
+
 > La constitución manda: si una feature choca con `mission.md` o `tech-stack.md`, se replantea la feature, no la constitución. Cambiar la constitución exige un ADR aprobado.
 
 ## Equivalencia con las fases SDD de gentle‑ai

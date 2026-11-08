@@ -60,12 +60,12 @@ Cada pantalla nueva o modificada necesita su *frame* aprobado en la página `03 
 4. **Refactorizar** con las pruebas en verde. Commit `refactor:`.
 5. Toca solo los archivos declarados en la tarea. Si necesitas otro, actualiza `tasks.md` y avisa.
 6. Antes de cada commit, ejecuta la lente de legibilidad de `liv-revision-4r`.
-7. Marca la tarea `[x]` en `tasks.md`.
+7. Marca la tarea `[x]` en `tasks.md`. Si la feature la dirige un orquestador (`liv-orquestador`), repórtaselo: él la marca.
 
 ## 7. Validar
 
 - Ejecuta `liv-revision-adversarial` sobre lo implementado. Si el cambio es crítico o supera 400 líneas, ejecuta también las cuatro lentes de `liv-revision-4r`.
-- Marca cada criterio de `spec.md` con `[x]` y el nombre de la prueba que lo demuestra. Sin prueba no se marca.
+- Marca cada criterio de `spec.md` con `[x]` y el nombre de la prueba que lo demuestra. Sin prueba no se marca. Bajo un orquestador, los marca él.
 - Ejecuta las verificaciones locales y reporta con honestidad lo que falle.
 - **Si la feature tiene interfaz, pruébala en el navegador** (ADR 0030):
   - levanta el sistema como dice `README.md` › «Ejecutar LIV en local»;
@@ -77,5 +77,5 @@ Cada pantalla nueva o modificada necesita su *frame* aprobado en la página `03 
 ## 8. Cerrar
 
 - Pasa la feature a "Hecho" en `spec/constitution/roadmap.md`.
-- Actualiza `ESTADO.md` con la *skill* `liv-estado`.
+- Actualiza `ESTADO.md` con la *skill* `liv-estado`. Si la feature la dirige un orquestador (`liv-orquestador`), esto lo hace él.
 - Si surgieron términos nuevos, agrégalos al glosario (`docs/arquitectura/01` §15).

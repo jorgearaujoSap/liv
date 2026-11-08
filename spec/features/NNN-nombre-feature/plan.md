@@ -34,6 +34,14 @@ _Solo si la feature tiene pantallas. Borra esta sección si no aplica._
 |---|---|---|
 | <Número y nombre de menú> | <enlace> · o "Reutiliza la estructura de: <pantalla> (<enlace>); cambia: <contenido>" | <componentes> |
 
+## Dependencias y recursos
+
+_Qué necesita esta feature que no está en ella, y qué recursos compartidos usa. Con esto el orquestador ordena las tareas y decide qué corre en paralelo (`liv-orquestador`)._
+
+- **Depende de:** <features, contratos o versiones de `liv-components` que deben estar integrados antes; o «nada».>
+- **Recursos compartidos:** <contratos, versión de `liv-components`, migraciones o archivos de *build* de un proyecto, entorno local, Figma; y qué tareas los usan.>
+- **Orden entre proyectos:** <p. ej. T1 (contrato, `backend/`) → T3 (`frontend/`); T2 (`ui/`) en paralelo con T1.>
+
 ## Decisiones
 
 _Elecciones de diseño relevantes y su justificación. Alternativas descartadas y por qué. Una decisión de arquitectura se registra además como ADR._

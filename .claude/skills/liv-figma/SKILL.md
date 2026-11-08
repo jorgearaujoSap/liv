@@ -53,4 +53,4 @@ Reglas completas en `AGENTS.md` §6 y `docs/arquitectura/01` §11.
 
 ## Al terminar
 
-Actualiza la sección "Figma" de `ESTADO.md` (páginas, estilos, componentes, pantallas y su estado de aprobación) con la *skill* `liv-estado`.
+Actualiza la sección "Figma" de `ESTADO.md` (páginas, estilos, componentes, pantallas y su estado de aprobación) con la *skill* `liv-estado`. Si la feature la dirige un orquestador, repórtaselo a él en lugar de editar `ESTADO.md` (ADR 0033).

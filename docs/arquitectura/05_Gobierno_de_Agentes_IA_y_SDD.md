@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** toda la serie 00–04 (ADR 0014)
-> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.1 — 2026-11-08, §4.1, §6 y §7.2 cambiados por el ADR 0033 (orquestador de la feature en curso). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Propósito:** definir cómo trabajan los agentes de IA en el proyecto para que aceleren el desarrollo sin generar deuda técnica: qué pueden hacer, en qué orden, con qué límites y cómo se verifica su trabajo.
 
 ---
@@ -130,7 +130,7 @@ Estas reglas están en `AGENTS.md`, en la raíz, que es la fuente única de regl
 9. Usar el glosario; agregar al glosario todo término nuevo.
 10. Construir las pantallas **solo** con componentes de `liv-components`, a partir del *frame* de Figma aprobado (leído con el servidor MCP de Figma). Si el diseño pide algo que la librería no tiene, detenerse y proponer el cambio en la librería.
 11. Antes de crear una pantalla, comprobar que el `plan.md` de la feature tiene su diseño aprobado o la declaración de reutilización de estructura.
-12. Mantener `ESTADO.md` al día **en el mismo cambio** que inicia, completa o bloquea una tarea: estado de los entregables, decisiones abiertas, estado de Figma, próximos pasos y una entrada en la bitácora con la fecha. También aplica a trabajo fuera del repositorio (p. ej. cambios en Figma).
+12. Mantener `ESTADO.md` al día **en el mismo cambio** que inicia, completa o bloquea una tarea: estado de los entregables, decisiones abiertas, estado de Figma, próximos pasos y una entrada en la bitácora con la fecha. También aplica a trabajo fuera del repositorio (p. ej. cambios en Figma). Si la feature la dirige un orquestador, solo él lo escribe, y la sesión de la tarea se lo reporta (ADR 0033).
 
 ### 4.2 Prohibido sin aprobación humana explícita
 
@@ -178,7 +178,7 @@ Las reglas escritas no bastan: cada una tiene un mecanismo que la hace cumplir.
 
 | Rol | Tipo | Responsabilidad |
 |---|---|---|
-| Orquestador | Agente | Conduce el flujo SDD, delega en subagentes, mantiene el estado del cambio. No escribe grandes bloques de código |
+| Orquestador | Agente | Conduce el flujo SDD, delega en sesiones nuevas y en subagentes, mantiene el estado del cambio. No hace el trabajo de las fases. Su procedimiento es la *skill* `liv-orquestador`: una sola feature a la vez, paralelismo dentro de ella, y es el único que escribe `ESTADO.md` (ADR 0033) |
 | Explorador | Agente (solo lectura) | Lee documentos y código; resume lo relevante |
 | Especificador / planificador | Agente | Redacta `spec.md`, `plan.md` y `tasks.md` |
 | Implementador | Agente | Ejecuta una tarea con TDD |
@@ -210,7 +210,7 @@ Las reglas escritas no bastan: cada una tiene un mecanismo que la hace cumplir.
 - Cada criterio de aceptación de `spec.md` está marcado `[x]` con la prueba que lo demuestra.
 - La documentación afectada está actualizada.
 - La revisión adversarial (`liv-revision-adversarial`) se ejecutó y sus hallazgos se resolvieron o se justificaron.
-- `ESTADO.md` refleja el nuevo estado de la tarea y tiene su entrada en la bitácora.
+- `ESTADO.md` refleja el nuevo estado de la tarea y tiene su entrada en la bitácora. Si la feature la dirige un orquestador, esto y las marcas de `tasks.md` y `spec.md` los escribe él, con el reporte de la sesión (ADR 0033).
 
 ---
 
