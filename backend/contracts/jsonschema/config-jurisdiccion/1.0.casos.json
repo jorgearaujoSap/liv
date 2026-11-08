@@ -1,0 +1,624 @@
+{
+  "$comment": "Casos comunes del esquema 1.0 de la configuración de jurisdicción (ADR 0032). Todo cargador y todo validador de esta versión deben dar lo mismo: las pruebas del backend y las del validador de la raíz corren este archivo. 'carga': el subconjunto portable de YAML; si se rechaza, 'motivo' es el código que debe dar el cargador. 'validacion': el YAML se carga y se valida contra el esquema; si es inválido, 'rutas' son las rutas JSON Pointer de los errores, con la de la clave en 'required' y 'additionalProperties'.",
+  "esquema": "config-jurisdiccion",
+  "version": "1.0",
+  "carga": [
+    {
+      "caso": "valores básicos de cada tipo",
+      "yaml": "a: true\nb: false\nc: null\nd: 0\ne: -12\nf: 1000\ng: 0.015\nh: 1.00\ni: 2026-04-30\nj: texto libre con acentos, ñ y —\nk: \"1.0\"\nl: 'PENDIENTE'\nm: -0.5\n",
+      "aceptado": true,
+      "arbol": {
+        "a": true,
+        "b": false,
+        "c": null,
+        "d": 0,
+        "e": -12,
+        "f": 1000,
+        "g": 0.015,
+        "h": 1.00,
+        "i": "2026-04-30",
+        "j": "texto libre con acentos, ñ y —",
+        "k": "1.0",
+        "l": "PENDIENTE",
+        "m": -0.5
+      }
+    },
+    {
+      "caso": "un decimal no se normaliza ni pasa a entero",
+      "yaml": "multiplo: 1000.0\ntasa: 0.10\n",
+      "aceptado": true,
+      "arbol": {
+        "multiplo": 1000.0,
+        "tasa": 0.10
+      }
+    },
+    {
+      "caso": "los números son exactos",
+      "yaml": "fraccion: 1.0000000000000001\nentero: 123456789012345678901234567890\n",
+      "aceptado": true,
+      "arbol": {
+        "fraccion": 1.0000000000000001,
+        "entero": 123456789012345678901234567890
+      }
+    },
+    {
+      "caso": "colecciones en flujo y vacías",
+      "yaml": "a: {b: [1, 2], c: []}\nd: {}\n",
+      "aceptado": true,
+      "arbol": {
+        "a": {
+          "b": [
+            1,
+            2
+          ],
+          "c": []
+        },
+        "d": {}
+      }
+    },
+    {
+      "caso": "entre comillas todo es texto",
+      "yaml": "a: \"yes\"\nb: 'no'\nc: \"1_000\"\nd: \"2026-1-1\"\ne: \"0x1F\"\nf: ''\ng: \"~\"\n",
+      "aceptado": true,
+      "arbol": {
+        "a": "yes",
+        "b": "no",
+        "c": "1_000",
+        "d": "2026-1-1",
+        "e": "0x1F",
+        "f": "",
+        "g": "~"
+      }
+    },
+    {
+      "caso": "una clave con punto es texto",
+      "yaml": "requiere: {jurisdiccion.zona_frontera: true}\n",
+      "aceptado": true,
+      "arbol": {
+        "requiere": {
+          "jurisdiccion.zona_frontera": true
+        }
+      }
+    },
+    {
+      "caso": "comentarios e inicio de documento explícito",
+      "yaml": "---\n# comentario\na: 1   # otro comentario\n",
+      "aceptado": true,
+      "arbol": {
+        "a": 1
+      }
+    },
+    {
+      "caso": "una fecha con forma de fecha queda como texto aunque no exista",
+      "yaml": "a: 2026-13-45\nb: 2026-02-30\n",
+      "aceptado": true,
+      "arbol": {
+        "a": "2026-13-45",
+        "b": "2026-02-30"
+      }
+    },
+    {
+      "caso": "listas en bloque y la raíz que no es un objeto",
+      "yaml": "- a\n- {b: 1}\n- [c]\n",
+      "aceptado": true,
+      "arbol": [
+        "a",
+        {
+          "b": 1
+        },
+        [
+          "c"
+        ]
+      ]
+    },
+    {
+      "caso": "finales de línea CRLF",
+      "yaml": "a: 1\r\nb: x\r\n",
+      "aceptado": true,
+      "arbol": {
+        "a": 1,
+        "b": "x"
+      }
+    },
+    {
+      "caso": "un texto en varias líneas sin comillas se une con espacios",
+      "yaml": "a: primera\n  segunda\n",
+      "aceptado": true,
+      "arbol": {
+        "a": "primera segunda"
+      }
+    },
+    {
+      "caso": "etiqueta que construye un objeto",
+      "yaml": "a: !!python/object/apply:os.system [ls]\n",
+      "aceptado": false,
+      "motivo": "ETIQUETA"
+    },
+    {
+      "caso": "etiqueta binaria",
+      "yaml": "a: !!binary aGVsbG8=\n",
+      "aceptado": false,
+      "motivo": "ETIQUETA"
+    },
+    {
+      "caso": "etiqueta local",
+      "yaml": "a: !foo x\n",
+      "aceptado": false,
+      "motivo": "ETIQUETA"
+    },
+    {
+      "caso": "etiqueta estándar aunque no cambie nada",
+      "yaml": "a: !!str texto\n",
+      "aceptado": false,
+      "motivo": "ETIQUETA"
+    },
+    {
+      "caso": "etiqueta en una colección",
+      "yaml": "a: !!map {b: 1}\n",
+      "aceptado": false,
+      "motivo": "ETIQUETA"
+    },
+    {
+      "caso": "ancla",
+      "yaml": "a: &x 1\nb: 2\n",
+      "aceptado": false,
+      "motivo": "ANCLA"
+    },
+    {
+      "caso": "ancla en una colección",
+      "yaml": "a: &x {b: 1}\n",
+      "aceptado": false,
+      "motivo": "ANCLA"
+    },
+    {
+      "caso": "alias",
+      "yaml": "b: *x\n",
+      "aceptado": false,
+      "motivo": "ALIAS"
+    },
+    {
+      "caso": "fusión",
+      "yaml": "a: {b: 1}\n<<: {c: 2}\n",
+      "aceptado": false,
+      "motivo": "FUSION"
+    },
+    {
+      "caso": "clave de valor de YAML 1.1",
+      "yaml": "=: 1\n",
+      "aceptado": false,
+      "motivo": "FUSION"
+    },
+    {
+      "caso": "directiva de versión",
+      "yaml": "%YAML 1.1\n---\na: 1\n",
+      "aceptado": false,
+      "motivo": "DIRECTIVA"
+    },
+    {
+      "caso": "directiva de etiqueta",
+      "yaml": "%TAG !e! tag:example.com,2000:\n---\na: 1\n",
+      "aceptado": false,
+      "motivo": "DIRECTIVA"
+    },
+    {
+      "caso": "dos documentos",
+      "yaml": "a: 1\n---\nb: 2\n",
+      "aceptado": false,
+      "motivo": "DOCUMENTOS"
+    },
+    {
+      "caso": "archivo vacío",
+      "yaml": "",
+      "aceptado": false,
+      "motivo": "DOCUMENTOS"
+    },
+    {
+      "caso": "solo comentarios",
+      "yaml": "# nada\n",
+      "aceptado": false,
+      "motivo": "DOCUMENTOS"
+    },
+    {
+      "caso": "clave repetida",
+      "yaml": "a: 1\na: 2\n",
+      "aceptado": false,
+      "motivo": "CLAVE_REPETIDA"
+    },
+    {
+      "caso": "clave repetida en un objeto anidado",
+      "yaml": "x: {a: 1, a: 2}\n",
+      "aceptado": false,
+      "motivo": "CLAVE_REPETIDA"
+    },
+    {
+      "caso": "clave repetida con y sin comillas",
+      "yaml": "a: 1\n'a': 2\n",
+      "aceptado": false,
+      "motivo": "CLAVE_REPETIDA"
+    },
+    {
+      "caso": "clave numérica",
+      "yaml": "1: a\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "clave booleana",
+      "yaml": "true: a\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "clave nula",
+      "yaml": "null: a\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "clave con forma de fecha",
+      "yaml": "2026-01-01: a\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "clave que es una lista",
+      "yaml": "? [a]\n: b\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "clave que es un objeto",
+      "yaml": "? {a: 1}\n: b\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "clave vacía sin comillas",
+      "yaml": "? \n: b\n",
+      "aceptado": false,
+      "motivo": "CLAVE_NO_TEXTO"
+    },
+    {
+      "caso": "yes",
+      "yaml": "a: yes\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "no",
+      "yaml": "a: no\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "on",
+      "yaml": "a: on\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "off",
+      "yaml": "a: off\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "y",
+      "yaml": "a: y\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "n",
+      "yaml": "a: n\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "N mayúscula",
+      "yaml": "a: N\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "NO mayúsculas",
+      "yaml": "a: NO\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "virgulilla como nulo",
+      "yaml": "a: ~\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "True con mayúscula",
+      "yaml": "a: True\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "FALSE en mayúsculas",
+      "yaml": "a: FALSE\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "NULL en mayúsculas",
+      "yaml": "a: NULL\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "Null con mayúscula",
+      "yaml": "a: Null\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "guion bajo en un número",
+      "yaml": "a: 1_000\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "hexadecimal",
+      "yaml": "a: 0x1F\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "octal de YAML 1.2",
+      "yaml": "a: 0o17\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "octal de YAML 1.1",
+      "yaml": "a: 017\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "binario",
+      "yaml": "a: 0b101\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "cero a la izquierda",
+      "yaml": "a: 01\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "signo más",
+      "yaml": "a: +1\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "negativo con cero a la izquierda",
+      "yaml": "a: -01\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "exponente",
+      "yaml": "a: 1e3\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "decimal con exponente",
+      "yaml": "a: 1.5e+3\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "decimal sin parte entera",
+      "yaml": "a: .5\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "decimal sin parte decimal",
+      "yaml": "a: 5.\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "decimal con guion bajo",
+      "yaml": "a: 0.000_1\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "sexagesimal",
+      "yaml": "a: 1:30\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "infinito",
+      "yaml": "a: .inf\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "menos infinito",
+      "yaml": "a: -.inf\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "no es un número",
+      "yaml": "a: .nan\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "NaN",
+      "yaml": "a: .NaN\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "fecha sin ceros",
+      "yaml": "a: 2026-1-1\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "fecha con hora",
+      "yaml": "a: 2026-04-30T10:00:00\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "fecha con hora y espacio",
+      "yaml": "a: 2026-04-30 10:00:00\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "versión con dos puntos",
+      "yaml": "a: 1.0.0\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "texto que empieza con un dígito",
+      "yaml": "a: 12 de abril\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "texto que empieza con un punto",
+      "yaml": "a: .texto\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "escalar ambiguo en una lista",
+      "yaml": "a: [1, yes]\n",
+      "aceptado": false,
+      "motivo": "ESCALAR_AMBIGUO"
+    },
+    {
+      "caso": "valor vacío",
+      "yaml": "a:\nb: 1\n",
+      "aceptado": false,
+      "motivo": "VALOR_VACIO"
+    },
+    {
+      "caso": "elemento vacío de una lista",
+      "yaml": "a:\n  -\n  - 1\n",
+      "aceptado": false,
+      "motivo": "VALOR_VACIO"
+    },
+    {
+      "caso": "tabulación escapada",
+      "yaml": "a: \"x\\ty\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "tabulación sin comillas",
+      "yaml": "a: x\ty\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "salto de línea escapado",
+      "yaml": "a: \"x\\n::error::y\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "bloque literal con salto de línea final",
+      "yaml": "a: |\n  linea\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "bloque plegado con salto de línea final",
+      "yaml": "a: >\n  linea\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "secuencia de escape de terminal",
+      "yaml": "a: \"\\u001b[31m\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "salto de línea en una clave",
+      "yaml": "\"a\\nb\": 1\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "carácter de control sin escapar",
+      "yaml": "a: x\u0001y\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "tabulación en un comentario",
+      "yaml": "a: 1 #\tnota\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "DEL sin escapar",
+      "yaml": "a: xy\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "DEL escapado",
+      "yaml": "a: \"x\\x7fy\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "salto de línea de YAML 1.1 (NEL)",
+      "yaml": "a: xy\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "NEL escapado",
+      "yaml": "a: \"x\\Ny\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "separador de línea de YAML 1.1",
+      "yaml": "a: x y\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "separador de párrafo escapado",
+      "yaml": "a: \"x\\Py\"\n",
+      "aceptado": false,
+      "motivo": "CARACTER_DE_CONTROL"
+    },
+    {
+      "caso": "lista sin cerrar",
+      "yaml": "a: [1, 2\n",
+      "aceptado": false,
+      "motivo": "SINTAXIS"
+    },
+    {
+      "caso": "sangría inválida",
+      "yaml": "a: 1\n b: 2\n",
+      "aceptado": false,
+      "motivo": "SINTAXIS"
+    }
+  ]
+}
