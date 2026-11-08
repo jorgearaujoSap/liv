@@ -116,7 +116,8 @@ jobs:
   # trabajo propio, sin needs, para que una falla al publicar un contrato OpenAPI no deje el esquema sin publicar, ni
   # al revés. Solo el backend tiene esquemas. Las versiones no cambian: si la release ya existe con otro contenido,
   # falla; si ya existe igual, no la toca; así que correrlo de nuevo es seguro. Para reintentar, mejor
-  # workflow_dispatch desde main que «Re-run» de una ejecución vieja, que usa el workflow y el script de aquel commit.
+  # workflow_dispatch desde main que «Re-run» de una ejecución vieja, que usa el workflow de aquel commit y el
+  # script de su commit anterior.
   # Como publish.sh, usa el script del commit anterior (la base); si aún no lo tiene (la integración que lo agrega),
   # el de este commit; y si hay esquemas y ningún script, falla. Ningún paso antes del juez escribe LIV_GH, la
   # variable con la que las pruebas cambian gh por uno falso: no se agrega aquí ninguna que la defina.
@@ -131,9 +132,10 @@ jobs:
       contents: write
     # Sin cancelar lo que ya corre, y declarado en el propio trabajo: el grupo del workflow ya pone las publicaciones
     # en fila, y este mantiene esa garantía aunque alguien cambie aquel. Dos publicaciones a la vez crearían dos
-    # borradores con la misma etiqueta. GitHub sigue descartando una ejecución en espera si llega otra detrás: no
-    # se pierde nada, porque cada publicación converge al árbol de su commit. Tiene otro nombre que el del workflow:
-    # con el mismo, el trabajo esperaría a su propio workflow.
+    # borradores con la misma etiqueta. GitHub sigue descartando una ejecución en espera si llega otra detrás: cada
+    # publicación converge al árbol de su commit, así que la siguiente completa lo que faltó. Si un workflow_dispatch
+    # desde otra rama desplaza una en espera, se publica con workflow_dispatch desde main. Tiene otro nombre que el
+    # del workflow: con el mismo, el trabajo esperaría a su propio workflow.
     concurrency:
       group: backend-main-esquemas
       cancel-in-progress: false
@@ -159,7 +161,14 @@ jobs:
             git worktree add --detach "$RUNNER_TEMP/base" HEAD^1
             echo "dir=$RUNNER_TEMP/base/backend" >> "$GITHUB_OUTPUT"
           elif [ -f backend/contracts/scripts/jsonschema.sh ]; then
-            echo "El commit anterior aún no tiene el script: se usa el de este commit, que lo agrega."
+            # Con el script de este commit se exige que los esquemas no cambien frente al commit anterior (abajo).
+            echo "::warning::El commit anterior no tiene el script: se usa el de este commit, que lo agrega o restaura."
+            base_tree=$(git rev-parse -q --verify HEAD^1:backend/contracts/jsonschema) || base_tree=
+            head_tree=$(git rev-parse -q --verify HEAD:backend/contracts/jsonschema) || head_tree=
+            if [ "$base_tree" != "$head_tree" ]; then
+              echo "::error::Un commit que agrega o restaura jsonschema.sh no cambia también los esquemas."
+              exit 1
+            fi
             echo "dir=$GITHUB_WORKSPACE/backend" >> "$GITHUB_OUTPUT"
           else
             echo "::error::backend tiene esquemas pero no contracts/scripts/jsonschema.sh."

@@ -209,13 +209,14 @@ jobs:
             echo "::error::HEAD no tiene primer padre: sin la punta de la base no se puede juzgar. Se espera el merge del PR, con fetch-depth 2."
             exit 1
           fi
-          if ! schemas_dir=$(git ls-tree HEAD^1 -- backend/contracts/jsonschema) ||
+          if ! base_schemas_dir=$(git ls-tree HEAD^1 -- backend/contracts/jsonschema) ||
+             ! head_schemas_dir=$(git ls-tree HEAD -- backend/contracts/jsonschema) ||
              ! base_script=$(git ls-tree HEAD^1 -- backend/contracts/scripts/jsonschema.sh); then
             echo "::error::No se pudo leer la base con git ls-tree."
             exit 1
           fi
           # Con la base sin la carpeta y el PR con ella, check sigue juzgando la forma de lo que el PR agrega.
-          if [ -z "$schemas_dir" ] && ! git cat-file -e HEAD:backend/contracts/jsonschema 2> /dev/null; then
+          if [ -z "$base_schemas_dir" ] && [ -z "$head_schemas_dir" ]; then
             echo "Ni la base ni el PR tienen backend/contracts/jsonschema/: no hay versiones que proteger."
             exit 0
           fi
@@ -223,11 +224,15 @@ jobs:
             git worktree add --detach "$RUNNER_TEMP/base-esquemas" HEAD^1
             judge="$RUNNER_TEMP/base-esquemas/backend"
           elif [ -f backend/contracts/scripts/jsonschema.sh ]; then
-            # Caso para restaurar un script que se quitó, y lo avisa con una anotación: el juez es el del PR, así que
-            # ese PR solo lo restaura y no toca los esquemas.
-            echo "::warning::La base no tiene contracts/scripts/jsonschema.sh: juzga el del PR, que lo restaura."
-            if ! git diff --quiet HEAD^1 HEAD -- backend/contracts/jsonschema/; then
-              echo "::error::Un PR que restaura jsonschema.sh no cambia también los esquemas."
+            # Caso para agregar o restaurar un script que se quitó, y lo avisa con una anotación: el juez es el del PR, así que
+            # ese PR solo lo agrega o restaura y no toca los esquemas. Se comparan los objetos de árbol de la carpeta,
+            # que cubren cualquier cambio (un archivo, un enlace o un submódulo en su lugar), y se dejan vacíos si no
+            # existe.
+            echo "::warning::La base no tiene contracts/scripts/jsonschema.sh: juzga el del PR, que lo agrega o restaura."
+            base_tree=$(git rev-parse -q --verify HEAD^1:backend/contracts/jsonschema) || base_tree=
+            head_tree=$(git rev-parse -q --verify HEAD:backend/contracts/jsonschema) || head_tree=
+            if [ "$base_tree" != "$head_tree" ]; then
+              echo "::error::Un PR que agrega o restaura jsonschema.sh no cambia también los esquemas."
               exit 1
             fi
             judge="$GITHUB_WORKSPACE/backend"
