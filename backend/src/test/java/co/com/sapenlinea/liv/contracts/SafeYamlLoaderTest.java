@@ -7,6 +7,7 @@ import co.com.sapenlinea.liv.contracts.SafeYamlLoader.Reason;
 import co.com.sapenlinea.liv.contracts.SafeYamlLoader.UnsafeYamlException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -79,7 +80,7 @@ class SafeYamlLoaderTest {
   void sizeBeforeEncoding(@TempDir Path folder) throws Exception {
     Path file = folder.resolve("grande.yaml");
     byte[] bytes = new byte[SafeYamlLoader.MAX_BYTES + 1];
-    java.util.Arrays.fill(bytes, (byte) 0xFF);
+    Arrays.fill(bytes, (byte) 0xFF);
     Files.write(file, bytes);
 
     assertThatThrownBy(() -> SafeYamlLoader.load(file))

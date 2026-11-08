@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -202,7 +203,7 @@ class JsonSchemaFilesTest {
   }
 
   @Test
-  @DisplayName("ADR 0032 · el validador no carga esquemas remotos")
+  @DisplayName("004-11 · el validador no carga esquemas remotos (ADR 0032)")
   void noRemoteSchemas() {
     JsonNode schema =
         CommonCases.EXACT.readTree(
@@ -215,13 +216,13 @@ class JsonSchemaFilesTest {
         .isInstanceOf(RuntimeException.class)
         .satisfies(e -> {
           for (Throwable cause = e; cause != null; cause = cause.getCause()) {
-            assertThat(cause).isNotInstanceOf(java.net.SocketException.class);
+            assertThat(cause).isNotInstanceOf(SocketException.class);
           }
         });
   }
 
   @Test
-  @DisplayName("ADR 0032 · jackson-dataformat-yaml no está en el classpath de las pruebas")
+  @DisplayName("004-11 · jackson-dataformat-yaml no está en el classpath de las pruebas (ADR 0032)")
   void noJacksonYaml() {
     // With it, Spring would register an application/yaml converter without the loader's rules.
     assertThatThrownBy(() -> Class.forName("tools.jackson.dataformat.yaml.YAMLMapper"))
