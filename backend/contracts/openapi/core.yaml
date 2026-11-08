@@ -12,7 +12,7 @@ tags:
 security:
   - bearerAuth: []
 paths:
-  /api/v1/me:
+  /api/v1/yo:
     get:
       tags: [CurrentUser]
       operationId: getCurrentUser
