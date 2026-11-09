@@ -155,6 +155,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-08
 
+- **Decisión del responsable: un solo responsable integra.** La excepción de `AGENTS.md` §4.3 se mantiene aunque se sume un desarrollador: GitHub sigue sin exigir aprobaciones, el responsable hace la H3 de todos los PR (también los suyos) y es el único que integra a `main`. No se cambia la protección de `main` ni `CODEOWNERS`; la excepción sigue hasta que él decida activar las aprobaciones.
 - **Guía del desarrollador** (`docs/guia-del-desarrollador.md`), para entregar el proyecto: qué está hecho, las primeras tareas (terminar la feature 004 y F0‑11, que cierran la Fase 0), las lecturas en orden, los accesos que da el responsable (al sumarse una segunda persona termina la excepción del equipo de una persona), las trampas conocidas y los pendientes que no bloquean el cierre. Enlazada desde el `README.md`. Flujo directo: documentación sin reglas nuevas.
 - **Feature 004 · paso 3 (T6) en el PR #144**, a la espera de la H3 (cambio de `.github/` aprobado de forma explícita por el responsable):
   - **Qué se hizo:**
