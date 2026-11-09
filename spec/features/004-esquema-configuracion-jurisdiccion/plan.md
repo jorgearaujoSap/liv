@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** aprobado (H2) — 2026-11-08, por el responsable
+**Estado:** aprobado (H2) — 2026-11-08, por el responsable. Implementado hasta el paso 3; los pasos 4 y 5 pasaron a la feature 1.5.9 al cerrar (`spec.md`, «Decisión del cierre»)
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -69,6 +69,8 @@ Las referencias a normas son códigos. Que existan en `normas` es CJ03, del vali
 
 ## Implementación
 
+> **Al cerrar** (`spec.md`, «Decisión del cierre»): se implementaron los pasos 1 a 3 y el 6. Todo lo que este plan dice del validador de la raíz, de sus *checks* y de la ruta crítica `tools/config-jurisdiccion/**` (pasos 4 y 5, y las menciones en «Enfoque», «Datos, API y seguridad» y «Riesgos») es diseño de partida para la feature 1.5.9, no algo hecho.
+
 En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso (`AGENTS.md` §4.6; ADR 0027: *scripts* y *workflows* en PR separados).
 
 1. **Backend · el esquema y sus pruebas** (`backend/`, rama `feat/004-esquema-backend`).
@@ -96,8 +98,8 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
    - El trabajo de pruebas de los *scripts* ya corre `run.sh`, que incluye las de `jsonschema.sh`.
    - `backend-main.yml`: `jsonschema.sh publish` en un trabajo propio, sin `needs`, para que un fallo al publicar un contrato OpenAPI no deje el esquema sin publicar; con `if: github.ref == 'refs/heads/main'`, para que un `workflow_dispatch` desde otra rama no publique un borrador como versión inmutable; y con la misma regla de falla cerrada. El *workflow* se dispara por `backend/contracts/**` y por su propio archivo, así que al integrar este PR se publica la versión 1.0.
    - `aplica.sh` y los nombres de los *checks* obligatorios no cambian.
-4. **Raíz · validador de los anexos** (`tools/`, rama `feat/004-validador-anexos`; después de que exista la *release* 1.0).
-   - `AGENTS.md` §4.3: `tools/config-jurisdiccion/**` en la lista de rutas críticas (decisión 3 de la H2).
+4. **Raíz · validador de los anexos** (`tools/`, rama `feat/004-validador-anexos`; después de que exista la *release* 1.0). **Trasladado a la feature 1.5.9** (`spec.md`, «Decisión del cierre»); se conserva aquí como diseño de partida.
+   - `AGENTS.md` §4.3: `tools/config-jurisdiccion/**` en la lista de rutas críticas (decisión 3 de la H2, anulada al cerrar).
    - `tools/config-jurisdiccion/validar.py`:
      - valida cada `docs/funcional/anexos/config_jurisdiccion_*.yaml`; falla si no encuentra ninguno y si en `anexos/` hay un `.yml` o `.yaml` que no siga la convención `config_jurisdiccion_<DANE o plantilla>_<AÑO>.yaml` (`AGENTS.md` §5.2), para que ningún anexo se salga de la validación por su nombre;
      - carga con el subconjunto portable; la `esquema_version` tiene que ser texto y estar en `esquemas.json` **antes** de construir la URL (004‑09);
@@ -111,7 +113,7 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
      - casos de esquema violado (clave desconocida, valor fuera de lista, fracción mayor que 1), con el formato exacto de la salida y el código de salida;
      - versión desconocida, versión numérica en lugar de texto, SHA‑256 que no coincide, carpeta sin anexos e intento de inyección en la salida.
    - `README.md` de la carpeta: cómo correrlo en local, cómo regenerar `requirements.txt` y cómo adoptar una versión nueva del esquema.
-5. **CI de la raíz** (`.github/`, rama `ci/004-validar-anexos`; aprobación de Jorge).
+5. **CI de la raíz** (`.github/`, rama `ci/004-validar-anexos`; aprobación de Jorge). **Trasladado a la feature 1.5.9**, con el paso 4.
    - `sistema-pr.yml`, dos trabajos que corren en **todos** los PR, como los otros de `sistema`, sin `aplica.sh`:
      - `sistema · configuraciones de jurisdicción` (el juez): *checkout* con `fetch-depth: 2`; toma `tools/config-jurisdiccion/` de `HEAD^1` (la rama base) en un *worktree* aparte; `actions/setup-python` fijado por SHA, con el `.python-version` de la base y **sin caché**; instala las dependencias de la base y corre `python -I` desde ese *worktree*, para que un módulo que agregue el PR no tape uno de la base; valida los anexos **del PR**. Falla si el árbol del PR ya no tiene el validador. Si la base no lo tiene y el PR sí, juzga el del PR (la salida para restaurarlo); si no lo tiene ninguno, falla;
      - `sistema · validador de configuraciones del PR`: con lo del PR (su `.python-version`, su `requirements.txt` y su `esquemas.json`), corre las pruebas del validador y **también valida los anexos**, con red. Exigir los dos *checks* impide integrar un validador, un SHA‑256 o unos *hashes* rotos, que después, como juez, dejarían en rojo todos los PR;
@@ -141,7 +143,7 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
     - en el PR, el juez es el *script* de la base y falla si falta;
     - en la publicación, una *release* con otro contenido falla;
     - en la raíz, el SHA‑256 está fijado en `esquemas.json`, y el validador que juzga es el de la base, así que un PR no puede cambiar a la vez el pin y el anexo.
-  - *Validador debilitado por un PR*: juzga el de la base (paso 5). Además, se propone hacer de `tools/config-jurisdiccion/**` una ruta crítica (`AGENTS.md` §4.3), lo que decide Jorge en la H2.
+  - *Validador debilitado por un PR*: juzga el de la base (paso 5). Además, se propone hacer de `tools/config-jurisdiccion/**` una ruta crítica (`AGENTS.md` §4.3), lo que decide Jorge en la H2 (aprobado en la H2 y anulado al cerrar).
   - *Inyección en el registro de Actions* desde valores del YAML: caracteres de control rechazados en la carga y salida escapada.
   - *Cadena de suministro*: versiones exactas; en Python, `--require-hashes --only-binary=:all:`; en Maven, las del repositorio central como el resto del backend. Una sola acción nueva en los *workflows*, `actions/setup-python`, de GitHub y fijada por SHA, sin caché en el juez.
   - *Un PR que desactiva su propia validación* cambiando el *workflow*: riesgo ya declarado en la feature 003; la barrera es la revisión humana de `.github/`.
@@ -164,9 +166,19 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
 - **La raíz depende de la red para validar** (descarga la *release*) — si GitHub no responde, el *check* falla: falla cerrado, se reintenta. Si alguien borra la *release* a mano, todos los PR quedan en rojo hasta volver a publicarla con `workflow_dispatch` de `backend-main`; el SHA‑256 fijado impide que una *release* reemplazada pase. Activar las *releases* inmutables sigue siendo la decisión pendiente del ADR 0027.
 - **`networknt` 3.x usa Jackson 3** — es el mismo Jackson de Spring Boot 4; si su versión no coincide con la que gestiona Spring Boot, manda la de Spring Boot y se comprueba con `./mvnw verify`.
 - **Primera publicación** — si `backend-main` falla al integrar el paso 3, se reintenta con «Re-run» o `workflow_dispatch`, como en el ADR 0027. El paso 4 no empieza sin la *release* 1.0.
-- **Los *checks* nuevos no quedan obligatorios** — si Jorge no los agrega al *ruleset*, un anexo inválido se puede integrar. Va en el paso 5 y en el cierre.
+- **Los *checks* nuevos no quedan obligatorios** — si Jorge no los agrega al *ruleset*, un anexo inválido se puede integrar. Va en el paso 5 y en el cierre. **Al cerrar:** el paso 5 pasó a la feature 1.5.9, así que hasta entonces un anexo inválido se puede integrar.
+- **Guardas que solo comprueban que existan** (paso 2) — `jsonschema.sh` comprueba que existan el *script*, `lib.sh`, `run.sh`, `fake-gh.sh` y los escenarios, no su contenido. Un PR que los debilite lo detiene solo la revisión H3. Aceptado por el responsable.
 - **Un juez roto en `main` deja en rojo todos los PR** — el *check* del PR con su propio validador (paso 5) lo evita en el caso normal. Queda un caso: dos PR en verde por separado que, integrados uno detrás del otro, dejan un anexo que el validador nuevo rechaza, porque la rama no tiene que estar al día (decisión de la H1 de la feature 003). La salida es un PR que corrige el anexo; si aun así el juez de la base no deja pasar ninguno, Jorge omite el *check* en el *ruleset* para ese PR y lo registra en `ESTADO.md`. Exigir la rama al día o una cola de integración, como recomienda el ADR 0027, lo evitaría.
 - **Tamaño del PR del paso 1** — las dos copias de los anexos suman unas 760 líneas de datos; el código y el esquema rondan las 400. Se justifica en el PR (Q12), o se separa la carga (`SafeYamlLoader` y sus casos) en un PR propio si pasa de ahí.
+
+## Decisiones de la implementación
+
+Tomadas por el responsable al revisar cada PR (H3):
+
+- **Paso 1 (PR #141):** acepta las reglas que la revisión agregó al plan (los límites del cargador y el final de los patrones), y el contenido del esquema queda como está, sin restricciones extra. Integrar fija la versión 1.0: cualquier cambio posterior es una versión 1.1.
+- **Paso 2 (PR #142):** acepta que las guardas de `jsonschema.sh` solo comprueben que existan el *script* y sus pruebas, no su contenido: un PR que las debilite solo lo detiene la revisión H3 (ver Riesgos). La *release* con archivos de más que pasa la verificación (heredado de `publish.sh`, ADR 0027) se arregla en un PR aparte del backend.
+- **Paso 3 (PR #144):** acepta dos desviaciones más estrictas que el plan: `check` corre también si la base no tiene la carpeta pero el PR sí, y con el *script* de respaldo el mismo cambio no puede tocar los esquemas.
+- **Observado al integrar el paso 3:** la *release* `jsonschema-config-jurisdiccion-v1.0` quedó marcada como «Latest» en GitHub, aunque se esperaba que no. Se revisa con el arreglo de `publish` del backend.
 
 ## Revisión
 
@@ -214,5 +226,5 @@ En este orden, porque cada paso usa lo que integró el anterior. Un PR por paso 
     - 004‑08: `PENDIENTE` también se admite en los textos libres que lista la tabla, incluido `motos_electricas_criterio_sujecion`;
     - 004‑05: `normas[].tipo` queda abierto aunque la plantilla documente tres opciones para el estatuto territorial, porque Ipiales usa otras cuatro;
     - 004‑07: la validez real de una fecha (30 de febrero) queda en el validador de la 1.5.9;
-    - `tools/config-jurisdiccion/**` pasa a ser ruta crítica (`AGENTS.md` §4.3).
+    - `tools/config-jurisdiccion/**` pasa a ser ruta crítica (`AGENTS.md` §4.3). Anulada al cerrar (`spec.md`, «Decisión del cierre»).
 - [x] **Aprobación H2:** el responsable, el 2026-11-08. Aprobó el plan con los dos altos de la segunda ronda ya corregidos, aceptó el ADR 0032 y los tres ajustes de criterios (004‑05, 004‑07 y 004‑08, en la spec), y decidió que `tools/config-jurisdiccion/**` sea ruta crítica (paso 4).
