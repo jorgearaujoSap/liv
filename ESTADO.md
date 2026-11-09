@@ -120,7 +120,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 6. Próximos pasos
 
 1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
-2. Antes de entregar el proyecto al desarrollador: la plantilla de PR y los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07 y una guía corta para el desarrollador. No bloquean el cierre de la Fase 0 (ADR 0031).
+2. Antes de entregar el proyecto al desarrollador: la plantilla de PR y los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
 3. Cerrar la Fase 0 (ADR 0031): el CI de cada proyecto obligatorio en `main` (F0‑07), los archivos de los ADR 0001–0022 (F0‑02), el esquema JSON de la configuración de jurisdicción (F0‑10) y las pruebas *golden* en rojo (F0‑11). La T24 de la feature 001 queda para antes de *staging*.
 4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 5. `liv-components` (el frontend usa la 0.3.1):
@@ -155,6 +155,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-08
 
+- **Guía del desarrollador** (`docs/guia-del-desarrollador.md`), para entregar el proyecto: qué está hecho, las primeras tareas (terminar la feature 004 y F0‑11, que cierran la Fase 0), las lecturas en orden, los accesos que da el responsable (al sumarse una segunda persona termina la excepción del equipo de una persona), las trampas conocidas y los pendientes que no bloquean el cierre. Enlazada desde el `README.md`. Flujo directo: documentación sin reglas nuevas.
 - **Feature 004 · paso 3 (T6) en el PR #144**, a la espera de la H3 (cambio de `.github/` aprobado de forma explícita por el responsable):
   - **Qué se hizo:**
     - `backend-contracts-pr.yml`: paso nuevo en «backend · contratos (Q08)», solo en la pierna `backend`. Corre `jsonschema.sh check HEAD^1` sobre el *merge commit* (`fetch-depth: 2`) con el *script* y `lib.sh` de un *worktree* de la base, así que un PR no puede debilitar a su juez. Falla cerrado si no hay `HEAD^1` o si hay esquemas y ningún *script*; si la base no tiene el *script*, juzga el del PR, que no puede cambiar a la vez los esquemas;

@@ -39,6 +39,8 @@ Estructura y reglas: [`docs/arquitectura/01_Arquitectura_de_Software.md`](docs/a
 4. [`docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md`](docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md) — decisiones técnicas y hoja de ruta.
 5. [`spec/README.md`](spec/README.md) — cómo se especifica y desarrolla una feature.
 
+Si te sumas al proyecto para desarrollar, empieza por la [guía del desarrollador](docs/guia-del-desarrollador.md): qué está hecho, cuáles son tus primeras tareas y qué accesos necesitas.
+
 ## Ejecutar LIV en local
 
 Paso a paso para levantar todo el sistema en tu equipo: entorno (PostgreSQL y Keycloak), API, BFF y frontend. Cada proyecto tiene el detalle en su `README.md`; aquí solo va el orden y lo mínimo para que funcione.
