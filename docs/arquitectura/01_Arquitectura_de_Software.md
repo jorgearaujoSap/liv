@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0002, 0003, 0005, 0006, 0008, 0009, 0012, 0013, 0016, 0017)
-> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.1 — 2026-11-08, §5.3 cambiado por la feature 004 (esquema de la configuración de jurisdicción). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Alcance:** vistas de contexto y contenedores, módulos, arquitectura interna, motor de reglas, patrones, datos, API, frontend, procesos masivos, integraciones y estructura del repositorio. Sin código.
 
 ---
@@ -208,9 +208,9 @@ El mismo diseño (cadena de pasos puros con traza) se aplica a:
 
 ### 5.3 Configuración de jurisdicción como contrato
 
-- El esquema de la configuración es del backend: vive en `backend/contracts/jsonschema/config-jurisdiccion/<esquema_version>.json` y se publica con cada versión del backend.
-- El CI del backend valida sus configuraciones de prueba contra el esquema; el CI de la raíz valida los ejemplos de `docs/funcional/anexos/` contra el esquema **publicado** (doc. 04 §2, regla IN‑11).
-- Un cambio de esquema incrementa `esquema_version` y obliga a migrar la plantilla y las configuraciones existentes en el mismo cambio.
+- El esquema de la configuración es del backend: vive en `backend/contracts/jsonschema/config-jurisdiccion/<esquema_version>.json` y se publica como *release* (`jsonschema-config-jurisdiccion-v<versión>`) al integrarse en `main` (ADR 0032, feature 004).
+- El CI del backend valida sus configuraciones de prueba contra el esquema; el CI de la raíz validará los ejemplos de `docs/funcional/anexos/` contra el esquema **publicado** (doc. 04 §2, regla IN‑11). Esto último llega con la feature 1.5.9; mientras tanto, las pruebas del backend validan copias de los anexos.
+- Una versión publicada del esquema es inmutable: el CI de cada PR falla si cambia su archivo. Un cambio de esquema es una versión nueva, en un archivo nuevo; la plantilla y las configuraciones existentes la adoptan en PR posteriores.
 - Al publicarse, la configuración se materializa en las tablas (`tax.tax_rate`, `tax.tax_calendar`…) **y** se conserva el contenido completo en JSONB. El motor usa el *snapshot* publicado, nunca el archivo.
 
 ---

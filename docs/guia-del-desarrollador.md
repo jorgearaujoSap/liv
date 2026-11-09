@@ -13,19 +13,15 @@ La arquitectura está aprobada (ADR 0001–0033) y estamos cerrando la **Fase 0 
 | **Librería `liv-components` 0.3.1**, publicada en npm con 18 componentes | [`ui/README.md`](../ui/README.md) y el archivo de Figma [LIV‑Diseño](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o) |
 | **CI obligatorio en `main`**: cada proyecto tiene su verificación y ningún PR entra sin ella | [`spec/features/003-ci-obligatorio/`](../spec/features/003-ci-obligatorio/spec.md) |
 | **ADR 0001–0033**, uno por archivo | [`docs/adr/`](adr/) |
-| **Feature 004, pasos 1 a 3 de 6:** el JSON Schema 1.0 de la configuración de jurisdicción, publicado como *release* `jsonschema-config-jurisdiccion-v1.0` | [`spec/features/004-esquema-configuracion-jurisdiccion/tasks.md`](../spec/features/004-esquema-configuracion-jurisdiccion/tasks.md) |
+| **Feature 004 · Esquema de la configuración de jurisdicción (F0‑10):** el JSON Schema 1.0, inmutable en cada PR y publicado como *release* `jsonschema-config-jurisdiccion-v1.0`. El validador de los anexos en la raíz y su CI pasaron a la feature 1.5.9 | [`spec/features/004-esquema-configuracion-jurisdiccion/`](../spec/features/004-esquema-configuracion-jurisdiccion/spec.md) |
 
 ## 2. Por dónde empezar: tus primeras tareas
 
-Ninguna feature de negocio empieza antes de cerrar la Fase 0 (`spec/constitution/roadmap.md`, ADR 0031). Para cerrarla faltan dos entregables, y son tu entrada al proyecto:
+Ninguna feature de negocio empieza antes de cerrar la Fase 0 (`spec/constitution/roadmap.md`, ADR 0031). Para cerrarla falta un solo entregable, y es tu entrada al proyecto:
 
-1. **Terminar la feature 004 (F0‑10)**, pasos 4 a 6 de su `tasks.md`:
-   - **Paso 4 (T7, T8):** el validador de los anexos YAML contra el esquema publicado, en `tools/config-jurisdiccion/`. T7 la declara ruta crítica, y eso cambia `AGENTS.md`: necesita tu aprobación explícita.
-   - **Paso 5 (T9 a T11):** el CI de la raíz que corre ese validador. Cambia `.github/`, así que también necesita tu aprobación explícita. Los dos *checks* nuevos del *ruleset* de `main` los agregas tú en GitHub (T10), con el rol de administrador del repositorio.
-   - **Paso 6 (T12):** el cierre de la feature.
-2. **F0‑11 · Pruebas *golden* en rojo:** todavía no tiene feature; se abre como una nueva, con su spec y su plan. Convierte los ejemplos numéricos de los documentos funcionales (Doc. 02 §B.9, Doc. 03 §9.3 y Doc. 04 §5.2) en pruebas que fallan, porque el motor de liquidación todavía no existe. Es la mejor forma de aprender la lógica tributaria antes de escribirla.
+1. **F0‑11 · Pruebas *golden* en rojo:** todavía no tiene feature; se abre como una nueva, con su spec y su plan. Convierte los ejemplos numéricos de los documentos funcionales (Doc. 02 §B.9, Doc. 03 §9.3 y Doc. 04 §5.2) en pruebas que fallan, porque el motor de liquidación todavía no existe. Es la mejor forma de aprender la lógica tributaria antes de escribirla.
 
-Cuando las dos estén hechas, la Fase 0 se cierra, y lo siguiente es la Fase 1 del roadmap (vigencias fiscales, cargue de tablas, configuración de jurisdicción…).
+Cuando esté hecha, la Fase 0 se cierra, y lo siguiente es la Fase 1 del roadmap (vigencias fiscales, cargue de tablas, configuración de jurisdicción…).
 
 ## 3. Lecturas, en este orden
 

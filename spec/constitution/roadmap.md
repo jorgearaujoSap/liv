@@ -10,6 +10,7 @@ _Features completadas, en orden de implementación._
 
 - ✅ **[001 · Inicio de sesión](../features/001-inicio-de-sesion/spec.md)** — hecha el 2026-11-06. Inicio de sesión con Keycloak por el BFF (sin *tokens* en el navegador), segundo factor por rol, sesión con inactividad y duración máxima, menú por permisos de tres niveles, *layout* y pantallas de error. Endurecida (T19) y con pruebas de navegador (T23). Los 24 criterios de la spec están probados. Quedan para T24, antes de producción: imágenes, TLS, el e2e en CI y la CSP con *nonce* del frontend. Feature de plataforma y guía de referencia del flujo SDD; incluye el entregable F0‑05b.
 - ✅ **[003 · CI obligatorio en main](../features/003-ci-obligatorio/spec.md)** — hecha el 2026-11-07. Los *workflows* de PR corren siempre, cada verificación se omite solo si su proyecto no cambió y la protección de `main` exige la verificación de cada proyecto y los contratos (condición 2 del cierre de la Fase 0, ADR 0031).
+- ✅ **[004 · Esquema de la configuración de jurisdicción](../features/004-esquema-configuracion-jurisdiccion/spec.md)** — hecha el 2026-11-08. JSON Schema 1.0 de la configuración de jurisdicción, del que el backend es dueño, con su carga segura del YAML y sus pruebas; inmutable en cada PR y publicado como *release* al integrarse (entregable F0‑10, ADR 0032). El validador de los anexos en la raíz y su CI pasaron a la feature 1.5.9.
 
 ## Siguiente 🔜
 
@@ -27,7 +28,7 @@ _Sin comprometer ni ordenar del todo. El número `NNN` se asigna al crear la car
 - **Normas y soportes** (1.3) — registro de normas con su PDF.
 - **Cargue de tablas de avalúos** (1.5.1–1.5.4) — importación XLSX del Ministerio con validación, aprobación y publicación.
 - **Tarifas, calendario, beneficios y sanciones** (1.5.5–1.5.8).
-- **Configuración de jurisdicción** (1.5.9) — carga, validación CJ01–CJ14 y publicación del YAML.
+- **Configuración de jurisdicción** (1.5.9) — carga, validación CJ01–CJ14 y publicación del YAML. Incluye el validador de los anexos en la raíz y su CI, que la feature 004 dejó para aquí (pasos 4 y 5 de su plan, criterio 004‑13).
 - **Consultas y exportación de tablas base** (1.6.1–1.6.7), incluido el reporte SIBGA.
 
 **Fase 2 — Homologación y liquidación individual**

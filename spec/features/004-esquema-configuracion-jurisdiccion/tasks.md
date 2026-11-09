@@ -34,6 +34,8 @@ Un solo PR, que pasa de ~400 líneas y se justifica en su descripción (Q12), co
 
 ## Paso 4 · Raíz: validador de los anexos (rama `feat/004-validador-anexos`; después de la *release* 1.0)
 
+_**Trasladado a la feature 1.5.9** con el paso 5 (`spec.md`, «Decisión del cierre»). T7 a T11 no se hicieron en esta feature; se conservan como punto de partida._
+
 - [ ] **T7** · `tools/config-jurisdiccion/**` como ruta crítica (`spec.md`, decisión 3 de la H2).
   - **Archivos:** `AGENTS.md` §4.3.
   - **Prueba:** no aplica (regla de trabajo).
@@ -52,15 +54,15 @@ Un solo PR, que pasa de ~400 líneas y se justifica en su descripción (Q12), co
 
 ## Paso 6 · Cierre (raíz, documentación)
 
-- [ ] **T12** · Documentación.
+- [x] **T12** · Documentación. En el PR de cierre: criterios de la spec marcados, `docs/arquitectura/01` §5.3, `ESTADO.md` y el roadmap. `docs/arquitectura/04` §9 no cambia, porque no hay *checks* nuevos.
   - **Archivos:** `docs/arquitectura/04` §9 (*checks* obligatorios), `docs/arquitectura/01` §5.3 (versiones inmutables y publicación al integrar), `spec.md` (criterios marcados), `ESTADO.md` (F0‑10 hecho) y `spec/constitution/roadmap.md`. Los cambios de los documentos de arquitectura los aprueba el responsable.
-- [ ] Revisión adversarial independiente de lo implementado (dos revisores de nivel alto) y las cuatro lentes de `liv-revision-4r` en cada PR; hallazgos resueltos o justificados.
-- [ ] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
-- [ ] Compuertas de CI en verde y cada PR integrado por un humano (H3).
-- [ ] Mover la feature a «Hecho» en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
+- [x] Revisión adversarial independiente de lo implementado (dos revisores de nivel alto) y las cuatro lentes de `liv-revision-4r` en cada PR; hallazgos resueltos o justificados. Hecho en los PR #141, #142 y #144.
+- [x] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra, salvo 004‑13, trasladado.
+- [x] Compuertas de CI en verde y cada PR integrado por un humano (H3).
+- [x] Mover la feature a «Hecho» en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
 
 ## Mantenimiento (checklist recurrente)
 
-- [ ] Un cambio del esquema es una versión nueva, en un archivo nuevo (`<MAYOR.MENOR>.json` y `<MAYOR.MENOR>.casos.json`). Adoptarla en la raíz son dos PR: primero su SHA‑256 en `tools/config-jurisdiccion/esquemas.json`, luego los anexos.
+- [ ] Un cambio del esquema es una versión nueva, en un archivo nuevo (`<MAYOR.MENOR>.json` y `<MAYOR.MENOR>.casos.json`). Cuando exista el validador de la raíz (feature 1.5.9), adoptarla son dos PR: primero su SHA‑256 en `tools/config-jurisdiccion/esquemas.json`, luego los anexos.
 - [ ] Si cambian los anexos, actualizar las copias de prueba del backend en otro PR (son una instantánea).
-- [ ] Si cambia el nombre de uno de los *checks* nuevos, cambiar también el *ruleset* `main` en el mismo momento.
+- [ ] Cuando la feature 1.5.9 agregue los *checks* de la raíz: si cambia el nombre de uno, cambiar también el *ruleset* `main` en el mismo momento.
