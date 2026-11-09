@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador — revisión adversarial hecha en dos rondas y corregida; **escalado a la persona** porque la segunda ronda aún encontró hallazgos altos (ver «Revisión»). Pendiente de la aprobación H2
+**Estado:** borrador — revisión adversarial en dos rondas, verificación independiente de la segunda ronda (apto para H2) y sus seis observaciones corregidas (ver «Revisión»). Pendiente de la aprobación H2
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -12,7 +12,9 @@ La feature lleva al repositorio documentación funcional, configuración y un co
 - **Los documentos se incorporan desde el insumo** de `.entrada-claude-ai/`, como dato, con las 14 decisiones de la H1 y las decisiones P1 a P19 de este plan ya aplicadas. Del Doc. 04 solo cambian las secciones que lista 005‑08: se edita la v0.1 del repositorio, no se copia la v0.2.
 - **Los dos YAML se escriben una vez**, en el PR de los anexos (R3b). El PR del esquema (B1) los copia ya aprobados a sus recursos de prueba, como instantánea (IN‑01).
 - **El esquema 1.1 es el 1.0 más lo nuevo:** `1.1.json` parte de una copia de `1.0.json`, así que lo que se revisa es `git diff --no-index 1.0.json 1.1.json`. El 1.0 no cambia (005‑16), y el mecanismo es el de la feature 004 (ADR 0032).
-- **Orden:** primero los documentos que respaldan el contrato, después el contrato y al final los anexos que lo declaran (P1). Ningún PR deja en `main` una referencia a algo que todavía no existe, con una sola excepción declarada: R1 y R3a se citan entre sí (los códigos del Doc. 05 y las reglas CJ15 y CJ16), se integran seguidos y cada uno lo dice en su descripción.
+- **Orden:** primero los documentos que respaldan el contrato, después el contrato y al final los anexos que lo declaran (P1). Ningún PR deja en `main` una referencia a algo que todavía no existe, con dos excepciones declaradas, que se cierran en la misma feature y en un orden fijo:
+  - R1 y R3a se citan entre sí (los códigos del Doc. 05 y las reglas CJ15 y CJ16): esperan los dos la H3 de R3b, se integran seguidos y cada uno lo dice en su descripción;
+  - el Doc. 03 §9.2 de R3a cita el SHA‑256 de los YAML de R3b, que entran en `main` después de B1: R3a lo dice en su descripción, y la referencia se cierra al integrar R3b.
 
 ## Implementación
 
@@ -23,7 +25,10 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
    - **`ledger`, de 7 a 19 tablas** (Doc. 04 §11, los nueve puntos):
      - **Tablas nuevas:** `payment_receipt`, `payment_receipt_line`, `bank_file`, `bank_file_row`, `bank_reconciliation`, `distribution_batch`, `participation_report`, `participation_report_row`, `participation_match`, `participation_claim`, `credit_balance_use` y el catálogo `movement_type` (P11), con su signo y su componente permitido.
      - **Restricciones:**
-       - signo por tipo (punto 8): el catálogo tiene UNIQUE (`code`, `sign`); `tax_account_movement` guarda `movement_sign` con una FK compuesta (`movement_type`, `movement_sign`) al catálogo, y un CHECK local entre `movement_sign` y el signo de `signed_amount`. Un CHECK no puede consultar otra tabla. El componente permitido se valida en la transacción que registra el movimiento;
+       - signo por tipo (punto 8):
+         - el catálogo tiene UNIQUE (`code`, `sign`), y `sign` vale `+`, `-` o `±`. Llevan `±` en el catálogo los dos tipos sin signo fijo, `ASSESSMENT_ADJUSTMENT` y `REVERSAL` (que en el Doc. 04 §2.1 figuran como ± y ∓);
+         - `tax_account_movement` guarda `movement_sign`, con una FK compuesta (`movement_type`, `movement_sign`) al catálogo, y un CHECK local: con `+`, `signed_amount > 0`; con `-`, `< 0`; con `±`, distinto de 0. Un CHECK no puede consultar otra tabla;
+         - en la transacción que registra el movimiento se validan el componente permitido y, en un `REVERSAL`, que su monto sea el opuesto exacto del de su `reversal_of_id` y que vaya al mismo componente. Esto no se puede expresar con una FK ni con un CHECK;
        - `payment.idempotency_key` es UNIQUE (punto 4);
        - `tax_obligation.assessment_id` admite nulo solo con `origin = MIGRACION`, mediante un CHECK, porque las obligaciones migradas no tienen liquidación. Si otra feature crea un origen nuevo sin liquidación (por ejemplo, la declaración), amplía el CHECK.
      - **Columnas nuevas en `tax_obligation`:** `origin_modality`, `declared_address_municipality_id`, `discount_deadline`, `origin` (nueva, `LIQUIDACION` o `MIGRACION`), `final_assessment_date` (fecha de ejecutoria de la factura) y `jurisdiction_config_id`, la configuración que rige la obligación: la de su liquidación y, en las migradas, la que decida el pendiente 14 (P13). La exigibilidad y la fecha de prescripción no se guardan (P13).
@@ -31,10 +36,15 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
        - `payment`: `receipt_id`, `channel` y `bank_file_row_id`;
        - `revenue_distribution`: `distribution_batch_id`, `component_type` y `days_to_transfer`;
        - `credit_balance`: `origin_type` y `origin_payment_id`. Además, `available_amount` pasa a `original_amount`: lo disponible se calcula restando de él la suma de los usos, y cada uso se registra bloqueando la fila del saldo (`SELECT … FOR UPDATE`) para que dos usos simultáneos no superen el monto (P16).
-     - **`v_obligation_balance`** pasa a ser una vista normal con `security_invoker`, no materializada: así respeta el RLS de los movimientos (P19). Nunca es la fuente de una imputación (P16).
+     - **`v_obligation_balance`** pasa a ser una vista normal con `security_invoker`, no materializada, y nunca es la fuente de una imputación (P16). Para que de verdad aísle, las tablas que lee necesitan RLS: P19 da las dos opciones al arquitecto.
    - **`portfolio`, de 11 a 13 tablas** (Doc. 05 §10, sobre las tablas que ya existen; decisión 2):
      - **`interest_rate`:** `administration_id` nulo para la tasa nacional (P10), `usury_rate`, `support_pdf_sha256`, `status`, `uploaded_by` y `approved_by`, con CHECK `approved_by <> uploaded_by`. La resolución de la SFC es el `legal_instrument_id` que ya existe. Se quitan `annual_effective_rate`, que la usura menos los puntos de la configuración deriva, y la idea de guardar los puntos restados, que ya están en `cartera.intereses_mora.puntos_a_restar`: la tasa aplicada queda en el detalle de cada cálculo. El período usa las `valid_from` y `valid_to` que ya existen, un mes calendario, con llave única parcial por tipo y `valid_from` solo para la tasa `APROBADA`, para que una tasa en borrador rechazada se pueda volver a cargar.
-     - **`interest_calculation`:** `reason`, `accrual_from`, `accrual_to`, `total_unrounded`, `total_rounded`, `account_movement_id` y `superseded_by_id`, que se llena una sola vez cuando un reverso lo reemplaza, como `superseded_by` de la configuración (Doc. 03 §5.6). La idempotencia (Doc. 05 §2.6) es un índice único parcial por obligación, `accrual_to` y `rule_version`, solo para los cálculos vigentes que no son simulación (`WHERE superseded_by_id IS NULL AND reason <> 'SIMULACION'`), para que un recálculo después de un reverso (MO‑05) y una simulación no choquen con la llave. Se quitan `interest_rate_id` y `applied_annual_rate` de la cabecera, porque con varios tramos van en el detalle.
+     - **`interest_calculation`:** `reason`, `accrual_from`, `accrual_to`, `total_unrounded`, `total_rounded`, `account_movement_id` y `reversed_by_movement_id`, como el `reversed_by` del insumo. Esta última apunta al movimiento `REVERSAL` que anula su `INTEREST_ACCRUAL`, no al cálculo nuevo, y se llena una sola vez, como `superseded_by` de la configuración (Doc. 03 §5.6). La idempotencia (Doc. 05 §2.6) es un índice único parcial por obligación, `accrual_to` y `rule_version`, solo para los cálculos vigentes que no son simulación (`WHERE reversed_by_movement_id IS NULL AND reason <> 'SIMULACION'`). Un recálculo después de un reverso (MO‑05) se escribe en una sola transacción y en este orden:
+       1. el movimiento `REVERSAL` del `INTEREST_ACCRUAL` viejo;
+       2. `reversed_by_movement_id` del cálculo viejo, que así sale del índice;
+       3. el cálculo nuevo.
+
+       Como el viejo sale del índice antes de insertar el nuevo, no hace falta diferir nada, y un índice único parcial no se puede diferir. Una simulación nunca entra en el índice ni tiene movimiento. Se quitan `interest_rate_id` y `applied_annual_rate` de la cabecera, porque con varios tramos van en el detalle.
      - **`interest_calculation_detail`:** `interest_rate_id`.
      - **`prescription_event`:** `annuls_event_id`, `support_document_id` y `act_number`.
      - **`prescription_evaluation`:** `origin`, `case_status`, `act_number`, `act_date`, `decision` y `write_off_movement_id`.
@@ -51,7 +61,7 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
      Los archivos (`bank_file` y `participation_report`) tienen UNIQUE por administración y SHA‑256 (CA‑4.05). **Segregación:** `bank_file`, `bank_reconciliation`, `distribution_batch`, `participation_report`, `interest_rate` y `portfolio_cutoff` llevan quien carga o genera y quien aprueba o publica, con un CHECK de que son personas distintas (Doc. 04 §11, punto 3, el mismo patrón del Módulo 1; Doc. 05 §2.5).
    - Tamaño: unas 380 líneas.
 
-2. **R1 · Doc. 05 v0.1** (raíz, `feat/005-doc05`) — 005‑01 a 005‑07. Se integra después de R2, porque cita sus tablas. Crea `docs/funcional/05_Cartera_Intereses_Sanciones_Prescripcion.md` desde el insumo, con estos ajustes:
+2. **R1 · Doc. 05 v0.1** (raíz, `feat/005-doc05`) — 005‑01 a 005‑07. Se integra después de R2, porque cita sus tablas, y después de la H3 de R3b, para entrar justo antes que R3a (P1). Crea `docs/funcional/05_Cartera_Intereses_Sanciones_Prescripcion.md` desde el insumo, con estos ajustes:
    - **Códigos** (decisión 1): `CH‑01`…`CH‑10`, `MO‑01`…`MO‑10`, `PS‑01`…`PS‑04` y `SA‑01`…`SA‑05`, también en las referencias cruzadas.
    - **Tablas y campos en inglés**, con los nombres del ERD 2.2 de R2 (decisión 2, P10 a P13).
    - **Roles:** donde aparezca un rol propuesto (§3.4, §9, PS‑02), se marca como propuesta (decisión 3).
@@ -62,7 +72,7 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
    - **§11:** 19 pendientes, cada uno con su responsable: los 8 del insumo, sin cambios, y los 11 nuevos de la tabla «Pendientes del Doc. 05 §11».
    - **§12:** CA‑5.13 dice a qué publicaciones se aplican CJ15 y CJ16 (P17).
    - **§14 nuevo, «Cambios aplicados a otros documentos»** (P14). Lista solo cambios que ya están en `main` o que llegan en un PR que se integra antes: el ERD (R2). Los de R3a y R4 los registran esos PR al agregar sus filas.
-   - **Referencia adelantada:** CA‑5.13 cita CJ15 y CJ16, que define R3a. R3a se integra justo después, y los dos PR lo declaran (Enfoque).
+   - **Referencia adelantada:** CA‑5.13 cita CJ15 y CJ16, que define R3a. R1 y R3a esperan la H3 de R3b y se integran seguidos, y los dos PR lo declaran (Enfoque).
    - **Tamaño:** unas 480 líneas, todas de un archivo nuevo. Se justifica en el PR (Q12): es un solo documento, y partirlo dejaría uno a medias en `main`.
 
 3. **R3a · Doc. 04 v0.2 y Doc. 03 v0.5** (raíz, `feat/005-recaudo-doc`) — 005‑08, 005‑09, 005‑10, 005‑14, CJ15 y CJ16. Se integra después de R1, porque cita sus códigos, y **después de la H3 de R3b**, porque describe y evalúa sus YAML (P1).
@@ -78,16 +88,21 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
      - **§5.2:** las filas `recaudo` y `cartera`. En `cartera`, la unidad de `sancion_minima_uvt` es la UVT.
      - **§5.4:** CJ15 y CJ16, con los ajustes de P17. CJ02 suma a sus reglas obligatorias `cartera.intereses_mora` y `cartera.prescripcion`, sin contar `prescripcion.competente` (decisión 7).
      - **§7:** las filas de la v0.5, y la fila del Doc. 05 §14 que registra este PR (P14).
-     - **§9.2:** el resultado de Ipiales con CJ01 a CJ16, evaluado a mano regla por regla sobre los YAML de R3b ya aprobados en su H3. El PR lo muestra en una tabla, con el SHA‑256 de los YAML evaluados, que tiene que coincidir con los de R3b al integrar.
+     - **§9.2:** el resultado de Ipiales con CJ01 a CJ16, evaluado a mano regla por regla sobre los YAML de R3b ya aprobados en su H3. El PR lo muestra en una tabla, con el SHA‑256 de los YAML evaluados, que tiene que coincidir con los de R3b al integrar. Es una referencia adelantada declarada: esos YAML entran en `main` con R3b, después de B1 (Enfoque).
    - Tamaño: unas 200 líneas, más el binario.
 
-4. **R0 · ADR 0034, «Casos comunes por versión»** (raíz, `feat/005-adr-0034`), con `liv-adr`, antes de B0 (paso 5). Un ADR aceptado no se edita (`liv-adr`), así que la regla va en un ADR nuevo que **complementa** al 0032 sin reemplazarlo: los casos de la versión X se evalúan con las versiones publicadas hasta X, también en el validador de la 1.5.9. Se escribe como «Propuesto», lo acepta la persona en la H2 (P18), y la tabla del doc. 00 §6 lo cita. El ADR 0032 no se edita. Unas 60 líneas.
+4. **R0 · ADR 0034, «Casos comunes por versión»** (raíz, `feat/005-adr-0034`), con `liv-adr`, antes de B0 (paso 5). Un ADR aceptado no se edita (`liv-adr`), así que la regla va en un ADR nuevo que **complementa** al 0032 sin reemplazarlo: los casos de la versión X se evalúan con las versiones publicadas hasta X, también en el validador de la 1.5.9. La H2 aprueba la decisión (P18). R0 escribe el ADR como «Propuesto», y la persona lo acepta formalmente en la H3 de R0, y el PR lo deja «Aceptado» antes de integrarse. La tabla del doc. 00 §6 lo cita. El ADR 0032 no se edita. Unas 60 líneas.
 
 5. **B0 · Pruebas de esquema por versión** (`backend/`, `feat/005-pruebas-por-version`) — prepara 005‑16 a 005‑18, sin esquema nuevo. Es una refactorización: no cambia ningún comportamiento, y las pruebas de la 1.0 siguen iguales y en verde.
    - **Copias de los anexos:** las de la 1.0 se mueven con `git mv` a `src/test/resources/contracts/jsonschema/config-jurisdiccion/1.0/`, y `TestConfigurations` recibe la versión.
    - **`JurisdictionConfigFieldTable`, `JurisdictionConfigFieldClasses` y el oráculo de `JurisdictionConfigSchemaMutationTest`** pasan a estar por versión, con la tabla de la 1.0 tal como está. `CLOSED_LISTS` pasa de `Map.of` a `Map.ofEntries`, porque la 1.1 pasa de 10 entradas, y `closedListsAreExact` lee el esquema de cada versión.
    - **`JsonSchemaFilesTest`:** `ENUM_PATHS` por versión, con las rutas de la 1.0 sin cambio.
-   - **Otras pruebas que cambian de firma, sin cambiar lo que comprueban:** `JurisdictionConfigSchemaTest` (usa `TestConfigurations.load`), y `SafeYamlLoaderTest` y `JurisdictionConfigCommonCasesTest`, que hoy tienen fijo `"1.0"`: pasan a recorrer cada archivo de casos, con sus casos de carga y de validación.
+   - **Otras pruebas que cambian de firma, sin cambiar lo que comprueban:**
+     - `JurisdictionConfigSchemaTest`, que usa `TestConfigurations.load`;
+     - `SafeYamlLoaderTest` y `JurisdictionConfigCommonCasesTest`, que hoy tienen fijo `"1.0"`: pasan a recorrer cada archivo de casos, con sus casos de carga y de validación;
+     - `CommonCases.load`, que recibe la versión del archivo de casos;
+     - `JurisdictionConfigSchemas.forVersion`, donde se implementa P18: recibe la versión de los casos y solo resuelve las versiones publicadas hasta ella.
+   - **B0 no puede demostrar P18,** porque todavía no existe la 1.1: con una sola versión, el registro limitado y el completo dan lo mismo. Lo demuestra B1 (paso 7).
    - **Los casos comunes de cada versión** se corren con el registro de versiones hasta esa versión (P18). Así el caso «versión desconocida» de `1.0.casos.json`, que usa `"1.1"`, sigue dando su error aunque exista la 1.1. Antes de abrir B0, el ADR 0034 (R0) tiene que estar integrado.
    - Tamaño: unas 300 líneas, en su mayoría movimientos.
 
@@ -105,6 +120,7 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
 7. **B1 · Esquema 1.1** (`backend/`, `feat/005-esquema-1-1`) — CJ01, 005‑16 a 005‑19. Empieza cuando R3b tiene su H3 aprobada, y se integra justo antes que R3b.
    - **Rojo** (*commit* `test:`):
      - «CJ01 · la plantilla y la configuración de Ipiales 1.1 son válidas», sobre las copias de `…/1.1/`, idénticas a las de R3b;
+     - «P18 · los casos de la 1.0 dan lo mismo con la 1.1 publicada»: con `1.1.json` en la carpeta, el caso «versión desconocida» de `1.0.casos.json` sigue dando su error;
      - «005‑18 · lo válido en 1.0 es válido en 1.1»: sobre cada copia de los anexos 1.0 y cada caso de `1.0.casos.json`, primero se cambia la versión a `"1.1"` y después se aplica la mutación. Lo válido en 1.0 vale en 1.1, y lo inválido en 1.0 sigue inválido en 1.1, salvo que falte `archivo_banco.formato`. Se excluyen las mutaciones de `/esquema_version` y los casos que esperan su error («versión desconocida», «versión numérica», «versión PENDIENTE», «sin versión»), y los que no son un objeto;
      - las mutaciones de las claves nuevas, con la tabla de campos de la 1.1;
      - casos nuevos en `1.1.casos.json` para lo que no aparece en ningún YAML: elementos de `bancos[]` y de `formato_por_banco[]` con una clave de menos o de más, y las sondas de clase de `banco` y `formato` (código válido, minúsculas, `PENDIENTE`, un número y `null`), porque la lista está vacía en los dos YAML y la mutación nunca la recorre.
@@ -193,9 +209,9 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
   - el Doc. 05: lo crea R1, y R3a y R4 solo agregan filas a su §14, que se integran después.
 - **Otros archivos, cada uno de un solo PR:** el ERD es de R2; el Doc. 04 y el Doc. 03, de R3a; el ADR 0034 nuevo y su fila en la tabla del doc. 00 §6, de R0 (el ADR 0032 no cambia); `AGENTS.md`, `README.md`, `tech-stack.md`, `docs/arquitectura/01` y los Docs. 01 y 02, de R4.
 - **Orden entre proyectos** (orden de integración), obligatorio:
-  1. `R2 → R1`, y en paralelo `R0 → B0`;
+  1. `R2`, y en paralelo `R0 → B0`;
   2. **H3 de R3b aprobada** (R3b no cambia desde ahí);
-  3. `R3a`, justo después de R1;
+  3. `R1 → R3a`, seguidos;
   4. `B1 → R3b → R4`;
   5. el cierre del orquestador.
   - Se pueden escribir y revisar a la vez R2, R1, R3a, R3b, R0 y B0. R3b se escribe primero, porque R3a y B1 parten de sus YAML.
@@ -206,7 +222,7 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
 - **P1 · Ocho PR, en un orden fijo** — `AGENTS.md` §4.6 pide un proyecto por PR y «primero el backend con el contrato», y la jerarquía de fuentes (`AGENTS.md` §3) pide que el contrato no se adelante a los documentos que lo respaldan.
   - R3 se parte en R3a (documentos y el Excel, antes del contrato) y R3b (anexos, después del contrato), para que `main` nunca tenga anexos que declaren una versión que no existe, ni documentos que citen un anexo que no está.
   - Integrar B1 congela la forma de los YAML. Por eso B1 y R3a esperan a que la persona apruebe la H3 de R3b, y R3b ya no cambia hasta integrarse justo después de B1. Así el Doc. 03 §5.2 y §9.2 describen y evalúan los YAML que de verdad se integran.
-  - La única referencia adelantada es la de R1 y R3a, que se citan entre sí y se integran seguidos.
+  - Las referencias adelantadas son las dos que declara «Enfoque»: R1 y R3a se citan entre sí y se integran seguidos, y el §9.2 de R3a cita los YAML de R3b.
   - **Descartado:**
     - un PR con los dos proyectos, que rompe §4.6;
     - juntar R1 y R3a en un PR para evitar la referencia adelantada: pasaría de unas 680 líneas;
@@ -254,7 +270,7 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
   - Por lo mismo, `interest_rate` no guarda la tasa de mora ni los puntos restados (paso 1): se derivan de la usura y de la configuración.
   - `legally_payable_from` no cambia: es la fecha de inicio de pago (Doc. 04 §3.1), no la exigibilidad.
 - **P14 · Registro de los cambios entre documentos** (`AGENTS.md` §3.1): el Doc. 05 §14 y el Doc. 03 §7. Cada PR agrega solo las filas de los cambios que integra.
-- **P15 · Un ADR nuevo, el 0034** (R0, P18). No hay dependencias, módulos ni dependencias entre módulos nuevas. El ADR 0034 complementa al 0032 sin reemplazarlo, porque un ADR aceptado no se edita (`liv-adr`).
+- **P15 · Un ADR nuevo, el 0034** (R0, P18). No hay dependencias, módulos ni dependencias entre módulos nuevas. El ADR 0034 complementa al 0032 sin reemplazarlo, porque un ADR aceptado no se edita (`liv-adr`). La H2 aprueba su decisión; su aceptación formal va en la H3 de R0.
 - **P16 · Los saldos a favor no se guardan:** `credit_balance` guarda el monto de origen, y lo disponible se calcula con `credit_balance_use`. Cada uso bloquea la fila del saldo, para que dos usos simultáneos no lo superen. `v_obligation_balance` es solo para consultas (`AGENTS.md` §5.1).
 - **P17 · Ajustes a CJ15, CJ16 y CJ02**, que precisan la decisión 8 de la H1 y se aprueban en esta H2:
   - CJ15 y CJ16 se aplican a **toda publicación nueva**, declare la versión que declare: una configuración nueva en 1.0, que no tiene `cartera`, falla CJ15 si alguna modalidad activa liquida. Así nadie se salta las reglas de mora declarando `"1.0"`. La excepción es volver a validar una configuración 1.0 ya publicada, que se valida con las reglas de cuando se publicó;
@@ -264,10 +280,14 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
   - CJ02 suma `cartera.intereses_mora` y `cartera.prescripcion` a sus reglas obligatorias, sin contar `prescripcion.competente` (decisión 7);
   - los anexos 1.1 no traen `archivo_banco.formato`. Si una configuración trae `formato` y también `formato_preferido`, CJ16 da una advertencia y vale `formato_preferido`.
 - **P18 · Cómo se corren los casos comunes:** los de la versión X se evalúan con las versiones publicadas hasta X. Así, que exista una versión nueva no cambia el resultado de un caso ya publicado e inmutable: el caso «versión desconocida» de la 1.0 usa `"1.1"`.
-  - Se decide en el ADR 0034 (R0), que complementa al 0032, y obliga también al validador de la 1.5.9.
+  - La H2 aprueba la decisión, y la registra el ADR 0034 (R0), que complementa al 0032 y que la persona acepta en la H3 de R0. Obliga también al validador de la 1.5.9.
   - **Descartado:** llamar 1.2 a la versión nueva, que cambia los criterios aprobados en la H1 y deja un hueco en la numeración, y cambiar `1.0.casos.json`, que es inmutable.
 
-- **P19 · La vista de saldos respeta el RLS.** `v_obligation_balance` es una vista normal con `security_invoker` (PostgreSQL 15 o posterior; el proyecto usa la 18.6), no materializada. PostgreSQL no aplica RLS a las vistas materializadas: una así guardaría los saldos de todas las administraciones con el rol dueño. Si una consulta necesita rendimiento, se evalúa una vista materializada con `administration_id`, sin permiso de lectura para los roles de la aplicación y leída solo a través de una vista `security_barrier` que filtre por la administración del contexto. Lo decide el arquitecto en esta H2.
+- **P19 · La vista de saldos respeta el RLS.** `v_obligation_balance` es una vista normal con `security_invoker` (PostgreSQL 15 o posterior; el proyecto usa la 18.6), no materializada. PostgreSQL no aplica RLS a las vistas materializadas: una así guardaría los saldos de todas las administraciones con el rol dueño. Si una consulta necesita rendimiento, se evalúa una vista materializada con `administration_id`, sin permiso de lectura para los roles de la aplicación y leída solo a través de una vista `security_barrier` que filtre por la administración del contexto.
+  - **`security_invoker` solo aísla si las tablas que la vista lee tienen RLS,** y `ledger.tax_account_movement` no tiene `administration_id` en el ERD, aunque `docs/arquitectura/02` §5.1 lo exige en toda tabla con datos de una administración. Lo decide el arquitecto en esta H2, entre dos opciones:
+    - **(a, recomendada)** agregar `administration_id` a `tax_account_movement`, con FK compuesta (`obligation_id`, `administration_id`) a `tax_obligation` y su política RLS. Cierra el hueco también para quien lea los movimientos sin pasar por la vista, y permite que la FK de `credit_balance_use` hacia los movimientos sea compuesta (paso 1). Las otras tablas de `ledger` que tampoco tienen `administration_id` (`obligation_component`, `payment_allocation`, `revenue_distribution`) se tratan igual en el ERD 2.2;
+    - **(b)** que la vista haga *join* con `tax_obligation`, que sí tiene RLS. Aísla la vista, pero no las lecturas directas de los movimientos.
+  - En los dos casos, el ERD 2.2 lo dice en la nota de la vista.
   - **Descartado:** dejar la vista materializada «para consultas», que filtra datos entre administraciones.
 
 ## Riesgos
@@ -307,8 +327,8 @@ Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crí
   - las excepciones a 004‑08: P3 (`PENDIENTE` en una lista cerrada) y P7 (en un entero y en un código);
   - las desviaciones del insumo: P4, P5, P13, P16 y las tres de la tabla «Valores de la plantilla»;
   - P17: los ajustes a CJ15, CJ16 y CJ02, que precisan la decisión 8 de la H1. Al aprobarlos, el orquestador lleva a la spec la redacción de CJ15 y CJ16;
-  - P18 y el **ADR 0034**, que se escribe como «Propuesto» y acepta la persona (`liv-adr`);
-  - P19, la vista de saldos sin vista materializada, que decide el arquitecto;
+  - P18, la decisión que registra el **ADR 0034**. El ADR se escribe como «Propuesto» en R0 y la persona lo acepta formalmente en la H3 de R0 (`liv-adr`);
+  - P19, la vista de saldos sin vista materializada y la opción (a) o (b) para el RLS de los movimientos, que decide el arquitecto;
   - P13, `jurisdiction_config_id` en la obligación y la regla de no derivar la exigibilidad con otra configuración.
 - **§4.5, pruebas y compuertas:** B0 y B1 cambian las pruebas de esquema (el oráculo, `ENUM_PATHS` y la tabla de campos) por versión. No las debilitan: las de la 1.0 siguen iguales.
 - **No hace falta la aprobación de §4.5 para un cambio incompatible:** el 1.1 es compatible con el 1.0 (005‑18).
@@ -350,7 +370,7 @@ Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crí
   - **Confirmados por los dos:**
     - una nota no puede cambiar el fondo de un ADR aceptado (`liv-adr`): R0 pasa a ser el ADR 0034, que complementa al 0032 (P15 y P18);
     - el Doc. 04 de R3a citaba un Excel que llegaba en R3b, y describía YAML que aún podían cambiar: el Excel pasa a R3a, y R3a espera a la H3 de R3b (P1);
-    - la llave única de `interest_calculation` chocaba con los reversos y las simulaciones: ahora es un índice parcial con `superseded_by_id` (paso 1);
+    - la llave única de `interest_calculation` chocaba con los reversos y las simulaciones: ahora es un índice parcial (paso 1; su columna pasó a `reversed_by_movement_id` en la verificación independiente);
     - B1 dejaba sin probar `formato_por_banco[]`, y la compatibilidad fallaba con los casos de versión: casos de clase propios, orden «versión primero, mutación después» y exclusiones (paso 7);
     - el CHECK de signo no podía consultar otra tabla: ahora es una FK compuesta con `movement_sign` (paso 1);
     - las columnas derivadas de `interest_rate` y las de pesos de `penalty_rule`: se quitan o se reemplazan (paso 1, P13);
@@ -367,4 +387,11 @@ Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crí
     - (B) la periodicidad del reporte del 20 %, un pendiente del Doc. 04 que se perdía (paso 3);
     - (B) la nota de `tasks.md`, que estaba desactualizada.
   - **Escalado a la persona** (`liv-revision-adversarial` §4: después de la segunda ronda seguían apareciendo altos). No hay tercera ronda. Las correcciones de la segunda ronda no las volvió a revisar un tercero; la persona decide si se aprueba la H2 así o si pide otra revisión. Lo que le toca decidir está en «Aprobaciones que pide la persona».
+- [x] **Verificación independiente de la segunda ronda** (2026-11-09), con un revisor crítico que no participó en las rondas anteriores, sobre el *commit* `e7cdd5b`. Veredicto: apto para H2. Hizo 6 observaciones (0 críticas · 0 altas · 3 medias · 2 bajas · 1 nota). La persona decidió corregirlas antes de la H2, sin otra ronda adversarial:
+  1. **(media) La llave de `interest_calculation`:** un índice único parcial no se puede diferir. La columna pasó a ser `reversed_by_movement_id`, que apunta al movimiento `REVERSAL`, como el `reversed_by` del insumo, y no al cálculo nuevo. Se fijó el orden dentro de la transacción: primero el reverso, después se marca el cálculo viejo y al final se inserta el nuevo (paso 1).
+  2. **(media) La FK compuesta con `movement_sign`:** `ASSESSMENT_ADJUSTMENT` y `REVERSAL` no tienen un signo fijo. El catálogo admite `±`, el CHECK lo acepta con cualquier signo distinto de 0, y el signo y el componente de un `REVERSAL` frente a su original se validan en la transacción (paso 1).
+  3. **(media) P19:** `security_invoker` no aísla si `tax_account_movement` no tiene RLS. P19 da al arquitecto dos opciones: (a) `administration_id` en los movimientos y en las demás tablas de `ledger` que no lo tienen, con FK compuesta y política RLS (recomendada); (b) un *join* con `tax_obligation`.
+  4. **(baja) El orden entre proyectos:** R1 también espera la H3 de R3b y entra justo antes que R3a. «Enfoque» declara la segunda referencia adelantada: el SHA‑256 de los YAML de R3b citado en el §9.2 de R3a.
+  5. **(baja) Las pruebas que cambia B0:** se agregan `JurisdictionConfigSchemas.forVersion`, donde se implementa P18, y `CommonCases.load`. Se aclara que B0 no puede demostrar P18 y que lo demuestra una prueba nueva de B1 (pasos 5 y 7).
+  6. **(nota) La aceptación del ADR 0034:** la H2 aprueba la decisión, y la aceptación formal del ADR va en la H3 de R0 (paso 4, P15, P18 y «Aprobaciones»).
 - [ ] Aprobación H2: <quién, fecha>.
