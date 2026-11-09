@@ -155,7 +155,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-08
 
-- **Decisión del responsable: cada desarrollador integra sus PR.** La excepción de `AGENTS.md` §4.3 se mantiene y se extiende: cada desarrollador colaborador hace la H3 de sus propios PR y los integra; las aprobaciones H1, H2 y las de §4.5 siguen siendo del responsable. No se cambia la protección de `main` ni `CODEOWNERS`; la excepción sigue hasta que el responsable decida activar las aprobaciones.
+- **Decisión del responsable: quien dirige el trabajo decide.** La excepción de `AGENTS.md` §4.3 se mantiene y se extiende: la persona que dirige el trabajo (la que interactúa con el agente) cumple todos los papeles humanos, H1, H2, H3 y las aprobaciones de §4.5, y revisa e integra sus propios PR. Nada depende de una persona fija. Un agente nunca aprueba ni integra. No se cambia la protección de `main` ni `CODEOWNERS`.
 - **Guía del desarrollador** (`docs/guia-del-desarrollador.md`), para entregar el proyecto: qué está hecho, las primeras tareas (terminar la feature 004 y F0‑11, que cierran la Fase 0), las lecturas en orden, los accesos que da el responsable (al sumarse una segunda persona termina la excepción del equipo de una persona), las trampas conocidas y los pendientes que no bloquean el cierre. Enlazada desde el `README.md`. Flujo directo: documentación sin reglas nuevas.
 - **Feature 004 · paso 3 (T6) en el PR #144**, a la espera de la H3 (cambio de `.github/` aprobado de forma explícita por el responsable):
   - **Qué se hizo:**
