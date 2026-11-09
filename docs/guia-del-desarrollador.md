@@ -48,13 +48,13 @@ Todo está en el [`README.md`](../README.md) de la raíz, «Ejecutar LIV en loca
 - **Un PR toca un solo proyecto.** `backend/`, `frontend/` y `ui/` no se referencian entre sí: el frontend recibe la API por el OpenAPI fijado y la librería por npm con versión exacta (`AGENTS.md` §4.6).
 - **Ningún valor tributario en el código:** tarifas, rangos, fechas y redondeo vienen de la configuración de jurisdicción (`AGENTS.md` §5.1).
 - **Pantallas:** solo con componentes de `liv-components` y a partir de un diseño aprobado en Figma (`AGENTS.md` §6). Si falta un componente, primero va a la librería, en su propio PR.
-- **Quien implementa no revisa ni integra.** Solo el responsable integra a `main`: tú abres los PR y él hace la revisión H3 y los integra (`AGENTS.md` §4.3).
+- **La revisión independiente la hace otro agente o una persona**; integrar a `main` es siempre de una persona. Tus propios PR los revisas (H3) y los integras tú (`AGENTS.md` §4.3, excepción «cada desarrollador integra sus PR»).
 
 ## 6. Accesos que te tiene que dar el responsable
 
 | Acceso | Para qué |
 |---|---|
-| Colaborador del repositorio en GitHub | Abrir PR y correr el CI. GitHub no exige aprobaciones, pero **no integres tus PR**: los integra solo el responsable, después de su H3 (`AGENTS.md` §4.3, excepción «un solo responsable integra») |
+| Colaborador del repositorio en GitHub | Abrir PR, correr el CI y hacer la H3 e integrar **tus propios** PR (`AGENTS.md` §4.3). Las aprobaciones H1, H2 y las de `AGENTS.md` §4.5 (dependencias, CI, reglas…) siguen siendo del responsable |
 | Archivo de Figma LIV‑Diseño | Leer los diseños aprobados y diseñar las pantallas nuevas |
 | npm (`liv-components`) | Solo si vas a publicar versiones de la librería: `npm owner add` lo ejecuta el dueño actual. Publicar es siempre de una persona, desde `main` |
 
