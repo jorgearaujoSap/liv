@@ -21,7 +21,12 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
-**Sin orquestador activo.** No hay ninguna feature en curso: la 004 (F0‑10) se cerró el 2026-11-08. La siguiente es F0‑11, la primera con el orquestador.
+**Orquestador activo: feature [005 · Cartera y recaudo](spec/features/005-cartera-y-recaudo/spec.md)** (desde el 2026-11-08). Incorpora el Doc. 05 (Módulo 5), el Doc. 04 v0.2 sin la pasarela de pagos, las secciones nuevas de la configuración, el ERD 2.2 y el esquema de configuración 1.1. Es documentación, configuración y contrato, sin código de negocio. Por la decisión 14 de la H1, F0‑11 no espera a esta feature.
+
+| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
+|---|---|---|---|---|---|
+| Spec (H1) | raíz | `f005-diseno` / `claude/005-cartera-y-recaudo-dc2a85`, PR #147 (borrador) | — | ✅ Aprobada el 2026-11-08, con las 14 recomendaciones | — |
+| Plan (H2) | raíz | `f005-diseno` / misma rama y PR | Spec (H1) | 🔄 En curso, con revisión adversarial de nivel alto | La H2 y lo que el plan pida según §4.5 (esquema 1.1) |
 
 ---
 
@@ -155,6 +160,22 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-08
 
+- **Feature 005 · Cartera y recaudo: empieza con el orquestador y se aprueba su H1.**
+  - **Origen:** la persona trabajó en su proyecto de claude.ai «Liquidacion de impuestos vehicular» reglas que el repositorio no tiene:
+    - el Doc. 05 v0.1 (Módulo 5: intereses de mora, sanciones, prescripción, cartera histórica y cortes);
+    - el Doc. 04 v0.2 (bancos, formatos Asobancaria 2001 y CSV canónico, y la imputación a la vigencia más antigua, aprobada);
+    - las secciones `recaudo` y `cartera` del YAML de Ipiales;
+    - `Formatos_Intercambio_Recaudo.xlsx`.
+
+    El orquestador los copió, con SHA‑256 verificado contra el original, a una carpeta local que Git ignora (`.entrada-claude-ai/`), como insumo de datos.
+  - **Decisión de la persona:** la pasarela de pagos (Wompi) queda para después del piloto, como dicen la misión y el roadmap (P8 y P9). Quedan fuera de esta feature el Doc. 04 v0.2 §12.3, WP‑01 a WP‑09, CA‑4.14 a CA‑4.17 y `recaudo.pasarela`.
+  - **Spec (H1):** la escribió la sesión de diseño (PR #147, borrador): 22 criterios y 14 decisiones. La persona la aprobó con las 14 recomendaciones. Entre ellas:
+    - los códigos del Doc. 05 se renombran a `CH`, `MO` y `PS` para no chocar con OB, IN y PR;
+    - se reutilizan las tablas de `portfolio` que el ERD ya tiene;
+    - la UVT y la fórmula de intereses quedan `POR_CONFIRMAR` hasta verificarlas con la fuente oficial;
+    - el esquema 1.1 es compatible con el 1.0;
+    - F0‑11 no espera a esta feature.
+  - **Siguiente:** la misma sesión hace el plan (H2), con revisión adversarial de nivel alto.
 - **Feature 004 · Esquema de la configuración de jurisdicción (F0‑10) hecha:** spec, plan y tareas cerrados, con cada criterio marcado con su prueba del backend (`spec/features/004-esquema-configuracion-jurisdiccion/`). Decisión del responsable al cerrar: los pasos 4 y 5 del plan (el validador de los anexos en `tools/config-jurisdiccion/` y sus dos *checks* en el *ruleset*) y el criterio 004‑13 pasan a la feature 1.5.9, para no agregar más verificaciones de CI ni *rulesets* en este punto; se anula la decisión 3 de la H2 (la ruta crítica nueva). Las decisiones de la H3 de los PR #141, #142 y #144 quedan en `plan.md`. `docs/arquitectura/01` pasa a la versión 1.1 (§5.3: publicación al integrar y versiones inmutables). En la Fase 0 solo falta F0‑11. La guía del desarrollador se ajustó al cierre. Pendiente de seguimiento: la *release* 1.0 quedó marcada como «Latest» en GitHub; se revisa con el arreglo de `publish` del backend.
 - **Decisión del responsable: quien dirige el trabajo decide.** La excepción de `AGENTS.md` §4.3 se mantiene y se extiende: la persona que dirige el trabajo (la que interactúa con el agente) cumple todos los papeles humanos, H1, H2, H3 y las aprobaciones de §4.5, y revisa e integra sus propios PR. Nada depende de una persona fija. Un agente nunca aprueba ni integra. No se cambia la protección de `main` ni `CODEOWNERS`.
 - **Guía del desarrollador** (`docs/guia-del-desarrollador.md`), para entregar el proyecto: qué está hecho, las primeras tareas (terminar la feature 004 y F0‑11, que cierran la Fase 0), las lecturas en orden, los accesos que da el responsable (al sumarse una segunda persona termina la excepción del equipo de una persona), las trampas conocidas y los pendientes que no bloquean el cierre. Enlazada desde el `README.md`. Flujo directo: documentación sin reglas nuevas.
