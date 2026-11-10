@@ -27,7 +27,15 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 |---|---|---|---|---|---|
 | Spec (H1) | raíz | `f005-diseno`, PR #147 (integrado) | — | ✅ Aprobada el 2026-11-08, con las 14 recomendaciones | — |
 | Plan (H2) | raíz | `f005-diseno`, PR #147 (integrado el 2026-11-09) | Spec (H1) | ✅ Aprobado el 2026-11-09, con P19 en la opción (a) | — |
-| Tareas | raíz | `f005-tareas` / `docs/005-tareas` | Plan (H2) | 🔄 En curso: desglose de los 8 PR (R0, R1, R2, R3a, R3b, R4, B0 y B1) | La H3 de su PR |
+| Tareas | raíz | `f005-tareas`, PR #150 (integrado) | Plan (H2) | ✅ 20 tareas en los 8 PR (R0, R1, R2, R3a, R3b, R4, B0 y B1) | — |
+| T1 y T2 · R2, ERD 2.2 | raíz | `f005-r2-erd` / `feat/005-erd` | Tareas | 🔄 En curso (ola 1) | La H3 de su PR |
+| T3 y T4 · R0, ADR 0034 | raíz | `f005-r0-adr` / `feat/005-adr-0034` | Tareas | 🔄 En curso (ola 1) | La H3 de su PR, que acepta el ADR (T4) |
+| T7 a T9 · R3b, anexos | raíz | `f005-r3b-anexos` / `feat/005-anexos` | Tareas | 🔄 En curso (ola 1) | La H3 que congela los YAML; se integra después de B1 |
+| T5 y T6 · B0, pruebas por versión | `backend/` | — | R0 integrado | ⏳ Pendiente (ola 2) | — |
+| T10 · R1, Doc. 05 | raíz | — | T2 y la H3 de R3b | ⏳ Pendiente (ola 2) | — |
+| T11 a T14 · R3a, Doc. 04, Doc. 03 y Excel | raíz | — | La H3 de R3b | ⏳ Pendiente (ola 2) | — |
+| T15 a T17 · B1, esquema 1.1 | `backend/` | — | B0 integrado y la H3 de R3b | ⏳ Pendiente (ola 3) | — |
+| T18 y T19 · R4, reglas y referencias | raíz | — | R1 y R3a | ⏳ Pendiente (ola 3) | — |
 
 ---
 
@@ -160,6 +168,15 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-09
+
+- **Feature 005: `tasks.md` integrado y empieza la ola 1.**
+  - **Tareas (PR #150):** 20 tareas en los 8 PR del plan.
+  - **Huecos que señaló la fase Tareas, resueltos por el orquestador con la spec y el plan:**
+    - `backend/README.md` entra en T6 y T16;
+    - `cartera.sanciones.uvt` va en `POR_CONFIRMAR`, porque la spec manda sobre la tabla del plan;
+    - R1 empieza con T2 terminada;
+    - las filas del Doc. 05 §14 que agregan R3a y R4 no chocan, por el orden obligatorio.
+  - **Ola 1, en paralelo, con sesiones de nivel estándar:** R2 (ERD 2.2), R0 (ADR 0034) y R3b (anexos).
 
 - **Feature 005 · Cartera y recaudo: plan aprobado (H2) y empieza la fase Tareas.**
   - **Revisión:** el plan pasó dos rondas de revisión adversarial con dos revisores ciegos de nivel alto.
