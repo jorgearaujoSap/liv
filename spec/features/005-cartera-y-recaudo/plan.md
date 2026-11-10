@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador — revisión adversarial en dos rondas, verificación independiente de la segunda ronda (apto para H2) y sus seis observaciones corregidas (ver «Revisión»). Pendiente de la aprobación H2
+**Estado:** aprobado (H2) — 2026-11-09, por la persona que dirige el trabajo (`AGENTS.md` §4.3), sobre el *commit* `33dd948`, con P19 en la opción (a). Ver «Revisión»
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -36,7 +36,7 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
        - `payment`: `receipt_id`, `channel` y `bank_file_row_id`;
        - `revenue_distribution`: `distribution_batch_id`, `component_type` y `days_to_transfer`;
        - `credit_balance`: `origin_type` y `origin_payment_id`. Además, `available_amount` pasa a `original_amount`: lo disponible se calcula restando de él la suma de los usos, y cada uso se registra bloqueando la fila del saldo (`SELECT … FOR UPDATE`) para que dos usos simultáneos no superen el monto (P16).
-     - **`v_obligation_balance`** pasa a ser una vista normal con `security_invoker`, no materializada, y nunca es la fuente de una imputación (P16). Para que de verdad aísle, las tablas que lee necesitan RLS: P19 da las dos opciones al arquitecto.
+     - **`v_obligation_balance`** pasa a ser una vista normal con `security_invoker`, no materializada, y nunca es la fuente de una imputación (P16). Aísla porque las tablas de `ledger` que lee tienen `administration_id` y RLS (P19, opción (a)).
    - **`portfolio`, de 11 a 13 tablas** (Doc. 05 §10, sobre las tablas que ya existen; decisión 2):
      - **`interest_rate`:** `administration_id` nulo para la tasa nacional (P10), `usury_rate`, `support_pdf_sha256`, `status`, `uploaded_by` y `approved_by`, con CHECK `approved_by <> uploaded_by`. La resolución de la SFC es el `legal_instrument_id` que ya existe. Se quitan `annual_effective_rate`, que la usura menos los puntos de la configuración deriva, y la idea de guardar los puntos restados, que ya están en `cartera.intereses_mora.puntos_a_restar`: la tasa aplicada queda en el detalle de cada cálculo. El período usa las `valid_from` y `valid_to` que ya existen, un mes calendario, con llave única parcial por tipo y `valid_from` solo para la tasa `APROBADA`, para que una tasa en borrador rechazada se pueda volver a cargar.
      - **`interest_calculation`:** `reason`, `accrual_from`, `accrual_to`, `total_unrounded`, `total_rounded`, `account_movement_id` y `reversed_by_movement_id`, como el `reversed_by` del insumo. Esta última apunta al movimiento `REVERSAL` que anula su `INTEREST_ACCRUAL`, no al cálculo nuevo, y se llena una sola vez, como `superseded_by` de la configuración (Doc. 03 §5.6). La idempotencia (Doc. 05 §2.6) es un índice único parcial por obligación, `accrual_to` y `rule_version`, solo para los cálculos vigentes que no son simulación (`WHERE reversed_by_movement_id IS NULL AND reason <> 'SIMULACION'`). Un recálculo después de un reverso (MO‑05) se escribe en una sola transacción y en este orden:
@@ -52,11 +52,11 @@ Cada paso es un PR, que solo toca sus archivos (los detalla `tasks.md`). El orde
      - **`opening_balance_row`:** los campos de la plantilla del Doc. 05 §3.1 que no tiene: `invoice_number`, `notification_date`, `final_date`, `penalty_act_number`, `penalty_act_final_date`, `legacy_interest` y `support_reference`.
      - **Tablas nuevas:** `portfolio_cutoff` (P12), con CHECK `published_by <> generated_by`, y `opening_balance_event`, la hoja de eventos de cobro de la plantilla (§3.1), en *staging*.
    - **`tax.penalty_rule`:** `rule_code` (reemplaza a `penalty_type`), `active`, `applies_if`, `tax_cap_rate` (reemplaza a `maximum_amount`), `minimum_uvt` (reemplaza a `minimum_amount`) y `status`, para que la publicación pueda materializar `cartera.sanciones` (P9). La sanción mínima se guarda en UVT, no en pesos: el valor en pesos depende del año.
-   - **Aislamiento** (`AGENTS.md` §5.1; hallazgo 2 del ERD): todas las tablas nuevas llevan `administration_id` y FK compuestas con su padre. Hay dos excepciones:
+   - **Aislamiento** (`AGENTS.md` §5.1; hallazgo 2 del ERD): todas las tablas nuevas llevan `administration_id` y FK compuestas con su padre. Las cuatro tablas de `ledger` que hoy no lo tienen (`obligation_component`, `tax_account_movement`, `payment_allocation` y `revenue_distribution`) lo reciben también, con FK compuesta hacia su padre (`obligation_id` o `payment_allocation_id` con `administration_id`) y su política RLS (P19, opción (a)). Así todo `ledger` queda con `administration_id`. Hay dos excepciones:
      - `ledger.movement_type`, un catálogo fijo que escriben las migraciones;
      - `portfolio.interest_rate`, con `administration_id` nulo para la tasa nacional (`docs/arquitectura/02` §5, que dice que los datos nacionales solo los escribe el proceso de publicación; P10).
 
-     Las FK nuevas que salen de una tabla sin `administration_id` o llegan a una (`revenue_distribution.distribution_batch_id`, `interest_calculation.account_movement_id`, `credit_balance_use` hacia `tax_account_movement`) no pueden ser compuestas: se validan en la transacción, como admite el hallazgo 2 del ERD, y el ERD lo dice en cada una.
+     Con la opción (a), las FK de `revenue_distribution.distribution_batch_id` y de `credit_balance_use` hacia `tax_account_movement` pasan a ser compuestas. Queda una sola FK nueva que no puede serlo, `interest_calculation.account_movement_id`, porque `portfolio.interest_calculation` no tiene `administration_id`: se valida en la transacción, como admite el hallazgo 2 del ERD, y el ERD lo dice en ella. Las tablas de `portfolio` que ya existían no se tocan en este punto.
 
      Los archivos (`bank_file` y `participation_report`) tienen UNIQUE por administración y SHA‑256 (CA‑4.05). **Segregación:** `bank_file`, `bank_reconciliation`, `distribution_batch`, `participation_report`, `interest_rate` y `portfolio_cutoff` llevan quien carga o genera y quien aprueba o publica, con un CHECK de que son personas distintas (Doc. 04 §11, punto 3, el mismo patrón del Módulo 1; Doc. 05 §2.5).
    - Tamaño: unas 380 líneas.
@@ -284,10 +284,10 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
   - **Descartado:** llamar 1.2 a la versión nueva, que cambia los criterios aprobados en la H1 y deja un hueco en la numeración, y cambiar `1.0.casos.json`, que es inmutable.
 
 - **P19 · La vista de saldos respeta el RLS.** `v_obligation_balance` es una vista normal con `security_invoker` (PostgreSQL 15 o posterior; el proyecto usa la 18.6), no materializada. PostgreSQL no aplica RLS a las vistas materializadas: una así guardaría los saldos de todas las administraciones con el rol dueño. Si una consulta necesita rendimiento, se evalúa una vista materializada con `administration_id`, sin permiso de lectura para los roles de la aplicación y leída solo a través de una vista `security_barrier` que filtre por la administración del contexto.
-  - **`security_invoker` solo aísla si las tablas que la vista lee tienen RLS,** y `ledger.tax_account_movement` no tiene `administration_id` en el ERD, aunque `docs/arquitectura/02` §5.1 lo exige en toda tabla con datos de una administración. Lo decide el arquitecto en esta H2, entre dos opciones:
-    - **(a, recomendada)** agregar `administration_id` a `tax_account_movement`, con FK compuesta (`obligation_id`, `administration_id`) a `tax_obligation` y su política RLS. Cierra el hueco también para quien lea los movimientos sin pasar por la vista, y permite que la FK de `credit_balance_use` hacia los movimientos sea compuesta (paso 1). Las otras tablas de `ledger` que tampoco tienen `administration_id` (`obligation_component`, `payment_allocation`, `revenue_distribution`) se tratan igual en el ERD 2.2;
-    - **(b)** que la vista haga *join* con `tax_obligation`, que sí tiene RLS. Aísla la vista, pero no las lecturas directas de los movimientos.
-  - En los dos casos, el ERD 2.2 lo dice en la nota de la vista.
+  - **`security_invoker` solo aísla si las tablas que la vista lee tienen RLS,** y `ledger.tax_account_movement` no tiene `administration_id` en el ERD, aunque `docs/arquitectura/02` §5.1 lo exige en toda tabla con datos de una administración. Había dos opciones; en la H2 se decidió la (a):
+    - **(a, decidida en la H2)** agregar `administration_id` a `tax_account_movement`, con FK compuesta (`obligation_id`, `administration_id`) a `tax_obligation` y su política RLS. Cierra el hueco también para quien lea los movimientos sin pasar por la vista, y permite que la FK de `credit_balance_use` hacia los movimientos sea compuesta (paso 1). Las otras tablas de `ledger` que tampoco tienen `administration_id` (`obligation_component`, `payment_allocation`, `revenue_distribution`) se tratan igual en el ERD 2.2;
+    - **(b, descartada)** que la vista haga *join* con `tax_obligation`, que sí tiene RLS. Aísla la vista, pero no las lecturas directas de los movimientos.
+  - El ERD 2.2 lo dice en la nota de la vista. El número de tablas no cambia (79).
   - **Descartado:** dejar la vista materializada «para consultas», que filtra datos entre administraciones.
 
 ## Riesgos
@@ -308,7 +308,7 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
 
 | PR | Verificación | Criterios |
 |---|---|---|
-| R2 | Cada ajuste del Doc. 04 §11 (los nueve puntos) y del Doc. 05 §10 aparece en el Mermaid, en la lista y en las relaciones; cada tabla nueva tiene su regla de `administration_id`; el número de tablas cuadra (79) | 005‑15 |
+| R2 | Cada ajuste del Doc. 04 §11 (los nueve puntos) y del Doc. 05 §10 aparece en el Mermaid, en la lista y en las relaciones; cada tabla nueva tiene su regla de `administration_id`, y las cuatro tablas de `ledger` que no lo tenían lo reciben con FK compuesta y RLS (P19); el número de tablas cuadra (79) | 005‑15 |
 | R1 | Recálculo de §4.3 con aritmética exacta; búsqueda de códigos viejos; cada tabla citada existe en el ERD 2.2; 19 pendientes en §11 con su responsable | 005‑01 a 005‑07 |
 | R3a | `diff` del Doc. 04 contra la v0.1: solo las secciones de 005‑08; sin «Wompi», «WP‑» ni «PASARELA», y CA‑4.14 a CA‑4.17 solo en la nota de reserva; ningún pendiente de la v0.1 perdido; CJ15 y CJ16 tal como los fija P17; tabla de CJ01 a CJ16 para Ipiales con el SHA‑256 de los YAML evaluados, igual al de R3b; SHA‑256 y tamaño del Excel | 005‑08, 005‑09, 005‑10, 005‑14, CJ15, CJ16 |
 | R0 | El ADR 0034 sigue la plantilla de `liv-adr`, complementa al 0032 sin cambiar su decisión y queda como «Propuesto» hasta que la persona lo acepte | — |
@@ -320,15 +320,15 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
 
 Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crítico, lo implementado pasa por la revisión adversarial y las cuatro lentes de `liv-revision-4r` antes de abrir el PR (`AGENTS.md` §4.3).
 
-## Aprobaciones que pide la persona
+## Aprobaciones de la persona (H2 dada el 2026-11-09)
 
-- **H2: este plan,** y en especial:
+- **H2: este plan (aprobado el 2026-11-09),** y en especial:
   - P1: el orden, el congelamiento de R3b desde su H3 y la referencia adelantada entre R1 y R3a;
   - las excepciones a 004‑08: P3 (`PENDIENTE` en una lista cerrada) y P7 (en un entero y en un código);
   - las desviaciones del insumo: P4, P5, P13, P16 y las tres de la tabla «Valores de la plantilla»;
-  - P17: los ajustes a CJ15, CJ16 y CJ02, que precisan la decisión 8 de la H1. Al aprobarlos, el orquestador lleva a la spec la redacción de CJ15 y CJ16;
+  - P17: los ajustes a CJ15, CJ16 y CJ02, que precisan la decisión 8 de la H1. Aprobados en la H2; la redacción de CJ15 y CJ16 ya está en la spec (por delegación del orquestador);
   - P18, la decisión que registra el **ADR 0034**. El ADR se escribe como «Propuesto» en R0 y la persona lo acepta formalmente en la H3 de R0 (`liv-adr`);
-  - P19, la vista de saldos sin vista materializada y la opción (a) o (b) para el RLS de los movimientos, que decide el arquitecto;
+  - P19, la vista de saldos sin vista materializada, con la opción (a) para el RLS de los movimientos (decidida en la H2);
   - P13, `jurisdiction_config_id` en la obligación y la regla de no derivar la exigibilidad con otra configuración.
 - **§4.5, pruebas y compuertas:** B0 y B1 cambian las pruebas de esquema (el oráculo, `ENUM_PATHS` y la tabla de campos) por versión. No las debilitan: las de la 1.0 siguen iguales.
 - **No hace falta la aprobación de §4.5 para un cambio incompatible:** el 1.1 es compatible con el 1.0 (005‑18).
@@ -365,7 +365,7 @@ Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crí
     - (B) los roles fuera del §9, la salvedad *golden* de §5.3 y el número del §12.3 (pasos 2, 3 y 8);
     - (B) B1 sí se podía partir: la refactorización sale a B0.
   - **Descartado:** nada.
-  - **Escalado a la persona:** los puntos de «Aprobaciones que pide la persona». P17 y P18 tocan una decisión de la H1 y un ADR aceptado.
+  - **Escalado a la persona:** los puntos de «Aprobaciones de la persona». P17 y P18 tocan una decisión de la H1 y un ADR aceptado.
 - [x] **Segunda ronda, solo sobre lo corregido** (2026-11-08), con los mismos dos niveles. Encontraron 0 críticos, 5 altos, 13 medios y 2 bajos (A: 0 · 2 · 6 · 2; B: 0 · 3 · 7 · 0). Todo quedó corregido o escalado, sin descartar nada:
   - **Confirmados por los dos:**
     - una nota no puede cambiar el fondo de un ADR aceptado (`liv-adr`): R0 pasa a ser el ADR 0034, que complementa al 0032 (P15 y P18);
@@ -386,7 +386,7 @@ Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crí
     - (B) la concurrencia de los usos del saldo a favor (P16);
     - (B) la periodicidad del reporte del 20 %, un pendiente del Doc. 04 que se perdía (paso 3);
     - (B) la nota de `tasks.md`, que estaba desactualizada.
-  - **Escalado a la persona** (`liv-revision-adversarial` §4: después de la segunda ronda seguían apareciendo altos). No hay tercera ronda. Las correcciones de la segunda ronda no las volvió a revisar un tercero; la persona decide si se aprueba la H2 así o si pide otra revisión. Lo que le toca decidir está en «Aprobaciones que pide la persona».
+  - **Escalado a la persona** (`liv-revision-adversarial` §4: después de la segunda ronda seguían apareciendo altos). No hay tercera ronda. Las correcciones de la segunda ronda no las volvió a revisar un tercero; la persona decide si se aprueba la H2 así o si pide otra revisión. Lo que le toca decidir está en «Aprobaciones de la persona».
 - [x] **Verificación independiente de la segunda ronda** (2026-11-09), con un revisor crítico que no participó en las rondas anteriores, sobre el *commit* `e7cdd5b`. Veredicto: apto para H2. Hizo 6 observaciones (0 críticas · 0 altas · 3 medias · 2 bajas · 1 nota). La persona decidió corregirlas antes de la H2, sin otra ronda adversarial:
   1. **(media) La llave de `interest_calculation`:** un índice único parcial no se puede diferir. La columna pasó a ser `reversed_by_movement_id`, que apunta al movimiento `REVERSAL`, como el `reversed_by` del insumo, y no al cálculo nuevo. Se fijó el orden dentro de la transacción: primero el reverso, después se marca el cálculo viejo y al final se inserta el nuevo (paso 1).
   2. **(media) La FK compuesta con `movement_sign`:** `ASSESSMENT_ADJUSTMENT` y `REVERSAL` no tienen un signo fijo. El catálogo admite `±`, el CHECK lo acepta con cualquier signo distinto de 0, y el signo y el componente de un `REVERSAL` frente a su original se validan en la transacción (paso 1).
@@ -394,4 +394,4 @@ Cada PR lleva la lente de legibilidad antes del *commit*. Como el cambio es crí
   4. **(baja) El orden entre proyectos:** R1 también espera la H3 de R3b y entra justo antes que R3a. «Enfoque» declara la segunda referencia adelantada: el SHA‑256 de los YAML de R3b citado en el §9.2 de R3a.
   5. **(baja) Las pruebas que cambia B0:** se agregan `JurisdictionConfigSchemas.forVersion`, donde se implementa P18, y `CommonCases.load`. Se aclara que B0 no puede demostrar P18 y que lo demuestra una prueba nueva de B1 (pasos 5 y 7).
   6. **(nota) La aceptación del ADR 0034:** la H2 aprueba la decisión, y la aceptación formal del ADR va en la H3 de R0 (paso 4, P15, P18 y «Aprobaciones»).
-- [ ] Aprobación H2: <quién, fecha>.
+- [x] **Aprobación H2:** la persona que dirige el trabajo, 2026-11-09 (`AGENTS.md` §4.3), sobre el *commit* `33dd948`, con P1 a P19. En P19 eligió la opción (a): `administration_id` en todas las tablas de `ledger`. Aprobó también, según `AGENTS.md` §4.5, los cambios por versión de las pruebas de esquema de B0 y B1 (el oráculo, `ENUM_PATHS`, la tabla de campos y `JurisdictionConfigSchemas.forVersion`), que no debilitan las de la 1.0.

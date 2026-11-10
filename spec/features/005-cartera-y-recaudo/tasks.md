@@ -9,6 +9,8 @@ _Checklist accionable derivada del `plan.md`. Tareas pequeñas y concretas; cada
 
 _Con eso el orquestador decide qué corre en paralelo (`liv-orquestador`)._
 
+> **Pendiente de la fase Tareas.** El desglose lo hace otra sesión, de nivel estándar, después de integrar el PR de la spec y el plan. Lo que sigue no son tareas: es lo que el plan (H2) declara para esa fase.
+>
 > **Declarado en el plan (H2), para la fase de tareas.** Las tareas salen de los ocho PR del `plan.md` (R0, R1, R2, R3a, R3b, R4, B0 y B1) y de su orden. La tarea de R3a incluye, entre sus archivos, la copia binaria de `Formatos_Intercambio_Recaudo.xlsx` del insumo (`.entrada-claude-ai/` del checkout principal) a `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`. Antes de subirla se comprueban sus 13.779 bytes y su SHA‑256 `27023a14ef160f1552eb8355a0ffd9ee82f7ecdf1a6a0defdd863b89cf0ff90c`, y se inspecciona como dato (plan, paso 3; criterio 005‑10). La persona dio el permiso de descarga y el orquestador ya la verificó contra el original.
 
 - [ ] **T1** · <Tarea concreta de implementación>
