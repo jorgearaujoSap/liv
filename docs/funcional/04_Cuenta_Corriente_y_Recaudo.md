@@ -1,11 +1,11 @@
 # Módulo 4 — Cuenta corriente y recaudo
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
-> **Documentos relacionados:** `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_Homologacion_y_Reglas_de_Liquidacion.md` · `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` · `config_jurisdiccion_52356_2026.yaml`
+> **Documentos relacionados:** `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_Homologacion_y_Reglas_de_Liquidacion.md` · `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` · `05_Cartera_Intereses_Sanciones_Prescripcion.md` · `config_jurisdiccion_52356_2026.yaml` · `anexos/Formatos_Intercambio_Recaudo.xlsx`
 > **Tablas del ERD:** `ledger.tax_obligation`, `ledger.obligation_component`, `ledger.tax_account_movement`, `ledger.payment`, `ledger.payment_allocation`, `ledger.credit_balance`, `ledger.revenue_distribution`
 > **Alcance:** obligaciones, recibos y pagos, conciliación bancaria, imputación, saldos a favor, reversiones, distribución del recaudo y control de la participación del 20 %, con consultas y exportación a Excel.
-> **Versión:** 0.1 — borrador funcional para validación
-> **Fuera de alcance:** el cálculo de intereses de mora y de sanciones, que corresponde al Módulo 5. Este módulo los recibe ya calculados como componentes de la obligación.
+> **Versión:** 0.2 — bancos, archivo bancario (Asobancaria 2001 y CSV canónico), reporte del 20 % e imputación aprobada (§12); borrador funcional para validación
+> **Fuera de alcance:** el cálculo de intereses de mora y de sanciones, que corresponde al Módulo 5 (`05_Cartera_Intereses_Sanciones_Prescripcion.md`). Este módulo los recibe ya calculados como componentes de la obligación. Tampoco incluye la pasarela de pagos en línea, que llega después del piloto (nota de §12).
 
 ---
 
@@ -131,6 +131,8 @@ Al **emitir** una liquidación (Doc. 02 LQ‑V01) se crean, en la misma transacc
 
 Documento que el contribuyente lleva al banco o paga por PSE. Tiene una **referencia única** con dígito de verificación y código de barras (estándar GS1‑128, por confirmar con los bancos).
 
+> **Nota:** el pago por PSE llega con la pasarela de pagos, después del piloto (nota de §12). En esta versión el recibo se paga en un banco con convenio o en ventanilla.
+
 | Situación en la fecha de generación | Valor del recibo | Válido hasta |
 |---|---|---|
 | Antes del límite de descuento (≤ 30‑abr‑2026) | Neto − descuento, redondeado (p. ej. $308.000) | El límite de descuento |
@@ -153,7 +155,7 @@ Mismo patrón de staging que el Módulo 1: archivo inmutable con SHA‑256, fila
 | Valor pagado distinto del valor del recibo | ADVERTENCIA (se imputa lo pagado) |
 | Total del archivo distinto del total del extracto del día | ERROR del lote (va a conciliación) |
 
-Formato del archivo: por confirmar con los bancos del convenio (p. ej. formato estándar de recaudo de Asobancaria o el formato propio del banco). Se parametriza en `recaudo.archivo_banco`.
+Formato del archivo: ver §12.2 (Asobancaria 2001 como preferido; CSV canónico como alternativa). Se parametriza en `recaudo.archivo_banco`.
 
 ### 4.3 Estados del pago (`ledger.payment.status`)
 
@@ -170,7 +172,7 @@ Cruce diario de **archivo de recaudo ↔ extracto de la cuenta recaudadora**. Re
 
 ### 5.1 Orden de aplicación de un pago conciliado
 
-1. **Entre vigencias:** a la vigencia que indique el recibo o el contribuyente (art. 804 ET). Sin indicación, a la **más antigua primero** (parámetro `imputacion.sin_indicacion`, por confirmar).
+1. **Entre vigencias:** a la vigencia que indique el recibo o el contribuyente (art. 804 ET). Sin indicación, a la **más antigua primero** (parámetro `imputacion.sin_indicacion`, aprobado por el equipo y pendiente de revisión jurídica).
 2. **Descuento por pronto pago:** si la fecha del pago es ≤ `fecha_limite_descuento` y lo pagado ≥ valor con descuento de esa obligación, se registra `EARLY_PAYMENT_DISCOUNT` por la diferencia entre el neto y lo pagado, y la obligación queda en 0.
    - Con `descuento_pago_parcial: NO_APLICA` (valor inicial), un pago parcial dentro del plazo **no** genera descuento: se imputa como abono.
 3. **Dentro de la obligación:** proporcional a la participación de impuesto, sanciones e intereses en la deuda total a la fecha del pago (art. 804 ET). Antes, el Módulo 5 causa los intereses hasta esa fecha.
@@ -198,6 +200,8 @@ Cruce diario de **archivo de recaudo ↔ extracto de la cuenta recaudadora**. Re
 | **Total** | **357.000** | | **200.000** | **157.000** |
 
 Con una sanción de $30.000 adicional (deuda total $387.000), el mismo pago se repartiría así: impuesto $176.744, intereses $7.752 y sanción $15.504.
+
+> **Nota:** los $15.000 de intereses son un valor ilustrativo, porque el ejemplo prueba la imputación proporcional y no el cálculo de los intereses. Con las reglas y las tasas propuestas en el Doc. 05 (por verificar con la fuente oficial) el cálculo a esa fecha daría unos $19.000, y las cifras de la tabla cambiarían.
 
 ### 5.3 Reglas de control
 
@@ -237,6 +241,8 @@ Los plazos y requisitos de compensación y devolución se toman del procedimient
 | Pago imputado a la vigencia equivocada | Reimputación (IM‑05) |
 | Corrección de liquidación con pagos aplicados | `ASSESSMENT_ADJUSTMENT` por la diferencia; si queda saldo negativo, se traslada a saldo a favor |
 | Distribución ya girada de un pago reversado | Se genera un **ajuste negativo** en la siguiente planilla de distribución (§7) |
+
+> **Nota:** el contracargo PSE solo existe cuando llegue la pasarela de pagos, después del piloto (nota de §12). En esta versión los reversos vienen de los bancos (p. ej. un cheque devuelto) o de la anulación de un registro manual.
 
 ---
 
@@ -348,20 +354,66 @@ Cada diferencia puede agruparse en una reclamación con estado (`ABIERTA → ENV
 
 ---
 
-## 12. Parámetros nuevos en la configuración (`recaudo`)
+## 12. Canales de recaudo: bancos, archivos de intercambio y reporte del 20 %
 
-Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla:
+> **Alcance de esta versión:** la pasarela de pagos en línea llega después del piloto, junto con el portal del contribuyente (`spec/constitution/mission.md`; decisiones P8 y P9 del doc. 00), y no hace parte de este documento: el §12.3 y los criterios CA‑4.14 a CA‑4.17 quedan reservados para ella. CA‑4.18 conserva su número.
 
-| Parámetro | Valor inicial |
+### 12.1 Canales definidos
+
+| Canal | Entidades | Cómo llega la información | Conciliación |
+|---|---|---|---|
+| Banco con convenio | Banco AV Villas, Banco Davivienda, Banco de Occidente, Bancolombia | Archivo diario de recaudo por banco (§12.2) | Archivo ↔ extracto de la cuenta de recaudo de cada banco |
+| Ventanilla | Tesorería municipal | Registro manual con soporte y aprobación (4.2.3) | Arqueo diario |
+
+Cada banco tiene su propia cuenta de recaudo y su propio lote diario. La configuración no guarda el número de cuenta: `recaudo.bancos[].cuenta_recaudo_ref` es una referencia al gestor de secretos (pendiente de diligenciar), porque las cuentas bancarias de recaudo son datos restringidos que no van en el repositorio (`docs/arquitectura/02` §6). Un pago no se imputa hasta que se concilia con el extracto (§4.3).
+
+### 12.2 Formato del archivo bancario
+
+El formato todavía **no está definido** con los bancos. El sistema queda preparado así:
+
+| Opción | Descripción | Uso |
+|---|---|---|
+| **Asobancaria 2001** (preferido) | Estándar del sector financiero colombiano para reportar recaudos: archivo plano de registros de 220 posiciones, con encabezado de archivo, encabezado de lote, detalle, control de lote y control de archivo | Se pide primero a los cuatro bancos, porque suelen tenerlo disponible |
+| **CSV canónico v1** (alterno) | Layout propio del sistema: CSV con separador `;`, registros E/D/T, referencia del recibo, valor en pesos, fecha y hora del pago, número de transacción y fecha de abono | Para el banco que no entregue Asobancaria |
+| Formato propio del banco | Se agrega un adaptador que lo convierte al canónico | Solo si el banco no acepta ninguna de las dos opciones |
+
+Los tres formatos llegan al mismo staging. Las validaciones de §4.2 se aplican al registro ya convertido, de modo que cambiar de banco o de formato no cambia las reglas.
+
+**Qué formato rige para cada banco** (`recaudo.archivo_banco`), en este orden de precedencia:
+
+1. el de su entrada en `formato_por_banco`, si la tiene (`[{banco, formato}]`; vacía hasta que cada banco confirme);
+2. si no la tiene, `formato_preferido`.
+
+`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. La clave `formato` de la versión 1.0 de la configuración sigue aceptándose, y `formato_preferido` la reemplaza. Si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
+
+El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): cómo se valida y se protege lo define la feature de la opción 4.2.2.
+
+### 12.4 Reporte del 20 % (modalidad C)
+
+El formato tampoco está definido con la Gobernación de Nariño ni con los bancos. Se propone el **CSV de participación v1** (hojas «Reporte 20 % - layout» y «Reporte 20 % - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`). Una fila por declaración pagada con dirección en Ipiales, con:
+- desglose de impuesto, intereses y sanciones;
+- valor del 20 %;
+- fecha y referencia del giro;
+- un registro de totales.
+
+Periodicidad propuesta: mensual. Quién envía el reporte (`remitente`) es un texto libre de la configuración: la Gobernación, los bancos o ambos.
+
+### 12.5 Parámetros en la configuración (`recaudo`)
+
+Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales la sección `recaudo` está en `POR_CONFIRMAR`; la lista de bancos (`estado_bancos`) está `VIGENTE`, y el formato del archivo bancario y el reporte del 20 % están en `PENDIENTE`.
+
+| Parámetro | Valor |
 |---|---|
-| `canales` | Banco con convenio, PSE, ventanilla |
+| `canales` | Banco con convenio, ventanilla |
+| `bancos` | AV Villas, Davivienda, Occidente, Bancolombia; `cuenta_recaudo_ref` pendiente (la plantilla trae la lista vacía) |
 | `recibo_pago.validez_antes_limite_descuento` / `validez_en_mora` | Hasta el límite de descuento / mismo día |
-| `archivo_banco.formato` | Por confirmar |
-| `imputacion.entre_vigencias` / `sin_indicacion` | La que indique el contribuyente / la más antigua primero |
+| `archivo_banco` | Preferido Asobancaria 2001; alterno CSV canónico v1; formato por banco pendiente; frecuencia diaria |
+| `imputacion.entre_vigencias` / `sin_indicacion` | La que indique el contribuyente / **la más antigua primero** (aprobado por el equipo; pendiente de revisión jurídica) |
 | `imputacion.dentro_de_la_obligacion` | Proporcional (art. 804 ET) |
 | `descuento_pago_parcial` | `NO_APLICA` |
 | `saldo_a_favor.compensacion_automatica` | `false` |
 | `distribucion.base` / `dias_maximos_giro` / `redondeo` | Impuesto + intereses + sanciones / 20 / departamento redondeado, residuo al municipio |
+| `reporte_participacion_20` | Formato propuesto CSV v1, mensual, remitente por definir, pendiente de acordar con la Gobernación |
 
 ---
 
@@ -382,22 +434,31 @@ Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla:
 | CA‑4.11 | Intentar crear una obligación de un matriculado con solo A + C activas | Bloqueo OB‑02 |
 | CA‑4.12 | Paz y salvo con una vigencia en mora | No se emite; se muestra el saldo |
 | CA‑4.13 | Reejecutar la imputación diaria | Sin imputaciones duplicadas (IM‑06) |
+| CA‑4.18 | Archivo Asobancaria de Davivienda y CSV canónico de Occidente el mismo día | Ambos se convierten, validan y concilian con las mismas reglas |
+
+CA‑4.18 conserva su número (véase la nota de §12).
 
 ---
 
 ## 14. Pendientes por confirmar
 
-1. **Bancos y pasarela** del recaudo del municipio, **formato del archivo** de recaudo y estándar del código de barras.
-2. **Formato del reporte** que el departamento o los bancos entregan al municipio sobre las declaraciones con dirección en Ipiales (modalidad C), y su periodicidad.
-3. Regla de imputación **entre vigencias** cuando el contribuyente no indica: ¿la más antigua primero?
-4. Si el descuento aplica a **pagos parciales** dentro del plazo (valor inicial: no).
-5. Requisitos y plazos de **devolución y compensación** que adopta el estatuto municipal.
-6. Requisitos del **paz y salvo** (vigencias exigibles, vigencia del certificado).
-7. Cuentas bancarias de recaudo y de recepción de giros.
+| # | Punto | Estado |
+|---|---|---|
+| 1 | Bancos del recaudo | **Resuelto:** AV Villas, Davivienda, Occidente y Bancolombia. La pasarela de pagos queda para después del piloto (nota de §12) |
+| 1a | Formato del archivo de recaudo | **Pendiente:** proponer Asobancaria 2001 a los cuatro bancos; CSV canónico como alternativa |
+| 1b | Cuentas de recaudo por banco, como referencia al gestor de secretos (`cuenta_recaudo_ref`) | Pendiente |
+| 1c | Estándar del código de barras del recibo (GS1‑128, por confirmar con los bancos) | Pendiente |
+| 2 | Formato del reporte del 20 % | **Pendiente:** enviar a la Gobernación el CSV de participación v1 propuesto |
+| 2a | Periodicidad del reporte del 20 % (propuesta: mensual) | Pendiente |
+| 3 | Imputación entre vigencias sin indicación | **Resuelto:** la más antigua primero (aprobado por el equipo; pendiente de revisión jurídica) |
+| 4 | Descuento en pagos parciales dentro del plazo | Valor inicial: no aplica |
+| 5 | Requisitos y plazos de devolución y compensación del estatuto municipal | Pendiente |
+| 6 | Requisitos del paz y salvo | Pendiente |
+| 7 | Cuentas bancarias de recepción de giros (del 20 % y de la distribución) | Pendiente |
 
-## 15. Siguiente entrega propuesta
+## 15. Módulo 5 — Cartera
 
-**Módulo 5 — Cartera:** intereses de mora (tasa, período y cálculo diario desde el día siguiente al límite sin intereses), sanciones, prescripción y apertura de cartera histórica. Su salida alimenta los movimientos `INTEREST_ACCRUAL` y `PENALTY` de este módulo.
+Los intereses de mora, las sanciones, la prescripción de la acción de cobro y la apertura de cartera histórica están definidos en `05_Cartera_Intereses_Sanciones_Prescripcion.md`. Su salida alimenta los movimientos `INTEREST_ACCRUAL`, `PENALTY`, `OPENING_BALANCE` y `WRITE_OFF` de este módulo.
 
 ---
 
@@ -407,3 +468,4 @@ Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla:
 - [DUR 1625/2016 arts. 2.2.4.5 y 2.2.4.6 — beneficiarios y distribución (Cancillería)](https://cancilleria.gov.co/sites/default/files/Normograma/docs/pdf/decreto_1625_2016_pr048.pdf)
 - [Decreto 2654 de 1998 — distribución dentro de 20 días (Gobernación del Huila)](https://vehiculos.huila.gov.co/HUIVehiculos/resources/normativa/Decreto_2654_1998.pdf)
 - [Concepto MinHacienda: el 20 % corresponde al municipio de la dirección declarada (Actualícese)](https://cdn.actualicese.com/normatividad/2017/Conceptos/C001368-17.pdf)
+- [Asobancaria — especificaciones técnicas para reportar el recaudo (registros de 220 caracteres)](https://www.asobancaria.com/wp-content/uploads/2016/11/ESPECIFICACIONES-T%C3%89CNICAS-PARA-REPORTAR-LA-INFORMACI%C3%93N-DEL-RECAUDO-EN-EL-SECTOR-FINANCIERO-COLOMBIANO.pdf)
