@@ -29,11 +29,11 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 | Plan (H2) | raíz | `f005-diseno`, PR #147 (integrado el 2026-11-09) | Spec (H1) | ✅ Aprobado el 2026-11-09, con P19 en la opción (a) | — |
 | Tareas | raíz | `f005-tareas`, PR #150 (integrado) | Plan (H2) | ✅ 20 tareas en los 8 PR (R0, R1, R2, R3a, R3b, R4, B0 y B1) | — |
 | T1 y T2 · R2, ERD 2.2 | raíz | `f005-r2-erd` / `feat/005-erd` | Tareas | 🔄 En curso (ola 1) | La H3 de su PR |
-| T3 y T4 · R0, ADR 0034 | raíz | `f005-r0-adr` / `feat/005-adr-0034` | Tareas | 🔄 En curso (ola 1) | La H3 de su PR, que acepta el ADR (T4) |
-| T7 a T9 · R3b, anexos | raíz | `f005-r3b-anexos` / `feat/005-anexos` | Tareas | 🔄 En curso (ola 1) | La H3 que congela los YAML; se integra después de B1 |
-| T5 y T6 · B0, pruebas por versión | `backend/` | — | R0 integrado | ⏳ Pendiente (ola 2) | — |
-| T10 · R1, Doc. 05 | raíz | — | T2 y la H3 de R3b | ⏳ Pendiente (ola 2) | — |
-| T11 a T14 · R3a, Doc. 04, Doc. 03 y Excel | raíz | — | La H3 de R3b | ⏳ Pendiente (ola 2) | — |
+| T3 y T4 · R0, ADR 0034 | raíz | `f005-r0-adr`, PR #152 y #154 (integrados) | Tareas | ✅ ADR 0034 aceptado el 2026-11-09 | — |
+| T7 a T9 · R3b, anexos | raíz | `f005-r3b-anexos` / `feat/005-anexos`, PR #153 | Tareas | ✅ H3 aprobada el 2026-11-09: YAML congelados en `6f2c817`. Se integra después de B1 | Integrarlo después de B1 |
+| T5 y T6 · B0, pruebas por versión | `backend/` | `f005-b0-pruebas` / `feat/005-pruebas-por-version` | R0 integrado | 🔄 En curso (ola 2) | La H3 de su PR |
+| T10 · R1, Doc. 05 | raíz | — | R2 terminado y la H3 de R3b | ⏳ En cola: espera a R2 y un hueco (máximo tres sesiones) | — |
+| T11 a T14 · R3a, Doc. 04, Doc. 03 y Excel | raíz | `f005-r3a-recaudo` / `feat/005-recaudo-doc` | La H3 de R3b; las filas del Doc. 05 §14, de R1 | 🔄 En curso (ola 2) | La H3 de su PR |
 | T15 a T17 · B1, esquema 1.1 | `backend/` | — | B0 integrado y la H3 de R3b | ⏳ Pendiente (ola 3) | — |
 | T18 y T19 · R4, reglas y referencias | raíz | — | R1 y R3a | ⏳ Pendiente (ola 3) | — |
 
@@ -168,6 +168,19 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-09
+
+- **Feature 005: ADR 0034 aceptado, anexos congelados y empieza la ola 2.**
+  - **R0 (T3 y T4):** el ADR 0034, «Casos comunes por versión», entró como «Propuesto» en el PR #152. La persona lo aceptó en la H3, y la aceptación quedó registrada en el PR #154.
+  - **R3b (T7 a T9, PR #153):** la persona resolvió en la H3 los 9 puntos de forma que dejaron las revisiones, con las recomendaciones del orquestador.
+    - `recaudo.bancos[].cuenta_recaudo` pasa a `cuenta_recaudo_ref`, una referencia opaca al gestor de secretos, porque las cuentas son datos restringidos (`docs/arquitectura/02` §6).
+    - `prescripcion.inicio_termino` admite `FECHA_PRESENTACION_DECLARACION`.
+    - `estatuto_municipal` pasa a `estatuto_territorial`.
+    - La plantilla deja `intereses_mora` en `PENDIENTE`.
+    - `antiguedad` pasa a `POR_CONFIRMAR` (pendiente 19).
+    - Los puntos 2, 4, 5 y 9 quedan como estaban.
+    - Con la segunda ronda sobre esos cambios, la persona aprobó la H3, que congela los YAML en el *commit* `6f2c817`. El PR se integra después de B1.
+    - La spec, el plan y `tasks.md` todavía usan los nombres anteriores. Los nuevos se pasan en los *briefs* de R3a y B1, y se llevan a la spec y al plan al cerrar la feature.
+  - **Ola 2:** B0 (pruebas por versión) y R3a (Doc. 04, Doc. 03 y Excel) en paralelo con R2. R1 espera a que termine R2, porque necesita sus nombres de tablas, y a que haya un hueco: máximo tres sesiones a la vez.
 
 - **Feature 005: `tasks.md` integrado y empieza la ola 1.**
   - **Tareas (PR #150):** 20 tareas en los 8 PR del plan.
