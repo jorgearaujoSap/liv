@@ -20,6 +20,7 @@ import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.TEC
 import co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.FieldClass;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The table of the plan of the feature 004 ("Contenido del esquema 1.0"): the class of every field
@@ -32,9 +33,14 @@ final class JurisdictionConfigFieldTable {
   private static final String MODALITIES = "/competencia/modalidades/";
 
   /** The table of each version. A version without an entry fails, never takes another's. */
-  private static final Map<String, Map<String, FieldClass>> BY_VERSION = Map.of("1.0", version10());
+  private static final Map<String, Map<String, FieldClass>> BY_VERSION =
+      Map.of("1.0", Map.copyOf(version10()));
 
   private JurisdictionConfigFieldTable() {}
+
+  static Set<String> versions() {
+    return BY_VERSION.keySet();
+  }
 
   static Map<String, FieldClass> classes(String version) {
     Map<String, FieldClass> classes = BY_VERSION.get(version);

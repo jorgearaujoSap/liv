@@ -121,26 +121,39 @@ class JurisdictionConfigSchemaMutationTest {
       Set<String> expected) {
     ObjectNode changed = change.apply(TestConfigurations.load(version, configuration));
 
-    assertThat(JurisdictionConfigSchemas.errors(changed)).isEqualTo(expected);
+    assertThat(JurisdictionConfigSchemas.errors(changed, version)).isEqualTo(expected);
   }
 
   @Test
   @DisplayName(
-      "Cada versión del esquema tiene sus copias, sus clases de campo y las reglas del oráculo")
+      "004-05 · cada versión del esquema tiene sus copias, sus clases de campo y las reglas del"
+          + " oráculo")
   void everyVersionHasItsFixtures() {
     List<String> versions = CommonCases.versions();
 
+    assertThat(versions).as("versiones con casos").isNotEmpty();
     assertThat(RULES.keySet())
         .as("reglas del oráculo")
         .containsExactlyInAnyOrderElementsOf(versions);
-    assertThat(JurisdictionConfigFieldClasses.versions())
+    assertThat(JurisdictionConfigFieldTable.versions())
         .as("tablas de campos")
+        .containsExactlyInAnyOrderElementsOf(versions);
+    assertThat(JurisdictionConfigFieldClasses.versions())
+        .as("listas cerradas")
         .containsExactlyInAnyOrderElementsOf(versions);
     assertThat(TestConfigurations.versions())
         .as("carpetas de copias")
         .containsExactlyInAnyOrderElementsOf(versions);
+    for (String version : versions) {
+      for (String name : TestConfigurations.ALL) {
+        assertThat(TestConfigurations.load(version, name).path("esquema_version").asString())
+            .as("esquema_version de %s/%s", version, name)
+            .isEqualTo(version);
+      }
+    }
   }
 
+  @DisplayName("004-05 · cada campo de las configuraciones tiene su clase, y cada clase, su campo")
   @ParameterizedTest(name = "004-05 · [{0}] cada campo tiene su clase, y cada clase, su campo")
   @MethodSource("versions")
   void everyFieldHasAClass(String version) {
@@ -158,6 +171,7 @@ class JurisdictionConfigSchemaMutationTest {
         .isSubsetOf(leaves);
   }
 
+  @DisplayName("004-05 · cada lista cerrada del esquema tiene exactamente sus valores documentados")
   @ParameterizedTest(name = "004-05 · [{0}] cada lista cerrada tiene exactamente sus valores")
   @MethodSource("versions")
   void closedListsAreExact(String version) {
@@ -167,6 +181,12 @@ class JurisdictionConfigSchemaMutationTest {
     JurisdictionConfigFieldClasses.closedLists(version)
         .forEach((path, values) -> expected.put(schemaPointer(path) + "/enum", values));
     expected.put("/$defs/estado/enum", List.of("VIGENTE", "POR_CONFIRMAR", "PENDIENTE"));
+    // The table of the version probes these same values, not those of another version.
+    JurisdictionConfigFieldClasses.closedLists(version)
+        .forEach((path, values) ->
+            assertThat(JurisdictionConfigFieldClasses.of(version, path))
+                .as("clase de %s", path)
+                .isEqualTo(JurisdictionConfigFieldClasses.closedList(path, values)));
 
     expected.forEach((pointer, values) ->
         assertThat(schema.at(pointer).valueStream().map(JsonNode::stringValue))

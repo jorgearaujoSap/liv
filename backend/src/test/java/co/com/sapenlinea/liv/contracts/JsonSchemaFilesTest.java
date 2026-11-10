@@ -35,8 +35,10 @@ import tools.jackson.databind.JsonNode;
 class JsonSchemaFilesTest {
 
   private static final Path ROOT = CommonCases.JSON_SCHEMAS;
-  private static final Pattern SCHEMA_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.json");
-  private static final Pattern CASES_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.casos\\.json");
+  private static final Pattern SCHEMA_FILE =
+      Pattern.compile("(" + CommonCases.VERSION.pattern() + ")\\.json");
+  private static final Pattern CASES_FILE =
+      Pattern.compile("(" + CommonCases.VERSION.pattern() + ")\\.casos\\.json");
   private static final String DIALECT = "https://json-schema.org/draft/2020-12/schema";
 
   /** The only keywords of the portable subset (no format, $dynamicRef, unevaluated*, default…). */

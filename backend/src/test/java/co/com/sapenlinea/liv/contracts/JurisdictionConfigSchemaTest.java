@@ -432,6 +432,20 @@ class JurisdictionConfigSchemaTest {
         .containsExactly(JurisdictionConfigSchemas.VERSION_PATH);
   }
 
+  @ParameterizedTest(name = "ADR 0034 · {0} no es una versión MAYOR.MENOR")
+  @ValueSource(strings = {"01.0", "1.00", "1", "1.0.0", "1.a", "-1.0", " 1.0", "1.0 ", ""})
+  @Tag("P18")
+  void aVersionMustHaveTheFormOfTheContract(String text) {
+    assertThat(CommonCases.VERSION.matcher(text).matches()).isFalse();
+    assertThatThrownBy(() -> JurisdictionConfigSchemas.isUpTo(text, VERSION))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> JurisdictionConfigSchemas.isUpTo(VERSION, text))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> JurisdictionConfigSchemas.forVersion(VERSION, text))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(JurisdictionConfigSchemas.forVersion(text, VERSION)).isEmpty();
+  }
+
   private static void assertInvalid(String path, String value) {
     assertThat(errors(set(load(IPIALES), path, text(value))))
         .as("%s = %s", path, value)

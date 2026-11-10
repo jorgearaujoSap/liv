@@ -37,6 +37,7 @@ final class TestConfigurations {
       return folders
           .filter(Files::isDirectory)
           .map(folder -> folder.getFileName().toString())
+          .map(CommonCases::requireVersion)
           .sorted(CommonCases::compare)
           .toList();
     } catch (IOException e) {

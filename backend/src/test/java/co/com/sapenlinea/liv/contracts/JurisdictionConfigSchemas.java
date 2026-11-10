@@ -41,7 +41,7 @@ final class JurisdictionConfigSchemas {
 
   private static final String META_SCHEMA = "https://json-schema.org/draft/2020-12/schema";
 
-  private static final Pattern VERSION = Pattern.compile("[0-9]+\\.[0-9]+");
+  private static final Pattern VERSION = CommonCases.VERSION;
 
   /**
    * Draft 2020-12 with a stricter {@code type}: since Draft 6 the standard takes {@code 1000.0} for
