@@ -6,16 +6,18 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 import tools.jackson.core.JsonPointer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * The two jurisdiction configurations of the tests: copies of the template and of Ipiales from the
- * platform repository ({@code docs/funcional/anexos/}). They are a snapshot: the backend does not
- * read outside backend/ (IN-01), and the root validator checks the real annexes (CJ01). Each call
- * gives a fresh tree, so a test can change one node without touching the others.
+ * The two jurisdiction configurations of the tests, for each version of the schema: copies of the
+ * template and of Ipiales from the platform repository ({@code docs/funcional/anexos/}), in a
+ * folder named after the version. They are a snapshot: the backend does not read outside backend/
+ * (IN-01), and the root validator checks the real annexes (CJ01). Each call gives a fresh tree, so
+ * a test can change one node without touching the others.
  */
 final class TestConfigurations {
 
@@ -29,20 +31,33 @@ final class TestConfigurations {
 
   private TestConfigurations() {}
 
-  /** The text of a configuration, as it is on disk. */
-  static String text(String name) {
-    try {
-      return Files.readString(FOLDER.resolve(name), StandardCharsets.UTF_8);
+  /** The versions that have a folder of copies, from the lowest to the highest. */
+  static List<String> versions() {
+    try (Stream<Path> folders = Files.list(FOLDER)) {
+      return folders
+          .filter(Files::isDirectory)
+          .map(folder -> folder.getFileName().toString())
+          .sorted(CommonCases::compare)
+          .toList();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
   }
 
-  static ObjectNode load(String name) {
+  /** The text of a configuration of a version, as it is on disk. */
+  static String text(String version, String name) {
     try {
-      JsonNode tree = SafeYamlLoader.load(FOLDER.resolve(name));
+      return Files.readString(FOLDER.resolve(version).resolve(name), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  static ObjectNode load(String version, String name) {
+    try {
+      JsonNode tree = SafeYamlLoader.load(FOLDER.resolve(version).resolve(name));
       if (!(tree instanceof ObjectNode object)) {
-        throw new IllegalStateException(name + " no es un objeto");
+        throw new IllegalStateException(version + "/" + name + " no es un objeto");
       }
       return object;
     } catch (IOException e) {

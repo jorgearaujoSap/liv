@@ -2,7 +2,6 @@ package co.com.sapenlinea.liv.contracts;
 
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.AMOUNT;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.BOOLEAN;
-import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.CLOSED_LISTS;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.CODE;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.DANE;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.DANE_DEPARTMENT;
@@ -24,17 +23,32 @@ import java.util.Map;
 
 /**
  * The table of the plan of the feature 004 ("Contenido del esquema 1.0"): the class of every field
- * of the jurisdiction configuration, by its general path ({@code []} for any index). The classes
- * and their probes are in {@link JurisdictionConfigFieldClasses}; {@code estado} has its own class
- * there and is not listed here.
+ * of the jurisdiction configuration, by its general path ({@code []} for any index), for each
+ * version of the schema. The classes and their probes are in {@link
+ * JurisdictionConfigFieldClasses}; {@code estado} has its own class there and is not listed here.
  */
 final class JurisdictionConfigFieldTable {
 
   private static final String MODALITIES = "/competencia/modalidades/";
-  static final Map<String, FieldClass> CLASSES = new HashMap<>();
 
-  static {
+  /** The table of each version. A version without an entry fails, never takes another's. */
+  private static final Map<String, Map<String, FieldClass>> BY_VERSION = Map.of("1.0", version10());
+
+  private JurisdictionConfigFieldTable() {}
+
+  static Map<String, FieldClass> classes(String version) {
+    Map<String, FieldClass> classes = BY_VERSION.get(version);
+    if (classes == null) {
+      throw new IllegalArgumentException("no hay tabla de campos de la versión " + version);
+    }
+    return classes;
+  }
+
+  /** The table of the version 1.0, as the plan of the feature 004 gives it. */
+  private static Map<String, FieldClass> version10() {
+    Map<String, FieldClass> classes = new HashMap<>();
     put(
+        classes,
         CODE,
         "/normas[]/id",
         "/normas[]/tipo",
@@ -101,14 +115,16 @@ final class JurisdictionConfigFieldTable {
         "/recaudo/distribucion/base[]",
         "/recaudo/distribucion/redondeo");
     put(
+        classes,
         IDENTIFIER,
         "/base_gravable/catalogo_ministerio/tablas[]/atributos[]",
         "/base_gravable/reglas_ubicacion/modelo_igual_o_anterior_anio_base/linea_no_encontrada",
         "/base_gravable/reglas_ubicacion/aproximacion_cilindraje/aplica_cuando",
         "/reportes/sibga_mensual/contenido",
         "/reportes/sibga_mensual/soportes[]");
-    put(FIELD_PATH, "/sujecion/no_gravados[]/excepto_si");
+    put(classes, FIELD_PATH, "/sujecion/no_gravados[]/excepto_si");
     put(
+        classes,
         TECHNICAL_TEXT,
         "/base_gravable/catalogo_ministerio/columna_anio_base",
         "/base_gravable/catalogo_ministerio/tablas[]/nombre",
@@ -116,6 +132,7 @@ final class JurisdictionConfigFieldTable {
         "/base_gravable/ajustes[]/articulo",
         "/causacion/proporcionalidad_nuevos/formula_meses");
     put(
+        classes,
         FREE_TEXT,
         "/jurisdiccion/nombre",
         "/jurisdiccion/departamento",
@@ -128,6 +145,7 @@ final class JurisdictionConfigFieldTable {
         "/sujecion/motos_electricas_criterio_sujecion",
         "/recaudo/archivo_banco/formato");
     put(
+        classes,
         FRACTION,
         MODALITIES + "UEDF_INTERNACION/distribucion[]/porcentaje",
         MODALITIES + "CONVENIO_DEPTO/distribucion[]/porcentaje",
@@ -137,8 +155,9 @@ final class JurisdictionConfigFieldTable {
         "/tarifas[]/rangos[]/tarifa",
         "/calendario/descuento_pronto_pago/tarifa",
         "/beneficios[]/tasa");
-    put(FACTOR, "/base_gravable/ajustes[]/factor");
+    put(classes, FACTOR, "/base_gravable/ajustes[]/factor");
     put(
+        classes,
         AMOUNT,
         "/tarifas[]/rangos[]/desde_exclusivo",
         "/tarifas[]/rangos[]/hasta_inclusivo",
@@ -151,6 +170,7 @@ final class JurisdictionConfigFieldTable {
         "/parametros_sistema/importacion/mediana_lote_pesos/min",
         "/parametros_sistema/importacion/mediana_lote_pesos/max");
     put(
+        classes,
         INTEGER,
         "/vigencia/anio",
         "/vigencia/version_config",
@@ -171,6 +191,7 @@ final class JurisdictionConfigFieldTable {
         "/parametros_sistema/exportacion/filas_descarga_inmediata",
         "/parametros_sistema/liquidacion_masiva/tamano_bloque");
     put(
+        classes,
         DATE,
         "/vigencia/inicio",
         "/vigencia/fin",
@@ -181,15 +202,17 @@ final class JurisdictionConfigFieldTable {
         "/calendario/grupos[]/fecha_limite_descuento",
         "/calendario/grupos[]/fecha_limite_pago_sin_intereses",
         "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/fecha");
-    put(MONTH_DAY, "/causacion/general");
-    put(DANE, "/jurisdiccion/codigo_dane");
-    put(DANE_DEPARTMENT, "/jurisdiccion/departamento_padre_dane");
-    put(DIVIPOLA, "/jurisdiccion/codigo_divipola_8");
+    put(classes, MONTH_DAY, "/causacion/general");
+    put(classes, DANE, "/jurisdiccion/codigo_dane");
+    put(classes, DANE_DEPARTMENT, "/jurisdiccion/departamento_padre_dane");
+    put(classes, DIVIPOLA, "/jurisdiccion/codigo_divipola_8");
     put(
+        classes,
         DANE_IN_LIST,
         "/base_gravable/ajustes[]/aplica_solo_dane[]",
         "/sujecion/servicio_publico/municipios_donde_esta_gravado[]");
     put(
+        classes,
         BOOLEAN,
         MODALITIES + "UEDF_INTERNACION/activa",
         MODALITIES + "UEDF_INTERNACION/liquida",
@@ -216,15 +239,15 @@ final class JurisdictionConfigFieldTable {
         "/redondeo/obligatoria",
         "/recaudo/saldo_a_favor/compensacion_automatica",
         "/reportes/sibga_mensual/activo");
-    CLOSED_LISTS.forEach(
-        (path, values) -> put(JurisdictionConfigFieldClasses.closedList(path, values), path));
+    JurisdictionConfigFieldClasses.closedLists("1.0")
+        .forEach((path, values) ->
+            put(classes, JurisdictionConfigFieldClasses.closedList(path, values), path));
+    return classes;
   }
 
-  private JurisdictionConfigFieldTable() {}
-
-  private static void put(FieldClass fieldClass, String... paths) {
+  private static void put(Map<String, FieldClass> classes, FieldClass fieldClass, String... paths) {
     for (String path : paths) {
-      if (CLASSES.put(path, fieldClass) != null) {
+      if (classes.put(path, fieldClass) != null) {
         throw new IllegalStateException("campo con dos clases: " + path);
       }
     }

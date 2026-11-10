@@ -1,6 +1,16 @@
 package co.com.sapenlinea.liv.contracts;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.math.BigInteger;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import org.junit.jupiter.params.provider.Arguments;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
@@ -30,9 +40,62 @@ final class CommonCases {
           .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
           .build();
 
+  private static final Pattern CASES_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.casos\\.json");
+
   private CommonCases() {}
 
   static JsonNode load(String version) {
     return EXACT.readTree(FOLDER.resolve(version + ".casos.json").toFile());
+  }
+
+  /** The versions that have a cases file, from the lowest to the highest. */
+  static List<String> versions() {
+    try (Stream<Path> files = Files.list(FOLDER)) {
+      return files
+          .map(file -> CASES_FILE.matcher(file.getFileName().toString()))
+          .filter(Matcher::matches)
+          .map(matcher -> matcher.group(1))
+          .sorted(CommonCases::compare)
+          .toList();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * The cases of a section ({@code carga} or {@code validacion}) of every cases file, as JUnit
+   * arguments {@code (version, case name, case)}.
+   */
+  static Stream<Arguments> cases(String section) {
+    return cases(section, testCase -> true);
+  }
+
+  /** The same, only the cases that pass the filter. */
+  static Stream<Arguments> cases(String section, Predicate<JsonNode> filter) {
+    return versions().stream()
+        .flatMap(version ->
+            load(version)
+                .withArray(section)
+                .valueStream()
+                .filter(filter)
+                .map(testCase ->
+                    Arguments.of(version, testCase.get("caso").stringValue(), testCase)));
+  }
+
+  /**
+   * Orders two versions {@code <MAJOR>.<MINOR>} as numbers, not as text: {@code 1.10} is higher
+   * than {@code 1.9} (ADR 0034).
+   */
+  static int compare(String a, String b) {
+    String[] first = a.split("\\.");
+    String[] second = b.split("\\.");
+    // MAJOR and MINOR; BigInteger because the version comes from a file name, with no size limit.
+    for (int part = 0; part < 2; part++) {
+      int order = new BigInteger(first[part]).compareTo(new BigInteger(second[part]));
+      if (order != 0) {
+        return order;
+      }
+    }
+    return 0;
   }
 }
