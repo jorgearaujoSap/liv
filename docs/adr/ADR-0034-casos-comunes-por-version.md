@@ -1,8 +1,8 @@
 # ADR-0034 · Casos comunes por versión: los casos de la versión X del esquema se evalúan con las versiones hasta X
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 2026-11-09
-- **Decisores:** responsable del proyecto, que aprobó la decisión en la H2 de la feature 005 (P18 de su `plan.md`) el 2026-11-09 (equipo de una persona, `AGENTS.md` §4.3)
+- **Decisores:** responsable del proyecto, que aprobó la decisión en la H2 de la feature 005 (P18 de su `plan.md`) el 2026-11-09 y la aceptó formalmente ese mismo día al revisar e integrar el PR R0 (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** ADR 0032 (que este ADR complementa y no modifica); feature 005 (`spec/features/005-cartera-y-recaudo/plan.md`, P15 y P18); feature 004 (`spec/features/004-esquema-configuracion-jurisdiccion/`); `docs/arquitectura/01` §5.3 y §14.1 (IN‑11); `docs/funcional/03` §5.4 (CJ01); `backend/contracts/jsonschema/config-jurisdiccion/1.0.casos.json`
 
 ## Contexto
