@@ -4,7 +4,7 @@
 > **Documentos relacionados:** `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_Homologacion_y_Reglas_de_Liquidacion.md` · `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` · `05_Cartera_Intereses_Sanciones_Prescripcion.md` · `config_jurisdiccion_52356_2026.yaml` · `anexos/Formatos_Intercambio_Recaudo.xlsx`
 > **Tablas del ERD:** `ledger.tax_obligation`, `ledger.obligation_component`, `ledger.tax_account_movement`, `ledger.payment`, `ledger.payment_allocation`, `ledger.credit_balance`, `ledger.revenue_distribution`
 > **Alcance:** obligaciones, recibos y pagos, conciliación bancaria, imputación, saldos a favor, reversiones, distribución del recaudo y control de la participación del 20 %, con consultas y exportación a Excel.
-> **Versión:** 0.2 — bancos, archivo bancario (Asobancaria 2001 y CSV canónico), reporte del 20 % e imputación aprobada (§12); borrador funcional para validación
+> **Versión:** 0.2 — bancos, archivo bancario (Asobancaria 2001 y CSV canónico), reporte del 20 % e imputación «más antigua primero» aprobada por el equipo (§12); borrador funcional para validación
 > **Fuera de alcance:** el cálculo de intereses de mora y de sanciones, que corresponde al Módulo 5 (`05_Cartera_Intereses_Sanciones_Prescripcion.md`). Este módulo los recibe ya calculados como componentes de la obligación. Tampoco incluye la pasarela de pagos en línea, que llega después del piloto (nota de §12).
 
 ---
@@ -242,7 +242,7 @@ Los plazos y requisitos de compensación y devolución se toman del procedimient
 | Corrección de liquidación con pagos aplicados | `ASSESSMENT_ADJUSTMENT` por la diferencia; si queda saldo negativo, se traslada a saldo a favor |
 | Distribución ya girada de un pago reversado | Se genera un **ajuste negativo** en la siguiente planilla de distribución (§7) |
 
-> **Nota:** el contracargo PSE solo existe cuando llegue la pasarela de pagos, después del piloto (nota de §12). En esta versión los reversos vienen de los bancos (p. ej. un cheque devuelto) o de la anulación de un registro manual.
+> **Nota:** el contracargo PSE solo existe cuando llegue la pasarela de pagos, después del piloto (nota de §12). En esta versión los reversos vienen de los bancos (p. ej. un cheque devuelto).
 
 ---
 
@@ -287,7 +287,7 @@ flowchart LR
 
 ### 8.2 Reporte de entrada (4.6.1)
 
-Archivo CSV/XLSX del departamento o del banco. El formato está por acordar; los campos mínimos son: número de declaración o recibo, placa, documento del contribuyente, vigencia, fecha de pago, total pagado, desglose impuesto/intereses/sanciones, municipio de la dirección declarada, valor del 20 %, fecha y referencia del giro, y banco.
+Archivo CSV/XLSX del departamento o del banco. El formato está por acordar (propuesta en §12.4); los campos mínimos son: número de declaración o recibo, placa, documento del contribuyente, vigencia, fecha de pago, total pagado, desglose impuesto/intereses/sanciones, municipio de la dirección declarada, valor del 20 %, fecha y referencia del giro, y banco.
 
 ### 8.3 Conciliación (4.6.2)
 
@@ -356,7 +356,7 @@ Cada diferencia puede agruparse en una reclamación con estado (`ABIERTA → ENV
 
 ## 12. Canales de recaudo: bancos, archivos de intercambio y reporte del 20 %
 
-> **Alcance de esta versión:** la pasarela de pagos en línea llega después del piloto, junto con el portal del contribuyente (`spec/constitution/mission.md`; decisiones P8 y P9 del doc. 00), y no hace parte de este documento: el §12.3 y los criterios CA‑4.14 a CA‑4.17 quedan reservados para ella. CA‑4.18 conserva su número.
+> **Alcance de esta versión:** la pasarela de pagos en línea llega después del piloto, junto con el portal del contribuyente (`spec/constitution/mission.md`; decisión P9 del doc. 00), y no hace parte de este documento: el §12.3 y los criterios CA‑4.14 a CA‑4.17 quedan reservados para ella. CA‑4.18 conserva su número.
 
 ### 12.1 Canales definidos
 
@@ -379,14 +379,14 @@ El formato todavía **no está definido** con los bancos. El sistema queda prepa
 
 Los tres formatos llegan al mismo staging. Las validaciones de §4.2 se aplican al registro ya convertido, de modo que cambiar de banco o de formato no cambia las reglas.
 
-**Qué formato rige para cada banco** (`recaudo.archivo_banco`), en este orden de precedencia:
+**Qué formato rige para cada banco** (`recaudo.archivo_banco`), en este orden de precedencia (propuesta, por confirmar con los bancos; §14, punto 1a):
 
 1. el de su entrada en `formato_por_banco`, si la tiene (`[{banco, formato}]`; vacía hasta que cada banco confirme);
 2. si no la tiene, `formato_preferido`.
 
-`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. La clave `formato` de la versión 1.0 de la configuración sigue aceptándose, y `formato_preferido` la reemplaza. Si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
+`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. Si la configuración trae solo `formato` (versión 1.0), ese valor rige para todos los bancos. La clave `formato` de la versión 1.0 de la configuración sigue aceptándose, y `formato_preferido` la reemplaza. Si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
 
-El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): cómo se valida y se protege lo define la feature de la opción 4.2.2.
+El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): cómo se valida y se protege queda como pendiente (§14, punto 1d). Dos precisiones sobre el archivo: «formatos oficiales» en su hoja «Instrucciones» debe leerse como formatos propuestos, mientras no se acuerden con los bancos y la Gobernación; y los campos `referencia_recibo` y `municipio_direccion_dane`, que el layout llama «Numérico», se tratan como texto de solo dígitos, para no perder ceros a la izquierda ni precisión.
 
 ### 12.4 Reporte del 20 % (modalidad C)
 
@@ -396,11 +396,11 @@ El formato tampoco está definido con la Gobernación de Nariño ni con los banc
 - fecha y referencia del giro;
 - un registro de totales.
 
-Periodicidad propuesta: mensual. Quién envía el reporte (`remitente`) es un texto libre de la configuración: la Gobernación, los bancos o ambos.
+Periodicidad propuesta: mensual. Quién envía el reporte (`remitente`) es un texto libre de la configuración: en Ipiales, «Gobernación de Nariño o bancos»; en la plantilla, pendiente.
 
 ### 12.5 Parámetros en la configuración (`recaudo`)
 
-Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales la sección `recaudo` está en `POR_CONFIRMAR`; la lista de bancos (`estado_bancos`) está `VIGENTE`, y el formato del archivo bancario y el reporte del 20 % están en `PENDIENTE`.
+Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales la sección `recaudo` está en `POR_CONFIRMAR`; la lista de bancos (`estado_bancos`) está `VIGENTE`, y el formato del archivo bancario y el reporte del 20 % están en `PENDIENTE`. Los anexos con estos valores entran en `main` después del esquema 1.1 (Doc. 03 §9.2); hasta entonces, los de `main` conservan la versión anterior.
 
 | Parámetro | Valor |
 |---|---|
@@ -413,7 +413,7 @@ Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales
 | `descuento_pago_parcial` | `NO_APLICA` |
 | `saldo_a_favor.compensacion_automatica` | `false` |
 | `distribucion.base` / `dias_maximos_giro` / `redondeo` | Impuesto + intereses + sanciones / 20 / departamento redondeado, residuo al municipio |
-| `reporte_participacion_20` | Formato propuesto CSV v1, mensual, remitente por definir, pendiente de acordar con la Gobernación |
+| `reporte_participacion_20` | Formato propuesto CSV v1, mensual, remitente en texto libre, pendiente de acordar con la Gobernación |
 
 ---
 
@@ -436,7 +436,7 @@ Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales
 | CA‑4.13 | Reejecutar la imputación diaria | Sin imputaciones duplicadas (IM‑06) |
 | CA‑4.18 | Archivo Asobancaria de Davivienda y CSV canónico de Occidente el mismo día | Ambos se convierten, validan y concilian con las mismas reglas |
 
-CA‑4.18 conserva su número (véase la nota de §12).
+CA‑4.18 conserva su número (véase la nota de §12) y supone que cada banco ya confirmó su formato y que la configuración lo registra en `formato_por_banco`.
 
 ---
 
@@ -445,16 +445,18 @@ CA‑4.18 conserva su número (véase la nota de §12).
 | # | Punto | Estado |
 |---|---|---|
 | 1 | Bancos del recaudo | **Resuelto:** AV Villas, Davivienda, Occidente y Bancolombia. La pasarela de pagos queda para después del piloto (nota de §12) |
-| 1a | Formato del archivo de recaudo | **Pendiente:** proponer Asobancaria 2001 a los cuatro bancos; CSV canónico como alternativa |
+| 1a | Formato del archivo de recaudo y su precedencia por banco (§12.2) | **Pendiente:** proponer Asobancaria 2001 a los cuatro bancos; CSV canónico como alternativa. Confirmar con la especificación de Asobancaria la versión y la longitud de sus registros |
 | 1b | Cuentas de recaudo por banco, como referencia al gestor de secretos (`cuenta_recaudo_ref`) | Pendiente |
 | 1c | Estándar del código de barras del recibo (GS1‑128, por confirmar con los bancos) | Pendiente |
+| 1d | Tratamiento del campo `cuenta_recaudo` del archivo bancario, un dato restringido que llega en cada registro y queda en el *staging* inmutable (`docs/arquitectura/02` §6) | Pendiente |
+| 1e | Clave de pago duplicado: banco + referencia + fecha + valor (§4.2) frente al número de transacción del CSV canónico, y qué pasa con dos pagos legítimos iguales el mismo día | Pendiente |
 | 2 | Formato del reporte del 20 % | **Pendiente:** enviar a la Gobernación el CSV de participación v1 propuesto |
 | 2a | Periodicidad del reporte del 20 % (propuesta: mensual) | Pendiente |
 | 3 | Imputación entre vigencias sin indicación | **Resuelto:** la más antigua primero (aprobado por el equipo; pendiente de revisión jurídica) |
-| 4 | Descuento en pagos parciales dentro del plazo | Valor inicial: no aplica |
+| 4 | Descuento en pagos parciales dentro del plazo | Pendiente (valor inicial: no aplica) |
 | 5 | Requisitos y plazos de devolución y compensación del estatuto municipal | Pendiente |
 | 6 | Requisitos del paz y salvo | Pendiente |
-| 7 | Cuentas bancarias de recepción de giros (del 20 % y de la distribución) | Pendiente |
+| 7 | Cuentas bancarias de recepción de giros (del 20 % y de la distribución), también como referencia al gestor de secretos | Pendiente |
 
 ## 15. Módulo 5 — Cartera
 

@@ -210,7 +210,7 @@ stateDiagram-v2
 | `CJ13` | Calendario: `inicio_pago ≤ limite_descuento ≤ limite_sin_intereses`; un límite posterior al 31‑dic de la vigencia genera advertencia. Las fechas son obligatorias solo si alguna modalidad activa liquida |
 | `CJ14` | Vehículos nuevos: un plazo por días exige el número de días; una fecha fija exige la fecha; los días de descuento no pueden superar los días del plazo sin intereses |
 | `CJ15` | Intereses de mora. Se aplica a **toda publicación nueva**, sin importar la `esquema_version` que declare, para que nadie se salte las reglas de mora declarando `"1.0"`. Excepción: volver a validar una configuración 1.0 ya publicada, que se valida con las reglas de cuando se publicó. Si alguna modalidad activa liquida (`liquida: true`), existe `cartera.intereses_mora`; su `base` incluye `TAX` y no incluye `INTEREST` (sin anatocismo, MO‑01 y MO‑03); `bloquear_si_falta_tasa` es `true`; con cualquier método de `redondeo_causacion` salvo `SIN_REDONDEO`, el `multiplo` es mayor que 0; y `inicio` coincide con `calendario.inicio_mora` |
-| `CJ16` | Sanciones, prescripción y formato bancario. Se aplica a las mismas publicaciones que CJ15 (con la misma excepción) y evalúa las secciones de `cartera` que la configuración trae. Cada sanción activa tiene `norma` y tarifa; `sistema_determinacion` en `PENDIENTE` es un **error** (no se lee como «no declara»); una regla con `aplica_si: SISTEMA_DECLARACION` no puede estar activa si `sistema_determinacion` no es `DECLARACION` (CA‑5.08); `sancion_minima_uvt > 0` exige `uvt.valor`; `requiere_acto_en_firme` es `true`; `prescripcion.declaracion` es `SOLO_POR_ACTO_ADMINISTRATIVO` (PS‑01); `anios > 0`; `semaforo_dias.rojo < semaforo_dias.amarillo`; `antiguedad.rangos_dias` crece sin repetirse. Dan **advertencia**, no error: `prescripcion.competente` en `PENDIENTE` (solo hace falta para firmar el acto, opción 5.4.4 del Doc. 05; no cuenta para CJ02) y una configuración con `recaudo.archivo_banco.formato` y también `formato_preferido` (vale `formato_preferido`; Doc. 04 §12.2) |
+| `CJ16` | Sanciones, prescripción y formato bancario. Se aplica a las mismas publicaciones que CJ15 (con la misma excepción). Cada sanción activa tiene `norma` y tarifa; `sistema_determinacion` en `PENDIENTE` es un **error** (no se lee como «no declara»); una regla con `aplica_si: SISTEMA_DECLARACION` no puede estar activa si `sistema_determinacion` no es `DECLARACION` (CA‑5.08); `sancion_minima_uvt > 0` exige `uvt.valor`; `requiere_acto_en_firme` es `true`; `prescripcion.declaracion` es `SOLO_POR_ACTO_ADMINISTRATIVO` (PS‑01); `anios > 0`; `semaforo_dias.rojo < semaforo_dias.amarillo`; `antiguedad.rangos_dias` crece sin repetirse. Dan **advertencia**, no error: `prescripcion.competente` en `PENDIENTE` (solo hace falta para firmar el acto, opción 5.4.4 del Doc. 05; no cuenta para CJ02) y una configuración con `recaudo.archivo_banco.formato` y también `formato_preferido` (vale `formato_preferido`; Doc. 04 §12.2) |
 
 ### 5.5 Precedencia y multijurisdicción
 
@@ -256,7 +256,7 @@ Cada liquidación guarda `jurisdiction_config_id` en su traza de cálculo, de mo
 
 | Documento | Sección | Cambio |
 |---|---|---|
-| 04 | Encabezado, §4.1, §4.2, §5.1, §5.2, §6.2, §12 (nuevo), §13, §14 y §15 | Versión 0.2: bancos con convenio, archivo bancario (Asobancaria 2001 y CSV canónico v1), reporte del 20 % (CSV de participación v1), imputación «más antigua primero» aprobada, CA‑4.18, notas de PSE, pendientes con su estado y remisión al Doc. 05 |
+| 04 | Encabezado, §4.1, §4.2, §5.1, §5.2, §6.2, §12 (nuevo), §13, §14 y §15 | Versión 0.2: bancos con convenio, archivo bancario (Asobancaria 2001 y CSV canónico v1), reporte del 20 % (CSV de participación v1), imputación «más antigua primero» aprobada por el equipo, CA‑4.18, notas de PSE, pendientes con su estado y remisión al Doc. 05 |
 | Anexos | `Formatos_Intercambio_Recaudo.xlsx` (nuevo) | Layouts del CSV canónico v1 y del CSV de participación v1 que cita el Doc. 04 §12.2 y §12.4 |
 | 05 | §14 | Registra los cambios que la feature 005 aplica a otros documentos, entre ellos los de este documento |
 
@@ -271,6 +271,7 @@ Cada liquidación guarda `jurisdiction_config_id` en su traza de cálculo, de mo
 5. Criterio de sujeción de las **motos eléctricas** sin cilindraje (la exclusión por 125 cc no aplica directamente).
 6. Redacción vigente del art. 141 (motocarros, maquinaria) y del tratamiento de los vehículos **oficiales**.
 7. Fecha exacta y texto del **Decreto 1457 de 2025** para registrar la norma de rangos con su soporte PDF.
+8. Pendientes del recaudo con bancos (Doc. 04 §14) y de la cartera (Doc. 05 §11).
 
 ---
 
@@ -291,7 +292,7 @@ Cada liquidación guarda `jurisdiction_config_id` en su traza de cálculo, de mo
 
 ### 9.2 Resultado del validador (CJ01–CJ16)
 
-Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1.5.9, que lo confirmará con código). Se evaluó sobre los dos anexos tal como los aprobó la persona que dirige el trabajo en la feature 005. Esos anexos entran en `main` después del esquema 1.1, así que este resultado vale solo para el contenido con estos SHA‑256 (calculados sobre el contenido guardado en Git, con fin de línea LF) y se rehace si cambia:
+Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1.5.9, que lo confirmará con código). Se evaluó sobre los dos anexos tal como los aprobó la persona que dirige el trabajo en la feature 005 (2026-11-09). Esos anexos entran en `main` después del esquema 1.1, así que este resultado vale solo para el contenido con estos SHA‑256 (calculados sobre el contenido guardado en Git, con fin de línea LF) y se rehace si cambia:
 
 | Archivo | SHA‑256 |
 |---|---|
@@ -299,17 +300,17 @@ Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1
 | `config_jurisdiccion_plantilla_2026.yaml` | `4a0eb524449ff45813e01fcd58574ea06572c29be827423f0ebc0cd37132662e` |
 
 - **Errores: 0.** La configuración se puede aprobar (CA‑5.13). CJ01 la confirma la prueba de esquema del backend; las demás reglas se evaluaron a mano.
-- **Advertencias (17):** son los 17 valores en `PENDIENTE` de reglas que no son obligatorias, que el aprobador ve y el equipo diligencia:
+- **Advertencias (17):** son los 17 valores en `PENDIENTE` que no son el `estado` de una regla obligatoria; no bloquean la publicación, el aprobador los ve y el equipo los diligencia (CJ02 se evaluó sobre el `estado`; véanse las interpretaciones al final):
   - los 6 de antes: el NIT de la administración, el número y el estado del acto que fija el calendario, el descuento y el redondeo, el criterio de sujeción de motos eléctricas, la tarifa de servicio público (solo si se grava) y el beneficio de ejemplo inactivo;
   - 6 de `recaudo`: `cuenta_recaudo_ref` de los cuatro bancos, el estado de `archivo_banco` y el de `reporte_participacion_20`;
   - 5 de `cartera`: `sanciones.estatuto_territorial`, `prescripcion.competente` (la advertencia de CJ16), y `cartera_historica.vigencias_desde`, `fecha_corte_migracion` y su estado.
 - **Reglas `POR_CONFIRMAR` (19):** el aprobador debe marcarlas como revisadas.
-  - Las 9 de antes:
+  - Las 10 de antes (la versión 0.4 contaba 9 y omitía `recaudo`):
     - las normas `DEC_MH_RANGOS_2026`, `ESTATUTO_TERRITORIAL` y `ORDENANZA_NARINO_028_2010`;
     - `sujecion.servicio_publico`, `sujecion` y `categorias`;
-    - la tarifa `MOTO`, `conservacion_tarifa` y `causacion.proporcionalidad_nuevos`.
-  - Las 10 nuevas:
-    - las normas `ET_ART_641` y `ET_ART_644`, y `recaudo`;
+    - la tarifa `MOTO`, `conservacion_tarifa`, `causacion.proporcionalidad_nuevos` y `recaudo`.
+  - Las 9 nuevas:
+    - las normas `ET_ART_641` y `ET_ART_644`;
     - de `cartera`: `intereses_mora`, `sanciones`, `sanciones.uvt`, las dos reglas de sanción (`EXTEMPORANEIDAD_DECLARACION` y `CORRECCION_DECLARACION`), `prescripcion` y `antiguedad`.
   - La UVT, la fórmula y las tasas de los intereses y el cómputo del término de prescripción son pendientes de jurídica o de Hacienda (Doc. 05 §11).
 
@@ -333,6 +334,12 @@ Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1
 | `CJ16` | ✅ con una advertencia | `sistema_determinacion: LIQUIDACION_FACTURA`; las dos reglas de sanción están inactivas, así que ninguna exige norma y tarifa ni choca con `SISTEMA_DECLARACION`; `sancion_minima_uvt: 10` con `uvt.valor` presente; `requiere_acto_en_firme: true`; `declaracion: SOLO_POR_ACTO_ADMINISTRATIVO`; `anios: 5`; `semaforo_dias` 180 < 365; `rangos_dias` crece sin repetirse; sin `archivo_banco.formato`. Advertencia: `prescripcion.competente: PENDIENTE` |
 
 La plantilla no se publica: cada jurisdicción la diligencia. Con los `PENDIENTE` que trae no pasa CJ02 ni CJ12, y tampoco CJ16 mientras `sistema_determinacion` siga en `PENDIENTE`; es lo esperado.
+
+**Interpretaciones aplicadas** al evaluar, que el texto de las reglas no dice y la persona debe confirmar:
+
+- CJ02 se evalúa sobre el `estado` de cada regla obligatoria, y no sobre cada valor que contiene. Por eso `jurisdiccion.administracion.nit` y `prescripcion.competente`, que están en `PENDIENTE` dentro de una regla que no lo está, cuentan como advertencias.
+- CJ04 se evalúa sobre las categorías que se usan: la tarifa `PUBLICO` no se usa y no tiene rangos.
+- CJ06 se evalúa sobre cada modalidad que liquida, esté activa o no: el 20 % de la modalidad C es una participación que se recibe y no se reparte.
 
 ### 9.3 Liquidaciones de prueba con la configuración de Ipiales
 
