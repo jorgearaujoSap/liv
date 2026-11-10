@@ -13,24 +13,22 @@ import org.junit.jupiter.params.provider.MethodSource;
 import tools.jackson.databind.JsonNode;
 
 /**
- * The validation cases of {@code 1.0.casos.json} (ADR 0032): each YAML is loaded with the portable
- * subset, its schema is picked by {@code esquema_version} and the error paths must be exactly the
- * expected ones. The root validator runs the same published file.
+ * The validation cases of every {@code <version>.casos.json} (ADR 0032): each YAML is loaded with
+ * the portable subset, its schema is picked by {@code esquema_version} among the versions up to the
+ * one of the file (ADR 0034) and the error paths must be exactly the expected ones. The root
+ * validator runs the same published files.
  */
 @Tag("CJ01")
-@DisplayName("Casos comunes de validación del esquema 1.0 (CJ01)")
+@DisplayName("Casos comunes de validación de cada versión del esquema (CJ01)")
 class JurisdictionConfigCommonCasesTest {
 
   static Stream<Arguments> cases() {
-    return CommonCases.load("1.0")
-        .withArray("validacion")
-        .valueStream()
-        .map(c -> Arguments.of(c.get("caso").stringValue(), c));
+    return CommonCases.cases("validacion");
   }
 
-  @ParameterizedTest(name = "CJ01 · {0}")
+  @ParameterizedTest(name = "CJ01 · [{0}] {1}")
   @MethodSource("cases")
-  void validation(String name, JsonNode testCase) {
+  void validation(String version, String name, JsonNode testCase) {
     // A case with "arbol" checks the schema alone, without the loader (e.g. a final line break).
     JsonNode configuration =
         testCase.has("arbol")
@@ -42,6 +40,6 @@ class JurisdictionConfigCommonCasesTest {
       assertThat(expected).isNotEmpty();
     }
 
-    assertThat(JurisdictionConfigSchemas.errors(configuration)).isEqualTo(expected);
+    assertThat(JurisdictionConfigSchemas.errors(configuration, version)).isEqualTo(expected);
   }
 }

@@ -3,7 +3,6 @@ package co.com.sapenlinea.liv.contracts;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigSchemas.errors;
 import static co.com.sapenlinea.liv.contracts.TestConfigurations.IPIALES;
 import static co.com.sapenlinea.liv.contracts.TestConfigurations.TEMPLATE;
-import static co.com.sapenlinea.liv.contracts.TestConfigurations.load;
 import static co.com.sapenlinea.liv.contracts.TestConfigurations.remove;
 import static co.com.sapenlinea.liv.contracts.TestConfigurations.set;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.BigIntegerNode;
@@ -35,6 +35,9 @@ import tools.jackson.databind.node.ObjectNode;
 @DisplayName("Esquema 1.0 de la configuración de jurisdicción (feature 004)")
 class JurisdictionConfigSchemaTest {
 
+  /** The version under test: the copies of the annexes are in {@code <version>/}. */
+  private static final String VERSION = "1.0";
+
   private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
   private static final List<String> MANDATORY =
       List.of(
@@ -44,6 +47,10 @@ class JurisdictionConfigSchemaTest {
           "vigencia",
           "normas",
           "distribucion_recaudo");
+
+  private static ObjectNode load(String name) {
+    return TestConfigurations.load(VERSION, name);
+  }
 
   private static JsonNode text(String value) {
     return NODES.stringNode(value);
@@ -364,7 +371,7 @@ class JurisdictionConfigSchemaTest {
   @Tag("004-10")
   @DisplayName("004-10 · una clave repetida en una configuración se rechaza antes de validar")
   void duplicateKeyInAConfiguration() throws Exception {
-    String yaml = TestConfigurations.text(IPIALES);
+    String yaml = TestConfigurations.text(VERSION, IPIALES);
     // A second "multiplo" right after the first one, keeping the line break of the file.
     String duplicated =
         yaml.replaceFirst("(?m)^(  multiplo: 1000)(\\r?\\n)", "$1$2  multiplo: 100$2");
@@ -374,6 +381,55 @@ class JurisdictionConfigSchemaTest {
         .isInstanceOf(UnsafeYamlException.class)
         .extracting(e -> ((UnsafeYamlException) e).reason())
         .isEqualTo(Reason.CLAVE_REPETIDA);
+  }
+
+  /**
+   * The tests tagged {@code P18} check the registry of ADR 0034: the cases of a version X run with
+   * the versions up to X (P18 of the plan of the feature 005). B0 cannot show the effect, because
+   * there is only one version; B1 does, with the 1.1.
+   */
+  @ParameterizedTest(name = "ADR 0034 · la versión {0} está entre las hasta {1}: {2}")
+  @CsvSource({
+    "1.0, 1.0, true",
+    "1.0, 1.1, true",
+    "1.1, 1.0, false",
+    "1.9, 1.10, true",
+    "1.10, 1.9, false",
+    "1.99, 2.0, true",
+    "2.0, 1.99, false",
+    "9.9, 10.0, true",
+    "10.0, 9.9, false",
+    "99999999999999999999.0, 99999999999999999999.1, true"
+  })
+  @Tag("P18")
+  void versionsAreComparedAsNumbers(String version, String limit, boolean expected) {
+    assertThat(JurisdictionConfigSchemas.isUpTo(version, limit)).isEqualTo(expected);
+  }
+
+  @Test
+  @Tag("P18")
+  @DisplayName("ADR 0034 · el registro limitado a una versión no resuelve las mayores que ella")
+  void registryLimitedToAVersion() {
+    assertThat(JurisdictionConfigSchemas.forVersion(VERSION, VERSION)).isPresent();
+    assertThat(JurisdictionConfigSchemas.forVersion(VERSION, "1.1")).isPresent();
+    assertThat(JurisdictionConfigSchemas.forVersion(VERSION, "0.9")).isEmpty();
+    assertThat(JurisdictionConfigSchemas.forVersion("99.0", "99.0")).isEmpty();
+    assertThat(JurisdictionConfigSchemas.forVersion("../" + VERSION, VERSION)).isEmpty();
+    assertThat(JurisdictionConfigSchemas.forVersion(VERSION, VERSION).orElseThrow())
+        .isSameAs(JurisdictionConfigSchemas.forVersion(VERSION).orElseThrow());
+    assertThatThrownBy(() -> JurisdictionConfigSchemas.forVersion(VERSION, "1.0.0"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @Tag("P18")
+  @DisplayName("ADR 0034 · los errores de una configuración se juzgan con el registro limitado")
+  void errorsWithALimitedRegistry() {
+    ObjectNode configuration = load(IPIALES);
+
+    assertThat(errors(configuration, VERSION)).isEmpty();
+    assertThat(errors(configuration, "0.9"))
+        .containsExactly(JurisdictionConfigSchemas.VERSION_PATH);
   }
 
   private static void assertInvalid(String path, String value) {
