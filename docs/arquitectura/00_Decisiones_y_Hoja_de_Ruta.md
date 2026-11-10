@@ -156,6 +156,7 @@ En la Fase 0 cada fila se convierte en un archivo `docs/adr/ADR-NNNN-titulo.md` 
 | 0031 | Criterio de cierre de la Fase 0: *walking skeleton* en el entorno local con las pruebas de navegador en verde, CI de cada proyecto en verde y obligatorio, y F0‑02, F0‑10 y F0‑11 hechos; *staging* antes de la primera entrega a usuarios y cada pendiente restante con su momento | Aceptado (2026-11-07) | `docs/adr/ADR-0031-…`, §8 |
 | 0032 | Esquema de la configuración de jurisdicción: validadores `networknt` 3.0.9 (backend) y `jsonschema` 4.26.0 (raíz), con un subconjunto portable de JSON Schema y de YAML; versiones inmutables en *releases* `jsonschema-<nombre>-vMAYOR.MENOR` | Aceptado (2026-11-08) | `docs/adr/ADR-0032-…`, 01 §5.3, feature 004 |
 | 0033 | Orquestador de la feature en curso: una feature a la vez, paralelismo entre las tareas que no dependen unas de otras ni comparten recursos, dependencias y recursos declarados en `tasks.md`, un solo escritor de `ESTADO.md` y escalamiento escrito a la persona; sin autonomía de integración | Aceptado (2026-11-08) | `docs/adr/ADR-0033-…`, 05 §6, *skill* `liv-orquestador` |
+| 0034 | Casos comunes por versión: los casos de validación de la versión X del esquema de configuración se evalúan con las versiones hasta X, también en el validador de la raíz y en el de la opción 1.5.9 (complementa al ADR 0032) | Propuesto (2026-11-09) | `docs/adr/ADR-0034-…`, ADR 0032, feature 005 (P18) |
 
 ---
 
