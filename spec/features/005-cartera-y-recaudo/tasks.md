@@ -82,13 +82,13 @@ Es un cambio crítico: antes de cada PR, `liv-revision-adversarial` con dos revi
 
 ## PR R0 · ADR 0034, «Casos comunes por versión» (raíz, rama `feat/005-adr-0034`) — P15 y P18
 
-- [ ] **T3** · Redactar el ADR 0034 como «Propuesto» y su fila en la tabla de ADR (plan, paso 4; *skill* `liv-adr`).
+- [x] **T3** · Redactar el ADR 0034 como «Propuesto» y su fila en la tabla de ADR (plan, paso 4; *skill* `liv-adr`).
   - **Proyecto:** raíz · **PR:** R0
   - **Archivos:** `docs/adr/ADR-0034-casos-comunes-por-version.md` (nuevo, ≈ 60 líneas) y `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` (solo la fila 0034 de la tabla de §6).
   - **Depende de:** ninguna.
   - **Recursos:** ninguno (el ADR 0032 no se edita).
   - **Prueba primero:** la verificación de R0: el ADR sigue la plantilla de `liv-adr` (MADR) y el formato de los ADR 0032 y 0033; **complementa** al 0032 sin cambiar su decisión (lo cita, no lo reemplaza); dice la regla de P18 («los casos de la versión X se evalúan con las versiones publicadas hasta X», también en el validador de la 1.5.9) y que el caso «versión desconocida» de la 1.0 usa `"1.1"`; estado «Propuesto»; la fila del doc. 00 §6 coincide con el estilo de las filas 0032 y 0033.
-- [ ] **T4** · Aceptación formal del ADR 0034 en la H3 de R0.
+- [x] **T4** · Aceptación formal del ADR 0034 en la H3 de R0.
   - **Proyecto:** raíz · **PR:** R0
   - **Archivos:** `docs/adr/ADR-0034-casos-comunes-por-version.md` y la fila 0034 del doc. 00 §6 (solo el estado y la fecha).
   - **Depende de:** T3, y de que la persona acepte el ADR (`liv-adr`: solo un humano lo acepta; la sesión no lo decide).
@@ -117,13 +117,13 @@ Refactorización: no cambia ningún comportamiento, y las pruebas de la 1.0 sigu
 
 Se escribe primero y se revisa en paralelo con R3a. Se integra **después de B1**. Todo lo que los YAML llevan sale de la tabla «Valores de la plantilla» del plan.
 
-- [ ] **T7** · YAML de Ipiales (plan, paso 6).
+- [x] **T7** · YAML de Ipiales (plan, paso 6).
   - **Proyecto:** raíz · **PR:** R3b
   - **Archivos:** `docs/funcional/anexos/config_jurisdiccion_52356_2026.yaml`.
   - **Depende de:** ninguna.
   - **Recursos:** los YAML de los anexos (los escribe esta tarea; B1 y R3a parten de ellos).
   - **Prueba primero:** lista de comprobación escrita antes del texto: `esquema_version: "1.1"`; las cuatro normas (`ET_ART_634_635`, `ET_ART_641`, `ET_ART_644`, `ET_ART_817_818`), la descripción de `ET_ART_634_635` sin dar por hecha la fórmula; `recaudo` con `canales: [BANCO_CONVENIO, VENTANILLA]`, `bancos` (los cuatro, con `cuenta_recaudo: PENDIENTE`), `estado_bancos: VIGENTE`, `archivo_banco` con `formato_preferido`, `formato_alterno`, `formato_por_banco: []` y `estado`, y **sin** `formato`, `imputacion.sin_indicacion` y `reporte_participacion_20`, **sin** `pasarela` ni `PASARELA` (005‑13); `cartera` con `intereses_mora`, `sanciones` (con `sistema_determinacion: LIQUIDACION_FACTURA`), `prescripcion` (con `competente: PENDIENTE` y el comentario de `reinicio` en `POR_CONFIRMAR`, pendiente 18), `cartera_historica` y `antiguedad`, **sin** `tabla_tasas` (P5); montos en pesos, tasas como fracción y `sancion_minima_uvt` en UVT (005‑12); `cartera.sanciones.uvt` e `intereses_mora` en `POR_CONFIRMAR` (005‑12 y decisión 6 de la H1; el plan los da por «igual que Ipiales» en la plantilla), y ningún `PENDIENTE` ni `POR_CONFIRMAR` pasa a `VIGENTE`; comentario con las tres opciones de `redondeo_causacion.metodo` (P8).
-- [ ] **T8** · YAML de la plantilla y comprobación de que los dos tienen las mismas claves (plan, paso 6; riesgo «plantilla e Ipiales se separan»).
+- [x] **T8** · YAML de la plantilla y comprobación de que los dos tienen las mismas claves (plan, paso 6; riesgo «plantilla e Ipiales se separan»).
   - **Proyecto:** raíz · **PR:** R3b
   - **Archivos:** `docs/funcional/anexos/config_jurisdiccion_plantilla_2026.yaml`.
   - **Depende de:** T7.
@@ -134,7 +134,7 @@ Se escribe primero y se revisa en paralelo con R3a. Se integra **después de B1*
     - `sistema_determinacion: PENDIENTE`.
 
     Además, la extemporaneidad inactiva con su comentario, `estatuto_municipal: PENDIENTE` y `cartera_historica` con `vigencias_desde` y `fecha_corte_migracion` en `PENDIENTE`. El resultado de las dos comprobaciones va en la descripción del PR.
-- [ ] **T9** · Revisiones y **H3 de R3b: congelamiento de los YAML** (plan, paso 6).
+- [x] **T9** · Revisiones y **H3 de R3b: congelamiento de los YAML** (plan, paso 6).
   - **Proyecto:** raíz · **PR:** R3b
   - **Archivos:** ninguno nuevo (correcciones a T7 y T8 si las revisiones las piden).
   - **Depende de:** T7 y T8.
