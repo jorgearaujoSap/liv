@@ -5,7 +5,7 @@
 > **Versión:** 2.2 — registra los ajustes al modelo de la feature 005 · Cartera y recaudo, que el responsable funcional aprobó en la H1 (2026-11-08) y en la H2 (2026-11-09): los nueve de `docs/funcional/04_Cuenta_Corriente_y_Recaudo.md` §11 y los de `05_Cartera_Intereses_Sanciones_Prescripcion.md` §10. Es modelo lógico: las tablas se crean con las features de las Fases 4 y 5.
 >
 > - **Tablas:** `ledger` pasa de 7 a 19 (12 nuevas: recibos, archivos y conciliación bancaria, planillas de distribución, control del 20 %, usos de saldos a favor y el catálogo `movement_type`) y `portfolio`, de 11 a 13 (`portfolio_cutoff` y `opening_balance_event`): 65 + 12 + 2 = **79 tablas**.
-> - **Columnas:** cambian las de `ledger.tax_obligation`, `payment`, `credit_balance` y `revenue_distribution`, las de varias tablas de `portfolio` y las de `tax.penalty_rule`.
+> - **Columnas:** cambian las de `ledger.tax_obligation`, `payment`, `credit_balance` y `revenue_distribution`, las de varias tablas de `portfolio` y las de `tax.penalty_rule`. Además, `ledger.obligation_component`, `tax_account_movement` y `payment_allocation` reciben `administration_id`.
 > - **Aislamiento:** todas las tablas de `ledger` quedan con `administration_id` y RLS, salvo el catálogo `movement_type`.
 > - **Saldos:** `ledger.v_obligation_balance` es una vista normal con `security_invoker`.
 >
@@ -27,6 +27,8 @@
 12. **Faltantes para producción:** catálogos de estados, controles de concurrencia, RLS, políticas de retención y vínculos de actos/facturas al título ejecutivo.
 
 ## ERD general (relaciones principales)
+
+Es un resumen: las relaciones de cada esquema, con las tablas que agrega la versión 2.2, están en su sección.
 
 ```mermaid
 erDiagram
@@ -845,20 +847,20 @@ erDiagram
 
 - `ledger.tax_obligation` — Obligación individual por vehículo, vigencia y sujeto con control de exigibilidad. Lleva `administration_id` (ya lo tenía). Columnas de la 2.2:
   - `origin_modality`, `declared_address_municipality_id` y `discount_deadline` (Doc. 04 §11, punto 1): la modalidad de competencia, el municipio de la dirección declarada, que define el beneficiario del 20 %, y el límite de descuento copiado del calendario al emitir;
-  - `origin` (`LIQUIDACION` o `MIGRACION`) y `final_assessment_date`, la fecha de ejecutoria de la factura, que es un hecho. `assessment_id` solo puede ser nulo con `origin = MIGRACION`: `CHECK (origin = 'MIGRACION' OR assessment_id IS NOT NULL)`. Si otra feature crea un origen sin liquidación (por ejemplo, la declaración), amplía el CHECK;
-  - `jurisdiction_config_id`: la configuración que rige la obligación. Es la de su liquidación y, en las migradas, la que decida el pendiente 14 del Doc. 05 §11. La exigibilidad y la fecha de prescripción **no se guardan**: se derivan siempre con esa configuración (los saldos no se guardan; `AGENTS.md` §5.1). `legally_payable_from` no cambia: es la fecha de inicio de pago, no la exigibilidad.
-- `ledger.obligation_component` — Desglosa impuesto, sanciones, intereses, costas y otros rubros. Recibe `administration_id`, con FK compuesta (`obligation_id`, `administration_id`) y RLS.
-- `ledger.movement_type` — Catálogo fijo de tipos de movimiento (Doc. 04 §2.1), con su signo (`+`, `-` o `±`) y su componente permitido (`TAX`, `INTEREST`, `PENALTY`, `ANY` o `ORIGINAL` para el reverso). Lo escriben las migraciones. No lleva `administration_id` (excepción declarada). Tiene `UNIQUE` (`code`, `sign`). `ASSESSMENT_ADJUSTMENT` y `REVERSAL` llevan `±`, porque no tienen un signo fijo.
-- `ledger.tax_account_movement` — Libro mayor inmutable de débitos, créditos y ajustes por obligación. Recibe `administration_id`, con FK compuesta (`obligation_id`, `administration_id`) y RLS. Guarda `movement_sign` junto a `movement_type`, con FK compuesta (`movement_type`, `movement_sign`) al catálogo, y un CHECK local: `CHECK (movement_sign = '+' AND signed_amount > 0 OR movement_sign = '-' AND signed_amount < 0 OR movement_sign = '±' AND signed_amount <> 0)`.
-- `ledger.payment_receipt` — Recibo de pago inmutable, con referencia única y vigencia (Doc. 04 §4.1; RP‑02). `administration_id`, `UNIQUE` (`administration_id`, `reference`), FK compuestas con sus hijos y RLS. Se anula (`status`) si se genera otro para las mismas obligaciones; no se edita.
+  - `origin` (`LIQUIDACION` o `MIGRACION`) y `final_assessment_date`, la fecha de ejecutoria de la factura, que es un hecho. `origin` es obligatoria: `CHECK (origin IN ('LIQUIDACION', 'MIGRACION'))`. `assessment_id` solo puede ser nulo con `origin = MIGRACION`: `CHECK (origin = 'MIGRACION' OR assessment_id IS NOT NULL)`. `final_assessment_date` se completa una sola vez, de nulo a un valor, cuando la factura queda en firme: es el único hecho de la obligación que se llena después de emitirla (OB‑04). Si otra feature crea un origen sin liquidación (por ejemplo, la declaración), amplía el CHECK;
+  - `jurisdiction_config_id`: la configuración que rige la obligación. Es la de su liquidación y, en las migradas, la que decida el pendiente 14 de la feature 005 (Doc. 05 §11): `CHECK (origin <> 'LIQUIDACION' OR jurisdiction_config_id IS NOT NULL)`. Mientras una obligación migrada no la tenga, su exigibilidad no se deriva con la configuración vigente. La exigibilidad y la fecha de prescripción **no se guardan**: se derivan siempre con esa configuración (los saldos no se guardan; `AGENTS.md` §5.1). `legally_payable_from` no cambia: es la fecha de inicio de pago, no la exigibilidad.
+- `ledger.obligation_component` — Desglosa impuesto, sanciones, intereses, costas y otros rubros. Recibe `administration_id`, con FK compuesta (`obligation_id`, `administration_id`) y RLS. Tiene `UNIQUE` (`id`, `obligation_id`), la clave de las FK (`component_id`, `obligation_id`) de los movimientos y las imputaciones: el componente es de la misma obligación.
+- `ledger.movement_type` — Catálogo fijo de tipos de movimiento (Doc. 04 §2.1), con su signo (`+`, `-` o `±`) y su componente permitido (`TAX`, `INTEREST`, `PENALTY`, `ANY` o `ORIGINAL` para el reverso). Lo escriben las migraciones. No lleva `administration_id` (excepción declarada). Tiene `UNIQUE` (`code`, `sign`). `ASSESSMENT_ADJUSTMENT` y `REVERSAL` llevan `±`, porque no tienen un signo fijo. `liv_app` solo tiene SELECT sobre el catálogo, y las FK hacia él son `ON UPDATE RESTRICT ON DELETE RESTRICT`.
+- `ledger.tax_account_movement` — Libro mayor inmutable de débitos, créditos y ajustes por obligación. Es *append‑only*. Recibe `administration_id`, con FK compuestas (`obligation_id`, `administration_id`), (`component_id`, `obligation_id`) y (`reversal_of_id`, `obligation_id`), y RLS: el componente y el movimiento reversado son de la misma obligación. Tiene `UNIQUE` (`id`, `obligation_id`). Guarda `movement_sign` junto a `movement_type`, con FK compuesta (`movement_type`, `movement_sign`) al catálogo, y un CHECK local: `CHECK (movement_sign = '+' AND signed_amount > 0 OR movement_sign = '-' AND signed_amount < 0 OR movement_sign = '±' AND signed_amount <> 0)`. Solo un reverso lleva `reversal_of_id`: `CHECK ((movement_type = 'REVERSAL') = (reversal_of_id IS NOT NULL))`. Un movimiento se reversa una sola vez: índice único parcial (`reversal_of_id`) `WHERE reversal_of_id IS NOT NULL`.
+- `ledger.payment_receipt` — Recibo de pago inmutable, con referencia única y vigencia (Doc. 04 §4.1; RP‑02). `administration_id`, `UNIQUE` (`administration_id`, `reference`), FK compuestas con sus hijos y RLS. Se anula (`status`) si se genera otro para las mismas obligaciones, salvo que ya tenga pagos; no se edita.
 - `ledger.payment_receipt_line` — Una línea por obligación y componente del recibo, con o sin descuento (`with_discount`). `administration_id`, FK compuestas (`receipt_id`, `administration_id`) y (`obligation_id`, `administration_id`), y RLS.
 - `ledger.bank_file` — Archivo de recaudo de un banco, en *staging* (mismo patrón del Módulo 1): archivo inmutable, `file_format` (`ASOBANCARIA_2001` o `CANONICO_CSV_V1`), totales, cargador y aprobador. `administration_id`, `UNIQUE` (`administration_id`, `file_sha256`) (CA‑4.05) y `CHECK (approved_by <> uploaded_by)`.
 - `ledger.bank_file_row` — Fila íntegra del archivo del banco, ya convertida al formato canónico, con su resultado de validación. `administration_id`, FK compuesta (`bank_file_id`, `administration_id`) y `UNIQUE` (`bank_file_id`, `source_row_number`).
-- `ledger.bank_reconciliation` — Cruce diario entre el archivo y el extracto de la cuenta de recaudo; una fila por partida y su resultado (Doc. 04 §4.4). `bank_file_row_id` es nulo en una partida que solo está en el extracto. `administration_id`, FK compuestas y `CHECK (approved_by <> prepared_by)`.
-- `ledger.payment` — Recaudos confirmados y conciliables. Agrega `receipt_id`, `channel` (`BANCO_CONVENIO` o `VENTANILLA`) y `bank_file_row_id` (Doc. 04 §11, punto 4), con FK compuestas con `administration_id`. `idempotency_key` queda `UNIQUE` (`administration_id`, `idempotency_key`): la llave es banco + referencia + fecha + valor, y una llave global haría chocar o revelaría pagos de otra administración.
-- `ledger.payment_allocation` — Imputación de cada pago a deuda y concepto. Recibe `administration_id`, con FK compuestas (`payment_id`, `obligation_id`, `component_id` y `account_movement_id`, cada una con `administration_id`) y RLS.
-- `ledger.credit_balance` — Saldos a favor y su origen (`origin_type` y `origin_payment_id`). **Guarda el monto de origen** (`original_amount`, antes `available_amount`): lo disponible se calcula restando de él los usos no rechazados de `ledger.credit_balance_use`.
-- `ledger.credit_balance_use` — Compensaciones y devoluciones de un saldo a favor (Doc. 04 §6.1): `use_type`, `amount > 0`, `status` (`SOLICITADA`, `APROBADA`, `GIRADA` o `RECHAZADA` en una devolución), el `CREDIT_COMPENSATION` que genera y el acto que ordena la devolución. `administration_id` y FK compuestas, también hacia `tax_account_movement`. Cada uso se registra en una transacción que bloquea la fila del saldo (`SELECT … FOR UPDATE`), para que dos usos simultáneos no superen el monto de origen.
+- `ledger.bank_reconciliation` — Cruce diario entre el archivo y el extracto de la cuenta de recaudo; una fila por partida y su resultado (Doc. 04 §4.4). `bank_file_row_id` es nulo en una partida que solo está en el extracto. `administration_id`, FK compuestas y `CHECK (approved_by <> prepared_by)`. Quien aprueba la conciliación tampoco puede ser quien cargó el archivo (`bank_file.uploaded_by`; Doc. 04 §10).
+- `ledger.payment` — Recaudos confirmados y conciliables. Agrega `receipt_id`, `channel` (`BANCO_CONVENIO` o `VENTANILLA`) y `bank_file_row_id` (Doc. 04 §11, punto 4), con FK compuestas con `administration_id`. `idempotency_key` queda `UNIQUE` (`administration_id`, `idempotency_key`): la clave es banco + referencia + fecha + valor, y una clave global haría chocar o revelaría pagos de otra administración. Es obligatoria en todos los canales (la de la ventanilla la define la feature de la opción 4.2.3). Además, `UNIQUE` (`administration_id`, `bank_file_row_id`) `WHERE bank_file_row_id IS NOT NULL`: una partida del banco da un solo pago aunque el banco reenvíe el archivo corregido.
+- `ledger.payment_allocation` — Imputación de cada pago a deuda y concepto. Recibe `administration_id`, con FK compuestas (`payment_id` y `obligation_id`, cada una con `administration_id`; `component_id` y `account_movement_id`, cada una con `obligation_id`, para que sean de la obligación imputada) y RLS.
+- `ledger.credit_balance` — Saldos a favor y su origen (`origin_type` y `origin_payment_id`). **Guarda el monto de origen** (`original_amount`, antes `available_amount`): lo disponible se calcula restando de él los usos no rechazados de `ledger.credit_balance_use`. `CHECK (original_amount > 0)`.
+- `ledger.credit_balance_use` — Compensaciones y devoluciones de un saldo a favor (Doc. 04 §6.1): `use_type`, `amount > 0`, `status` (`SOLICITADA`, `APROBADA`, `GIRADA` o `RECHAZADA` en una devolución), el `CREDIT_COMPENSATION` que genera y el acto que ordena la devolución. Una compensación lleva su `account_movement_id`; una devolución, no, y un uso con movimiento no se rechaza, se reversa: `CHECK (status <> 'RECHAZADA' OR account_movement_id IS NULL)`. `administration_id` y FK compuestas, también hacia `tax_account_movement`. Cada uso se registra en una transacción que bloquea la fila del saldo (`SELECT … FOR UPDATE`), para que dos usos simultáneos no superen el monto de origen.
 - `ledger.distribution_batch` — Planilla de distribución por beneficiario y período (`GENERADA → APROBADA → GIRADA → CONFIRMADA`). `administration_id`, FK compuestas y `CHECK (approved_by <> generated_by)`.
 - `ledger.revenue_distribution` — Distribución del recaudo tributario según participaciones territoriales. Recibe `administration_id` y agrega `distribution_batch_id`, `component_type` y `days_to_transfer` (Doc. 04 §11, punto 5); con FK compuestas (`payment_allocation_id` y `distribution_batch_id`, cada una con `administration_id`) y RLS. Un ajuste negativo por un pago reversado ya girado va en la siguiente planilla.
 - `ledger.participation_report` — Reporte de recaudo del departamento o del banco, en *staging* (modalidad C, Doc. 04 §8). `administration_id`, `UNIQUE` (`administration_id`, `file_sha256`) (CA‑4.05) y `CHECK (approved_by <> uploaded_by)`.
@@ -870,10 +872,12 @@ erDiagram
 
 **Reglas del esquema (ERD 2.2):**
 
-1. **Aislamiento por administración** (punto 2 de «Hallazgos prioritarios de validación»; `docs/arquitectura/02` §5.1). Todas las tablas de `ledger` llevan `administration_id` y su política RLS, con FK compuestas hacia su padre. Las cuatro que no lo tenían (`obligation_component`, `tax_account_movement`, `payment_allocation` y `revenue_distribution`) lo reciben ahora. Hay dos excepciones en todo el modelo: `ledger.movement_type`, un catálogo fijo que escriben las migraciones, y `portfolio.interest_rate`, con `administration_id` nulo para la tasa nacional (ver `portfolio`).
-2. **FK que no pueden ser compuestas.** `portfolio.interest_calculation.account_movement_id`, `portfolio.interest_calculation.reversed_by_movement_id` y `portfolio.prescription_evaluation.write_off_movement_id` apuntan a `ledger.tax_account_movement`, pero sus tablas no tienen `administration_id`: la transacción que las escribe valida que el movimiento sea de la misma administración que la obligación.
-3. **Se validan en la transacción** lo que una FK o un CHECK no pueden expresar: el componente permitido del tipo de movimiento (`allowed_component`) y, en un `REVERSAL`, que su monto sea el opuesto exacto del de su `reversal_of_id` y que vaya al mismo componente.
-4. **Segregación de funciones.** `bank_file`, `bank_reconciliation`, `distribution_batch` y `participation_report` llevan quien carga o genera y quien aprueba, con un CHECK de personas distintas (el patrón del Módulo 1; Doc. 04 §10).
+1. **Aislamiento por administración** (punto 2 de «Hallazgos prioritarios de validación»; `docs/arquitectura/02` §5.1). Todas las tablas de `ledger` llevan `administration_id` y su política RLS, con FK compuestas hacia su padre. Las cuatro que no lo tenían (`obligation_component`, `tax_account_movement`, `payment_allocation` y `revenue_distribution`) lo reciben ahora. Entre las tablas de `ledger` y las que la 2.2 agrega a `portfolio` hay dos excepciones: `ledger.movement_type`, un catálogo fijo que escriben las migraciones, y `portfolio.interest_rate`, con `administration_id` nulo para la tasa nacional (ver `portfolio`). Todo padre de una FK compuesta declara `UNIQUE` (`id`, `administration_id`), y las FK a `core.admin_user` (quien carga, genera o aprueba) son compuestas con `administration_id`, salvo las de `portfolio.interest_rate`.
+2. **Movimientos desde `portfolio`.** `interest_calculation` y `prescription_evaluation` no tienen `administration_id`, pero sí `obligation_id`: sus FK a `ledger.tax_account_movement` (`account_movement_id`, `reversed_by_movement_id` y `write_off_movement_id`) son compuestas con `obligation_id`, y así el movimiento es de la misma obligación y, por ella, de la misma administración.
+3. **Se validan en la transacción** lo que una FK o un CHECK no pueden expresar: el componente permitido del tipo de movimiento (`allowed_component`); en un `REVERSAL`, que su monto sea el opuesto exacto del de su `reversal_of_id` y que vaya al mismo componente; que no se anule un recibo con pagos; que el aprobador de una conciliación no sea quien cargó el archivo; que un saldo a favor se use solo contra obligaciones de su contribuyente, y que una imputación no se distribuya dos veces al mismo beneficiario y componente (salvo el ajuste negativo por un reverso).
+4. **Segregación de funciones.** `bank_file`, `bank_reconciliation`, `distribution_batch` y `participation_report` llevan quien carga o genera y quien aprueba, con un CHECK de personas distintas (el patrón del Módulo 1; Doc. 04 §10). Con el aprobador nulo ese CHECK no se evalúa: cada una exige además el aprobador en los estados aprobado o posteriores. El registro manual de pago, la reimputación, el reverso, la compensación, la devolución, la anulación de un evento de prescripción y la prescripción misma también exigen que quien propone sea otra persona que quien aprueba (Doc. 04 §10; Doc. 05 §2.5); las columnas de esos flujos las define la feature que los implemente, no la 2.2.
+5. **Concurrencia.** La imputación, la causación y el recálculo de intereses y los reversos bloquean primero la obligación (`SELECT … FOR UPDATE`), y la imputación también el pago, en un orden fijo; el uso de un saldo a favor bloquea la fila del saldo. Los cambios de estado de archivos, conciliaciones, planillas, cortes y reclamaciones se hacen con `UPDATE … WHERE status = <estado anterior>` y se comprueban las filas afectadas, para que dos sesiones no apliquen la misma transición.
+6. **Inmutabilidad** (`docs/arquitectura/02` §5.2). Son *append‑only* para `liv_app` (sin UPDATE ni DELETE): `tax_account_movement`, `payment_receipt_line`, `bank_file_row`, `participation_report_row`, `portfolio.collection_portfolio_snapshot` y `portfolio.opening_balance_event`. En `payment_receipt`, `portfolio.interest_rate` y `portfolio.portfolio_cutoff` solo cambian el estado y las columnas de aprobación o publicación, por las transiciones válidas; en `portfolio.interest_calculation`, solo `reversed_by_movement_id`, una vez, de nulo a un valor.
 
 **Relaciones externas:**
 
@@ -890,19 +894,19 @@ erDiagram
 - `ledger.payment.administration_id` → `core.tax_administration`
 - `ledger.payment_receipt.taxpayer_id` → `core.taxpayer`
 - `ledger.payment_receipt.vehicle_id` → `core.vehicle`
-- `ledger.bank_file.uploaded_by` y `approved_by` → `core.admin_user`
-- `ledger.bank_reconciliation.prepared_by` y `approved_by` → `core.admin_user`
+- `ledger.bank_file.uploaded_by` y `approved_by` → `core.admin_user`, con `administration_id` en una FK compuesta
+- `ledger.bank_reconciliation.prepared_by` y `approved_by` → `core.admin_user`, con `administration_id` en una FK compuesta
 - `ledger.credit_balance.taxpayer_id` → `core.taxpayer`
 - `ledger.credit_balance.administration_id` → `core.tax_administration`
 - `ledger.credit_balance.source_document_id` → `documents.document`
 - `ledger.credit_balance_use.legal_act_id` → `documents.legal_act`
 - `ledger.distribution_batch.beneficiary_entity_id` → `core.territorial_entity`
-- `ledger.distribution_batch.generated_by` y `approved_by` → `core.admin_user`
+- `ledger.distribution_batch.generated_by` y `approved_by` → `core.admin_user`, con `administration_id` en una FK compuesta
 - `ledger.revenue_distribution.beneficiary_entity_id` → `core.territorial_entity`
-- `ledger.participation_report.uploaded_by` y `approved_by` → `core.admin_user`
+- `ledger.participation_report.uploaded_by` y `approved_by` → `core.admin_user`, con `administration_id` en una FK compuesta
 - `ledger.participation_report_row.address_municipality_id` → `core.territorial_entity`
 - `ledger.participation_claim.support_document_id` → `documents.document`
-- Todas las tablas nuevas de `ledger` (salvo `movement_type`) → `core.tax_administration`, por `administration_id`
+- Todas las tablas de `ledger` (salvo `movement_type`) → `core.tax_administration`, por `administration_id`
 
 ## PORTFOLIO — Mora, sanciones y prescripción (13 tablas)
 
@@ -934,7 +938,7 @@ erDiagram
         NUMERIC_18_2 principal_balance
         INTEGER days_in_arrears
         NUMERIC_18_2 interest_amount
-        NUMERIC_18_2 total_unrounded
+        NUMERIC_24_10 total_unrounded
         NUMERIC_18_2 total_rounded
         UUID account_movement_id FK
         UUID reversed_by_movement_id FK
@@ -1105,18 +1109,21 @@ erDiagram
     portfolio_prescription_event ||--o{ portfolio_prescription_event : annuls_event_id
     portfolio_portfolio_cutoff ||--o{ portfolio_collection_portfolio_snapshot : cutoff_id
     portfolio_portfolio_cutoff ||--o{ portfolio_portfolio_cutoff : replaces_cutoff_id
+    ledger_tax_account_movement ||--o{ portfolio_interest_calculation : account_movement_id
+    ledger_tax_account_movement ||--o{ portfolio_prescription_evaluation : write_off_movement_id
+    ledger_tax_obligation ||--o{ portfolio_collection_portfolio_snapshot : obligation_id
 ```
 
 **Tablas y funciones:**
 
 - `portfolio.interest_rate` — Tasas certificadas y parámetros para liquidar mora. En la 2.2 es un dato nacional y lleva su soporte y su aprobación:
-  - `administration_id` es nulo para la tasa nacional: los datos nacionales los leen todas las administraciones y solo los escribe el proceso de publicación (`docs/arquitectura/02` §5.1). Es la segunda excepción de `administration_id` (ver «Reglas del esquema» de `ledger`);
-  - `usury_rate` (tasa de usura certificada, fracción), `support_pdf_sha256` (el PDF de la certificación) y `status` (`BORRADOR`, `APROBADA` o `RECHAZADA`), con `uploaded_by` y `approved_by`: `CHECK (approved_by <> uploaded_by)`. La resolución de la Superfinanciera es el `legal_instrument_id`;
-  - se quita `annual_effective_rate`: la tasa de mora se deriva de la usura menos los puntos de `cartera.intereses_mora.puntos_a_restar` de la configuración, y la tasa aplicada queda en el detalle de cada cálculo;
-  - el período usa `valid_from` y `valid_to`, un mes calendario, con un índice único parcial (`rate_type`, `valid_from`) `WHERE status = 'APROBADA'`: una tasa en borrador rechazada se puede volver a cargar. Una tasa aprobada es inmutable.
-- `portfolio.interest_calculation` — Ejecución de cálculo de intereses sobre una obligación. Agrega `reason` (`PAGO`, `CORTE`, `ACTO_COBRO` o `SIMULACION`), el período causado (`accrual_from` y `accrual_to`), el total sin redondear y el redondeado, el movimiento `INTEREST_ACCRUAL` que lo registra (`account_movement_id`) y `reversed_by_movement_id`. Se quitan `interest_rate_id` y `applied_annual_rate` de la cabecera, porque con varios tramos van en el detalle.
-  - `reversed_by_movement_id` apunta al movimiento `REVERSAL` que anula su `INTEREST_ACCRUAL`, no al cálculo nuevo, y se llena una sola vez. La idempotencia es un índice único parcial (`obligation_id`, `accrual_to`, `rule_version`) `WHERE `reversed_by_movement_id IS NULL AND reason <> 'SIMULACION'``: solo para los cálculos vigentes que no son simulación. Una simulación nunca entra en el índice ni tiene movimiento.
-  - Un recálculo después de un reverso se escribe en una sola transacción y en este orden:
+  - `administration_id` es nulo para la tasa nacional: los datos nacionales los leen todas las administraciones y solo los escribe el proceso de publicación (`docs/arquitectura/02` §5.1). Es la segunda excepción de `administration_id` (ver «Reglas del esquema» de `ledger`). En la 2.2 todas las tasas son nacionales (por eso el índice de abajo no lleva la administración) y `liv_app` no puede escribir filas con `administration_id` nulo. Quién las carga y las aprueba, siendo usuarios de una administración, es el pendiente 17 de la feature 005 (Doc. 05 §11);
+  - `usury_rate` (tasa de usura certificada, fracción), `support_pdf_sha256` (el PDF de la certificación) y `status` (`BORRADOR`, `APROBADA` o `RECHAZADA`), con `uploaded_by` y `approved_by`: `CHECK (approved_by <> uploaded_by)` y `CHECK (status <> 'APROBADA' OR approved_by IS NOT NULL)`. La resolución de la Superfinanciera es el `legal_instrument_id`;
+  - se quita `annual_effective_rate`: la tasa de mora se deriva de la usura menos los puntos que fija la configuración de jurisdicción (la clave `cartera.intereses_mora.puntos_a_restar` del YAML), y la tasa aplicada queda en el detalle de cada cálculo;
+  - el período usa `valid_from` y `valid_to`, un mes calendario (`CHECK`: `valid_from` es el primer día del mes y `valid_to`, el último), con un índice único parcial (`rate_type`, `valid_from`) `WHERE status = 'APROBADA'`: una tasa en borrador rechazada se puede volver a cargar. Una tasa aprobada es inmutable.
+- `portfolio.interest_calculation` — Ejecución de cálculo de intereses sobre una obligación. Agrega `reason` (`PAGO`, `CORTE`, `ACTO_COBRO` o `SIMULACION`), el período causado (`accrual_from` y `accrual_to`), el total sin redondear (con diez decimales, porque el redondeo es solo al final) y el redondeado, el movimiento `INTEREST_ACCRUAL` que lo registra (`account_movement_id`, nulo solo en una simulación) y `reversed_by_movement_id`. `reason` es obligatoria: `CHECK ((reason = 'SIMULACION') = (account_movement_id IS NULL))`. Se quitan `interest_rate_id` y `applied_annual_rate` de la cabecera, porque con varios tramos van en el detalle.
+  - `reversed_by_movement_id` apunta al movimiento `REVERSAL` que anula su `INTEREST_ACCRUAL`, no al cálculo nuevo, y se llena una sola vez: se escribe con `UPDATE … WHERE reversed_by_movement_id IS NULL`, comprobando las filas afectadas. La idempotencia es un índice único parcial (`obligation_id`, `accrual_to`, `rule_version`) WHERE `reversed_by_movement_id IS NULL AND reason <> 'SIMULACION'`: solo para los cálculos vigentes que no son simulación. Una simulación nunca entra en el índice ni tiene movimiento. Con la obligación bloqueada, la transacción valida que `accrual_from` sea el día siguiente al último `accrual_to` vigente, para que dos causaciones no se solapen.
+  - Un recálculo después de un reverso se escribe en una sola transacción, que bloquea primero la obligación y el cálculo viejo, y en este orden:
     1. el movimiento `REVERSAL` del `INTEREST_ACCRUAL` viejo;
     2. `reversed_by_movement_id` del cálculo viejo, que así sale del índice;
     3. el cálculo nuevo.
@@ -1126,24 +1133,23 @@ erDiagram
 - `portfolio.penalty_assessment` — Registro de sanciones determinadas y sus soportes.
 - `portfolio.prescription_event` — Hechos con potencial efecto sobre el cómputo de prescripción. Agrega `annuls_event_id` (un evento erróneo no se borra: lo anula otro evento), `support_document_id` y `act_number`.
 - `portfolio.prescription_evaluation` — Dictamen trazable sobre término de prescripción por obligación. Agrega el expediente: `origin` (petición, oficio o excepción), `case_status`, `act_number`, `act_date`, `decision` y `write_off_movement_id`, el `WRITE_OFF` que registra el acto cuando declara la prescripción.
-- `portfolio.portfolio_cutoff` — Cabecera del corte mensual de cartera: administración, fecha, estado (`GENERADO`, `ERROR` o `PUBLICADO`), totales de control, el corte al que reemplaza (`replaces_cutoff_id`) y quién lo generó y lo publicó: `CHECK (published_by <> generated_by)`. `administration_id`, FK compuesta consigo misma (`replaces_cutoff_id`, `administration_id`) y RLS. Un corte publicado no se regenera.
-- `portfolio.collection_portfolio_snapshot` — Corte histórico de saldos y antigüedad para reportes: una foto inmutable por obligación, no un saldo vivo. Agrega `cutoff_id`, `administration_id`, `taxpayer_id`, `vehicle_id`, `fiscal_year`, `prescription_deadline`, `traffic_light` y `origin_modality`. Está particionada por fecha (`snapshot_date` entra en la clave primaria). `administration_id`, FK compuestas (`cutoff_id`, `administration_id`) y (`obligation_id`, `administration_id`) y RLS.
-
+- `portfolio.portfolio_cutoff` — Cabecera del corte mensual de cartera: administración, fecha, estado (`GENERADO`, `ERROR` o `PUBLICADO`), totales de control, el corte al que reemplaza (`replaces_cutoff_id`) y quién lo generó y lo publicó: `CHECK (published_by <> generated_by)`. `administration_id`, FK compuesta consigo misma (`replaces_cutoff_id`, `administration_id`) y RLS. Un corte publicado no se regenera, y un corte lo reemplaza uno solo: índice único parcial (`replaces_cutoff_id`) `WHERE replaces_cutoff_id IS NOT NULL`. El vigente de una fecha es el que ningún otro reemplaza. Un corte `PUBLICADO` exige `published_by`.
+- `portfolio.collection_portfolio_snapshot` — Corte histórico de saldos y antigüedad para reportes: una foto inmutable por obligación, no un saldo vivo. Agrega `cutoff_id`, `administration_id`, `taxpayer_id`, `vehicle_id`, `fiscal_year`, `prescription_deadline`, `traffic_light` y `origin_modality`. Está particionada por fecha (`snapshot_date`, que es la `cutoff_date` de su corte, entra en la clave primaria), y `UNIQUE` (`cutoff_id`, `obligation_id`, `snapshot_date`) impide repetir una obligación en un corte. `administration_id`, FK compuestas (`cutoff_id`, `administration_id`) y (`obligation_id`, `administration_id`) y RLS; cada partición se crea con RLS habilitado, o `liv_app` no tiene permisos sobre ella.
 - `portfolio.opening_balance_batch` — Lote de migración de cartera y conciliación de totales, con separación entre operador y aprobador.
 - `portfolio.opening_balance_row` — Fila íntegra de la fuente, componentes de deuda, identificación y fecha de corte. Agrega los campos de la plantilla que le faltaban: `invoice_number`, `notification_date`, `final_date`, `penalty_act_number`, `penalty_act_final_date`, `legacy_interest` y `support_reference`.
 - `portfolio.opening_balance_event` — Hoja de eventos de cobro de la plantilla de apertura (mandamiento, facilidad, reorganización…), en *staging*: se liga a su fila por lote, placa y vigencia, y al aplicar el lote se registran como `prescription_event`. `administration_id`, FK compuesta (`batch_id`, `administration_id`) y RLS.
 - `portfolio.opening_balance_error` — Inconsistencias y advertencias por fila, sin modificar los datos originales.
 - `portfolio.opening_balance_application` — Trazabilidad de cada aplicación aprobada sobre obligación y movimiento financiero, sin duplicar saldos.
 
-Las tablas de `portfolio` que ya existían y no se nombran arriba no cambian su aislamiento en la 2.2.
+**Aislamiento pendiente:** `interest_calculation`, `interest_calculation_detail`, `penalty_assessment`, `prescription_event`, `prescription_evaluation`, `opening_balance_row`, `opening_balance_error` y `opening_balance_application` ya existían sin `administration_id` y no lo reciben en la 2.2: se aíslan por su obligación o su lote, sin columna ni política RLS propias (`docs/arquitectura/02` §5.1). Si la feature que las migre debe agregárselo, es una decisión abierta.
 
 **Relaciones externas:**
 
 - `portfolio.interest_rate.administration_id` → `core.tax_administration` (nulo para la tasa nacional)
 - `portfolio.interest_rate.legal_instrument_id` → `documents.legal_instrument`
-- `portfolio.interest_rate.uploaded_by` y `approved_by` → `core.admin_user`
+- `portfolio.interest_rate.uploaded_by` y `approved_by` → `core.admin_user` (FK simple: la tasa es nacional)
 - `portfolio.interest_calculation.obligation_id` → `ledger.tax_obligation`
-- `portfolio.interest_calculation.account_movement_id` y `reversed_by_movement_id` → `ledger.tax_account_movement`, sin FK compuesta: la tabla no tiene `administration_id` y la transacción valida la administración
+- `portfolio.interest_calculation.account_movement_id` y `reversed_by_movement_id` → `ledger.tax_account_movement`, con `obligation_id` en una FK compuesta (la tabla no tiene `administration_id`)
 - `portfolio.interest_calculation_detail.interest_rate_id` → `portfolio.interest_rate`
 - `portfolio.penalty_assessment.obligation_id` → `ledger.tax_obligation`
 - `portfolio.penalty_assessment.penalty_rule_id` → `tax.penalty_rule`
@@ -1154,9 +1160,9 @@ Las tablas de `portfolio` que ya existían y no se nombran arriba no cambian su 
 - `portfolio.prescription_event.support_document_id` → `documents.document`
 - `portfolio.prescription_evaluation.obligation_id` → `ledger.tax_obligation`
 - `portfolio.prescription_evaluation.reviewed_by` → `core.admin_user`
-- `portfolio.prescription_evaluation.write_off_movement_id` → `ledger.tax_account_movement`, sin FK compuesta, por la misma razón
+- `portfolio.prescription_evaluation.write_off_movement_id` → `ledger.tax_account_movement`, con `obligation_id` en una FK compuesta
 - `portfolio.portfolio_cutoff.administration_id` → `core.tax_administration`
-- `portfolio.portfolio_cutoff.generated_by` y `published_by` → `core.admin_user`
+- `portfolio.portfolio_cutoff.generated_by` y `published_by` → `core.admin_user`, con `administration_id` en una FK compuesta
 - `portfolio.collection_portfolio_snapshot.obligation_id` → `ledger.tax_obligation`, con `administration_id` en una FK compuesta
 - `portfolio.collection_portfolio_snapshot.cutoff_id` → `portfolio.portfolio_cutoff`, con `administration_id` en una FK compuesta
 - `portfolio.collection_portfolio_snapshot.administration_id` → `core.tax_administration`
