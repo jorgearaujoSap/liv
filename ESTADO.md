@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-08
+> **Última actualización:** 2026-11-09
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -25,8 +25,9 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 
 | Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
 |---|---|---|---|---|---|
-| Spec (H1) | raíz | `f005-diseno` / `claude/005-cartera-y-recaudo-dc2a85`, PR #147 (borrador) | — | ✅ Aprobada el 2026-11-08, con las 14 recomendaciones | — |
-| Plan (H2) | raíz | `f005-diseno` / misma rama y PR | Spec (H1) | 🔄 En curso, con revisión adversarial de nivel alto | La H2 y lo que el plan pida según §4.5 (esquema 1.1) |
+| Spec (H1) | raíz | `f005-diseno`, PR #147 (integrado) | — | ✅ Aprobada el 2026-11-08, con las 14 recomendaciones | — |
+| Plan (H2) | raíz | `f005-diseno`, PR #147 (integrado el 2026-11-09) | Spec (H1) | ✅ Aprobado el 2026-11-09, con P19 en la opción (a) | — |
+| Tareas | raíz | `f005-tareas` / `docs/005-tareas` | Plan (H2) | 🔄 En curso: desglose de los 8 PR (R0, R1, R2, R3a, R3b, R4, B0 y B1) | La H3 de su PR |
 
 ---
 
@@ -157,6 +158,23 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-09
+
+- **Feature 005 · Cartera y recaudo: plan aprobado (H2) y empieza la fase Tareas.**
+  - **Revisión:** el plan pasó dos rondas de revisión adversarial con dos revisores ciegos de nivel alto.
+    - Primera ronda: 1 crítico y 7 altos.
+    - Segunda ronda: 0 críticos y 5 altos.
+    - Todo quedó corregido. Como seguían apareciendo altos, la persona pidió una verificación independiente de las correcciones de la segunda ronda: apto para H2, con 3 observaciones medias, 2 bajas y 1 nota, que se corrigieron antes de aprobar.
+  - **Decisiones de la persona:**
+    - aprobó la H2 (P1 a P19, `spec/features/005-cartera-y-recaudo/plan.md`);
+    - eligió la opción (a) de P19: `administration_id` y política RLS en `ledger.tax_account_movement` y en las demás tablas de `ledger` que no lo tienen;
+    - aprobó, según §4.5, que B0 y B1 cambien por versión las pruebas del esquema de configuración, sin debilitar las de la 1.0.
+  - **Integración:** la spec y el plan entraron a `main` en el PR #147.
+  - **Siguiente:** la fase Tareas, en la sesión `f005-tareas` de nivel estándar.
+  - **El plan deja pendientes:**
+    - el ADR 0034 se acepta en la H3 de R0;
+    - el cambio de reglas de `AGENTS.md`, en la H3 de R4.
 
 ### 2026-11-08
 
