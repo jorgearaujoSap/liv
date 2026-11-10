@@ -354,11 +354,12 @@ distribucion_recaudo:
 # ---------------------------------------------------------------------
 recaudo:
   canales: [BANCO_CONVENIO, VENTANILLA]            # POR_CONFIRMAR con los bancos; los pagos en línea (PSE) llegan después del piloto
+  # cuenta_recaudo_ref: alias del gestor de secretos, nunca el número de cuenta (docs/arquitectura/02 §6)
   bancos:                                          # bancos con convenio de recaudo (definidos por el equipo)
-    - {codigo: AV_VILLAS,    nombre: "Banco AV Villas",     cuenta_recaudo: PENDIENTE}
-    - {codigo: DAVIVIENDA,   nombre: "Banco Davivienda",    cuenta_recaudo: PENDIENTE}
-    - {codigo: OCCIDENTE,    nombre: "Banco de Occidente",  cuenta_recaudo: PENDIENTE}
-    - {codigo: BANCOLOMBIA,  nombre: "Bancolombia",         cuenta_recaudo: PENDIENTE}
+    - {codigo: AV_VILLAS,    nombre: "Banco AV Villas",     cuenta_recaudo_ref: PENDIENTE}
+    - {codigo: DAVIVIENDA,   nombre: "Banco Davivienda",    cuenta_recaudo_ref: PENDIENTE}
+    - {codigo: OCCIDENTE,    nombre: "Banco de Occidente",  cuenta_recaudo_ref: PENDIENTE}
+    - {codigo: BANCOLOMBIA,  nombre: "Bancolombia",         cuenta_recaudo_ref: PENDIENTE}
   estado_bancos: VIGENTE                           # la lista de bancos está definida, aunque recaudo siga POR_CONFIRMAR
   recibo_pago:
     referencia: NUMERICA_UNICA_CON_DIGITO_VERIFICACION
@@ -445,12 +446,12 @@ cartera:
         norma: ET_ART_644
         aplica_si: SISTEMA_DECLARACION
         estado: POR_CONFIRMAR
-    estatuto_municipal: PENDIENTE         # acuerdo del Estatuto Tributario de Ipiales: falta confirmar con jurídica que regule estas sanciones
+    estatuto_territorial: PENDIENTE       # acuerdo del Estatuto Tributario de Ipiales: falta confirmar con jurídica que regule estas sanciones
     estado: POR_CONFIRMAR
   prescripcion:
     norma: ET_ART_817_818                 # 5 años; interrupción y suspensión
     anios: 5
-    inicio_termino: FECHA_EJECUTORIA_FACTURA   # FECHA_EJECUTORIA_FACTURA | FECHA_LIMITE_PAGO
+    inicio_termino: FECHA_EJECUTORIA_FACTURA   # FECHA_EJECUTORIA_FACTURA | FECHA_LIMITE_PAGO | FECHA_PRESENTACION_DECLARACION
     eventos_interrupcion: [NOTIFICACION_MANDAMIENTO_PAGO, FACILIDAD_DE_PAGO, ADMISION_REORGANIZACION, LIQUIDACION_FORZOSA]
     reinicio: DIA_SIGUIENTE_AL_EVENTO     # POR_CONFIRMAR: tras ADMISION_REORGANIZACION o LIQUIDACION_FORZOSA el término podría correr desde que termina el proceso (art. 818 ET)
     eventos_suspension: [REVOCATORIA_ART_567, RESTABLECIMIENTO_ART_567, CONTENCIOSO_ART_835]
@@ -467,7 +468,7 @@ cartera:
     estado: PENDIENTE
   antiguedad:
     rangos_dias: [30, 90, 180, 360, 720, 1080, 1440, 1800]   # años de 360 días (pendiente 19 del Doc. 05); el último abre "> 5 años"
-    estado: VIGENTE
+    estado: POR_CONFIRMAR                 # rangos por confirmar con Hacienda (pendiente 19 del Doc. 05)
 
 # ---------------------------------------------------------------------
 # 11. Umbrales operativos del sistema (no normativos)

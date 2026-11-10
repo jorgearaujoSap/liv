@@ -343,7 +343,8 @@ distribucion_recaudo:
 # ---------------------------------------------------------------------
 recaudo:
   canales: [BANCO_CONVENIO, VENTANILLA]            # POR_CONFIRMAR con los bancos; los pagos en línea (PSE) llegan después del piloto
-  bancos: []                                       # [{codigo, nombre, cuenta_recaudo}]; la diligencia cada jurisdicción
+  # cuenta_recaudo_ref: alias del gestor de secretos, nunca el número de cuenta (docs/arquitectura/02 §6)
+  bancos: []                                       # [{codigo, nombre, cuenta_recaudo_ref}]; la diligencia cada jurisdicción
   estado_bancos: PENDIENTE                         # desviación de Ipiales: allí es VIGENTE (lista de bancos definida)
   recibo_pago:
     referencia: NUMERICA_UNICA_CON_DIGITO_VERIFICACION
@@ -408,7 +409,8 @@ cartera:
     causacion_contable_mensual: true      # corte de cartera causa intereses al último día del mes
     bloquear_si_falta_tasa: true          # sin tasa del mes no se calcula (CJ15)
     obligatoria: true
-    estado: POR_CONFIRMAR                 # fórmula y tasas por verificar con jurídica y la Superfinanciera
+    # desviación de Ipiales (POR_CONFIRMAR): cada jurisdicción confirma con jurídica la fórmula, el redondeo y su adopción en el estatuto antes de publicar
+    estado: PENDIENTE                     # la regla es obligatoria: PENDIENTE bloquea la publicación
   sanciones:
     sistema_determinacion: PENDIENTE      # LIQUIDACION_FACTURA | DECLARACION | PENDIENTE; desviación de Ipiales (LIQUIDACION_FACTURA): lo decide cada jurisdicción y CJ16 lo rechaza si sigue PENDIENTE
     uvt:
@@ -430,12 +432,12 @@ cartera:
         norma: ET_ART_644
         aplica_si: SISTEMA_DECLARACION
         estado: POR_CONFIRMAR
-    estatuto_municipal: PENDIENTE         # acuerdo del Estatuto Tributario territorial
+    estatuto_territorial: PENDIENTE       # acuerdo del Estatuto Tributario territorial
     estado: POR_CONFIRMAR
   prescripcion:
     norma: ET_ART_817_818                 # 5 años; interrupción y suspensión
     anios: 5
-    inicio_termino: FECHA_EJECUTORIA_FACTURA   # FECHA_EJECUTORIA_FACTURA | FECHA_LIMITE_PAGO; revisar si sistema_determinacion es DECLARACION
+    inicio_termino: FECHA_EJECUTORIA_FACTURA   # FECHA_EJECUTORIA_FACTURA | FECHA_LIMITE_PAGO | FECHA_PRESENTACION_DECLARACION; revisar si sistema_determinacion es DECLARACION
     eventos_interrupcion: [NOTIFICACION_MANDAMIENTO_PAGO, FACILIDAD_DE_PAGO, ADMISION_REORGANIZACION, LIQUIDACION_FORZOSA]
     reinicio: DIA_SIGUIENTE_AL_EVENTO     # POR_CONFIRMAR: tras ADMISION_REORGANIZACION o LIQUIDACION_FORZOSA el término podría correr desde que termina el proceso (art. 818 ET)
     eventos_suspension: [REVOCATORIA_ART_567, RESTABLECIMIENTO_ART_567, CONTENCIOSO_ART_835]
@@ -452,7 +454,7 @@ cartera:
     estado: PENDIENTE
   antiguedad:
     rangos_dias: [30, 90, 180, 360, 720, 1080, 1440, 1800]   # años de 360 días (pendiente 19 del Doc. 05); el último abre "> 5 años"
-    estado: VIGENTE
+    estado: POR_CONFIRMAR                 # rangos por confirmar con Hacienda (pendiente 19 del Doc. 05)
 
 # ---------------------------------------------------------------------
 # 11. Umbrales operativos del sistema (no normativos)
