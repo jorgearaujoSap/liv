@@ -256,7 +256,7 @@ Cada liquidación guarda `jurisdiction_config_id` en su traza de cálculo, de mo
 
 | Documento | Sección | Cambio |
 |---|---|---|
-| 04 | Encabezado, §4.1, §4.2, §5.1, §5.2, §6.2, §12 (nuevo), §13, §14 y §15 | Versión 0.2: bancos con convenio, archivo bancario (Asobancaria 2001 y CSV canónico v1), reporte del 20 % (CSV de participación v1), imputación «más antigua primero» aprobada por el equipo, CA‑4.18, notas de PSE, pendientes con su estado y remisión al Doc. 05 |
+| 04 | Encabezado, §4.1, §4.2, §5.1, §5.2, §6.2, §8.2, §12 (nuevo), §13, §14 y §15 | Versión 0.2: bancos con convenio, archivo bancario (Asobancaria 2001 y CSV canónico v1), reporte del 20 % (CSV de participación v1), imputación «más antigua primero» aprobada por el equipo, CA‑4.18, notas de PSE, pendientes con su estado y remisión al Doc. 05 |
 | Anexos | `Formatos_Intercambio_Recaudo.xlsx` (nuevo) | Layouts del CSV canónico v1 y del CSV de participación v1 que cita el Doc. 04 §12.2 y §12.4 |
 | 05 | §14 | Registra los cambios que la feature 005 aplica a otros documentos, entre ellos los de este documento |
 
@@ -299,13 +299,13 @@ Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1
 | `config_jurisdiccion_52356_2026.yaml` | `e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872` |
 | `config_jurisdiccion_plantilla_2026.yaml` | `4a0eb524449ff45813e01fcd58574ea06572c29be827423f0ebc0cd37132662e` |
 
-- **Errores: 0.** La configuración se puede aprobar (CA‑5.13). CJ01 la confirma la prueba de esquema del backend; las demás reglas se evaluaron a mano.
+- **Errores: 0.** La configuración se puede aprobar (CA‑5.13), con CJ02 evaluada sobre el `estado` de cada regla (véanse las interpretaciones al final): leída valor por valor, `jurisdiccion.administracion.nit` en `PENDIENTE` daría un error. CJ01 la confirma la prueba de esquema del backend; las demás reglas se evaluaron a mano.
 - **Advertencias (17):** son los 17 valores en `PENDIENTE` que no son el `estado` de una regla obligatoria; no bloquean la publicación, el aprobador los ve y el equipo los diligencia (CJ02 se evaluó sobre el `estado`; véanse las interpretaciones al final):
   - los 6 de antes: el NIT de la administración, el número y el estado del acto que fija el calendario, el descuento y el redondeo, el criterio de sujeción de motos eléctricas, la tarifa de servicio público (solo si se grava) y el beneficio de ejemplo inactivo;
   - 6 de `recaudo`: `cuenta_recaudo_ref` de los cuatro bancos, el estado de `archivo_banco` y el de `reporte_participacion_20`;
   - 5 de `cartera`: `sanciones.estatuto_territorial`, `prescripcion.competente` (la advertencia de CJ16), y `cartera_historica.vigencias_desde`, `fecha_corte_migracion` y su estado.
 - **Reglas `POR_CONFIRMAR` (19):** el aprobador debe marcarlas como revisadas.
-  - Las 10 de antes (la versión 0.4 contaba 9 y omitía `recaudo`):
+  - Las 10 de antes:
     - las normas `DEC_MH_RANGOS_2026`, `ESTATUTO_TERRITORIAL` y `ORDENANZA_NARINO_028_2010`;
     - `sujecion.servicio_publico`, `sujecion` y `categorias`;
     - la tarifa `MOTO`, `conservacion_tarifa`, `causacion.proporcionalidad_nuevos` y `recaudo`.

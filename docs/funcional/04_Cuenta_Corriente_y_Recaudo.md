@@ -382,11 +382,15 @@ Los tres formatos llegan al mismo staging. Las validaciones de §4.2 se aplican 
 **Qué formato rige para cada banco** (`recaudo.archivo_banco`), en este orden de precedencia (propuesta, por confirmar con los bancos; §14, punto 1a):
 
 1. el de su entrada en `formato_por_banco`, si la tiene (`[{banco, formato}]`; vacía hasta que cada banco confirme);
-2. si no la tiene, `formato_preferido`.
+2. si no la tiene, `formato_preferido`; y si tampoco hay `formato_preferido`, `formato` (la clave de la versión 1.0). Un valor que no sea un código de formato (`POR_CONFIRMAR` o `PENDIENTE`) significa que no hay formato definido.
 
-`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. Si la configuración trae solo `formato` (versión 1.0), ese valor rige para todos los bancos. La clave `formato` de la versión 1.0 de la configuración sigue aceptándose, y `formato_preferido` la reemplaza. Si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
+`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. `formato_preferido` reemplaza a `formato`, que sigue aceptándose; si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
 
-El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): cómo se valida y se protege queda como pendiente (§14, punto 1d). Dos precisiones sobre el archivo: «formatos oficiales» en su hoja «Instrucciones» debe leerse como formatos propuestos, mientras no se acuerden con los bancos y la Gobernación; y los campos `referencia_recibo` y `municipio_direccion_dane`, que el layout llama «Numérico», se tratan como texto de solo dígitos, para no perder ceros a la izquierda ni precisión.
+El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): cómo se valida y se protege queda como pendiente (§14, punto 1d).
+
+Dos precisiones sobre el archivo:
+- «formatos oficiales», en su hoja «Instrucciones», debe leerse como formatos propuestos mientras no se acuerden con los bancos y la Gobernación;
+- `referencia_recibo` y `municipio_direccion_dane`, que el layout llama «Numérico», se tratan como texto de solo dígitos, para no perder ceros a la izquierda ni precisión.
 
 ### 12.4 Reporte del 20 % (modalidad C)
 
@@ -449,7 +453,7 @@ CA‑4.18 conserva su número (véase la nota de §12) y supone que cada banco y
 | 1b | Cuentas de recaudo por banco, como referencia al gestor de secretos (`cuenta_recaudo_ref`) | Pendiente |
 | 1c | Estándar del código de barras del recibo (GS1‑128, por confirmar con los bancos) | Pendiente |
 | 1d | Tratamiento del campo `cuenta_recaudo` del archivo bancario, un dato restringido que llega en cada registro y queda en el *staging* inmutable (`docs/arquitectura/02` §6) | Pendiente |
-| 1e | Clave de pago duplicado: banco + referencia + fecha + valor (§4.2) frente al número de transacción del CSV canónico, y qué pasa con dos pagos legítimos iguales el mismo día | Pendiente |
+| 1e | ¿Cómo se detecta un pago duplicado: por banco, referencia, fecha y valor (§4.2) o por el número de transacción del CSV canónico? ¿Qué pasa con dos pagos legítimos iguales el mismo día? | Pendiente |
 | 2 | Formato del reporte del 20 % | **Pendiente:** enviar a la Gobernación el CSV de participación v1 propuesto |
 | 2a | Periodicidad del reporte del 20 % (propuesta: mensual) | Pendiente |
 | 3 | Imputación entre vigencias sin indicación | **Resuelto:** la más antigua primero (aprobado por el equipo; pendiente de revisión jurídica) |
