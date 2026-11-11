@@ -451,6 +451,14 @@ El ERD 2.2 deja abierta una decisión que este documento no resuelve: varias tab
 | 17 | Quién carga y aprueba las tasas nacionales en un producto multi‑inquilino | TI |
 | 18 | Reinicio del término tras la reorganización o la liquidación forzosa (art. 818 ET): ¿desde que termina el proceso? | Jurídica |
 | 19 | Rangos de antigüedad: 360 días no es un año, y «> 5 años» empieza en el día 1.801, antes de la prescripción | Hacienda |
+| 20 | Aplicación de un lote de cartera histórica: si es atómica o por fila, qué queda si falla en medio del proceso, y qué bloquea un «ERROR» de fila frente a un «ERROR del lote» (CH‑01 a CH‑10, §3.4, CA‑5.12) | Feature del Módulo 5, con Hacienda |
+| 21 | Migración con `RECALCULAR` o `TOMAR_DEL_LEGADO`: cómo entran los abonos parciales (`pagos_parciales`, fecha e importe) al cálculo y desde cuándo causa la primera causación de lo migrado, sin cobrar dos veces los intereses | Feature del Módulo 5, con Hacienda y TI |
+| 22 | Al reversar intereses (MO‑05): si se reimputan los pagos ya imputados a esos intereses; cómo se registra el `WRITE_OFF` por componente y adónde va un pago posterior a la prescripción (PS‑03 frente al Doc. 04 §5.1) | Feature del Módulo 5, con jurídica y contabilidad |
+| 23 | Segregación de los eventos manuales de prescripción que interrumpen o suspenden (§6.2) y del descarte de una propuesta de sanción (§5.2), y si existe la transición `EN_FIRME → REVOCADA` (SA‑05) | Feature del Módulo 5, con jurídica |
+| 24 | Corte mensual: con qué fecha se miden los movimientos del corte (fecha efectiva o de registro) y qué pasa con las causaciones de un corte que queda en `ERROR` (§7.1, CA‑5.11) | Feature del Módulo 5, con contabilidad |
+| 25 | Nombres de los eventos de suspensión: los `eventos_suspension` de la configuración (`REVOCATORIA_ART_567`, `RESTABLECIMIENTO_ART_567`, `CONTENCIOSO_ART_835`) frente a los tipos `SUSPENSION_INICIO` y `SUSPENSION_FIN` de §6.2 | Feature del Módulo 5, con jurídica |
+| 26 | Aislamiento por `administration_id` y RLS de las ocho tablas de `portfolio` que ya existían (ERD 2.2, «Aislamiento pendiente») | Feature del Módulo 5, con TI |
+| 27 | Controles que el ERD 2.2 no tiene: aprobador distinto del cargador en `portfolio.opening_balance_batch` y PDF de soporte obligatorio para aprobar una tasa en `portfolio.interest_rate` (CA‑5.01) | Feature del Módulo 5, con TI |
 
 ---
 
