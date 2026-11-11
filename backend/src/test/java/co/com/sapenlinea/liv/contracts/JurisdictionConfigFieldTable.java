@@ -8,6 +8,7 @@ import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.DAN
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.DANE_IN_LIST;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.DATE;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.DIVIPOLA;
+import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.ESTADO;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.FACTOR;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.FIELD_PATH;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.FRACTION;
@@ -15,10 +16,15 @@ import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.FRE
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.IDENTIFIER;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.INTEGER;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.MONTH_DAY;
+import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.RULE_OR_PENDING;
+import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.SECRET_REFERENCE;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.TECHNICAL_TEXT;
+import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.UVT_AMOUNT;
+import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.YEAR_OR_PENDING;
 
 import co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.FieldClass;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,7 +40,7 @@ final class JurisdictionConfigFieldTable {
 
   /** The table of each version. A version without an entry fails, never takes another's. */
   private static final Map<String, Map<String, FieldClass>> BY_VERSION =
-      Map.of("1.0", Map.copyOf(version10()));
+      Map.of("1.0", Map.copyOf(version10()), "1.1", Map.copyOf(version11()));
 
   private JurisdictionConfigFieldTable() {}
 
@@ -248,6 +254,97 @@ final class JurisdictionConfigFieldTable {
     JurisdictionConfigFieldClasses.closedLists("1.0")
         .forEach((path, values) ->
             put(classes, JurisdictionConfigFieldClasses.closedList(path, values), path));
+    return classes;
+  }
+
+  /**
+   * The table of the version 1.1 (feature 005, plan step 7): that of the 1.0, which the 1.1 keeps,
+   * except {@code archivo_banco.formato}, which neither configuration of the 1.1 has any more, plus
+   * the new fields of {@code recaudo} and {@code cartera}. The exceptions to the oracle (P2) are in
+   * {@link JurisdictionConfigSchemaMutationTest}; {@code formato_por_banco[]} has no entry because
+   * both lists are empty, and its keys are tested by the cases of {@code 1.1.casos.json}.
+   */
+  private static Map<String, FieldClass> version11() {
+    Map<String, FieldClass> classes = new HashMap<>(version10());
+    if (classes.remove("/recaudo/archivo_banco/formato") == null) {
+      throw new IllegalStateException("la tabla de la 1.0 ya no trae archivo_banco.formato");
+    }
+    put(classes, ESTADO, "/recaudo/estado_bancos");
+    put(
+        classes,
+        CODE,
+        "/recaudo/bancos[]/codigo",
+        "/recaudo/archivo_banco/formato_preferido",
+        "/recaudo/archivo_banco/formato_alterno",
+        "/recaudo/reporte_participacion_20/formato_propuesto",
+        "/recaudo/reporte_participacion_20/periodicidad",
+        "/cartera/intereses_mora/norma",
+        "/cartera/intereses_mora/tasa_referencia",
+        "/cartera/intereses_mora/formula",
+        "/cartera/intereses_mora/dias_anio",
+        "/cartera/intereses_mora/tramos",
+        "/cartera/intereses_mora/inicio",
+        "/cartera/intereses_mora/redondeo_causacion/empate",
+        "/cartera/sanciones/reglas[]/codigo",
+        "/cartera/sanciones/reglas[]/norma",
+        "/cartera/sanciones/reglas[]/aplica_si",
+        "/cartera/prescripcion/norma",
+        "/cartera/prescripcion/eventos_interrupcion[]",
+        "/cartera/prescripcion/reinicio",
+        "/cartera/prescripcion/eventos_suspension[]",
+        "/cartera/prescripcion/declaracion");
+    put(
+        classes,
+        FREE_TEXT,
+        "/recaudo/bancos[]/nombre",
+        "/recaudo/reporte_participacion_20/remitente",
+        "/cartera/prescripcion/competente");
+    put(
+        classes,
+        FRACTION,
+        "/cartera/intereses_mora/puntos_a_restar",
+        "/cartera/sanciones/reglas[]/tarifa_mes_o_fraccion",
+        "/cartera/sanciones/reglas[]/tope_sobre_impuesto");
+    put(
+        classes,
+        AMOUNT,
+        "/cartera/sanciones/uvt/valor",
+        "/cartera/cartera_historica/tolerancia_conciliacion_pesos");
+    put(classes, SECRET_REFERENCE, "/recaudo/bancos[]/cuenta_recaudo_ref");
+    put(classes, UVT_AMOUNT, "/cartera/sanciones/sancion_minima_uvt");
+    put(
+        classes,
+        INTEGER,
+        "/cartera/intereses_mora/redondeo_causacion/multiplo",
+        "/cartera/sanciones/uvt/vigencia",
+        "/cartera/prescripcion/anios",
+        "/cartera/prescripcion/semaforo_dias/rojo",
+        "/cartera/prescripcion/semaforo_dias/amarillo",
+        "/cartera/antiguedad/rangos_dias[]");
+    put(classes, YEAR_OR_PENDING, "/cartera/cartera_historica/vigencias_desde");
+    put(classes, RULE_OR_PENDING, "/cartera/sanciones/estatuto_territorial");
+    put(classes, DATE, "/cartera/cartera_historica/fecha_corte_migracion");
+    put(
+        classes,
+        BOOLEAN,
+        "/cartera/intereses_mora/sobre_sanciones",
+        "/cartera/intereses_mora/causacion_contable_mensual",
+        "/cartera/intereses_mora/bloquear_si_falta_tasa",
+        "/cartera/intereses_mora/obligatoria",
+        "/cartera/sanciones/requiere_acto_en_firme",
+        "/cartera/sanciones/reglas[]/activo",
+        "/cartera/prescripcion/obligatoria");
+    for (Map.Entry<String, List<String>> list :
+        JurisdictionConfigFieldClasses.closedLists("1.1").entrySet()) {
+      FieldClass fieldClass =
+          JurisdictionConfigFieldClasses.closedList(list.getKey(), list.getValue());
+      // The lists of the 1.0 are already there, and must be the same; the new ones are added.
+      FieldClass kept = classes.putIfAbsent(list.getKey(), fieldClass);
+      if (kept != null && !kept.equals(fieldClass)) {
+        throw new IllegalStateException(
+            "la lista cerrada cambia respecto de la 1.0: " + list.getKey());
+      }
+    }
     return classes;
   }
 

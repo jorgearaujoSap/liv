@@ -48,6 +48,7 @@ import tools.jackson.databind.node.ObjectNode;
 @Tag("004-06")
 @Tag("004-07")
 @Tag("004-08")
+@Tag("005-17")
 @DisplayName("Mutación de cada nodo de las configuraciones de prueba (004-01 a 004-08)")
 class JurisdictionConfigSchemaMutationTest {
 
@@ -56,35 +57,72 @@ class JurisdictionConfigSchemaMutationTest {
   private static final String MODALITIES = "/competencia/modalidades";
   private static final String CONVENIO = MODALITIES + "/CONVENIO_DEPTO/convenio";
 
-  /** What the oracle takes from the plan of a version, besides the general rule. */
-  private record Rules(Set<String> rootRequired, Set<String> nullAllowed) {}
+  /**
+   * What the oracle takes from the plan of a version, besides the general rule: the required
+   * sections of the root, the fields where null is valid and the exceptions to the general rule
+   * (P2), by the general path of the key: {@code optional} are not required although both
+   * configurations have them, and {@code required} are required although a configuration has no
+   * object to show them.
+   */
+  private record Rules(
+      Set<String> rootRequired,
+      Set<String> nullAllowed,
+      Set<String> optional,
+      Set<String> required) {}
+
+  private static final Set<String> ROOT_REQUIRED_10 =
+      Set.of(
+          "esquema_version",
+          "jurisdiccion",
+          "competencia",
+          "vigencia",
+          "normas",
+          "distribucion_recaudo");
+
+  private static final Set<String> NULL_ALLOWED_10 =
+      Set.of(
+          "/tarifas[]/rangos[]/hasta_inclusivo",
+          "/beneficios[]/tope_pesos",
+          "/beneficios[]/anios_desde_matricula",
+          "/jurisdiccion/departamento_padre_dane",
+          CONVENIO + "/numero",
+          CONVENIO + "/fecha_inicio",
+          CONVENIO + "/fecha_fin",
+          "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/dias",
+          "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/fecha",
+          "/calendario/vehiculos_nuevos/descuento/dias");
 
   /**
    * The rules of each version: the required sections of the root and the only fields where null is
    * valid. A version without an entry here fails, never gets the rules of another one.
+   *
+   * <p>The 1.1 keeps the sections and the nulls of the 1.0 and is compatible with it (005-18): the
+   * new keys of objects that already existed are optional, although both configurations have them.
+   * The keys of {@code bancos[]} are required although the template has the list empty (P2). {@code
+   * cartera} follows the general rule inside. {@code archivo_banco.formato} is in neither
+   * configuration of the 1.1, so the oracle never asks for it; that it is optional is tested by
+   * {@link JurisdictionConfigSchema11Test}.
    */
   private static final Map<String, Rules> RULES =
       Map.of(
           "1.0",
+          new Rules(ROOT_REQUIRED_10, NULL_ALLOWED_10, Set.of(), Set.of()),
+          "1.1",
           new Rules(
+              ROOT_REQUIRED_10,
+              NULL_ALLOWED_10,
               Set.of(
-                  "esquema_version",
-                  "jurisdiccion",
-                  "competencia",
-                  "vigencia",
-                  "normas",
-                  "distribucion_recaudo"),
+                  "/recaudo/bancos",
+                  "/recaudo/estado_bancos",
+                  "/recaudo/reporte_participacion_20",
+                  "/recaudo/archivo_banco/formato_preferido",
+                  "/recaudo/archivo_banco/formato_alterno",
+                  "/recaudo/archivo_banco/formato_por_banco",
+                  "/recaudo/archivo_banco/estado"),
               Set.of(
-                  "/tarifas[]/rangos[]/hasta_inclusivo",
-                  "/beneficios[]/tope_pesos",
-                  "/beneficios[]/anios_desde_matricula",
-                  "/jurisdiccion/departamento_padre_dane",
-                  CONVENIO + "/numero",
-                  CONVENIO + "/fecha_inicio",
-                  CONVENIO + "/fecha_fin",
-                  "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/dias",
-                  "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/fecha",
-                  "/calendario/vehiculos_nuevos/descuento/dias")));
+                  "/recaudo/bancos[]/codigo",
+                  "/recaudo/bancos[]/nombre",
+                  "/recaudo/bancos[]/cuenta_recaudo_ref")));
 
   static Stream<String> versions() {
     return CommonCases.versions().stream();
@@ -252,6 +290,13 @@ class JurisdictionConfigSchemaMutationTest {
     boolean required(String general, String key) {
       if (general.isEmpty()) {
         return rules.rootRequired().contains(key);
+      }
+      String path = general + "/" + key;
+      if (rules.optional().contains(path)) {
+        return false;
+      }
+      if (rules.required().contains(path)) {
+        return true;
       }
       if (general.equals(MODALITIES)) {
         return false;

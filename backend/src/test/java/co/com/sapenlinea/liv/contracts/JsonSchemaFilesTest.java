@@ -94,22 +94,35 @@ class JsonSchemaFilesTest {
 
   private static final String CALENDAR = "/properties/calendario/properties/vehiculos_nuevos";
 
+  private static final Set<String> ENUM_PATHS_1_0 =
+      Set.of(
+          "/$defs/estado",
+          "/properties/jurisdiccion/properties/tipo",
+          "/properties/base_gravable/properties/vehiculo_nuevo/properties/fuente_base",
+          "/properties/beneficios/items/properties/tipo",
+          "/properties/redondeo/properties/metodo",
+          CALENDAR + "/properties/plazo_pago_sin_intereses/properties/modo",
+          CALENDAR + "/properties/descuento/properties/modo",
+          "/properties/recaudo/properties/descuento_pago_parcial");
+
+  /**
+   * The closed lists that the version 1.1 adds in {@code cartera} (P3, P8 and the components of
+   * {@code intereses_mora.base}).
+   */
+  private static final Set<String> ENUM_PATHS_1_1_NEW =
+      Set.of(
+          "/properties/cartera/properties/prescripcion/properties/inicio_termino",
+          "/properties/cartera/properties/cartera_historica/properties/intereses_historicos",
+          "/properties/cartera/properties/sanciones/properties/sistema_determinacion",
+          "/properties/cartera/properties/intereses_mora/properties/redondeo_causacion/properties/metodo",
+          "/properties/cartera/properties/intereses_mora/properties/base/items");
+
   /**
    * Where enum may appear in each version: estado and the closed lists of 004-05, by their exact
    * path. A version without an entry fails, and never uses the places of another version.
    */
   private static final Map<String, Set<String>> ENUM_PATHS =
-      Map.of(
-          "1.0",
-          Set.of(
-              "/$defs/estado",
-              "/properties/jurisdiccion/properties/tipo",
-              "/properties/base_gravable/properties/vehiculo_nuevo/properties/fuente_base",
-              "/properties/beneficios/items/properties/tipo",
-              "/properties/redondeo/properties/metodo",
-              CALENDAR + "/properties/plazo_pago_sin_intereses/properties/modo",
-              CALENDAR + "/properties/descuento/properties/modo",
-              "/properties/recaudo/properties/descuento_pago_parcial"));
+      Map.of("1.0", ENUM_PATHS_1_0, "1.1", union(ENUM_PATHS_1_0, ENUM_PATHS_1_1_NEW));
 
   /** An enum value is a code, never a number or a tax value. */
   private static final Pattern ENUM_VALUE = Pattern.compile("[A-Z][A-Z0-9_]*");
@@ -127,6 +140,12 @@ class JsonSchemaFilesTest {
 
   /** The only value of a bound and, if not null, the only places where it may appear. */
   private record Bound(BigDecimal value, Set<String> places) {}
+
+  private static Set<String> union(Set<String> first, Set<String> second) {
+    Set<String> all = new TreeSet<>(first);
+    all.addAll(second);
+    return Set.copyOf(all);
+  }
 
   static Stream<Path> schemas() throws IOException {
     List<Path> schemas = new ArrayList<>();
