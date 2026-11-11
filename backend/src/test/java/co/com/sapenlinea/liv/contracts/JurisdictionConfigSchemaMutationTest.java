@@ -48,6 +48,7 @@ import tools.jackson.databind.node.ObjectNode;
 @Tag("004-06")
 @Tag("004-07")
 @Tag("004-08")
+@Tag("005-17")
 @DisplayName("Mutación de cada nodo de las configuraciones de prueba (004-01 a 004-08)")
 class JurisdictionConfigSchemaMutationTest {
 
@@ -115,8 +116,7 @@ class JurisdictionConfigSchemaMutationTest {
                   "/recaudo/archivo_banco/formato_preferido",
                   "/recaudo/archivo_banco/formato_alterno",
                   "/recaudo/archivo_banco/formato_por_banco",
-                  "/recaudo/archivo_banco/estado",
-                  "/recaudo/archivo_banco/formato"),
+                  "/recaudo/archivo_banco/estado"),
               Set.of(
                   "/recaudo/bancos[]/codigo",
                   "/recaudo/bancos[]/nombre",

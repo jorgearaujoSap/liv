@@ -91,7 +91,51 @@ class JurisdictionConfigSchema11Test {
       assertThat(errors(old, OLD)).as("1.0 · %s", name).containsExactly(FORMATO);
 
       assertThat(errors(withVersion(old, NEW))).as("1.1 · %s", name).isEmpty();
+      // With every published version, a configuration that says 1.0 is still judged by the 1.0.
+      assertThat(errors(withVersion(old, OLD)))
+          .as("1.0, todas las versiones · %s", name)
+          .containsExactly(FORMATO);
     }
+  }
+
+  @Test
+  @Tag("005-18")
+  @DisplayName("005-18 · la sección cartera no existe en la 1.0, aunque la 1.1 esté publicada")
+  void carteraIsNotPartOfThe10() {
+    ObjectNode configuration = TestConfigurations.load(NEW, IPIALES);
+    withVersion(configuration, OLD);
+    TestConfigurations.set(
+        configuration,
+        "/recaudo/archivo_banco",
+        NODES.objectNode().put("formato", "POR_CONFIRMAR").put("frecuencia", "DIARIA"));
+    TestConfigurations.remove(configuration, "/recaudo/bancos");
+    TestConfigurations.remove(configuration, "/recaudo/estado_bancos");
+    TestConfigurations.remove(configuration, "/recaudo/reporte_participacion_20");
+
+    assertThat(errors(configuration)).containsExactly("/cartera");
+  }
+
+  @Test
+  @Tag("005-17")
+  @DisplayName("005-17 · cada campo con clase nueva usa su definición, no la parecida")
+  void newClassesAreOnTheirFields() {
+    JsonNode schema =
+        CommonCases.EXACT.readTree(CommonCases.FOLDER.resolve(NEW + ".json").toFile());
+    String sanciones = "/properties/cartera/properties/sanciones/properties/";
+    String historica = "/properties/cartera/properties/cartera_historica/properties/";
+
+    // The UVT amount and the amount in pesos behave the same, so only the reference tells them
+    // apart.
+    assertThat(schema.at(sanciones + "sancion_minima_uvt/$ref").stringValue())
+        .isEqualTo("#/$defs/cantidad_uvt");
+    assertThat(schema.at(sanciones + "uvt/properties/valor/$ref").stringValue())
+        .isEqualTo("#/$defs/monto");
+    assertThat(schema.at(historica + "tolerancia_conciliacion_pesos/$ref").stringValue())
+        .isEqualTo("#/$defs/monto");
+    assertThat(schema.at(historica + "vigencias_desde/$ref").stringValue())
+        .isEqualTo("#/$defs/anio_o_pendiente");
+    assertThat(schema.at(sanciones + "estatuto_territorial/$ref").stringValue())
+        .isEqualTo("#/$defs/norma_o_pendiente");
   }
 
   static Stream<Arguments> mutationsOfThe10() {

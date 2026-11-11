@@ -18,6 +18,8 @@ import tools.jackson.databind.node.JsonNodeFactory;
  * and closed lists), not from the schema. Each class has probes, values with their expected result,
  * that {@link JurisdictionConfigSchemaMutationTest} writes in every field of that class. Paths use
  * {@code []} for any index; an item of a list of scalars is the path of the list plus {@code []}.
+ * The codes P2 to P18 in the comments are the decisions of the plan of the feature 005 ({@code
+ * spec/features/005-cartera-y-recaudo/plan.md}).
  */
 final class JurisdictionConfigFieldClasses {
 

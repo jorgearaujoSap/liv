@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:liv:jsonschema:config-jurisdiccion:1.1",
   "title": "Configuración de jurisdicción 1.1",
-  "description": "Forma del archivo YAML de configuración de jurisdicción y vigencia (Doc. 03 §5; features 004 y 005). Es compatible con la 1.0: todo lo nuevo es opcional, y una configuración válida en la 1.0 es válida en la 1.1 cambiando solo esquema_version. Agrega a recaudo los bancos (bancos, estado_bancos), los formatos del archivo del banco (formato_preferido, formato_alterno, formato_por_banco, estado) y reporte_participacion_20, vuelve opcional archivo_banco.formato y agrega la sección cartera (Doc. 05). Valida solo la forma (CJ01): qué secciones y campos hay, de qué tipo es cada uno, cuáles son obligatorios y qué valores admiten los campos cerrados. No fija valores tributarios. Las reglas CJ02 a CJ16 son del validador de la opción 1.5.9. Se aplica al árbol que da el cargador portable de YAML (sus casos están en 1.0.casos.json), que rechaza antes los caracteres de control. Esta versión es inmutable: un cambio es una versión nueva, en un archivo nuevo.",
+  "description": "Forma del archivo YAML de configuración de jurisdicción y vigencia (Doc. 03 §5; features 004 y 005). Es compatible con la 1.0: todo lo nuevo es opcional, y una configuración válida en la 1.0 es válida en la 1.1 cambiando solo esquema_version. Agrega a recaudo los bancos (bancos, estado_bancos), los formatos del archivo del banco (formato_preferido, formato_alterno, formato_por_banco, estado) y reporte_participacion_20, vuelve opcional archivo_banco.formato y agrega la sección cartera (Doc. 05). Valida solo la forma (CJ01): qué secciones y campos hay, de qué tipo es cada uno, cuáles son obligatorios y qué valores admiten los campos cerrados. No fija valores tributarios. Las reglas CJ02 a CJ16 son del validador de la opción 1.5.9. Se aplica al árbol que da el cargador portable de YAML (sus casos están en 1.1.casos.json), que rechaza antes los caracteres de control. Esta versión es inmutable: un cambio es una versión nueva, en un archivo nuevo.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -1270,7 +1270,7 @@
           ],
           "properties": {
             "formato": {
-              "description": "Texto libre de la 1.0. En la 1.1 es opcional y lo reemplazan formato_preferido, formato_alterno y formato_por_banco.",
+              "description": "Formato del archivo del banco como texto libre, de la 1.0. Es opcional y convive con formato_preferido, formato_alterno y formato_por_banco, que son los que usa la 1.1; si vienen ambos, vale formato_preferido.",
               "$ref": "#/$defs/texto_libre"
             },
             "formato_preferido": {
@@ -1823,6 +1823,7 @@
               "$ref": "#/$defs/codigo"
             },
             "competente": {
+              "description": "Dependencia y cargo que firma el acto, o PENDIENTE. Nunca el nombre de una persona.",
               "$ref": "#/$defs/texto_libre"
             },
             "obligatoria": {
