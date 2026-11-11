@@ -452,8 +452,8 @@ CA‑4.18 conserva su número (véase la nota de §12) y supone que cada banco y
 | 1a | Formato del archivo de recaudo y su precedencia por banco (§12.2) | **Pendiente:** proponer Asobancaria 2001 a los cuatro bancos; CSV canónico como alternativa. Confirmar con la especificación de Asobancaria la versión y la longitud de sus registros |
 | 1b | Cuentas de recaudo por banco, como referencia al gestor de secretos (`cuenta_recaudo_ref`) | Pendiente |
 | 1c | Estándar del código de barras del recibo (GS1‑128, por confirmar con los bancos) | Pendiente |
-| 1d | Campo `cuenta_recaudo` del archivo bancario, un dato restringido que llega en cada registro (`docs/arquitectura/02` §6) | **Pendiente** para la feature del Módulo 4, con esta orientación: no se guarda en claro; se compara con la referencia (`cuenta_recaudo_ref`) y se guarda enmascarado |
-| 1e | Clave de pago duplicado | **Resuelto:** banco + `numero_transaccion` cuando el archivo lo trae; si no, banco + referencia + fecha + valor (§4.2) |
+| 1d | Campo `cuenta_recaudo` del archivo bancario, un dato restringido que llega en cada registro (`docs/arquitectura/02` §6) | **Pendiente** para la feature del Módulo 4, con esta orientación: no se guarda en claro; se compara con la referencia (`cuenta_recaudo_ref`) y se guarda enmascarado. Falta definir cómo cubre esa orientación el archivo original inmutable y `bank_file_row.original_data` (ERD 2.2) |
+| 1e | Clave de pago duplicado | **Resuelto:** banco + `numero_transaccion` cuando el archivo lo trae; si no, banco + referencia + fecha + valor (§4.2). Siguen abiertos para la feature de la opción 4.2.2: dos pagos legítimos iguales el mismo día sin `numero_transaccion`, y un mismo pago reenviado en otro formato. El ERD 2.2 (`ledger.payment`) aún describe la clave anterior |
 | 2 | Formato del reporte del 20 % | **Pendiente:** enviar a la Gobernación el CSV de participación v1 propuesto |
 | 2a | Periodicidad del reporte del 20 % (propuesta: mensual) | Pendiente |
 | 3 | Imputación entre vigencias sin indicación | **Resuelto:** la más antigua primero (aprobado por el equipo; pendiente de revisión jurídica) |
