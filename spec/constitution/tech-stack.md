@@ -40,10 +40,10 @@ El entorno local completo con Docker Compose llega con F0‑06.
 
 - **Esquemas** — `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit` (ERD); un módulo de backend por esquema y un esquema por módulo.
 - **`administration_id`** — está en toda tabla con datos de una administración; activa la RLS y las FK compuestas impiden mezclar administraciones.
-- **Configuración de jurisdicción** — montos en pesos, tasas como fracción (`0.015` = 1,5 %), tablas del Ministerio en miles (`multiplicador_tablas: 1000`); validada por CJ01–CJ14 (Doc. 03 §5.4). Modalidades de competencia A, B, C; Ipiales empieza con A + C.
+- **Configuración de jurisdicción** — montos en pesos, tasas como fracción (`0.015` = 1,5 %), tablas del Ministerio en miles (`multiplicador_tablas: 1000`); validada por CJ01–CJ16 (Doc. 03 §5.4). Modalidades de competencia A, B, C; Ipiales empieza con A + C.
 - **Liquidación (`tax_assessment`)** — guarda `jurisdiction_config_id`, `rule_version`, la versión del catálogo y la traza de cálculo; puede terminar en `EXCEPCION` con un código `LQ-Exx`.
 - **Saldo de una obligación** — nunca se guarda: es `Σ signed_amount` de sus movimientos por componente (TAX / INTEREST / PENALTY).
-- **Códigos de regla** — `R0xx`, `F0xx`, `LQ-*`, `LM-xx`, `CJxx`, `CA-x.xx`: identifican cada regla en documentos, pruebas, errores de la API y comentarios del código.
+- **Códigos de regla** — `R0xx`, `F0xx`, `LQ-*`, `LM-xx`, `CJxx`, `CA-x.xx`, `OB-xx`, `RP-xx`, `IM-xx` (Doc. 04), `CH-xx`, `MO-xx`, `SA-xx`, `PS-xx` (Doc. 05): identifican cada regla en documentos, pruebas, errores de la API y comentarios del código.
 
 ## Convenciones
 

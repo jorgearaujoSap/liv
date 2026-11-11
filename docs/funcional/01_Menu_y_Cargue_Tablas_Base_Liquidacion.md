@@ -94,7 +94,7 @@ SISTEMA DE LIQUIDACIÓN DE IMPUESTO VEHICULAR
     ├── 9.1 Bitácora de eventos · 9.2 Integraciones externas (RUNT, bancos)
 ```
 
-> Los módulos 2 a 9 se detallarán en entregas posteriores. Aquí solo se fija su ubicación para que el diseño del módulo 1 sea consistente.
+> La opción 2.6 y los módulos 3 a 5 se detallan en los Docs. 02 a 05; los demás módulos se detallarán en entregas posteriores. Aquí solo se fija su ubicación para que el diseño del módulo 1 sea consistente.
 
 ---
 
