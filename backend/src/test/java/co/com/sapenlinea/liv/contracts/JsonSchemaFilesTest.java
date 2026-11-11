@@ -105,13 +105,14 @@ class JsonSchemaFilesTest {
           CALENDAR + "/properties/descuento/properties/modo",
           "/properties/recaudo/properties/descuento_pago_parcial");
 
-  /** The closed lists that the version 1.1 adds in {@code cartera} (P3 and P8). */
+  /** The closed lists that the version 1.1 adds in {@code cartera} (P3 and P8, and base). */
   private static final Set<String> ENUM_PATHS_1_1_NEW =
       Set.of(
           "/properties/cartera/properties/prescripcion/properties/inicio_termino",
           "/properties/cartera/properties/cartera_historica/properties/intereses_historicos",
           "/properties/cartera/properties/sanciones/properties/sistema_determinacion",
-          "/properties/cartera/properties/intereses_mora/properties/redondeo_causacion/properties/metodo");
+          "/properties/cartera/properties/intereses_mora/properties/redondeo_causacion/properties/metodo",
+          "/properties/cartera/properties/intereses_mora/properties/base/items");
 
   /**
    * Where enum may appear in each version: estado and the closed lists of 004-05, by their exact

@@ -200,6 +200,30 @@ final class JurisdictionConfigFieldClasses {
           no(integer(1)),
           no(bool(true)));
 
+  /**
+   * Version 1.1 (decision of the person on the PR 160): the reference to the secrets manager that
+   * holds a bank account, or PENDIENTE. An identifier that starts with a letter, so it can never be
+   * an account number.
+   */
+  static final FieldClass SECRET_REFERENCE =
+      of(
+          "referencia al gestor de secretos",
+          ok(text("davivienda_recaudo")),
+          ok(text("cuenta2")),
+          ok(text("PENDIENTE")),
+          no(text("0550488812345678")),
+          no(text("0550-4888-1234-5678")),
+          no(text("1234567890")),
+          no(text("1davivienda")),
+          no(text("Cta corriente 055048881234")),
+          no(text("DAVIVIENDA_RECAUDO")),
+          no(text("davivienda-recaudo")),
+          no(text("davivienda/recaudo")),
+          no(text("pendiente")),
+          no(text("POR_CONFIRMAR")),
+          no(text("")),
+          no(integer(1234567890)));
+
   /** Version 1.1 (P8): an amount in UVT, a number >= 0 that is never PENDIENTE. */
   static final FieldClass UVT_AMOUNT =
       of(
@@ -236,8 +260,8 @@ final class JurisdictionConfigFieldClasses {
           Map.entry("/recaudo/descuento_pago_parcial", List.of("NO_APLICA", "PROPORCIONAL")));
 
   /**
-   * The closed lists of the version 1.1: those of the 1.0, which it keeps, and the four of {@code
-   * cartera} (P3 and P8).
+   * The closed lists of the version 1.1: those of the 1.0, which it keeps, and the five of {@code
+   * cartera} (P3 and P8, and the components of {@code intereses_mora.base}).
    */
   private static final Map<String, List<String>> CLOSED_LISTS_1_1 =
       merge(
@@ -257,7 +281,8 @@ final class JurisdictionConfigFieldClasses {
                       "FECHA_PRESENTACION_DECLARACION")),
               Map.entry(
                   "/cartera/cartera_historica/intereses_historicos",
-                  List.of("RECALCULAR", "TOMAR_DEL_LEGADO"))));
+                  List.of("RECALCULAR", "TOMAR_DEL_LEGADO")),
+              Map.entry("/cartera/intereses_mora/base[]", List.of("TAX", "INTEREST", "PENALTY"))));
 
   /** The closed lists of each version. A version without an entry fails, never takes another's. */
   private static final Map<String, Map<String, List<String>>> CLOSED_LISTS =

@@ -136,6 +136,12 @@ class JurisdictionConfigSchema11Test {
         .isEqualTo("#/$defs/anio_o_pendiente");
     assertThat(schema.at(sanciones + "estatuto_territorial/$ref").stringValue())
         .isEqualTo("#/$defs/norma_o_pendiente");
+    assertThat(
+            schema
+                .at(
+                    "/properties/recaudo/properties/bancos/items/properties/cuenta_recaudo_ref/$ref")
+                .stringValue())
+        .isEqualTo("#/$defs/referencia_secreto");
   }
 
   static Stream<Arguments> mutationsOfThe10() {

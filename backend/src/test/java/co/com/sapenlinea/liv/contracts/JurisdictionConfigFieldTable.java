@@ -17,6 +17,7 @@ import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.IDE
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.INTEGER;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.MONTH_DAY;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.RULE_OR_PENDING;
+import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.SECRET_REFERENCE;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.TECHNICAL_TEXT;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.UVT_AMOUNT;
 import static co.com.sapenlinea.liv.contracts.JurisdictionConfigFieldClasses.YEAR_OR_PENDING;
@@ -283,7 +284,6 @@ final class JurisdictionConfigFieldTable {
         "/cartera/intereses_mora/dias_anio",
         "/cartera/intereses_mora/tramos",
         "/cartera/intereses_mora/inicio",
-        "/cartera/intereses_mora/base[]",
         "/cartera/intereses_mora/redondeo_causacion/empate",
         "/cartera/sanciones/reglas[]/codigo",
         "/cartera/sanciones/reglas[]/norma",
@@ -297,7 +297,6 @@ final class JurisdictionConfigFieldTable {
         classes,
         FREE_TEXT,
         "/recaudo/bancos[]/nombre",
-        "/recaudo/bancos[]/cuenta_recaudo_ref",
         "/recaudo/reporte_participacion_20/remitente",
         "/cartera/prescripcion/competente");
     put(
@@ -311,6 +310,7 @@ final class JurisdictionConfigFieldTable {
         AMOUNT,
         "/cartera/sanciones/uvt/valor",
         "/cartera/cartera_historica/tolerancia_conciliacion_pesos");
+    put(classes, SECRET_REFERENCE, "/recaudo/bancos[]/cuenta_recaudo_ref");
     put(classes, UVT_AMOUNT, "/cartera/sanciones/sancion_minima_uvt");
     put(
         classes,
