@@ -20,8 +20,9 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * The portable YAML subset of the jurisdiction configuration (feature 004, plan "Subconjunto
- * portable de YAML"; ADR 0032), run over the load cases of {@code 1.0.casos.json}, which the root
- * validator also runs. The rules and their order are in the {@code $comment} of that file.
+ * portable de YAML"; ADR 0032), run over the load cases of every {@code <version>.casos.json},
+ * which the root validator also runs. The loader is one for all versions (ADR 0034), so it has to
+ * pass the cases of all of them. The rules and their order are in the {@code $comment} of 1.0.
  */
 @Tag("004-10")
 @DisplayName("Carga segura del YAML de la configuración de jurisdicción (004-10)")
@@ -36,11 +37,7 @@ class SafeYamlLoaderTest {
   }
 
   private static Stream<Arguments> cases(boolean accepted) {
-    return CommonCases.load("1.0")
-        .withArray("carga")
-        .valueStream()
-        .filter(c -> c.get("aceptado").booleanValue() == accepted)
-        .map(c -> Arguments.of(c.get("caso").stringValue(), c));
+    return CommonCases.cases("carga", c -> c.get("aceptado").booleanValue() == accepted);
   }
 
   /** The YAML of a case: its text, repeated when the case says so (a file too big to write). */
@@ -49,9 +46,9 @@ class SafeYamlLoaderTest {
     return testCase.get("yaml").stringValue().repeat(times);
   }
 
-  @ParameterizedTest(name = "004-10 · se acepta: {0}")
+  @ParameterizedTest(name = "004-10 · [{0}] se acepta: {1}")
   @MethodSource("accepted")
-  void acceptsThePortableSubset(String name, JsonNode testCase) {
+  void acceptsThePortableSubset(String version, String name, JsonNode testCase) {
     JsonNode tree = SafeYamlLoader.load(yaml(testCase));
 
     // A repeated case has no tree: it is too big to write, and only its acceptance counts.
@@ -60,9 +57,9 @@ class SafeYamlLoaderTest {
     }
   }
 
-  @ParameterizedTest(name = "004-10 · se rechaza: {0}")
+  @ParameterizedTest(name = "004-10 · [{0}] se rechaza: {1}")
   @MethodSource("rejected")
-  void rejectsEverythingElse(String name, JsonNode testCase) {
+  void rejectsEverythingElse(String version, String name, JsonNode testCase) {
     String yaml = yaml(testCase);
 
     assertThatThrownBy(() -> SafeYamlLoader.load(yaml))

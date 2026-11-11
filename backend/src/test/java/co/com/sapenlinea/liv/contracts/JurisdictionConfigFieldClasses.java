@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.BigIntegerNode;
 import tools.jackson.databind.node.DecimalNode;
@@ -169,37 +170,66 @@ final class JurisdictionConfigFieldClasses {
           no(text("PENDIENTE")));
   static final FieldClass ESTADO = closed("estado", "VIGENTE", "POR_CONFIRMAR", "PENDIENTE");
 
-  /** The closed lists of 004-05, by field, with their exact values. */
-  static final Map<String, List<String>> CLOSED_LISTS =
-      Map.of(
-          "/jurisdiccion/tipo",
-              List.of("DEPARTAMENTO", "DISTRITO_CAPITAL", "DISTRITO", "MUNICIPIO"),
-          "/base_gravable/vehiculo_nuevo/fuente_base",
-              List.of("FACTURA", "DECLARACION_IMPORTACION"),
-          "/beneficios[]/tipo", List.of("DESCUENTO_PORCENTUAL", "EXENCION_TOTAL", "VALOR_FIJO"),
-          "/redondeo/metodo", List.of("MULTIPLO_MAS_CERCANO", "MULTIPLO_SUPERIOR", "SIN_REDONDEO"),
-          "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/modo",
-              List.of("FIN_DE_VIGENCIA", "DIAS_DESDE_CAUSACION", "FECHA_FIJA"),
-          "/calendario/vehiculos_nuevos/descuento/modo",
-              List.of("NO_APLICA", "DIAS_DESDE_CAUSACION"),
-          "/recaudo/descuento_pago_parcial", List.of("NO_APLICA", "PROPORCIONAL"));
+  /** The closed lists of 004-05 in the version 1.0, by field, with their exact values. */
+  private static final Map<String, List<String>> CLOSED_LISTS_1_0 =
+      Map.ofEntries(
+          Map.entry(
+              "/jurisdiccion/tipo",
+              List.of("DEPARTAMENTO", "DISTRITO_CAPITAL", "DISTRITO", "MUNICIPIO")),
+          Map.entry(
+              "/base_gravable/vehiculo_nuevo/fuente_base",
+              List.of("FACTURA", "DECLARACION_IMPORTACION")),
+          Map.entry(
+              "/beneficios[]/tipo",
+              List.of("DESCUENTO_PORCENTUAL", "EXENCION_TOTAL", "VALOR_FIJO")),
+          Map.entry(
+              "/redondeo/metodo",
+              List.of("MULTIPLO_MAS_CERCANO", "MULTIPLO_SUPERIOR", "SIN_REDONDEO")),
+          Map.entry(
+              "/calendario/vehiculos_nuevos/plazo_pago_sin_intereses/modo",
+              List.of("FIN_DE_VIGENCIA", "DIAS_DESDE_CAUSACION", "FECHA_FIJA")),
+          Map.entry(
+              "/calendario/vehiculos_nuevos/descuento/modo",
+              List.of("NO_APLICA", "DIAS_DESDE_CAUSACION")),
+          Map.entry("/recaudo/descuento_pago_parcial", List.of("NO_APLICA", "PROPORCIONAL")));
+
+  /** The closed lists of each version. A version without an entry fails, never takes another's. */
+  private static final Map<String, Map<String, List<String>>> CLOSED_LISTS =
+      Map.of("1.0", CLOSED_LISTS_1_0);
 
   private JurisdictionConfigFieldClasses() {}
 
+  /** The versions that have closed lists. */
+  static Set<String> versions() {
+    return CLOSED_LISTS.keySet();
+  }
+
+  /** The closed lists of 004-05 of a version, by field, with their exact values. */
+  static Map<String, List<String>> closedLists(String version) {
+    Map<String, List<String>> lists = CLOSED_LISTS.get(version);
+    if (lists == null) {
+      throw new IllegalArgumentException("no hay listas cerradas de la versión " + version);
+    }
+    return lists;
+  }
+
   /**
-   * The class of a field, or null if the plan gives it none ({@code esquema_version}, which has its
-   * own tests). Every {@code estado} has the class estado.
+   * The class of a field in a version, or null if the plan gives it none ({@code esquema_version},
+   * which has its own tests). Every {@code estado} has the class estado.
    */
-  static FieldClass of(String generalPath) {
+  static FieldClass of(String version, String generalPath) {
     if (generalPath.endsWith("/estado")) {
       return ESTADO;
     }
-    return JurisdictionConfigFieldTable.CLASSES.get(generalPath);
+    return JurisdictionConfigFieldTable.classes(version).get(generalPath);
   }
 
-  /** Every classified field, to check that the configurations have no field without a class. */
-  static Map<String, FieldClass> all() {
-    return Map.copyOf(JurisdictionConfigFieldTable.CLASSES);
+  /**
+   * Every classified field of a version, to check that the configurations have no field without a
+   * class.
+   */
+  static Map<String, FieldClass> all(String version) {
+    return Map.copyOf(JurisdictionConfigFieldTable.classes(version));
   }
 
   /** The class of a closed list of 004-05, with its documented values. */
