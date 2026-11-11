@@ -1,0 +1,2015 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:liv:jsonschema:config-jurisdiccion:1.1",
+  "title": "Configuración de jurisdicción 1.1",
+  "description": "Forma del archivo YAML de configuración de jurisdicción y vigencia (Doc. 03 §5; features 004 y 005). Es compatible con la 1.0: todo lo nuevo es opcional, y una configuración válida en la 1.0 es válida en la 1.1 cambiando solo esquema_version. Agrega a recaudo los bancos (bancos, estado_bancos), los formatos del archivo del banco (formato_preferido, formato_alterno, formato_por_banco, estado) y reporte_participacion_20, vuelve opcional archivo_banco.formato y agrega la sección cartera (Doc. 05). Valida solo la forma (CJ01): qué secciones y campos hay, de qué tipo es cada uno, cuáles son obligatorios y qué valores admiten los campos cerrados. No fija valores tributarios. Las reglas CJ02 a CJ16 son del validador de la opción 1.5.9. Se aplica al árbol que da el cargador portable de YAML (sus casos están en 1.0.casos.json), que rechaza antes los caracteres de control. Esta versión es inmutable: un cambio es una versión nueva, en un archivo nuevo.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "esquema_version",
+    "jurisdiccion",
+    "competencia",
+    "vigencia",
+    "normas",
+    "distribucion_recaudo"
+  ],
+  "properties": {
+    "esquema_version": {
+      "type": "string",
+      "const": "1.1"
+    },
+    "jurisdiccion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tipo",
+        "codigo_dane",
+        "nombre",
+        "departamento_padre_dane",
+        "administracion",
+        "estado"
+      ],
+      "properties": {
+        "tipo": {
+          "type": "string",
+          "enum": [
+            "DEPARTAMENTO",
+            "DISTRITO_CAPITAL",
+            "DISTRITO",
+            "MUNICIPIO"
+          ]
+        },
+        "codigo_dane": {
+          "$ref": "#/$defs/dane"
+        },
+        "codigo_divipola_8": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{8}(?![\\s\\S])"
+            },
+            {
+              "$ref": "#/$defs/pendiente"
+            }
+          ]
+        },
+        "nombre": {
+          "$ref": "#/$defs/texto_libre"
+        },
+        "departamento": {
+          "$ref": "#/$defs/texto_libre"
+        },
+        "departamento_padre_dane": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{2}(?![\\s\\S])"
+            },
+            {
+              "$ref": "#/$defs/pendiente"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "zona_frontera": {
+          "type": "boolean"
+        },
+        "administracion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nombre",
+            "nit"
+          ],
+          "properties": {
+            "nombre": {
+              "$ref": "#/$defs/texto_libre"
+            },
+            "nit": {
+              "$ref": "#/$defs/texto_libre"
+            }
+          }
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "competencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modalidades",
+        "estado"
+      ],
+      "properties": {
+        "modalidades": {
+          "description": "Modalidades de Doc. 03 §9.5. Ninguna es obligatoria; qué combinaciones valen lo decide CJ12.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "UEDF_INTERNACION": {
+              "description": "A: liquida solo los vehículos internados temporalmente.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "activa",
+                "liquida",
+                "universo",
+                "ajuste_base",
+                "requiere",
+                "distribucion",
+                "norma"
+              ],
+              "properties": {
+                "activa": {
+                  "type": "boolean"
+                },
+                "liquida": {
+                  "type": "boolean"
+                },
+                "universo": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "ajuste_base": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "requiere": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "jurisdiccion.zona_frontera"
+                  ],
+                  "properties": {
+                    "jurisdiccion.zona_frontera": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "distribucion": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "beneficiario",
+                      "porcentaje"
+                    ],
+                    "properties": {
+                      "beneficiario": {
+                        "$ref": "#/$defs/codigo"
+                      },
+                      "porcentaje": {
+                        "$ref": "#/$defs/fraccion"
+                      }
+                    }
+                  }
+                },
+                "norma": {
+                  "$ref": "#/$defs/codigo"
+                }
+              }
+            },
+            "CONVENIO_DEPTO": {
+              "description": "B: liquida también los matriculados, por convenio con el departamento.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "activa",
+                "liquida",
+                "universo",
+                "convenio",
+                "distribucion",
+                "norma"
+              ],
+              "properties": {
+                "activa": {
+                  "type": "boolean"
+                },
+                "liquida": {
+                  "type": "boolean"
+                },
+                "universo": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "convenio": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "numero",
+                    "fecha_inicio",
+                    "fecha_fin",
+                    "periodicidad_giro_departamento"
+                  ],
+                  "properties": {
+                    "numero": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/texto_libre"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fecha_inicio": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/fecha"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fecha_fin": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/fecha"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "periodicidad_giro_departamento": {
+                      "$ref": "#/$defs/codigo"
+                    }
+                  }
+                },
+                "distribucion": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "beneficiario",
+                      "porcentaje",
+                      "tratamiento"
+                    ],
+                    "properties": {
+                      "beneficiario": {
+                        "$ref": "#/$defs/codigo"
+                      },
+                      "porcentaje": {
+                        "$ref": "#/$defs/fraccion"
+                      },
+                      "tratamiento": {
+                        "$ref": "#/$defs/codigo"
+                      }
+                    }
+                  }
+                },
+                "norma": {
+                  "$ref": "#/$defs/codigo"
+                }
+              }
+            },
+            "PARTICIPACION_20": {
+              "description": "C: no liquida; controla la participación que recibe.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "activa",
+                "liquida",
+                "universo",
+                "fuente_informacion",
+                "control",
+                "distribucion",
+                "norma"
+              ],
+              "properties": {
+                "activa": {
+                  "type": "boolean"
+                },
+                "liquida": {
+                  "type": "boolean"
+                },
+                "universo": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "fuente_informacion": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "control": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "distribucion": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "beneficiario",
+                      "porcentaje",
+                      "tratamiento"
+                    ],
+                    "properties": {
+                      "beneficiario": {
+                        "$ref": "#/$defs/codigo"
+                      },
+                      "porcentaje": {
+                        "$ref": "#/$defs/fraccion"
+                      },
+                      "tratamiento": {
+                        "$ref": "#/$defs/codigo"
+                      }
+                    }
+                  }
+                },
+                "norma": {
+                  "$ref": "#/$defs/codigo"
+                }
+              }
+            },
+            "ADMINISTRACION_DIRECTA": {
+              "description": "D: liquida los matriculados; qué tipos de jurisdicción la pueden activar lo decide CJ12.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "activa"
+              ],
+              "properties": {
+                "activa": {
+                  "type": "boolean"
+                },
+                "liquida": {
+                  "type": "boolean"
+                },
+                "universo": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "distribucion": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "beneficiario": {
+                        "$ref": "#/$defs/codigo"
+                      },
+                      "porcentaje": {
+                        "$ref": "#/$defs/fraccion"
+                      }
+                    }
+                  }
+                },
+                "norma": {
+                  "$ref": "#/$defs/codigo"
+                }
+              }
+            }
+          }
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "vigencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anio",
+        "inicio",
+        "fin",
+        "version_config"
+      ],
+      "properties": {
+        "anio": {
+          "$ref": "#/$defs/entero"
+        },
+        "inicio": {
+          "$ref": "#/$defs/fecha"
+        },
+        "fin": {
+          "$ref": "#/$defs/fecha"
+        },
+        "version_config": {
+          "$ref": "#/$defs/entero"
+        }
+      }
+    },
+    "normas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "tipo",
+          "numero",
+          "descripcion",
+          "estado"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/codigo"
+          },
+          "tipo": {
+            "$ref": "#/$defs/codigo"
+          },
+          "numero": {
+            "$ref": "#/$defs/texto_libre"
+          },
+          "fecha": {
+            "$ref": "#/$defs/fecha"
+          },
+          "autoridad": {
+            "$ref": "#/$defs/texto_libre"
+          },
+          "descripcion": {
+            "$ref": "#/$defs/texto_libre"
+          },
+          "estado": {
+            "$ref": "#/$defs/estado"
+          }
+        }
+      }
+    },
+    "base_gravable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalogo_ministerio",
+        "vehiculo_nuevo",
+        "reglas_ubicacion",
+        "ajustes",
+        "orden_ajustes"
+      ],
+      "properties": {
+        "catalogo_ministerio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "norma",
+            "multiplicador_tablas",
+            "llave_referencia",
+            "columna_anio_base",
+            "anio_base",
+            "tablas",
+            "estado"
+          ],
+          "properties": {
+            "norma": {
+              "$ref": "#/$defs/codigo"
+            },
+            "multiplicador_tablas": {
+              "$ref": "#/$defs/entero"
+            },
+            "llave_referencia": {
+              "$ref": "#/$defs/codigo"
+            },
+            "columna_anio_base": {
+              "$ref": "#/$defs/texto_tecnico"
+            },
+            "anio_base": {
+              "$ref": "#/$defs/entero"
+            },
+            "tablas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "numero",
+                  "nombre",
+                  "atributos"
+                ],
+                "properties": {
+                  "numero": {
+                    "$ref": "#/$defs/entero"
+                  },
+                  "nombre": {
+                    "$ref": "#/$defs/texto_tecnico"
+                  },
+                  "atributos": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/identificador"
+                    }
+                  },
+                  "unidad_potencia": {
+                    "$ref": "#/$defs/codigo"
+                  },
+                  "unidad_potencia_electricos": {
+                    "$ref": "#/$defs/codigo"
+                  }
+                }
+              }
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "vehiculo_nuevo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fuente_base",
+            "incluye_iva",
+            "estado"
+          ],
+          "properties": {
+            "fuente_base": {
+              "type": "string",
+              "enum": [
+                "FACTURA",
+                "DECLARACION_IMPORTACION"
+              ]
+            },
+            "incluye_iva": {
+              "type": "boolean"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "reglas_ubicacion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "modelo_igual_o_anterior_anio_base",
+            "aproximacion_cilindraje",
+            "no_incluido_en_tablas",
+            "autoliquidacion_superior_voluntaria",
+            "vigencias_anteriores"
+          ],
+          "properties": {
+            "modelo_igual_o_anterior_anio_base": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "usar_columna",
+                "linea_no_encontrada",
+                "estado"
+              ],
+              "properties": {
+                "usar_columna": {
+                  "$ref": "#/$defs/texto_tecnico"
+                },
+                "linea_no_encontrada": {
+                  "$ref": "#/$defs/identificador"
+                },
+                "estado": {
+                  "$ref": "#/$defs/estado"
+                }
+              }
+            },
+            "aproximacion_cilindraje": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "aplica_cuando",
+                "metodo",
+                "umbral_redondeo_superior",
+                "estado"
+              ],
+              "properties": {
+                "aplica_cuando": {
+                  "$ref": "#/$defs/identificador"
+                },
+                "metodo": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "umbral_redondeo_superior": {
+                  "$ref": "#/$defs/entero"
+                },
+                "estado": {
+                  "$ref": "#/$defs/estado"
+                }
+              }
+            },
+            "no_incluido_en_tablas": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "metodo",
+                "requiere_aprobacion_segundo_usuario",
+                "reportar_a_sibga",
+                "estado"
+              ],
+              "properties": {
+                "metodo": {
+                  "$ref": "#/$defs/codigo"
+                },
+                "requiere_aprobacion_segundo_usuario": {
+                  "type": "boolean"
+                },
+                "reportar_a_sibga": {
+                  "type": "boolean"
+                },
+                "estado": {
+                  "$ref": "#/$defs/estado"
+                }
+              }
+            },
+            "autoliquidacion_superior_voluntaria": {
+              "type": "boolean"
+            },
+            "vigencias_anteriores": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "permite_modificar_base_publicada",
+                "no_incluido"
+              ],
+              "properties": {
+                "permite_modificar_base_publicada": {
+                  "type": "boolean"
+                },
+                "no_incluido": {
+                  "$ref": "#/$defs/codigo"
+                }
+              }
+            }
+          }
+        },
+        "ajustes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codigo",
+              "factor",
+              "norma",
+              "articulo",
+              "estado"
+            ],
+            "properties": {
+              "codigo": {
+                "$ref": "#/$defs/codigo"
+              },
+              "factor": {
+                "$ref": "#/$defs/factor"
+              },
+              "sobre": {
+                "$ref": "#/$defs/codigo"
+              },
+              "norma": {
+                "$ref": "#/$defs/codigo"
+              },
+              "articulo": {
+                "$ref": "#/$defs/texto_tecnico"
+              },
+              "aplica_solo_dane": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/dane_lista"
+                }
+              },
+              "estado": {
+                "$ref": "#/$defs/estado"
+              }
+            }
+          }
+        },
+        "orden_ajustes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codigo"
+          }
+        }
+      }
+    },
+    "sujecion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_gravados",
+        "motos_electricas_criterio_sujecion",
+        "servicio_publico",
+        "estado"
+      ],
+      "properties": {
+        "no_gravados": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codigo"
+            ],
+            "properties": {
+              "codigo": {
+                "$ref": "#/$defs/codigo"
+              },
+              "clases": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/codigo"
+                }
+              },
+              "cilindraje_max": {
+                "$ref": "#/$defs/entero"
+              },
+              "excepto_si": {
+                "$ref": "#/$defs/ruta"
+              }
+            }
+          }
+        },
+        "motos_electricas_criterio_sujecion": {
+          "$ref": "#/$defs/texto_libre"
+        },
+        "servicio_publico": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gravado",
+            "municipios_donde_esta_gravado",
+            "estado"
+          ],
+          "properties": {
+            "gravado": {
+              "type": "boolean"
+            },
+            "municipios_donde_esta_gravado": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/dane_lista"
+              }
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "categorias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estado",
+        "reglas"
+      ],
+      "properties": {
+        "estado": {
+          "$ref": "#/$defs/estado"
+        },
+        "reglas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codigo",
+              "si"
+            ],
+            "properties": {
+              "codigo": {
+                "$ref": "#/$defs/codigo"
+              },
+              "si": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "tecnologia": {
+                    "$ref": "#/$defs/codigo"
+                  },
+                  "tabla": {
+                    "$ref": "#/$defs/entero"
+                  },
+                  "servicio": {
+                    "$ref": "#/$defs/codigo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tarifas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categoria",
+          "rangos",
+          "estado"
+        ],
+        "properties": {
+          "categoria": {
+            "$ref": "#/$defs/codigo"
+          },
+          "norma": {
+            "$ref": "#/$defs/codigo"
+          },
+          "tarifa_maxima": {
+            "$ref": "#/$defs/fraccion"
+          },
+          "rangos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "desde_exclusivo",
+                "hasta_inclusivo",
+                "tarifa"
+              ],
+              "properties": {
+                "desde_exclusivo": {
+                  "$ref": "#/$defs/monto"
+                },
+                "hasta_inclusivo": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/monto"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tarifa": {
+                  "$ref": "#/$defs/fraccion"
+                }
+              }
+            }
+          },
+          "estado": {
+            "$ref": "#/$defs/estado"
+          }
+        }
+      }
+    },
+    "conservacion_tarifa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activa",
+        "estado"
+      ],
+      "properties": {
+        "activa": {
+          "type": "boolean"
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "causacion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "general",
+        "vehiculo_nuevo",
+        "proporcionalidad_nuevos"
+      ],
+      "properties": {
+        "general": {
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(?![\\s\\S])"
+        },
+        "vehiculo_nuevo": {
+          "$ref": "#/$defs/codigo"
+        },
+        "proporcionalidad_nuevos": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "activa",
+            "fraccion_mes_cuenta_completo",
+            "formula_meses",
+            "estado"
+          ],
+          "properties": {
+            "activa": {
+              "type": "boolean"
+            },
+            "fraccion_mes_cuenta_completo": {
+              "type": "boolean"
+            },
+            "formula_meses": {
+              "$ref": "#/$defs/texto_tecnico"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        }
+      }
+    },
+    "calendario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "norma",
+        "grupos",
+        "inicio_mora",
+        "descuento_pronto_pago",
+        "vehiculos_nuevos",
+        "obligatoria",
+        "estado"
+      ],
+      "properties": {
+        "norma": {
+          "$ref": "#/$defs/codigo"
+        },
+        "grupos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "grupo",
+              "fecha_inicio_pago",
+              "fecha_limite_descuento",
+              "fecha_limite_pago_sin_intereses"
+            ],
+            "properties": {
+              "grupo": {
+                "$ref": "#/$defs/codigo"
+              },
+              "fecha_inicio_pago": {
+                "$ref": "#/$defs/fecha"
+              },
+              "fecha_limite_descuento": {
+                "$ref": "#/$defs/fecha"
+              },
+              "fecha_limite_pago_sin_intereses": {
+                "$ref": "#/$defs/fecha"
+              }
+            }
+          }
+        },
+        "inicio_mora": {
+          "$ref": "#/$defs/codigo"
+        },
+        "descuento_pronto_pago": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tarifa",
+            "base",
+            "resultado_redondeado"
+          ],
+          "properties": {
+            "tarifa": {
+              "$ref": "#/$defs/fraccion"
+            },
+            "base": {
+              "$ref": "#/$defs/codigo"
+            },
+            "resultado_redondeado": {
+              "type": "boolean"
+            }
+          }
+        },
+        "vehiculos_nuevos": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "causacion_hasta_limite_general",
+            "plazo_pago_sin_intereses",
+            "descuento"
+          ],
+          "properties": {
+            "causacion_hasta_limite_general": {
+              "$ref": "#/$defs/codigo"
+            },
+            "plazo_pago_sin_intereses": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "modo",
+                "dias",
+                "fecha"
+              ],
+              "properties": {
+                "modo": {
+                  "type": "string",
+                  "enum": [
+                    "FIN_DE_VIGENCIA",
+                    "DIAS_DESDE_CAUSACION",
+                    "FECHA_FIJA"
+                  ]
+                },
+                "dias": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/entero"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fecha": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/fecha"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "descuento": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "modo",
+                "dias"
+              ],
+              "properties": {
+                "modo": {
+                  "type": "string",
+                  "enum": [
+                    "NO_APLICA",
+                    "DIAS_DESDE_CAUSACION"
+                  ]
+                },
+                "dias": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/entero"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "obligatoria": {
+          "type": "boolean"
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "beneficios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "activo",
+          "tipo",
+          "tasa",
+          "aplica_a",
+          "anios_desde_matricula",
+          "tope_pesos",
+          "norma",
+          "estado"
+        ],
+        "properties": {
+          "codigo": {
+            "$ref": "#/$defs/codigo"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "DESCUENTO_PORCENTUAL",
+              "EXENCION_TOTAL",
+              "VALOR_FIJO"
+            ]
+          },
+          "tasa": {
+            "$ref": "#/$defs/fraccion"
+          },
+          "aplica_a": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "categoria"
+            ],
+            "properties": {
+              "categoria": {
+                "$ref": "#/$defs/codigo"
+              }
+            }
+          },
+          "anios_desde_matricula": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/entero"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tope_pesos": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/monto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "norma": {
+            "$ref": "#/$defs/codigo"
+          },
+          "estado": {
+            "$ref": "#/$defs/estado"
+          }
+        }
+      }
+    },
+    "redondeo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "momento",
+        "metodo",
+        "multiplo",
+        "obligatoria",
+        "estado"
+      ],
+      "properties": {
+        "momento": {
+          "$ref": "#/$defs/codigo"
+        },
+        "metodo": {
+          "type": "string",
+          "enum": [
+            "MULTIPLO_MAS_CERCANO",
+            "MULTIPLO_SUPERIOR",
+            "SIN_REDONDEO"
+          ]
+        },
+        "multiplo": {
+          "$ref": "#/$defs/entero"
+        },
+        "empate": {
+          "$ref": "#/$defs/codigo"
+        },
+        "aplica_a": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codigo"
+          }
+        },
+        "obligatoria": {
+          "type": "boolean"
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "distribucion_recaudo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origen",
+        "estado"
+      ],
+      "properties": {
+        "origen": {
+          "$ref": "#/$defs/codigo"
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "recaudo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canales",
+        "recibo_pago",
+        "archivo_banco",
+        "imputacion",
+        "descuento_pago_parcial",
+        "saldo_a_favor",
+        "distribucion",
+        "estado"
+      ],
+      "properties": {
+        "canales": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codigo"
+          }
+        },
+        "bancos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codigo",
+              "nombre",
+              "cuenta_recaudo_ref"
+            ],
+            "properties": {
+              "codigo": {
+                "$ref": "#/$defs/codigo"
+              },
+              "nombre": {
+                "$ref": "#/$defs/texto_libre"
+              },
+              "cuenta_recaudo_ref": {
+                "description": "Referencia opaca al gestor de secretos donde está la cuenta de recaudo, o PENDIENTE. Nunca el número de cuenta.",
+                "$ref": "#/$defs/texto_libre"
+              }
+            }
+          },
+          "description": "Bancos con convenio de recaudo. La lista vacía vale: cada jurisdicción la diligencia."
+        },
+        "estado_bancos": {
+          "$ref": "#/$defs/estado"
+        },
+        "recibo_pago": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "referencia",
+            "codigo_barras",
+            "validez_antes_limite_descuento",
+            "validez_en_mora"
+          ],
+          "properties": {
+            "referencia": {
+              "$ref": "#/$defs/codigo"
+            },
+            "codigo_barras": {
+              "$ref": "#/$defs/codigo"
+            },
+            "validez_antes_limite_descuento": {
+              "$ref": "#/$defs/codigo"
+            },
+            "validez_en_mora": {
+              "$ref": "#/$defs/codigo"
+            }
+          }
+        },
+        "archivo_banco": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frecuencia"
+          ],
+          "properties": {
+            "formato": {
+              "description": "Texto libre de la 1.0. En la 1.1 es opcional y lo reemplazan formato_preferido, formato_alterno y formato_por_banco.",
+              "$ref": "#/$defs/texto_libre"
+            },
+            "formato_preferido": {
+              "$ref": "#/$defs/codigo"
+            },
+            "formato_alterno": {
+              "$ref": "#/$defs/codigo"
+            },
+            "formato_por_banco": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "banco",
+                  "formato"
+                ],
+                "properties": {
+                  "banco": {
+                    "$ref": "#/$defs/codigo"
+                  },
+                  "formato": {
+                    "$ref": "#/$defs/codigo"
+                  }
+                }
+              }
+            },
+            "frecuencia": {
+              "$ref": "#/$defs/codigo"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "imputacion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entre_vigencias",
+            "sin_indicacion",
+            "dentro_de_la_obligacion",
+            "redondeo_componentes"
+          ],
+          "properties": {
+            "entre_vigencias": {
+              "$ref": "#/$defs/codigo"
+            },
+            "sin_indicacion": {
+              "$ref": "#/$defs/codigo"
+            },
+            "dentro_de_la_obligacion": {
+              "$ref": "#/$defs/codigo"
+            },
+            "redondeo_componentes": {
+              "$ref": "#/$defs/codigo"
+            }
+          }
+        },
+        "descuento_pago_parcial": {
+          "type": "string",
+          "enum": [
+            "NO_APLICA",
+            "PROPORCIONAL"
+          ]
+        },
+        "saldo_a_favor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "usos",
+            "compensacion_automatica",
+            "valor_minimo_devolucion"
+          ],
+          "properties": {
+            "usos": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/codigo"
+              }
+            },
+            "compensacion_automatica": {
+              "type": "boolean"
+            },
+            "valor_minimo_devolucion": {
+              "$ref": "#/$defs/monto"
+            }
+          }
+        },
+        "distribucion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "base",
+            "dias_maximos_giro",
+            "redondeo"
+          ],
+          "properties": {
+            "base": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/codigo"
+              }
+            },
+            "dias_maximos_giro": {
+              "$ref": "#/$defs/entero"
+            },
+            "redondeo": {
+              "$ref": "#/$defs/codigo"
+            }
+          }
+        },
+        "reporte_participacion_20": {
+          "description": "Reporte de la participación del 20 % (modalidad C).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "formato_propuesto",
+            "remitente",
+            "periodicidad",
+            "estado"
+          ],
+          "properties": {
+            "formato_propuesto": {
+              "$ref": "#/$defs/codigo"
+            },
+            "remitente": {
+              "$ref": "#/$defs/texto_libre"
+            },
+            "periodicidad": {
+              "$ref": "#/$defs/codigo"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "estado": {
+          "$ref": "#/$defs/estado"
+        }
+      }
+    },
+    "reportes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sibga_mensual"
+      ],
+      "properties": {
+        "sibga_mensual": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "activo",
+            "contenido",
+            "soportes",
+            "estado"
+          ],
+          "properties": {
+            "activo": {
+              "type": "boolean"
+            },
+            "contenido": {
+              "$ref": "#/$defs/identificador"
+            },
+            "soportes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/identificador"
+              }
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        }
+      }
+    },
+    "parametros_sistema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "homologacion",
+        "importacion",
+        "exportacion",
+        "liquidacion_masiva"
+      ],
+      "properties": {
+        "homologacion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "auto_aprobacion_min",
+            "revision_min",
+            "tolerancia_cilindraje_cc"
+          ],
+          "properties": {
+            "auto_aprobacion_min": {
+              "$ref": "#/$defs/entero"
+            },
+            "revision_min": {
+              "$ref": "#/$defs/entero"
+            },
+            "tolerancia_cilindraje_cc": {
+              "$ref": "#/$defs/entero"
+            }
+          }
+        },
+        "importacion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rango_valor_pesos",
+            "rango_valor_pesos_tabla_5",
+            "mediana_lote_pesos"
+          ],
+          "properties": {
+            "rango_valor_pesos": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "min",
+                "max"
+              ],
+              "properties": {
+                "min": {
+                  "$ref": "#/$defs/monto"
+                },
+                "max": {
+                  "$ref": "#/$defs/monto"
+                }
+              }
+            },
+            "rango_valor_pesos_tabla_5": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "min",
+                "max"
+              ],
+              "properties": {
+                "min": {
+                  "$ref": "#/$defs/monto"
+                },
+                "max": {
+                  "$ref": "#/$defs/monto"
+                }
+              }
+            },
+            "mediana_lote_pesos": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "min",
+                "max"
+              ],
+              "properties": {
+                "min": {
+                  "$ref": "#/$defs/monto"
+                },
+                "max": {
+                  "$ref": "#/$defs/monto"
+                }
+              }
+            }
+          }
+        },
+        "exportacion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "filas_descarga_inmediata"
+          ],
+          "properties": {
+            "filas_descarga_inmediata": {
+              "$ref": "#/$defs/entero"
+            }
+          }
+        },
+        "liquidacion_masiva": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tamano_bloque"
+          ],
+          "properties": {
+            "tamano_bloque": {
+              "$ref": "#/$defs/entero"
+            }
+          }
+        }
+      }
+    },
+    "cartera": {
+      "description": "Intereses de mora, sanciones, prescripción y cartera histórica (Doc. 05). Si la sección existe, trae sus cinco partes. Cuándo debe existir y qué valores admite cada una lo deciden CJ02, CJ15 y CJ16, del validador de la opción 1.5.9.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intereses_mora",
+        "sanciones",
+        "prescripcion",
+        "cartera_historica",
+        "antiguedad"
+      ],
+      "properties": {
+        "intereses_mora": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "norma",
+            "tasa_referencia",
+            "puntos_a_restar",
+            "formula",
+            "dias_anio",
+            "tramos",
+            "inicio",
+            "base",
+            "sobre_sanciones",
+            "redondeo_causacion",
+            "causacion_contable_mensual",
+            "bloquear_si_falta_tasa",
+            "obligatoria",
+            "estado"
+          ],
+          "properties": {
+            "norma": {
+              "$ref": "#/$defs/codigo"
+            },
+            "tasa_referencia": {
+              "$ref": "#/$defs/codigo"
+            },
+            "puntos_a_restar": {
+              "$ref": "#/$defs/fraccion"
+            },
+            "formula": {
+              "$ref": "#/$defs/codigo"
+            },
+            "dias_anio": {
+              "$ref": "#/$defs/codigo"
+            },
+            "tramos": {
+              "$ref": "#/$defs/codigo"
+            },
+            "inicio": {
+              "$ref": "#/$defs/codigo"
+            },
+            "base": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/codigo"
+              }
+            },
+            "sobre_sanciones": {
+              "type": "boolean"
+            },
+            "redondeo_causacion": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "metodo",
+                "multiplo",
+                "empate"
+              ],
+              "properties": {
+                "metodo": {
+                  "type": "string",
+                  "enum": [
+                    "MULTIPLO_MAS_CERCANO",
+                    "MULTIPLO_SUPERIOR",
+                    "SIN_REDONDEO"
+                  ]
+                },
+                "multiplo": {
+                  "$ref": "#/$defs/entero"
+                },
+                "empate": {
+                  "$ref": "#/$defs/codigo"
+                }
+              }
+            },
+            "causacion_contable_mensual": {
+              "type": "boolean"
+            },
+            "bloquear_si_falta_tasa": {
+              "type": "boolean"
+            },
+            "obligatoria": {
+              "type": "boolean"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "sanciones": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sistema_determinacion",
+            "uvt",
+            "sancion_minima_uvt",
+            "requiere_acto_en_firme",
+            "reglas",
+            "estatuto_territorial",
+            "estado"
+          ],
+          "properties": {
+            "sistema_determinacion": {
+              "type": "string",
+              "enum": [
+                "LIQUIDACION_FACTURA",
+                "DECLARACION",
+                "PENDIENTE"
+              ]
+            },
+            "uvt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "vigencia",
+                "valor",
+                "estado"
+              ],
+              "properties": {
+                "vigencia": {
+                  "$ref": "#/$defs/entero"
+                },
+                "valor": {
+                  "$ref": "#/$defs/monto"
+                },
+                "estado": {
+                  "$ref": "#/$defs/estado"
+                }
+              }
+            },
+            "sancion_minima_uvt": {
+              "$ref": "#/$defs/cantidad_uvt"
+            },
+            "requiere_acto_en_firme": {
+              "type": "boolean"
+            },
+            "reglas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "codigo",
+                  "activo",
+                  "norma",
+                  "aplica_si",
+                  "estado"
+                ],
+                "properties": {
+                  "codigo": {
+                    "$ref": "#/$defs/codigo"
+                  },
+                  "activo": {
+                    "type": "boolean"
+                  },
+                  "norma": {
+                    "$ref": "#/$defs/codigo"
+                  },
+                  "tarifa_mes_o_fraccion": {
+                    "$ref": "#/$defs/fraccion"
+                  },
+                  "tope_sobre_impuesto": {
+                    "$ref": "#/$defs/fraccion"
+                  },
+                  "aplica_si": {
+                    "$ref": "#/$defs/codigo"
+                  },
+                  "estado": {
+                    "$ref": "#/$defs/estado"
+                  }
+                }
+              }
+            },
+            "estatuto_territorial": {
+              "$ref": "#/$defs/norma_o_pendiente"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "prescripcion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "norma",
+            "anios",
+            "inicio_termino",
+            "eventos_interrupcion",
+            "reinicio",
+            "eventos_suspension",
+            "semaforo_dias",
+            "declaracion",
+            "competente",
+            "obligatoria",
+            "estado"
+          ],
+          "properties": {
+            "norma": {
+              "$ref": "#/$defs/codigo"
+            },
+            "anios": {
+              "$ref": "#/$defs/entero"
+            },
+            "inicio_termino": {
+              "type": "string",
+              "enum": [
+                "FECHA_EJECUTORIA_FACTURA",
+                "FECHA_LIMITE_PAGO",
+                "FECHA_PRESENTACION_DECLARACION"
+              ]
+            },
+            "eventos_interrupcion": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/codigo"
+              }
+            },
+            "reinicio": {
+              "$ref": "#/$defs/codigo"
+            },
+            "eventos_suspension": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/codigo"
+              }
+            },
+            "semaforo_dias": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rojo",
+                "amarillo"
+              ],
+              "properties": {
+                "rojo": {
+                  "$ref": "#/$defs/entero"
+                },
+                "amarillo": {
+                  "$ref": "#/$defs/entero"
+                }
+              }
+            },
+            "declaracion": {
+              "$ref": "#/$defs/codigo"
+            },
+            "competente": {
+              "$ref": "#/$defs/texto_libre"
+            },
+            "obligatoria": {
+              "type": "boolean"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "cartera_historica": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "vigencias_desde",
+            "intereses_historicos",
+            "fecha_corte_migracion",
+            "tolerancia_conciliacion_pesos",
+            "estado"
+          ],
+          "properties": {
+            "vigencias_desde": {
+              "$ref": "#/$defs/anio_o_pendiente"
+            },
+            "intereses_historicos": {
+              "type": "string",
+              "enum": [
+                "RECALCULAR",
+                "TOMAR_DEL_LEGADO"
+              ]
+            },
+            "fecha_corte_migracion": {
+              "$ref": "#/$defs/fecha"
+            },
+            "tolerancia_conciliacion_pesos": {
+              "$ref": "#/$defs/monto"
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        },
+        "antiguedad": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rangos_dias",
+            "estado"
+          ],
+          "properties": {
+            "rangos_dias": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/entero"
+              }
+            },
+            "estado": {
+              "$ref": "#/$defs/estado"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "estado": {
+      "description": "Estado de una regla: VIGENTE (verificada contra la norma citada), POR_CONFIRMAR (valor propuesto, que debe validar la revisión jurídica) o PENDIENTE (el equipo debe diligenciarlo).",
+      "type": "string",
+      "enum": [
+        "VIGENTE",
+        "POR_CONFIRMAR",
+        "PENDIENTE"
+      ]
+    },
+    "pendiente": {
+      "description": "El texto PENDIENTE: el equipo aún debe diligenciar el campo. Que no quede ninguno al publicar lo decide CJ02.",
+      "type": "string",
+      "pattern": "^PENDIENTE(?![\\s\\S])"
+    },
+    "codigo": {
+      "description": "Código que lee la máquina, en mayúsculas: una opción, una referencia a una norma, una categoría. Nunca PENDIENTE ni POR_CONFIRMAR.",
+      "type": "string",
+      "pattern": "^(?!(PENDIENTE|POR_CONFIRMAR)(?![\\s\\S]))[A-Z][A-Z0-9_]*(?![\\s\\S])"
+    },
+    "identificador": {
+      "description": "Identificador en minúsculas que lee la máquina (atributos, soportes, condiciones).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?![\\s\\S])"
+    },
+    "ruta": {
+      "description": "Ruta a otro campo de la configuración, con puntos (p. ej. servicio_publico.gravado).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+(?![\\s\\S])"
+    },
+    "texto_tecnico": {
+      "description": "Texto que lee la máquina (columnas de las tablas, fórmulas, números de artículo). Nunca PENDIENTE.",
+      "type": "string",
+      "pattern": "^(?!PENDIENTE(?![\\s\\S]))[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+(?![\\s\\S])"
+    },
+    "texto_libre": {
+      "description": "Texto que escribe una persona (nombres, NIT, números de normas, descripciones). Admite PENDIENTE y POR_CONFIRMAR.",
+      "type": "string",
+      "minLength": 1
+    },
+    "fraccion": {
+      "description": "Tasa o porcentaje como fracción entre 0 y 1 (0.5 = 50 %), o PENDIENTE.",
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "$ref": "#/$defs/pendiente"
+        }
+      ]
+    },
+    "factor": {
+      "description": "Factor de ajuste de la base gravable, mayor que 0 (1 deja la base igual). No es una fracción.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "monto": {
+      "description": "Monto en pesos, mayor o igual que 0.",
+      "type": "number",
+      "minimum": 0
+    },
+    "entero": {
+      "description": "Entero mayor o igual que 0: años, días, multiplicadores, múltiplos, umbrales, contadores. Un decimal no vale (1.0 no es 1).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "fecha": {
+      "description": "Fecha AAAA-MM-DD, o PENDIENTE. Solo se comprueba la forma; que la fecha exista lo revisa el validador de la opción 1.5.9.",
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(?![\\s\\S])"
+        },
+        {
+          "$ref": "#/$defs/pendiente"
+        }
+      ]
+    },
+    "dane": {
+      "description": "Código DANE (DIVIPOLA): 2 dígitos para un departamento o 5 para un municipio, o PENDIENTE.",
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]{2}([0-9]{3})?(?![\\s\\S])"
+        },
+        {
+          "$ref": "#/$defs/pendiente"
+        }
+      ]
+    },
+    "dane_lista": {
+      "description": "Código DANE de 2 o 5 dígitos en una lista.",
+      "type": "string",
+      "pattern": "^[0-9]{2}([0-9]{3})?(?![\\s\\S])"
+    },
+    "anio_o_pendiente": {
+      "description": "Año: un entero mayor o igual que 0, o PENDIENTE.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/entero"
+        },
+        {
+          "$ref": "#/$defs/pendiente"
+        }
+      ]
+    },
+    "norma_o_pendiente": {
+      "description": "Código de una norma de normas, o PENDIENTE. Que el código exista en normas lo decide CJ03.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/codigo"
+        },
+        {
+          "$ref": "#/$defs/pendiente"
+        }
+      ]
+    },
+    "cantidad_uvt": {
+      "description": "Cantidad de UVT (no pesos), mayor o igual que 0.",
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}
