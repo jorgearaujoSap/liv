@@ -151,7 +151,7 @@ Mismo patrón de staging que el Módulo 1: archivo inmutable con SHA‑256, fila
 |---|---|
 | Archivo ya cargado (mismo SHA‑256) | ERROR |
 | Referencia de recibo inexistente | ADVERTENCIA → bandeja "pagos sin imputar" |
-| Pago duplicado (banco + referencia + fecha + valor = `idempotency_key`) | ERROR en la fila |
+| Pago duplicado (`idempotency_key` = banco + `numero_transaccion` cuando el archivo lo trae; si no, banco + referencia + fecha + valor) | ERROR en la fila |
 | Valor pagado distinto del valor del recibo | ADVERTENCIA (se imputa lo pagado) |
 | Total del archivo distinto del total del extracto del día | ERROR del lote (va a conciliación) |
 
@@ -349,8 +349,8 @@ Cada diferencia puede agruparse en una reclamación con estado (`ABIERTA → ENV
 5. `ledger.revenue_distribution`: agregar `distribution_batch_id FK`, `component_type`, `days_to_transfer`. Nueva `ledger.distribution_batch` (planilla).
 6. Nuevas `ledger.participation_report`, `ledger.participation_report_row`, `ledger.participation_match` y `ledger.participation_claim` (modalidad C).
 7. `ledger.credit_balance`: agregar `origin_type`, `origin_payment_id`, `status` con los estados de §6.1, y `ledger.credit_balance_use` (compensaciones y devoluciones).
-8. Catálogo `ref.movement_type` con signo y componente permitido (§2.1). CHECK: `signed_amount` coherente con el signo del tipo.
-9. Vista materializada `ledger.v_obligation_balance` (saldo por obligación y componente) para consultas rápidas, recalculada desde los movimientos.
+8. Catálogo `ledger.movement_type` (el esquema `ref` no existe) con signo y componente permitido (§2.1). CHECK: `signed_amount` coherente con el signo del tipo.
+9. Vista normal `ledger.v_obligation_balance` con `security_invoker`, no materializada (saldo por obligación y componente, calculado desde los movimientos). Solo sirve para consultas: nunca es la fuente de una imputación.
 
 ---
 
@@ -373,7 +373,7 @@ El formato todavía **no está definido** con los bancos. El sistema queda prepa
 
 | Opción | Descripción | Uso |
 |---|---|---|
-| **Asobancaria 2001** (preferido) | Estándar del sector financiero colombiano para reportar recaudos: archivo plano de registros de 220 posiciones, con encabezado de archivo, encabezado de lote, detalle, control de lote y control de archivo | Se pide primero a los cuatro bancos, porque suelen tenerlo disponible |
+| **Asobancaria 2001** (preferido) | Estándar del sector financiero colombiano para reportar recaudos: archivo plano de registros de longitud fija (la versión y la longitud están por verificar contra la especificación oficial), con encabezado de archivo, encabezado de lote, detalle, control de lote y control de archivo | Se pide primero a los cuatro bancos, porque suelen tenerlo disponible |
 | **CSV canónico v1** (alterno) | Layout propio del sistema: CSV con separador `;`, registros E/D/T, referencia del recibo, valor en pesos, fecha y hora del pago, número de transacción y fecha de abono | Para el banco que no entregue Asobancaria |
 | Formato propio del banco | Se agrega un adaptador que lo convierte al canónico | Solo si el banco no acepta ninguna de las dos opciones |
 
@@ -386,7 +386,7 @@ Los tres formatos llegan al mismo staging. Las validaciones de §4.2 se aplican 
 
 `formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. `formato_preferido` reemplaza a `formato`, que sigue aceptándose; si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
 
-El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): cómo se valida y se protege queda como pendiente (§14, punto 1d).
+El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): no se guarda en claro, se compara con la referencia `cuenta_recaudo_ref` y se guarda enmascarado (§14, punto 1d).
 
 Dos precisiones sobre el archivo:
 - «formatos oficiales», en su hoja «Instrucciones», debe leerse como formatos propuestos mientras no se acuerden con los bancos y la Gobernación;
@@ -452,8 +452,8 @@ CA‑4.18 conserva su número (véase la nota de §12) y supone que cada banco y
 | 1a | Formato del archivo de recaudo y su precedencia por banco (§12.2) | **Pendiente:** proponer Asobancaria 2001 a los cuatro bancos; CSV canónico como alternativa. Confirmar con la especificación de Asobancaria la versión y la longitud de sus registros |
 | 1b | Cuentas de recaudo por banco, como referencia al gestor de secretos (`cuenta_recaudo_ref`) | Pendiente |
 | 1c | Estándar del código de barras del recibo (GS1‑128, por confirmar con los bancos) | Pendiente |
-| 1d | Tratamiento del campo `cuenta_recaudo` del archivo bancario, un dato restringido que llega en cada registro y queda en el *staging* inmutable (`docs/arquitectura/02` §6) | Pendiente |
-| 1e | ¿Cómo se detecta un pago duplicado: por banco, referencia, fecha y valor (§4.2) o por el número de transacción del CSV canónico? ¿Qué pasa con dos pagos legítimos iguales el mismo día? | Pendiente |
+| 1d | Campo `cuenta_recaudo` del archivo bancario, un dato restringido que llega en cada registro (`docs/arquitectura/02` §6) | **Pendiente** para la feature del Módulo 4, con esta orientación: no se guarda en claro; se compara con la referencia (`cuenta_recaudo_ref`) y se guarda enmascarado |
+| 1e | Clave de pago duplicado | **Resuelto:** banco + `numero_transaccion` cuando el archivo lo trae; si no, banco + referencia + fecha + valor (§4.2) |
 | 2 | Formato del reporte del 20 % | **Pendiente:** enviar a la Gobernación el CSV de participación v1 propuesto |
 | 2a | Periodicidad del reporte del 20 % (propuesta: mensual) | Pendiente |
 | 3 | Imputación entre vigencias sin indicación | **Resuelto:** la más antigua primero (aprobado por el equipo; pendiente de revisión jurídica) |
@@ -474,4 +474,4 @@ Los intereses de mora, las sanciones, la prescripción de la acción de cobro y 
 - [DUR 1625/2016 arts. 2.2.4.5 y 2.2.4.6 — beneficiarios y distribución (Cancillería)](https://cancilleria.gov.co/sites/default/files/Normograma/docs/pdf/decreto_1625_2016_pr048.pdf)
 - [Decreto 2654 de 1998 — distribución dentro de 20 días (Gobernación del Huila)](https://vehiculos.huila.gov.co/HUIVehiculos/resources/normativa/Decreto_2654_1998.pdf)
 - [Concepto MinHacienda: el 20 % corresponde al municipio de la dirección declarada (Actualícese)](https://cdn.actualicese.com/normatividad/2017/Conceptos/C001368-17.pdf)
-- [Asobancaria — especificaciones técnicas para reportar el recaudo (registros de 220 caracteres)](https://www.asobancaria.com/wp-content/uploads/2016/11/ESPECIFICACIONES-T%C3%89CNICAS-PARA-REPORTAR-LA-INFORMACI%C3%93N-DEL-RECAUDO-EN-EL-SECTOR-FINANCIERO-COLOMBIANO.pdf)
+- [Asobancaria — especificaciones técnicas para reportar el recaudo](https://www.asobancaria.com/wp-content/uploads/2016/11/ESPECIFICACIONES-T%C3%89CNICAS-PARA-REPORTAR-LA-INFORMACI%C3%93N-DEL-RECAUDO-EN-EL-SECTOR-FINANCIERO-COLOMBIANO.pdf)
