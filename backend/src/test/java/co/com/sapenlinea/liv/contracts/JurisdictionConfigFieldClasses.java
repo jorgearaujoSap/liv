@@ -219,7 +219,6 @@ final class JurisdictionConfigFieldClasses {
           no(text("DAVIVIENDA_RECAUDO")),
           no(text("davivienda-recaudo")),
           no(text("davivienda/recaudo")),
-          no(text("pendiente")),
           no(text("POR_CONFIRMAR")),
           no(text("")),
           no(integer(1234567890)));

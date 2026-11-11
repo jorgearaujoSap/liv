@@ -1228,8 +1228,8 @@
                 "$ref": "#/$defs/texto_libre"
               },
               "cuenta_recaudo_ref": {
-                "description": "Referencia opaca al gestor de secretos donde está la cuenta de recaudo, o PENDIENTE. Nunca el número de cuenta.",
-                "$ref": "#/$defs/texto_libre"
+                "description": "Alias, en el gestor de secretos, de la cuenta de recaudo del banco, o PENDIENTE. Nunca el número de cuenta.",
+                "$ref": "#/$defs/referencia_secreto"
               }
             }
           },
@@ -1620,7 +1620,12 @@
             "base": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/codigo"
+                "type": "string",
+                "enum": [
+                  "TAX",
+                  "INTEREST",
+                  "PENALTY"
+                ]
               }
             },
             "sobre_sanciones": {
@@ -2001,6 +2006,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/codigo"
+        },
+        {
+          "$ref": "#/$defs/pendiente"
+        }
+      ]
+    },
+    "referencia_secreto": {
+      "description": "Referencia opaca al gestor de secretos donde está un dato restringido (como la cuenta de recaudo de un banco), o PENDIENTE: un alias que empieza por una letra minúscula, así que nunca es un número de cuenta.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/identificador"
         },
         {
           "$ref": "#/$defs/pendiente"
