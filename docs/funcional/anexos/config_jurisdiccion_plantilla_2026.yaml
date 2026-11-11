@@ -19,7 +19,7 @@
 #     regla marcada como `obligatoria: true`.
 # =====================================================================
 
-esquema_version: "1.0"
+esquema_version: "1.1"
 
 jurisdiccion:
   tipo: DEPARTAMENTO            # DEPARTAMENTO | DISTRITO_CAPITAL | DISTRITO | MUNICIPIO
@@ -132,6 +132,26 @@ normas:
     numero: "PENDIENTE"
     descripcion: Estatuto tributario territorial (calendario, descuentos, beneficios, redondeo)
     estado: PENDIENTE
+  - id: ET_ART_634_635
+    tipo: LEY
+    numero: "Estatuto Tributario (Decreto 624/1989) arts. 634, 635 y par. art. 590"
+    descripcion: Intereses moratorios (usura consumo menos 2 puntos), aplicables por art. 59 Ley 788/2002; la fórmula de cálculo está por validar con jurídica
+    estado: VIGENTE
+  - id: ET_ART_641
+    tipo: LEY
+    numero: "Estatuto Tributario art. 641 (y art. 639 sanción mínima)"
+    descripcion: Extemporaneidad 5 % por mes o fracción; solo si existe deber de declarar
+    estado: POR_CONFIRMAR
+  - id: ET_ART_644
+    tipo: LEY
+    numero: "Estatuto Tributario art. 644"
+    descripcion: Sanción por corrección de declaraciones; solo si existe deber de declarar
+    estado: POR_CONFIRMAR
+  - id: ET_ART_817_818
+    tipo: LEY
+    numero: "Estatuto Tributario arts. 817 y 818"
+    descripcion: Prescripción de la acción de cobro (5 años), interrupción y suspensión
+    estado: VIGENTE
 
 # ---------------------------------------------------------------------
 # 2. Base gravable
@@ -322,18 +342,24 @@ distribucion_recaudo:
 # 9b. Recaudo, imputación y distribución (Módulo 4)
 # ---------------------------------------------------------------------
 recaudo:
-  canales: [BANCO_CONVENIO, PSE, VENTANILLA]      # POR_CONFIRMAR bancos y pasarela
+  canales: [BANCO_CONVENIO, VENTANILLA]            # POR_CONFIRMAR con los bancos; los pagos en línea (PSE) llegan después del piloto
+  # cuenta_recaudo_ref: alias del gestor de secretos, nunca el número de cuenta (docs/arquitectura/02 §6)
+  bancos: []                                       # [{codigo, nombre, cuenta_recaudo_ref}]; la diligencia cada jurisdicción
+  estado_bancos: PENDIENTE                         # desviación de Ipiales: allí es VIGENTE (lista de bancos definida)
   recibo_pago:
     referencia: NUMERICA_UNICA_CON_DIGITO_VERIFICACION
     codigo_barras: GS1_128                          # POR_CONFIRMAR con los bancos
     validez_antes_limite_descuento: HASTA_LIMITE_DESCUENTO
     validez_en_mora: MISMO_DIA                      # los intereses cambian a diario
   archivo_banco:
-    formato: POR_CONFIRMAR                          # p. ej. Asobancaria 2001 o formato propio del banco
+    formato_preferido: ASOBANCARIA_2001             # estándar de recaudo del sector financiero (registros de 220 posiciones)
+    formato_alterno: CANONICO_CSV_V1                # layout propio del sistema (Formatos_Intercambio_Recaudo.xlsx)
+    formato_por_banco: []                           # [{banco, formato}]; se diligencia cuando cada banco confirme
     frecuencia: DIARIA
+    estado: PENDIENTE                               # el formato aún no se ha definido con los bancos
   imputacion:
     entre_vigencias: LA_QUE_INDIQUE_EL_CONTRIBUYENTE   # art. 804 ET; sin indicación -> regla siguiente
-    sin_indicacion: MAS_ANTIGUA_PRIMERO                # POR_CONFIRMAR
+    sin_indicacion: MAS_ANTIGUA_PRIMERO                # aprobado por el equipo (H1, 2026-11-08); pendiente de revisión jurídica
     dentro_de_la_obligacion: PROPORCIONAL              # art. 804 ET (mod. Ley 1066/2006 art. 6), vía Ley 788/2002 art. 59
     redondeo_componentes: PESO_RESIDUO_AL_IMPUESTO
   descuento_pago_parcial: NO_APLICA                 # NO_APLICA | PROPORCIONAL — el 10 % solo si paga el total con descuento
@@ -345,6 +371,11 @@ recaudo:
     base: [IMPUESTO, INTERESES, SANCIONES]          # DUR 1625/2016 art. 2.2.4.6
     dias_maximos_giro: 20                           # dentro de los 20 días siguientes al recaudo (art. 2.2.4.6)
     redondeo: DEPARTAMENTO_REDONDEADO_RESIDUO_MUNICIPIO
+  reporte_participacion_20:                         # modalidad C
+    formato_propuesto: PARTICIPACION_CSV_V1         # Formatos_Intercambio_Recaudo.xlsx, hoja "Reporte 20 %"
+    remitente: PENDIENTE                            # desviación de Ipiales ("Gobernación de Nariño o bancos"): texto libre, lo define cada jurisdicción
+    periodicidad: MENSUAL                           # POR_CONFIRMAR
+    estado: PENDIENTE                               # no se ha definido con la Gobernación
   estado: POR_CONFIRMAR
 
 # ---------------------------------------------------------------------
@@ -356,6 +387,74 @@ reportes:
     contenido: vehiculos_registrados_asimilados_o_ajustados
     soportes: [licencia_transito, factura, comprobante_pago_ultimo_anio]
     estado: VIGENTE
+
+# ---------------------------------------------------------------------
+# 10b. Cartera: intereses, sanciones, prescripción y cartera histórica
+#      (Doc. 05 — Módulo 5). Montos en pesos; tasas como fracción;
+#      la sanción mínima va en UVT (cartera.sanciones.sancion_minima_uvt).
+# ---------------------------------------------------------------------
+cartera:
+  intereses_mora:
+    norma: ET_ART_634_635                 # aplicable por art. 59 Ley 788/2002
+    tasa_referencia: USURA_CONSUMO_ORDINARIO_SFC   # certificación mensual Superfinanciera
+    puntos_a_restar: 0.02                 # usura − 2 puntos (art. 635 ET)
+    formula: SIMPLE_DIARIA                # propuesta: K × tasa / dias_anio × dias; la fórmula está POR_CONFIRMAR con jurídica (tasa efectiva anual / 365 frente a la tasa diaria equivalente)
+    dias_anio: CALENDARIO                 # 365, o 366 en año bisiesto
+    tramos: POR_MES_Y_POR_CAMBIO_DE_CAPITAL
+    inicio: DIA_SIGUIENTE_A_LIMITE_SIN_INTERESES   # ver calendario.inicio_mora
+    base: [TAX]                           # componentes del libro (TAX, INTEREST, PENALTY): solo capital de impuesto
+    sobre_sanciones: false                # POR_CONFIRMAR con jurídica
+    # redondeo_causacion.metodo: MULTIPLO_MAS_CERCANO | MULTIPLO_SUPERIOR | SIN_REDONDEO (con SIN_REDONDEO el múltiplo no se usa)
+    redondeo_causacion: {metodo: MULTIPLO_MAS_CERCANO, multiplo: 1000, empate: HACIA_ARRIBA}   # propuesta; alcance por confirmar con Hacienda
+    causacion_contable_mensual: true      # corte de cartera causa intereses al último día del mes
+    bloquear_si_falta_tasa: true          # sin tasa del mes no se calcula (CJ15)
+    obligatoria: true
+    # desviación de Ipiales (POR_CONFIRMAR): cada jurisdicción confirma con jurídica la fórmula, el redondeo y su adopción en el estatuto antes de publicar
+    estado: PENDIENTE                     # la regla es obligatoria: PENDIENTE bloquea la publicación
+  sanciones:
+    sistema_determinacion: PENDIENTE      # LIQUIDACION_FACTURA | DECLARACION | PENDIENTE; desviación de Ipiales (LIQUIDACION_FACTURA): lo decide cada jurisdicción y CJ16 lo rechaza si sigue PENDIENTE
+    uvt:
+      vigencia: 2026
+      valor: 52374                        # Res. DIAN 000238 del 15-dic-2025 (tomada de prensa)
+      estado: POR_CONFIRMAR               # verificar contra la resolución oficial de la DIAN
+    sancion_minima_uvt: 10                # en UVT, no en pesos; art. 639 ET; el ETM puede reducirla (art. 59 Ley 788/2002)
+    requiere_acto_en_firme: true          # PENALTY solo con acto administrativo ejecutoriado
+    reglas:
+      - codigo: EXTEMPORANEIDAD_DECLARACION
+        activo: false                     # activar si la jurisdicción usa declaración
+        norma: ET_ART_641
+        tarifa_mes_o_fraccion: 0.05
+        tope_sobre_impuesto: 1.0
+        aplica_si: SISTEMA_DECLARACION
+        estado: POR_CONFIRMAR
+      - codigo: CORRECCION_DECLARACION
+        activo: false
+        norma: ET_ART_644
+        aplica_si: SISTEMA_DECLARACION
+        estado: POR_CONFIRMAR
+    estatuto_territorial: PENDIENTE       # acuerdo del Estatuto Tributario territorial
+    estado: POR_CONFIRMAR
+  prescripcion:
+    norma: ET_ART_817_818                 # 5 años; interrupción y suspensión
+    anios: 5
+    inicio_termino: FECHA_EJECUTORIA_FACTURA   # FECHA_EJECUTORIA_FACTURA | FECHA_LIMITE_PAGO | FECHA_PRESENTACION_DECLARACION; revisar si sistema_determinacion es DECLARACION
+    eventos_interrupcion: [NOTIFICACION_MANDAMIENTO_PAGO, FACILIDAD_DE_PAGO, ADMISION_REORGANIZACION, LIQUIDACION_FORZOSA]
+    reinicio: DIA_SIGUIENTE_AL_EVENTO     # POR_CONFIRMAR: tras ADMISION_REORGANIZACION o LIQUIDACION_FORZOSA el término podría correr desde que termina el proceso (art. 818 ET)
+    eventos_suspension: [REVOCATORIA_ART_567, RESTABLECIMIENTO_ART_567, CONTENCIOSO_ART_835]
+    semaforo_dias: {rojo: 180, amarillo: 365}  # días que faltan para prescribir
+    declaracion: SOLO_POR_ACTO_ADMINISTRATIVO  # nunca automática
+    competente: PENDIENTE                 # dependencia y cargo que firma (Secretaría de Hacienda); no cuenta para CJ02, CJ16 da una advertencia
+    obligatoria: true
+    estado: POR_CONFIRMAR
+  cartera_historica:
+    vigencias_desde: PENDIENTE            # primera vigencia a migrar
+    intereses_historicos: RECALCULAR      # RECALCULAR | TOMAR_DEL_LEGADO
+    fecha_corte_migracion: PENDIENTE
+    tolerancia_conciliacion_pesos: 1000   # diferencia aceptada por obligación contra el legado (propuesta)
+    estado: PENDIENTE
+  antiguedad:
+    rangos_dias: [30, 90, 180, 360, 720, 1080, 1440, 1800]   # años de 360 días (pendiente 19 del Doc. 05); el último abre "> 5 años"
+    estado: POR_CONFIRMAR                 # rangos por confirmar con Hacienda (pendiente 19 del Doc. 05)
 
 # ---------------------------------------------------------------------
 # 11. Umbrales operativos del sistema (no normativos)
