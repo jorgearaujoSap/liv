@@ -35,8 +35,10 @@ import tools.jackson.databind.JsonNode;
 class JsonSchemaFilesTest {
 
   private static final Path ROOT = CommonCases.JSON_SCHEMAS;
-  private static final Pattern SCHEMA_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.json");
-  private static final Pattern CASES_FILE = Pattern.compile("([0-9]+\\.[0-9]+)\\.casos\\.json");
+  private static final Pattern SCHEMA_FILE =
+      Pattern.compile("(" + CommonCases.VERSION.pattern() + ")\\.json");
+  private static final Pattern CASES_FILE =
+      Pattern.compile("(" + CommonCases.VERSION.pattern() + ")\\.casos\\.json");
   private static final String DIALECT = "https://json-schema.org/draft/2020-12/schema";
 
   /** The only keywords of the portable subset (no format, $dynamicRef, unevaluated*, default…). */
@@ -92,8 +94,7 @@ class JsonSchemaFilesTest {
 
   private static final String CALENDAR = "/properties/calendario/properties/vehiculos_nuevos";
 
-  /** Where enum may appear: estado and the closed lists of 004-05, by their exact path. */
-  private static final Set<String> ENUM_PATHS =
+  private static final Set<String> ENUM_PATHS_1_0 =
       Set.of(
           "/$defs/estado",
           "/properties/jurisdiccion/properties/tipo",
@@ -103,6 +104,25 @@ class JsonSchemaFilesTest {
           CALENDAR + "/properties/plazo_pago_sin_intereses/properties/modo",
           CALENDAR + "/properties/descuento/properties/modo",
           "/properties/recaudo/properties/descuento_pago_parcial");
+
+  /**
+   * The closed lists that the version 1.1 adds in {@code cartera} (P3, P8 and the components of
+   * {@code intereses_mora.base}).
+   */
+  private static final Set<String> ENUM_PATHS_1_1_NEW =
+      Set.of(
+          "/properties/cartera/properties/prescripcion/properties/inicio_termino",
+          "/properties/cartera/properties/cartera_historica/properties/intereses_historicos",
+          "/properties/cartera/properties/sanciones/properties/sistema_determinacion",
+          "/properties/cartera/properties/intereses_mora/properties/redondeo_causacion/properties/metodo",
+          "/properties/cartera/properties/intereses_mora/properties/base/items");
+
+  /**
+   * Where enum may appear in each version: estado and the closed lists of 004-05, by their exact
+   * path. A version without an entry fails, and never uses the places of another version.
+   */
+  private static final Map<String, Set<String>> ENUM_PATHS =
+      Map.of("1.0", ENUM_PATHS_1_0, "1.1", union(ENUM_PATHS_1_0, ENUM_PATHS_1_1_NEW));
 
   /** An enum value is a code, never a number or a tax value. */
   private static final Pattern ENUM_VALUE = Pattern.compile("[A-Z][A-Z0-9_]*");
@@ -120,6 +140,12 @@ class JsonSchemaFilesTest {
 
   /** The only value of a bound and, if not null, the only places where it may appear. */
   private record Bound(BigDecimal value, Set<String> places) {}
+
+  private static Set<String> union(Set<String> first, Set<String> second) {
+    Set<String> all = new TreeSet<>(first);
+    all.addAll(second);
+    return Set.copyOf(all);
+  }
 
   static Stream<Path> schemas() throws IOException {
     List<Path> schemas = new ArrayList<>();
@@ -196,8 +222,11 @@ class JsonSchemaFilesTest {
   @MethodSource("schemas")
   @Tag("004-11")
   void portableSubsetWithoutTaxValues(Path file) {
+    String version = version(file);
+    Set<String> enumPaths = ENUM_PATHS.get(version);
+    assertThat(enumPaths).as("ENUM_PATHS de la versión %s", version).isNotNull();
     List<String> problems = new ArrayList<>();
-    walk(read(file), "", problems);
+    walk(read(file), "", enumPaths, problems);
 
     assertThat(problems).isEmpty();
   }
@@ -230,14 +259,15 @@ class JsonSchemaFilesTest {
   }
 
   /** Checks every schema position of the document and goes down into its subschemas. */
-  private static void walk(JsonNode schema, String path, List<String> problems) {
+  private static void walk(
+      JsonNode schema, String path, Set<String> enumPaths, List<String> problems) {
     if (!schema.isObject()) {
       problems.add(path + ": un esquema debe ser un objeto");
       return;
     }
     checkKeywords(schema, path, problems);
     checkObjectsAndPatterns(schema, path, problems);
-    checkPlaces(schema, path, problems);
+    checkPlaces(schema, path, enumPaths, problems);
     for (String container : List.of("properties", "$defs")) {
       if (schema.has(container)) {
         schema
@@ -247,18 +277,19 @@ class JsonSchemaFilesTest {
                 walk(
                     e.getValue(),
                     path + "/" + container + "/" + JurisdictionConfigSchemas.escape(e.getKey()),
+                    enumPaths,
                     problems));
       }
     }
     if (schema.has("items")) {
-      walk(schema.get("items"), path + "/items", problems);
+      walk(schema.get("items"), path + "/items", enumPaths, problems);
     }
     if (schema.path("additionalProperties").isObject()) {
-      walk(schema.get("additionalProperties"), path + "/additionalProperties", problems);
+      walk(schema.get("additionalProperties"), path + "/additionalProperties", enumPaths, problems);
     }
     if (schema.has("anyOf")) {
       for (int i = 0; i < schema.get("anyOf").size(); i++) {
-        walk(schema.get("anyOf").get(i), path + "/anyOf/" + i, problems);
+        walk(schema.get("anyOf").get(i), path + "/anyOf/" + i, enumPaths, problems);
       }
     }
   }
@@ -305,7 +336,8 @@ class JsonSchemaFilesTest {
   }
 
   /** $ref, const, enum, $id and $schema only where the plan puts them. */
-  private static void checkPlaces(JsonNode schema, String path, List<String> problems) {
+  private static void checkPlaces(
+      JsonNode schema, String path, Set<String> enumPaths, List<String> problems) {
     if (schema.has("$ref") && !schema.get("$ref").stringValue().startsWith("#/$defs/")) {
       problems.add(path + ": $ref externo: " + schema.get("$ref"));
     }
@@ -313,7 +345,7 @@ class JsonSchemaFilesTest {
       problems.add(path + ": const fuera de esquema_version");
     }
     if (schema.has("enum")) {
-      if (!ENUM_PATHS.contains(path)) {
+      if (!enumPaths.contains(path)) {
         problems.add(path + ": enum fuera de estado y de las listas cerradas de 004-05");
       }
       schema.get("enum").values().stream()

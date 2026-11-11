@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
 
@@ -40,7 +41,7 @@ final class JurisdictionConfigSchemas {
 
   private static final String META_SCHEMA = "https://json-schema.org/draft/2020-12/schema";
 
-  private static final Pattern VERSION = Pattern.compile("[0-9]+\\.[0-9]+");
+  private static final Pattern VERSION = CommonCases.VERSION;
 
   /**
    * Draft 2020-12 with a stricter {@code type}: since Draft 6 the standard takes {@code 1000.0} for
@@ -88,6 +89,28 @@ final class JurisdictionConfigSchemas {
         CACHE.computeIfAbsent(version, v -> compile(CommonCases.EXACT.readTree(file.toFile()))));
   }
 
+  /** Whether {@code version} is lower than or equal to {@code limit}, compared as numbers. */
+  static boolean isUpTo(String version, String limit) {
+    return CommonCases.compare(version, limit) <= 0;
+  }
+
+  /**
+   * The schema of a version in the registry that holds only the versions up to {@code
+   * casesVersion}, the version of the cases file being run (ADR 0034). A later version, though
+   * published, is not resolved, so a published case does not change its result when a new version
+   * appears.
+   */
+  static Optional<Schema> forVersion(String version, String casesVersion) {
+    if (!VERSION.matcher(casesVersion).matches()) {
+      throw new IllegalArgumentException(
+          "la versión de los casos no es MAYOR.MENOR: " + casesVersion);
+    }
+    if (!VERSION.matcher(version).matches() || !isUpTo(version, casesVersion)) {
+      return Optional.empty();
+    }
+    return forVersion(version);
+  }
+
   /** A schema with the configuration of ADR 0032 (no remote loading, strict integers). */
   static Schema compile(JsonNode schema) {
     return REGISTRY.getSchema(schema);
@@ -98,12 +121,25 @@ final class JurisdictionConfigSchemas {
     return REGISTRY.getSchema(SchemaLocation.of(META_SCHEMA)).validate(schema);
   }
 
-  /** The JSON Pointer paths of the errors of a configuration; empty if it is valid. */
+  /**
+   * The JSON Pointer paths of the errors of a configuration, with every published version; empty if
+   * it is valid.
+   */
   static Set<String> errors(JsonNode configuration) {
+    return errorsWith(configuration, JurisdictionConfigSchemas::forVersion);
+  }
+
+  /** The same, with the versions up to {@code casesVersion} (ADR 0034). */
+  static Set<String> errors(JsonNode configuration, String casesVersion) {
+    return errorsWith(configuration, version -> forVersion(version, casesVersion));
+  }
+
+  private static Set<String> errorsWith(
+      JsonNode configuration, Function<String, Optional<Schema>> resolver) {
     JsonNode version = configuration.isObject() ? configuration.get("esquema_version") : null;
     Optional<Schema> schema =
         version != null && version.isString()
-            ? forVersion(version.stringValue())
+            ? resolver.apply(version.stringValue())
             : Optional.empty();
     if (schema.isEmpty()) {
       return Set.of(VERSION_PATH);
