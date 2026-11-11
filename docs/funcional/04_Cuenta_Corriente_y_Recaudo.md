@@ -381,10 +381,10 @@ Los tres formatos llegan al mismo staging. Las validaciones de §4.2 se aplican 
 
 **Qué formato rige para cada banco** (`recaudo.archivo_banco`), en este orden de precedencia (propuesta, por confirmar con los bancos; §14, punto 1a):
 
-1. el de su entrada en `formato_por_banco`, si la tiene (`[{banco, formato}]`; vacía hasta que cada banco confirme; cada `banco` debe figurar en `bancos`);
+1. el de su entrada en `formato_por_banco`, si la tiene (`[{banco, formato}]`; vacía hasta que cada banco confirme; cada `banco` debe figurar en `recaudo.bancos[]`);
 2. si no la tiene, `formato_preferido`; y si tampoco hay `formato_preferido`, `formato` (la clave de la versión 1.0). Un valor que no sea un código de formato (`POR_CONFIRMAR` o `PENDIENTE`) significa que no hay formato definido.
 
-`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. Con `BANCO_CONVENIO` en `canales` tiene que haber `formato_preferido` o `formato` (Doc. 03 §5.4, CJ16). `formato_preferido` reemplaza a `formato`, que sigue aceptándose; si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
+`formato_alterno` no se elige solo: rige para un banco únicamente cuando su entrada de `formato_por_banco` lo nombra. Si `BANCO_CONVENIO` está en `canales`, debe haber `formato_preferido` o `formato`. `formato_preferido` reemplaza a `formato`, que sigue aceptándose; si una configuración trae las dos, vale `formato_preferido` y el validador da una advertencia (Doc. 03 §5.4, CJ16).
 
 El layout del CSV canónico, con un ejemplo, está en las hojas «Recaudo - layout» y «Recaudo - ejemplo» de `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx`, y las reglas comunes de los CSV (codificación, separador, fechas y nombre del archivo) en su hoja «Instrucciones». Ese archivo trae además una hoja y una mención sobre pagos en línea: no hacen parte de esta versión (nota de §12). Su campo `cuenta_recaudo` es un dato restringido (§12.1): no se guarda en claro, se compara con la referencia `cuenta_recaudo_ref` y se guarda enmascarado (§14, punto 1d).
 
