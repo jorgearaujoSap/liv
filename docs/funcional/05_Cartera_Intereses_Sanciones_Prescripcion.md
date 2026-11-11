@@ -424,7 +424,7 @@ Son los de la versión 2.2 del ERD. Cada tabla nueva tiene su regla de `administ
 | `ledger.tax_obligation` | Agrega `origin` (`LIQUIDACION` o `MIGRACION`), `final_assessment_date` y `jurisdiction_config_id`, la configuración que rige la obligación. `assessment_id` solo es nulo con `origin = MIGRACION`. La exigibilidad y la fecha de prescripción no se guardan (§6.1). |
 | Sin cambios de columnas | `portfolio.opening_balance_batch`, `opening_balance_error`, `opening_balance_application` y `penalty_assessment`. |
 
-El ERD 2.2 deja abierta una decisión que este documento no resuelve: varias tablas de `portfolio` que ya existían (`interest_calculation` y su detalle, `penalty_assessment`, `prescription_event`, `prescription_evaluation`, `opening_balance_row`, `opening_balance_error` y `opening_balance_application`) no tienen `administration_id` ni RLS (ERD, «Aislamiento pendiente»).
+El ERD 2.2 deja abierta una decisión que este documento no resuelve: varias tablas de `portfolio` que ya existían (`interest_calculation` y su detalle, `penalty_assessment`, `prescription_event`, `prescription_evaluation`, `opening_balance_row`, `opening_balance_error` y `opening_balance_application`) no tienen `administration_id` ni RLS (ERD, «Aislamiento pendiente»). Lo decide la feature del Módulo 5 (ERD, regla 8 del esquema `ledger`).
 
 ---
 
