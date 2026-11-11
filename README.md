@@ -17,7 +17,7 @@ Sistema de liquidación y recaudo del impuesto anual de vehículos automotores d
 ├── frontend/                ← proyecto autónomo: Angular 21; instala liv-components desde npm (ver frontend/README.md)
 ├── ui/                      ← proyecto autónomo: librería liv-components, publicada en npm (ver ui/README.md)
 ├── docs/
-│   ├── funcional/           ← especificación funcional: documentos 01–04 y ERD
+│   ├── funcional/           ← especificación funcional: documentos 01–05 y ERD
 │   │   └── anexos/          ← configuración de jurisdicción (YAML) y prevalidación de tablas 2026 (Excel)
 │   └── arquitectura/        ← decisiones, arquitectura, seguridad, operación, calidad y gobierno de agentes (00–05)
 └── spec/                    ← desarrollo guiado por especificaciones (SDD)

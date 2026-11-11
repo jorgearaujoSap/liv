@@ -16,7 +16,7 @@ Stack aprobado: Java 21 LTS + Spring Boot (monolito modular hexagonal), Angular 
 
 | Carpeta | Contenido |
 |---|---|
-| `docs/funcional/` | Documentos funcionales 01–04 y ERD; `anexos/` tiene los YAML de jurisdicción y el Excel de prevalidación |
+| `docs/funcional/` | Documentos funcionales 01–05 y ERD; `anexos/` tiene los YAML de jurisdicción, el Excel de prevalidación y los formatos de intercambio de recaudo |
 | `docs/arquitectura/` | Serie de arquitectura 00–05 |
 | `spec/` | Constitución SDD y features |
 | `backend/` | Proyecto autónomo: Java 21, Spring Boot, Maven. Tiene su propio `AGENTS.md` con las reglas del backend (§4.6) |
@@ -45,7 +45,7 @@ Si dos fuentes se contradicen, prevalece la de nivel más alto y se reporta la c
 
 | Nivel | Fuente | Ubicación actual |
 |---|---|---|
-| 1 | Normativa citada y documentos funcionales | `docs/funcional/` (`01_…md` a `04_…md`, `ERD_…md`, `anexos/`) |
+| 1 | Normativa citada y documentos funcionales | `docs/funcional/` (`01_…md` a `05_…md`, `ERD_…md`, `anexos/`) |
 | 2 | ADR aceptados | Tabla del `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §6 (0001–0025 aceptados); un archivo por ADR en `docs/adr/` |
 | 3 | Arquitectura | `docs/arquitectura/00` a `05` (versión 1.0, **aprobada**) |
 | 4 | Constitución SDD (misión, stack y convenciones, roadmap) | `spec/constitution/` — resumen de los niveles 1 a 3 |
@@ -57,11 +57,12 @@ Si dos fuentes se contradicen, prevalece la de nivel más alto y se reporta la c
 
 Están en `docs/funcional/`. Léelos en este orden; los posteriores modifican a los anteriores:
 
-1. `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` — modelo de datos: 65 tablas en 9 esquemas funcionales de PostgreSQL (`core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`), más los esquemas técnicos `platform` y `bff` (versión 2.1). En los diagramas Mermaid, `schema.table` aparece como `schema_table` (p. ej. `valuation_valuation_catalog` = `valuation.valuation_catalog`). Termina con las reglas de importación CSV y de cartera histórica y la lista de verificación previa a Flyway.
+1. `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` — modelo de datos: 79 tablas en 9 esquemas funcionales de PostgreSQL (`core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`), más los esquemas técnicos `platform` y `bff` (versión 2.2). En los diagramas Mermaid, `schema.table` aparece como `schema_table` (p. ej. `valuation_valuation_catalog` = `valuation.valuation_catalog`). Termina con las reglas de importación CSV y de cartera histórica y la lista de verificación previa a Flyway.
 2. `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` — mapa completo del menú y Módulo 1 (cargue anual de tablas base), con consultas y exportación a Excel.
 3. `02_Homologacion_y_Reglas_de_Liquidacion.md` — menú 2.6 (homologación vehículo ↔ avalúo) y Módulo 3 (cálculo de la liquidación, individual y masiva).
-4. `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` — configuración YAML por jurisdicción, estructura **real** de las tablas 2026 del Ministerio (§3 *reemplaza* Doc. 01 §6.3), cascada de homologación de 8 niveles (§4 reemplaza Doc. 02 §A.3) y configuración de Ipiales (§9). §7 lista los cambios que aplicó a los Docs. 01 y 02.
-5. `04_Cuenta_Corriente_y_Recaudo.md` — Módulo 4: obligaciones, pagos, conciliación, imputación, saldos a favor, distribución y control del 20 %. El cálculo de intereses y sanciones queda para un futuro Módulo 5.
+4. `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` — configuración YAML por jurisdicción, estructura **real** de las tablas 2026 del Ministerio (§3 *reemplaza* Doc. 01 §6.3), cascada de homologación de 8 niveles (§4 reemplaza Doc. 02 §A.3) y configuración de Ipiales (§9). §7 lista los cambios que aplicó a los Docs. 01, 02, 04 y 05 y a los anexos.
+5. `04_Cuenta_Corriente_y_Recaudo.md` — Módulo 4: obligaciones, pagos, conciliación, imputación, saldos a favor, distribución y control del 20 %. El Módulo 5 (Doc. 05) calcula los intereses de mora y propone las sanciones (SA-01 y SA-02).
+6. `05_Cartera_Intereses_Sanciones_Prescripcion.md` — Módulo 5: apertura de cartera histórica, intereses de mora, sanciones, prescripción de la acción de cobro, cortes de cartera y antigüedad. Es un borrador (v0.1): los roles de su §9 son una propuesta y no modifican el catálogo del Doc. 01 §4.1.
 
 Todos los documentos de módulo siguen la misma estructura: encabezado con **Versión**, marco normativo, opciones de menú, reglas con código, máquinas de estado, ejemplos, "Ajustes al modelo de datos", "Criterios de aceptación", "Pendientes por confirmar" y "Siguiente entrega propuesta". Cuando cambia una regla: sube la versión, actualiza los documentos dependientes (y sus pendientes) y registra los cambios entre documentos como lo hace el Doc. 03 §7.
 
@@ -213,13 +214,14 @@ Los documentos funcionales, los ADR, los documentos de arquitectura, la constitu
 - En `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` es la plantilla y `config_jurisdiccion_52356_2026.yaml` es Ipiales. Nombre: `config_jurisdiccion_<DANE>_<AÑO>.yaml`. Ambos tienen las mismas secciones de primer nivel y deben mantenerse sincronizados.
 - Montos en **pesos**; tasas como fracción (`0.015` = 1,5 %); las tablas del Ministerio vienen en **miles de pesos** (`base_gravable.multiplicador_tablas: 1000`).
 - Cada regla tiene `fuente` y `estado` (`VIGENTE` | `POR_CONFIRMAR` | `PENDIENTE`). Un `PENDIENTE` en una regla `obligatoria: true` bloquea la publicación.
-- El validador CJ01–CJ14 está en Doc. 03 §5.4: rangos continuos con el último abierto (CJ04; inferior exclusivo, superior inclusivo), eléctricos ≤ 1 % (CJ05), distribución = 100 % (CJ06), compatibilidad de modalidades (CJ12), orden de fechas del calendario (CJ13).
+- El validador CJ01–CJ16 está en Doc. 03 §5.4: rangos continuos con el último abierto (CJ04; inferior exclusivo, superior inclusivo), eléctricos ≤ 1 % (CJ05), distribución = 100 % (CJ06), compatibilidad de modalidades (CJ12), orden de fechas del calendario (CJ13).
 - `competencia.modalidades`: A `UEDF_INTERNACION`, B `CONVENIO_DEPTO`, C `PARTICIPACION_20`, y `ADMINISTRACION_DIRECTA` para departamentos y distritos. B y C son excluyentes. Ipiales empieza con **A + C**. Las modalidades activas definen qué menús del Módulo 4 se ven.
 
 ### 5.3 Códigos de regla y ejemplos
 
 - Prefijos: `R0xx` / `F0xx` (validación de archivos y filas), `LQ-Pxx` / `LQ-Cxx` / `LQ-Exx` / `LQ-Vxx` (prerrequisitos, cálculo, excepciones y versiones de la liquidación), `LM-xx` (liquidación masiva), `CJxx` (validador de configuración), `CA-x.xx` (criterios de aceptación). Las opciones de menú se citan por número (1.5.9, 2.6, 3.2, 4.6). Busca el código para rastrear una regla.
-- Ejemplos numéricos: Doc. 02 §B.9 y Doc. 03 §9.3 (liquidaciones; rangos 2026 del Decreto 1457/2025: ≤ $57.349.000 → 1,5 %; ≤ $129.032.000 → 2,5 %; mayor → 3,5 %) y Doc. 04 §5.2 (imputación). Si cambias una tarifa, ajuste, redondeo o descuento, recalcula esas tablas. Serán las pruebas *golden* del motor.
+- Prefijos de los Docs. 04 y 05: `OB-xx` (obligaciones), `RP-xx` (recibos de pago) e `IM-xx` (imputación) en el Doc. 04; `CH-xx` (cartera histórica), `MO-xx` (intereses de mora), `SA-xx` (sanciones) y `PS-xx` (prescripción) en el Doc. 05.
+- Ejemplos numéricos: Doc. 02 §B.9 y Doc. 03 §9.3 (liquidaciones; rangos 2026 del Decreto 1457/2025: ≤ $57.349.000 → 1,5 %; ≤ $129.032.000 → 2,5 %; mayor → 3,5 %) y Doc. 04 §5.2 (imputación). Si cambias una tarifa, ajuste, redondeo o descuento, recalcula esas tablas. Serán las pruebas *golden* del motor. Los ejemplos del Doc. 05 §4.3 (intereses de mora) todavía **no** son *golden*: lo serán cuando se resuelvan los pendientes 2, 10, 11 y 12 del Doc. 05 (redondeo a $1.000, tasas, fórmula y alcance del redondeo de la causación).
 - `docs/funcional/anexos/Prevalidacion_Tablas_Base_Gravable_2026.xlsx` es binario (hojas Parámetros, Resumen, Por código, Hallazgos); léelo con Python (`openpyxl` o `pandas`). Su resumen está en Doc. 03 §2.
 
 ---

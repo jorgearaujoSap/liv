@@ -449,7 +449,7 @@ El repositorio es un **monorepo temporal**: backend, frontend y la librería de 
 ├── AGENTS.md · CLAUDE.md       ← reglas para agentes (doc. 05)
 ├── ESTADO.md                   ← estado del proyecto y bitácora
 ├── docs/
-│   ├── funcional/              ← documentos 01–04 y ERD
+│   ├── funcional/              ← documentos 01–05 y ERD
 │   │   └── anexos/             ← YAML de jurisdicción (plantilla e Ipiales) y prevalidación 2026
 │   ├── arquitectura/           ← esta serie 00–05
 │   ├── adr/                    ← ADR-NNNN-*.md (Fase 0)

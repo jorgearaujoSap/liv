@@ -16,7 +16,7 @@ _Cómo está construido el proyecto y las reglas que todo el código debe respet
 
 _Estado actual: no hay código. La estructura objetivo está en `docs/arquitectura/01` §14._
 
-- `docs/funcional/` — documentos `01_…md` a `04_…md` y `ERD_…md`: especificación funcional y modelo de datos (fuente de verdad de las reglas).
+- `docs/funcional/` — documentos `01_…md` a `05_…md` y `ERD_…md`: especificación funcional y modelo de datos (fuente de verdad de las reglas).
 - `docs/funcional/anexos/` — configuración de jurisdicción (`config_jurisdiccion_*.yaml`: plantilla e Ipiales, DANE 52356) y prevalidación de las tablas 2026.
 - `docs/arquitectura/` — decisiones, arquitectura, seguridad, operación, calidad y gobierno de agentes.
 - `spec/` — esta carpeta: constitución y features SDD.
