@@ -201,9 +201,9 @@ final class JurisdictionConfigFieldClasses {
           no(bool(true)));
 
   /**
-   * Version 1.1 (decision of the person on the PR 160): the reference to the secrets manager that
-   * holds a bank account, or PENDIENTE. An identifier that starts with a letter, so it can never be
-   * an account number.
+   * Version 1.1: the alias, in the secrets manager, of a bank account, or PENDIENTE. An identifier
+   * (lowercase letters, digits and underscores) that starts with a lowercase letter, so an account
+   * number pasted as it is does not pass. It does not keep out a number written after letters.
    */
   static final FieldClass SECRET_REFERENCE =
       of(

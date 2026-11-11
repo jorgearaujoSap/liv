@@ -2013,7 +2013,7 @@
       ]
     },
     "referencia_secreto": {
-      "description": "Referencia opaca al gestor de secretos donde está un dato restringido (como la cuenta de recaudo de un banco), o PENDIENTE: un alias que empieza por una letra minúscula, así que nunca es un número de cuenta.",
+      "description": "Referencia opaca al gestor de secretos donde está un dato restringido (como la cuenta de recaudo de un banco), o PENDIENTE: un alias de minúsculas, dígitos y guion bajo que empieza por una letra minúscula: no admite guiones, mayúsculas ni dígitos iniciales, así que un número de cuenta pegado tal cual no pasa. Que el alias exista en el gestor de secretos lo comprueba el validador al publicar.",
       "anyOf": [
         {
           "$ref": "#/$defs/identificador"

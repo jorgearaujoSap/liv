@@ -105,7 +105,10 @@ class JsonSchemaFilesTest {
           CALENDAR + "/properties/descuento/properties/modo",
           "/properties/recaudo/properties/descuento_pago_parcial");
 
-  /** The closed lists that the version 1.1 adds in {@code cartera} (P3 and P8, and base). */
+  /**
+   * The closed lists that the version 1.1 adds in {@code cartera} (P3, P8 and the components of
+   * {@code intereses_mora.base}).
+   */
   private static final Set<String> ENUM_PATHS_1_1_NEW =
       Set.of(
           "/properties/cartera/properties/prescripcion/properties/inicio_termino",
