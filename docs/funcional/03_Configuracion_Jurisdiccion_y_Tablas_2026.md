@@ -293,7 +293,7 @@ Cada liquidación guarda `jurisdiction_config_id` en su traza de cálculo, de mo
 
 ### 9.2 Resultado del validador (CJ01–CJ16)
 
-Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1.5.9, que lo confirmará con código). Se evaluó sobre los dos anexos tal como los aprobó la persona que dirige el trabajo en la feature 005 (2026-11-09). Esos anexos entran en `main` después del esquema 1.1, así que este resultado vale solo para el contenido con estos SHA‑256 (calculados sobre el contenido guardado en Git, con fin de línea LF) y se rehace si cambia:
+Evaluado **a mano**, regla por regla, mientras no exista el validador (opción 1.5.9, que lo confirmará con código). Se evaluó sobre los dos anexos tal como los aprobó la persona que dirige el trabajo en la feature 005 (2026-11-09), que son los que están en `docs/funcional/anexos/`. El resultado vale solo para el contenido con estos SHA‑256 (calculados sobre el contenido guardado en Git, con fin de línea LF) y se rehace si cambia:
 
 | Archivo | SHA‑256 |
 |---|---|

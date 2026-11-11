@@ -404,7 +404,7 @@ Periodicidad propuesta: mensual. Quién envía el reporte (`remitente`) es un te
 
 ### 12.5 Parámetros en la configuración (`recaudo`)
 
-Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales la sección `recaudo` está en `POR_CONFIRMAR`; la lista de bancos (`estado_bancos`) está `VIGENTE`, y el formato del archivo bancario y el reporte del 20 % están en `PENDIENTE`. Los anexos con estos valores entran en `main` después del esquema 1.1 (Doc. 03 §9.2); hasta entonces, los de `main` conservan la versión anterior.
+Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales la sección `recaudo` está en `POR_CONFIRMAR`; la lista de bancos (`estado_bancos`) está `VIGENTE`, y el formato del archivo bancario y el reporte del 20 % están en `PENDIENTE`.
 
 | Parámetro | Valor |
 |---|---|
