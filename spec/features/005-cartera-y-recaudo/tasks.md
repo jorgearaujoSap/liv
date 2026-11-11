@@ -53,7 +53,7 @@ Es un cambio crítico: antes de cada PR, `liv-revision-adversarial` con dos revi
 
 ## PR R2 · ERD 2.2 (raíz, rama `feat/005-erd`) — 005‑15
 
-- [ ] **T1** · ERD 2.2, parte 1: encabezado y esquema `ledger` (de 7 a 19 tablas), con el aislamiento por administración (plan, paso 1).
+- [x] **T1** · ERD 2.2, parte 1: encabezado y esquema `ledger` (de 7 a 19 tablas), con el aislamiento por administración (plan, paso 1).
   - **Proyecto:** raíz · **PR:** R2
   - **Archivos:** `docs/funcional/ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (solo el encabezado y el esquema `ledger`: el diagrama Mermaid, la lista de tablas, las restricciones, las relaciones externas, la nota de `v_obligation_balance` y la regla de `administration_id`).
   - **Depende de:** ninguna.
@@ -66,7 +66,7 @@ Es un cambio crítico: antes de cada PR, `liv-revision-adversarial` con dos revi
     - `v_obligation_balance` como vista normal con `security_invoker` (P19);
     - las cuatro tablas de `ledger` sin `administration_id` (`obligation_component`, `tax_account_movement`, `payment_allocation`, `revenue_distribution`) lo reciben con FK compuesta y RLS (P19, opción (a)); las dos excepciones (`ledger.movement_type` y `portfolio.interest_rate`); y la FK `interest_calculation.account_movement_id`, validada en la transacción y dicha en el ERD;
     - la segregación (CHECK de personas distintas en `bank_file`, `bank_reconciliation`, `distribution_batch` y `participation_report`) y UNIQUE por administración y SHA‑256 en `bank_file` y `participation_report` (CA‑4.05).
-- [ ] **T2** · ERD 2.2, parte 2: esquema `portfolio` (de 11 a 13 tablas), `tax.penalty_rule` y cuadre del número de tablas (plan, paso 1).
+- [x] **T2** · ERD 2.2, parte 2: esquema `portfolio` (de 11 a 13 tablas), `tax.penalty_rule` y cuadre del número de tablas (plan, paso 1).
   - **Proyecto:** raíz · **PR:** R2
   - **Archivos:** `docs/funcional/ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (esquema `portfolio`, `tax.penalty_rule`, encabezado con las 79 tablas y el motivo de la versión, y relaciones externas).
   - **Depende de:** T1 (mismo archivo).
@@ -99,13 +99,13 @@ Es un cambio crítico: antes de cada PR, `liv-revision-adversarial` con dos revi
 
 Refactorización: no cambia ningún comportamiento, y las pruebas de la 1.0 siguen iguales y en verde. **Antes de la primera línea:** correr `./mvnw verify` en `backend/` y anotar el número de pruebas (el «antes»).
 
-- [ ] **T5** · Copias de los anexos por versión y carga de casos limitada por versión (plan, paso 5, primeros puntos y P18).
+- [x] **T5** · Copias de los anexos por versión y carga de casos limitada por versión (plan, paso 5, primeros puntos y P18).
   - **Proyecto:** `backend/` · **PR:** B0
   - **Archivos:** en `backend/src/test/resources/contracts/jsonschema/config-jurisdiccion/`: las dos copias de los anexos 1.0, con `git mv` a `1.0/` (T5 las mueve, no las modifica); en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: `TestConfigurations.java` (recibe la versión), `CommonCases.java` (`load` recibe la versión del archivo de casos), `JurisdictionConfigSchemas.java` (`forVersion` recibe la versión de los casos y solo resuelve las publicadas hasta ella), `JurisdictionConfigSchemaTest.java` (usa `TestConfigurations.load` con versión), `SafeYamlLoaderTest.java` y `JurisdictionConfigCommonCasesTest.java` (hoy tienen fijo `"1.0"`: pasan a recorrer cada archivo de casos, con sus casos de carga y de validación).
   - **Depende de:** T4 (ADR 0034 integrado).
   - **Recursos:** contrato `config-jurisdiccion` y sus pruebas; archivos de *build* (no se tocan).
   - **Prueba primero:** `./mvnw verify` con el mismo número de pruebas que el «antes», todas en verde; los casos de carga y de validación de `1.0.casos.json` siguen corriendo. Se corre tras mover las copias y antes de tocar el código, para ver el fallo por la ruta, y se vuelve a correr al terminar. B0 **no** demuestra P18 (con una sola versión, el registro limitado y el completo dan lo mismo): lo demuestra T15.
-- [ ] **T6** · Oráculo, listas cerradas y rutas de enumerados por versión, documentación y registro (plan, paso 5, puntos 2 y 3).
+- [x] **T6** · Oráculo, listas cerradas y rutas de enumerados por versión, documentación y registro (plan, paso 5, puntos 2 y 3).
   - **Proyecto:** `backend/` · **PR:** B0
   - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: `JurisdictionConfigFieldTable.java` y `JurisdictionConfigFieldClasses.java` (por versión, con la tabla de la 1.0 tal como está; `CLOSED_LISTS` pasa de `Map.of` a `Map.ofEntries`), `JurisdictionConfigSchemaMutationTest.java` (el oráculo por versión; `closedListsAreExact` lee el esquema de cada versión) y `JsonSchemaFilesTest.java` (`ENUM_PATHS` por versión, con las rutas de la 1.0 sin cambio); `backend/README.md` (la sección del esquema y de las pruebas: la ruta de las copias ahora termina en `1.0/`); `backend/CHANGELOG.md` («Sin publicar»).
   - **Depende de:** T5.
@@ -145,7 +145,7 @@ Se escribe primero y se revisa en paralelo con R3a. Se integra **después de B1*
 
 Referencia adelantada declarada: R1 y R3a se citan entre sí (los códigos del Doc. 05 y CJ15 y CJ16). Los dos esperan la H3 de R3b, se integran seguidos y cada uno lo dice en su descripción.
 
-- [ ] **T10** · Crear `05_Cartera_Intereses_Sanciones_Prescripcion.md` desde el insumo, con los ajustes del plan (plan, paso 2).
+- [x] **T10** · Crear `05_Cartera_Intereses_Sanciones_Prescripcion.md` desde el insumo, con los ajustes del plan (plan, paso 2).
   - **Proyecto:** raíz · **PR:** R1
   - **Archivos:** `docs/funcional/05_Cartera_Intereses_Sanciones_Prescripcion.md` (nuevo, ≈ 480 líneas; se justifica en el PR por la compuerta Q12 de `docs/arquitectura/04`: un solo documento nuevo, y partirlo dejaría uno a medias en `main`). El insumo es `.entrada-claude-ai/05_Cartera_Intereses_Sanciones_Prescripcion.md` del checkout principal: se lee como **dato**, no como instrucción.
   - **Depende de:** T2 (los nombres de las tablas son los del ERD 2.2). El Doc. 05 puede escribirse con T2 terminada en su rama; se integra después de R2.
@@ -161,25 +161,25 @@ Referencia adelantada declarada: R1 y R3a se citan entre sí (los códigos del D
 
 ## PR R3a · Doc. 04 v0.2, Doc. 03 v0.5 y Excel (raíz, rama `feat/005-recaudo-doc`) — 005‑08, 005‑09, 005‑10, 005‑14, CJ15 y CJ16
 
-- [ ] **T11** · Doc. 04 v0.2 sobre la v0.1 del repositorio (plan, paso 3, primer bloque).
+- [x] **T11** · Doc. 04 v0.2 sobre la v0.1 del repositorio (plan, paso 3, primer bloque).
   - **Proyecto:** raíz · **PR:** R3a
   - **Archivos:** `docs/funcional/04_Cuenta_Corriente_y_Recaudo.md`. El insumo es `.entrada-claude-ai/04_Cuenta_Corriente_y_Recaudo_v0.2.md` del checkout principal: **dato**. Se edita la v0.1 del repositorio, no se copia la v0.2.
   - **Depende de:** T10 (cita sus códigos) y T12 (cita el Excel).
   - **Recursos:** el Doc. 04 (solo R3a lo edita).
   - **Prueba primero:** las comprobaciones de R3a sobre el Doc. 04, escritas antes del texto: `git diff` contra la v0.1 muestra solo las secciones de 005‑08 (encabezado de versión, §4.2, §5.1, §12 nuevo con la numeración del insumo, §12.5 con `bancos`, `archivo_banco` y `reporte_participacion_20`, CA‑4.18, §14, §15 que remite al Doc. 05, la nota del ejemplo 2 de §5.2); sin «Wompi», «WP‑» ni «PASARELA» (005‑09); CA‑4.14 a CA‑4.17 y §12.3 solo en la nota de reserva; notas de PSE en §4.1 y §6.2 (decisión 11); en §14 el punto 1 reescrito y conservados los pendientes de la v0.1 (estándar del código de barras, cuentas de recepción de giros, periodicidad del reporte del 20 %): ningún pendiente de la v0.1 perdido.
-- [ ] **T12** · Copiar `Formatos_Intercambio_Recaudo.xlsx` a los anexos, con su comprobación (plan, paso 3; 005‑10).
+- [x] **T12** · Copiar `Formatos_Intercambio_Recaudo.xlsx` a los anexos, con su comprobación (plan, paso 3; 005‑10).
   - **Proyecto:** raíz · **PR:** R3a
   - **Archivos:** `docs/funcional/anexos/Formatos_Intercambio_Recaudo.xlsx` (copia binaria desde `C:\Users\ipial\OneDrive\Escritorio\WorkSpace\liv-monorepo\liv\.entrada-claude-ai\Formatos_Intercambio_Recaudo.xlsx`, una carpeta que Git ignora y que está fuera del *worktree*).
   - **Depende de:** ninguna.
   - **Recursos:** ninguno.
   - **Prueba primero:** **antes de copiar**, comprobar en el original el tamaño (**13.779 bytes**) y el SHA‑256 (`27023a14ef160f1552eb8355a0ffd9ee82f7ecdf1a6a0defdd863b89cf0ff90c`); si no coinciden, se detiene y se pregunta. Se inspecciona como dato con `python -I` y `openpyxl` en modo de solo lectura (`read_only=True`): sin vínculos externos, sin macros (no es `.xlsm` y el ZIP no trae `vbaProject.bin`) y con datos ficticios; si aparece una placa o un documento que parezca real, se detiene el PR y se pregunta (plan, «Amenazas»). Después de copiar, el archivo del repositorio vuelve a dar el mismo tamaño y el mismo SHA‑256. Los dos resultados van en la descripción del PR. (La sesión de la fase Tareas ya lo verificó contra el original: 13.779 bytes y el mismo SHA‑256. Se repite al copiar.)
-- [ ] **T13** · Doc. 03 v0.5: §5.2, §5.4 y §7 (plan, paso 3, tercer bloque).
+- [x] **T13** · Doc. 03 v0.5: §5.2, §5.4 y §7 (plan, paso 3, tercer bloque).
   - **Proyecto:** raíz · **PR:** R3a
   - **Archivos:** `docs/funcional/03_Configuracion_Jurisdiccion_y_Tablas_2026.md` (versión 0.5; §5.2, §5.4 y §7; **sin** §9.2, que es T14).
   - **Depende de:** T10 (cita MO‑01, MO‑03, PS‑01 y CA‑5.08 con sus códigos nuevos).
   - **Recursos:** el Doc. 03 (solo R3a lo edita).
   - **Prueba primero:** las comprobaciones de R3a, escritas antes del texto: §5.2 tiene las filas `recaudo` y `cartera` (con `sancion_minima_uvt` en UVT) y las claves coinciden con las de los YAML de T7 y T8; CJ15 y CJ16 dicen exactamente lo que fija P17 (para toda publicación nueva, la excepción de volver a validar una 1.0 ya publicada, `redondeo_causacion` con múltiplo > 0 salvo `SIN_REDONDEO`, `inicio` igual a `calendario.inicio_mora`, `sistema_determinacion: PENDIENTE` como error, `competente` como advertencia, la advertencia de `formato` junto a `formato_preferido`); CJ02 suma `cartera.intereses_mora` y `cartera.prescripcion` sin contar `prescripcion.competente` (decisión 7); §7 tiene las filas de la v0.5 y la fila del Doc. 05 §14 que registra este PR (P14).
-- [ ] **T14** · Doc. 03 §9.2 (CJ01 a CJ16 evaluados a mano para Ipiales) y filas de R3a en el Doc. 05 §14 (plan, paso 3, último punto).
+- [x] **T14** · Doc. 03 §9.2 (CJ01 a CJ16 evaluados a mano para Ipiales) y filas de R3a en el Doc. 05 §14 (plan, paso 3, último punto).
   - **Proyecto:** raíz · **PR:** R3a
   - **Archivos:** `docs/funcional/03_Configuracion_Jurisdiccion_y_Tablas_2026.md` (solo §9.2) y `docs/funcional/05_Cartera_Intereses_Sanciones_Prescripcion.md` (solo las filas de R3a en §14).
   - **Depende de:** T9 (los YAML aprobados en la H3), T13 (mismo archivo) y T10 integrada o en la base de la rama (el Doc. 05 tiene que existir).
@@ -191,7 +191,7 @@ Referencia adelantada declarada: R1 y R3a se citan entre sí (los códigos del D
 
 Empieza cuando R3b tiene su H3 (T9) y B0 está integrado. Se integra justo antes que R3b. Total ≈ 3.400 líneas, casi todas copia (`1.1.json` y `1.1.casos.json` copian el 1.0, y las copias de los anexos son idénticas a R3b): el cambio real son unas 500 líneas, y el PR da los comandos `git diff --no-index` y `diff` para verlo (compuerta Q12 de `docs/arquitectura/04`). No se parte: integrar publica y congela la versión (004‑12) y la refactorización ya salió a B0. Es una ruta crítica (`backend/contracts/**`).
 
-- [ ] **T15** · **Rojo:** las pruebas de la 1.1 y las copias de los anexos (plan, paso 7, «Rojo»). *Commit* `test:`.
+- [x] **T15** · **Rojo:** las pruebas de la 1.1 y las copias de los anexos (plan, paso 7, «Rojo»). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B1
   - **Archivos:** copias de los dos YAML de R3b en `backend/src/test/resources/contracts/jsonschema/config-jurisdiccion/1.1/` (idénticas a las de R3b ya aprobadas en la H3: `diff` vacío); en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: las pruebas nuevas o ampliadas (las que ya existen tras B0, más una clase de prueba nueva si hace falta para P18 y la compatibilidad) y los casos de **validación** de `1.1.casos.json` que cubren lo que no aparece en ningún YAML.
   - **Depende de:** T9 (los YAML aprobados y su SHA‑256) y T6 (B0 integrado).
@@ -203,14 +203,14 @@ Empieza cuando R3b tiene su H3 (T9) y B0 está integrado. Se integra justo antes
     - las mutaciones de las claves nuevas, con la tabla de campos de la 1.1;
     - casos nuevos para lo que no aparece en ningún YAML: elementos de `bancos[]` y de `formato_por_banco[]` con una clave de menos o de más, y las sondas de clase de `banco` y `formato` (código válido, minúsculas, `PENDIENTE`, un número y `null`), porque la lista está vacía en los dos YAML y la mutación nunca la recorre.
   - **Verificación del rojo:** correr `./mvnw verify` y comprobar que falla por el motivo correcto (falta `1.1.json`), no por un error de compilación.
-- [ ] **T16** · **Verde:** `1.1.json`, `1.1.casos.json`, la tabla de campos de la 1.1, las rutas nuevas de `ENUM_PATHS`, la documentación y el registro (plan, paso 7, «Verde»). *Commit* `feat:`.
+- [x] **T16** · **Verde:** `1.1.json`, `1.1.casos.json`, la tabla de campos de la 1.1, las rutas nuevas de `ENUM_PATHS`, la documentación y el registro (plan, paso 7, «Verde»). *Commit* `feat:`.
   - **Proyecto:** `backend/` · **PR:** B1
   - **Archivos:** `backend/contracts/jsonschema/config-jurisdiccion/1.1.json` (copia del 1.0, con `$id` y `const` en 1.1, `archivo_banco.formato` opcional y las claves nuevas) y `backend/contracts/jsonschema/config-jurisdiccion/1.1.casos.json` (los casos del 1.0 con su `version` de cabecera y los de validación en `"1.1"`, salvo «versión desconocida», que usa `"99.0"`, y «versión numérica», «versión PENDIENTE» y «sin versión», que quedan iguales; más los casos nuevos de T15); en `backend/src/test/java/co/com/sapenlinea/liv/contracts/`: `JurisdictionConfigFieldTable.java` y `JurisdictionConfigFieldClasses.java` (la tabla y las clases de la 1.1, con las excepciones de P2, que no tocan la tabla de la 1.0), `JsonSchemaFilesTest.java` (las rutas nuevas de `ENUM_PATHS`: `prescripcion.inicio_termino`, `cartera_historica.intereses_historicos`, `sanciones.sistema_determinacion` y `intereses_mora.redondeo_causacion.metodo`); `backend/README.md` (la sección del esquema: versión 1.1 y su *release*); `backend/CHANGELOG.md` («Sin publicar»).
   - **Depende de:** T15.
   - **Recursos:** contrato `config-jurisdiccion` y sus pruebas; `backend/CHANGELOG.md` (compartido con F0‑11).
   - **Prueba primero:** las de T15 pasan a verde con el código mínimo. Excepciones al oráculo en la 1.1 (P2), declaradas en su tabla: opcionales, aunque las traigan los dos YAML, `recaudo.bancos`, `estado_bancos`, `reporte_participacion_20` y `archivo_banco.formato_preferido`, `formato_alterno`, `formato_por_banco` y `estado`, y `archivo_banco.formato` deja de ser obligatoria; obligatorias, aunque la plantilla traiga la lista vacía, las claves de `bancos[]` (`codigo`, `nombre`, `cuenta_recaudo`); `formato_por_banco[]` no entra en la tabla (`everyFieldHasAClass`) y solo lo prueban los casos nuevos. Clases nuevas (P7, P8): `anio_o_pendiente`, `norma_o_pendiente` y `cantidad_uvt`; sin palabras clave nuevas fuera del subconjunto portable (004‑11). Verificación: `./mvnw verify` en verde (CJ01, compatibilidad, mutación, casos de carga y de validación de las dos versiones, meta‑prueba y `jsonschema.sh check`); `1.0.json` y `1.0.casos.json` sin cambios (005‑16, 005‑17); `diff` de las copias contra R3b vacío. Las excepciones a 004‑08 (P3 y P7) están aprobadas en la H2.
   - **Al terminar T15 y T16:** revisión adversarial, las cuatro lentes y el PR (H3). Se integra **justo antes de R3b** y después de B0.
-- [ ] **T17** · Comprobar la *release* `jsonschema-config-jurisdiccion-v1.1` (005‑19), **después de integrar B1**.
+- [x] **T17** · Comprobar la *release* `jsonschema-config-jurisdiccion-v1.1` (005‑19), **después de integrar B1**.
   - **Proyecto:** `backend/` · **PR:** B1 (verificación posterior; no abre PR)
   - **Archivos:** ninguno.
   - **Depende de:** la integración de B1 en `main` (la hace la persona).
@@ -221,13 +221,13 @@ Empieza cuando R3b tiene su H3 (T9) y B0 está integrado. Se integra justo antes
 
 Va después de R3b. Unas 50 líneas. Es un cambio de reglas de `AGENTS.md` y del árbol de `docs/arquitectura/01` §14: la H3 de R4 lo aprueba la persona.
 
-- [ ] **T18** · `AGENTS.md` y las referencias «Documentos 01–05» (plan, paso 8).
+- [x] **T18** · `AGENTS.md` y las referencias «Documentos 01–05» (plan, paso 8).
   - **Proyecto:** raíz · **PR:** R4
   - **Archivos:** `AGENTS.md` (§1.1, la fila de `docs/funcional/` y la lista de §3.1 con el Doc. 05 en el orden de lectura, sin la frase «un futuro Módulo 5»; §5.3: los prefijos `OB`, `RP`, `IM`, `CH`, `MO`, `SA` y `PS`, y los ejemplos del Doc. 05 §4.3 con su salvedad: no son *golden* hasta que se resuelva el redondeo, decisión 14), `README.md`, `spec/constitution/tech-stack.md` y `docs/arquitectura/01_Arquitectura_de_Software.md` (solo el árbol de §14).
   - **Depende de:** T10 y T11 a T14 terminadas (los prefijos tienen que existir en los documentos).
   - **Recursos:** `AGENTS.md`, que lo leen todos los agentes.
   - **Prueba primero:** la verificación de R4, escrita antes del texto: `grep` sin resultados para «01–04», «`01_…md` a `04_…md`» y «futuro Módulo 5» en los archivos de la lista (la fila de `docs/funcional/` de `AGENTS.md` §1.1, el árbol de `README.md`, el de `docs/arquitectura/01` §14 y la lista de `tech-stack.md` usan redacciones distintas: se buscan todas); cada prefijo de §5.3 existe en el documento que dice (`OB`, `RP` e `IM` en el Doc. 04; `CH`, `MO`, `SA` y `PS` en el Doc. 05).
-- [ ] **T19** · Docs. 01 y 02, y filas de R4 en el Doc. 05 §14 (plan, paso 8).
+- [x] **T19** · Docs. 01 y 02, y filas de R4 en el Doc. 05 §14 (plan, paso 8).
   - **Proyecto:** raíz · **PR:** R4
   - **Archivos:** `docs/funcional/01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` (§3: el menú 5 con su opción 5.6, remitiendo al Doc. 05; versión 0.4), `docs/funcional/02_Homologacion_y_Reglas_de_Liquidacion.md` (§13: remite al Doc. 05, sin subir de versión) y `docs/funcional/05_Cartera_Intereses_Sanciones_Prescripcion.md` (solo las filas de R4 en §14).
   - **Depende de:** T18 (mismo PR), T14 (las filas de R3a ya están en §14).
@@ -237,15 +237,15 @@ Va después de R3b. Unas 50 líneas. Es un cambio de reglas de `AGENTS.md` y del
 
 ## Cierre (orquestador)
 
-- [ ] **T20** · El orquestador cierra la feature: *roadmap* (005‑22), glosario (`docs/arquitectura/01` §15) y `ESTADO.md` (`AGENTS.md` §7). Lo escribe solo él.
+- [x] **T20** · El orquestador cierra la feature: *roadmap* (005‑22), glosario (`docs/arquitectura/01` §15) y `ESTADO.md` (`AGENTS.md` §7). Lo escribe solo él.
   - **Proyecto:** raíz
   - **Archivos:** `spec/constitution/roadmap.md`, `docs/arquitectura/01_Arquitectura_de_Software.md` (§15), `ESTADO.md`, `spec/features/005-cartera-y-recaudo/spec.md` (criterios marcados) y esta lista.
   - **Depende de:** los ocho PR integrados y T17.
   - **Prueba primero:** cada criterio de `spec.md` marcado `[x]` con la verificación que lo demuestra; sin prueba no se marca.
-- [ ] **T20.1** (orquestador) · Revisión adversarial independiente de lo implementado y las cuatro lentes de `liv-revision-4r` en cada PR; hallazgos resueltos o justificados.
-- [ ] **T20.2** (orquestador) · Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
-- [ ] **T20.3** (orquestador) · Compuertas de CI en verde y cada PR integrado por una persona (H3).
-- [ ] **T20.4** (orquestador) · Mover la feature a «Hecho» en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
+- [x] **T20.1** (orquestador) · Revisión adversarial independiente de lo implementado y las cuatro lentes de `liv-revision-4r` en cada PR; hallazgos resueltos o justificados.
+- [x] **T20.2** (orquestador) · Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
+- [x] **T20.3** (orquestador) · Compuertas de CI en verde y cada PR integrado por una persona (H3).
+- [x] **T20.4** (orquestador) · Mover la feature a «Hecho» en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
 
 ## Mantenimiento (checklist recurrente)
 
