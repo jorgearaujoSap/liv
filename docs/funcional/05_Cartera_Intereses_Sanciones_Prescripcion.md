@@ -18,7 +18,7 @@
 | Procedimiento aplicable | Los entes territoriales aplican el procedimiento del Estatuto Tributario (ET) nacional a sus tributos. Pueden reducir el monto de las sanciones según la naturaleza del tributo. | Ley 788/2002 art. 59 |
 | Tasa de mora | Tasa diaria equivalente a la **usura de crédito de consumo y ordinario** certificada por la Superfinanciera, **menos 2 puntos**. La fórmula está por verificar (pendiente 11). | ET art. 635 |
 | Fórmula | Interés **simple** diario (fórmula del parágrafo del art. 590 ET, al que remite el art. 635). Por verificar (pendiente 11). | ET arts. 590 par. y 635 |
-| Sanción mínima | 10 UVT. No se aplica a los intereses de mora. Con la UVT 2026 de $52.374 (**por verificar**, pendiente 9), la mínima es $523.740. | ET art. 639; Res. DIAN 000238/2025 (por verificar) |
+| Sanción mínima | 10 UVT. No se aplica a los intereses de mora. Con la UVT 2026 de $52.374 (**por verificar**, pendiente 9), equivale a $523.740, antes de cualquier aproximación de la conversión a pesos. | ET art. 639; Res. DIAN 000238/2025 (por verificar) |
 | Extemporaneidad | 5 % del impuesto por mes o fracción de mes (por verificar). Solo aplica si existe el deber de **declarar**. | ET art. 641 |
 | Facturación | En vehículos, la factura que expide la administración es la determinación oficial del tributo y presta mérito ejecutivo. | Ley 1111/2006 art. 69 (mod. Ley 1430/2010 art. 58 y Ley 1819/2016 art. 354) |
 | Prescripción | La acción de cobro prescribe a los **5 años** desde la exigibilidad. Se decreta de oficio o a petición de parte. | ET art. 817 |
@@ -69,7 +69,7 @@ Qué opciones del menú ve cada jurisdicción según sus modalidades de competen
 
 1. **La cartera no se guarda: se calcula.** El saldo de cada obligación es la suma de sus movimientos en `ledger.tax_account_movement` (Doc. 04 §2). Este módulo no tiene tablas de saldos propias; el corte (§7) es una **foto** inmutable que sirve para informes y contabilidad.
 2. **Todo valor sale de una regla con fuente.** Tasas con su resolución de la Superfinanciera, sanciones con su acto administrativo, prescripción con su acto que la decreta.
-3. **Los intereses se recalculan, no se editan.** Si cambia el capital (un pago, una reliquidación, una reversión), el cálculo se rehace desde la última fecha causada. No existe un "ajuste manual de intereses".
+3. **Los intereses se recalculan, no se editan.** Si cambia el capital (un pago, una reliquidación, una reversión), el cálculo se rehace a partir de las causaciones reversadas (MO‑04, MO‑05). No existe un "ajuste manual de intereses".
 4. **Nada se extingue por el paso del tiempo en el sistema.** La prescripción la **decreta** un funcionario competente mediante acto; el semáforo solo alerta.
 5. **Segregación:** quien carga tasas o lotes no los aprueba; quien propone una prescripción no la firma.
 6. **Idempotencia:** volver a ejecutar una causación o un lote no duplica movimientos (llave: obligación + fecha hasta + versión de la regla, para los cálculos vigentes que no son simulación; ver §10).
@@ -107,7 +107,7 @@ La fecha de corte de la migración (`fecha_corte_migracion`) se guarda en `balan
 | CH‑03 | Vigencia fuera del rango configurado o igual/posterior a la vigente | ERROR |
 | CH‑04 | Capital ≤ 0 o no numérico | ERROR |
 | CH‑05 | Sanción sin acto o sin fecha de ejecutoria | ERROR |
-| CH‑06 | Falta la fecha de ejecutoria de la factura | ADVERTENCIA (la obligación queda marcada "sin exigibilidad acreditada" y no entra al semáforo) |
+| CH‑06 | Falta la fecha de ejecutoria de la factura | ADVERTENCIA (la obligación queda marcada "sin exigibilidad acreditada" y aparece como "Sin dato" en el semáforo) |
 | CH‑07 | Según las fechas cargadas y sin eventos de interrupción, la vigencia ya habría superado los 5 años | ADVERTENCIA "posible prescrita": se migra igual, pero va directo a la bandeja 5.4.3 |
 | CH‑08 | Falta la tasa de algún mes entre `fecha_limite_pago` y la fecha de corte (si `RECALCULAR`) | ERROR del lote |
 | CH‑09 | Diferencia de intereses recalculados contra el legado mayor que `tolerancia_conciliacion_pesos` | ADVERTENCIA → informe 5.1.3 |
@@ -190,7 +190,7 @@ Para cada obligación en mora:
 | MO‑02 | **Días:** se cuentan los días calendario desde `inicio` hasta `hasta`, ambos incluidos. `días_del_año` = 365, o 366 en año bisiesto. |
 | MO‑03 | **Interés simple:** cada tramo se calcula sobre el capital, nunca sobre capital + intereses anteriores. |
 | MO‑04 | **Causación incremental:** cada cálculo empieza el día siguiente a la última fecha ya causada para esa obligación (MO‑02 cuenta los dos extremos, así que ese día no se cobra dos veces). Lo causado no se recalcula, salvo que se reverse. |
-| MO‑05 | **Cambio de capital retroactivo** (reliquidación, reversión de un pago): se reversan los `INTEREST_ACCRUAL` cuyo período llega hasta la fecha del cambio o la supera (`accrual_to` ≥ fecha del cambio) y se recalcula desde el inicio del período de la primera causación reversada. |
+| MO‑05 | **Cambio de capital retroactivo** (reliquidación, reversión de un pago): se reversan los `INTEREST_ACCRUAL` vigentes cuyo período llega hasta la fecha del cambio o la supera (`accrual_to` ≥ fecha del cambio) y se recalcula desde el inicio del período de la primera causación reversada. |
 | MO‑06 | **Vehículos nuevos:** el inicio de la mora es el que resulta del modo configurado (Doc. 03 §9.7). Con `FIN_DE_VIGENCIA`, un vehículo causado el 15‑ago‑2026 entra en mora el 1‑ene‑2027. |
 | MO‑07 | **Intereses en el recibo:** el recibo en mora trae los intereses calculados a su fecha de validez (Doc. 04 §4.1). Si se paga después (RP‑03), se recalcula a la fecha real del pago. |
 | MO‑08 | **Momentos de causación:** (a) al imputar un pago, hasta la fecha del pago (Doc. 04 §5.1 paso 3); (b) en el corte mensual, hasta el último día del mes (`causacion_contable_mensual`); (c) al expedir un acto de cobro (Módulo 6). |
@@ -255,10 +255,10 @@ Las reglas se leen de `cartera.sanciones.reglas` en el archivo de configuración
 
 | Regla | Estado inicial en Ipiales | Motivo |
 |---|---|---|
-| Extemporaneidad (ET art. 641: 5 % por mes o fracción) | **Inactiva** | Con liquidación‑factura no hay declaración que presentar. |
+| Extemporaneidad (ET art. 641: 5 % por mes o fracción; por verificar) | **Inactiva** | Con liquidación‑factura no hay declaración que presentar. |
 | Corrección (ET art. 644) | **Inactiva** | Ídem. |
 | Otras previstas en el Estatuto de Rentas de Ipiales | **Pendiente** (`estatuto_territorial: PENDIENTE`) | Se cargan cuando jurídica confirme el texto vigente (pendiente 4). |
-| Sanción mínima | 10 UVT = $523.740 en 2026 (UVT por verificar, pendiente 9) | ET art. 639. El Estatuto municipal puede fijar otra (Ley 788 art. 59). En la configuración se guarda en UVT (`sancion_minima_uvt`), no en pesos. |
+| Sanción mínima | 10 UVT = $523.740 en 2026, antes de cualquier aproximación a pesos (UVT por verificar, pendiente 9) | ET art. 639. El Estatuto municipal puede fijar otra (Ley 788 art. 59). En la configuración se guarda en UVT (`sancion_minima_uvt`), no en pesos. |
 
 ### 5.2 Flujo
 
@@ -326,7 +326,7 @@ Son **ilustrativos**. Usan `FECHA_LIMITE_PAGO` como exigibilidad, mientras que l
 | Amarillo | Faltan 181–365 días | Cobro persuasivo |
 | Verde | Faltan > 365 días | Seguimiento normal |
 | Gris | Término cumplido | Expediente 5.4.3; **no** se extingue automáticamente |
-| Sin dato | Falta la exigibilidad (CH‑06) | Completar la información |
+| Sin dato | Falta la exigibilidad (CH‑06) o la configuración que rige la obligación (pendiente 14) | Completar la información |
 
 ### 6.5 Expediente y acto (5.4.3 – 5.4.4)
 
@@ -463,7 +463,7 @@ El ERD 2.2 deja abierta una decisión que este documento no resuelve: varias tab
 | CA‑5.03 | Los ejemplos 1, 2 y 3 de §4.3 dan exactamente $0, $54.000 y $181.000. Son los valores de un cálculo único, sin cortes mensuales intermedios (pendiente 12). |
 | CA‑5.04 | Un abono parte el cálculo en dos tramos y el segundo usa el capital pendiente. |
 | CA‑5.05 | Reejecutar la causación del mismo mes no crea movimientos nuevos. |
-| CA‑5.06 | Reversar un pago reversa los `INTEREST_ACCRUAL` posteriores y recalcula. |
+| CA‑5.06 | Reversar un pago reversa los `INTEREST_ACCRUAL` vigentes con `accrual_to` ≥ la fecha del cambio y recalcula desde el inicio del período de la primera reversada (MO‑05). |
 | CA‑5.07 | Ningún `PENALTY` existe sin acto en firme enlazado (salvo autoliquidación). |
 | CA‑5.08 | Con la configuración de Ipiales no se genera ninguna propuesta de extemporaneidad. |
 | CA‑5.09 | Notificar un mandamiento recalcula la fecha de prescripción al día siguiente + 5 años (el cómputo exacto es el pendiente 13). |
