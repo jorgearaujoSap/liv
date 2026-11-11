@@ -107,5 +107,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - los casos comunes (de carga y de validación) y las pruebas que dependían de `1.0` recorren cada archivo de casos;
   - la tabla de campos, las listas cerradas, el oráculo de la mutación y las rutas de `enum` de `JsonSchemaFilesTest` están por versión, y una versión sin ellas falla;
   - los casos de una versión se evalúan con el registro de esquemas hasta esa versión, comparada como número (`1.10` es mayor que `1.9`). Con una sola versión no cambia ningún resultado; el efecto lo demuestra B1, al agregar la 1.1.
+- Comentario de `jurisdiction/package-info.java`: el validador de la configuración es CJ01-CJ16 (Doc. 03 v0.5; antes decía CJ01-CJ14). Sin cambio de comportamiento.
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.
 
