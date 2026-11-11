@@ -494,9 +494,13 @@ El ERD 2.2 deja abierta una decisión que este documento no resuelve: varias tab
 | Documento | Sección | Cambio |
 |---|---|---|
 | ERD | Encabezado, `ledger`, `portfolio` y `tax.penalty_rule` (versión 2.2) | Los ajustes de §10 y los nueve del Doc. 04 §11 (con el catálogo `ledger.movement_type` en lugar de `ref.movement_type` y la vista de saldos normal, no materializada); de 65 a 79 tablas (`portfolio` pasa de 11 a 13); `administration_id` y RLS en las tablas de `ledger` |
+| 01 | Encabezado y §3 (versión 0.4) | El menú 5 remite a este documento y agrega la opción 5.6; el documento base pasa a las 79 tablas del ERD 2.2. No cambia el catálogo de roles de §4.1 ni su matriz de permisos (la matriz de §9 de este documento es una propuesta) |
+| 02 | §13 | Remite a los Docs. 04 y 05 como siguientes módulos; sin subir de versión |
 | 03 | Encabezado, §5.2, §5.4, §7, §8 y §9.2 (versión 0.5) | Filas `recaudo` y `cartera` de la configuración; CJ15 y CJ16 (las que cita CA‑5.13), ajuste de CJ02 y tres reglas de validación nuevas; resultado de Ipiales con CJ01 a CJ16 |
 | 04 | Encabezado, §4.1, §4.2, §5.1, §5.2, §6.2, §8.2, §11, §12 (nuevo), §13, §14 y §15 (versión 0.2) | Bancos con convenio, archivo bancario (Asobancaria 2001 y CSV canónico v1), reporte del 20 % (CSV de participación v1), imputación «más antigua primero» aprobada por el equipo, CA‑4.18, clave de pago duplicado, notas de PSE, §11 alineado con el ERD 2.2 y pendientes con su estado; sin pasarela de pagos. El §15 remite a este documento |
 | Anexos | `Formatos_Intercambio_Recaudo.xlsx` (nuevo) | Layouts del CSV canónico v1 y del CSV de participación v1 que cita el Doc. 04 §12.2 y §12.4 |
+| `AGENTS.md` | §1.1, §3, §3.1, §5.2 y §5.3 | Documentos 01–05 y ERD 2.2 con 79 tablas; Doc. 05 en el orden de lectura; validador CJ01–CJ16; prefijos `OB`, `RP`, `IM`, `CH`, `MO`, `SA` y `PS`; los ejemplos de §4.3 no son *golden* hasta resolver el redondeo (pendiente 12) |
+| `README.md`, `spec/constitution/tech-stack.md` y `docs/arquitectura/01` §14 | Árbol y lista de `docs/funcional/` | «Documentos 01–05» |
 
 ---
 

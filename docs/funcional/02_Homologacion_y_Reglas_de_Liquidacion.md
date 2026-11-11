@@ -373,8 +373,8 @@ stateDiagram-v2
 
 ## 13. Siguiente entrega propuesta
 
-- Módulo 4 — Cuenta corriente: creación de obligación, imputación de pagos con descuento por pronto pago, saldos a favor.
-- Módulo 5 — Intereses de mora y sanciones (por versión normativa).
+- Módulo 4 — Cuenta corriente: creación de obligación, imputación de pagos con descuento por pronto pago, saldos a favor (Doc. 04).
+- Módulo 5 — Cartera: intereses de mora, sanciones, prescripción y cartera histórica (Doc. 05).
 
 ---
 

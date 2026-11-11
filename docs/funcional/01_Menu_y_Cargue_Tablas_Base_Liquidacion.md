@@ -1,9 +1,9 @@
 # Módulo 1 — Menú del sistema y cargue anual de tablas base de liquidación
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
-> **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (65 tablas desde su versión 2.1, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
+> **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (79 tablas desde su versión 2.2, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
 > **Alcance de esta entrega:** (1) lógica de negocio general y mapa de menú, (2) detalle de **Administración → Cargue de tablas base por vigencia**, (3) consultas con filtros y exportación a Excel del proceso de cargue.
-> **Versión:** 0.3 — agrega la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
+> **Versión:** 0.4 — el menú 5 (§3) remite al Doc. 05 y agrega su opción 5.6, y el documento base pasa a las 79 tablas del ERD 2.2 (feature 005). La versión 0.3 agregó la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
 
 ---
 
@@ -81,9 +81,10 @@ SISTEMA DE LIQUIDACIÓN DE IMPUESTO VEHICULAR
 │   ├── 4.6 Control de participación 20 % (solo si la modalidad PARTICIPACION_20 está activa)
 │   └── 4.7 Consultas, estado de cuenta, paz y salvo y exportación a Excel
 │
-├── 5. CARTERA
+├── 5. CARTERA                                       (detalle en Doc. 05)
 │   ├── 5.1 Apertura de cartera histórica (lote independiente)
 │   ├── 5.2 Intereses de mora · 5.3 Sanciones · 5.4 Prescripción · 5.5 Cortes de cartera
+│   └── 5.6 Consultas y exportación a Excel
 │
 ├── 6. COBRO (persuasivo / coactivo) · 7. MEDIDAS CAUTELARES
 │
