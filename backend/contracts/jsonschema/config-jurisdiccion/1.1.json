@@ -1270,7 +1270,7 @@
           ],
           "properties": {
             "formato": {
-              "description": "Formato del archivo del banco como texto libre, de la 1.0. Es opcional y convive con formato_preferido, formato_alterno y formato_por_banco, que son los que usa la 1.1; si vienen ambos, vale formato_preferido.",
+              "description": "Formato del archivo del banco como texto libre, de la 1.0. Es opcional y convive con formato_preferido, formato_alterno y formato_por_banco, que son los que usa la 1.1; si vienen formato y formato_preferido, vale formato_preferido.",
               "$ref": "#/$defs/texto_libre"
             },
             "formato_preferido": {
@@ -1823,7 +1823,7 @@
               "$ref": "#/$defs/codigo"
             },
             "competente": {
-              "description": "Dependencia y cargo que firma el acto, o PENDIENTE. Nunca el nombre de una persona.",
+              "description": "Dependencia y cargo que firma el acto. Texto libre: admite PENDIENTE y POR_CONFIRMAR.",
               "$ref": "#/$defs/texto_libre"
             },
             "obligatoria": {

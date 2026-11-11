@@ -97,9 +97,11 @@ class JurisdictionConfigSchemaMutationTest {
    * valid. A version without an entry here fails, never gets the rules of another one.
    *
    * <p>The 1.1 keeps the sections and the nulls of the 1.0 and is compatible with it (005-18): the
-   * new keys of objects that already existed are optional, although both configurations have them,
-   * and {@code archivo_banco.formato} is optional too. The keys of {@code bancos[]} are required
-   * although the template has the list empty (P2). {@code cartera} follows the general rule inside.
+   * new keys of objects that already existed are optional, although both configurations have them.
+   * The keys of {@code bancos[]} are required although the template has the list empty (P2). {@code
+   * cartera} follows the general rule inside. {@code archivo_banco.formato} is in neither
+   * configuration of the 1.1, so the oracle never asks for it; that it is optional is tested by
+   * {@link JurisdictionConfigSchema11Test}.
    */
   private static final Map<String, Rules> RULES =
       Map.of(
