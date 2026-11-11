@@ -542,6 +542,18 @@ El código usa los nombres en inglés del ERD; la interfaz, la documentación y 
 | Saldo a favor | `credit_balance` |
 | Recibo de pago | `payment_receipt` |
 | Cartera | `portfolio` |
+| Tasa de usura / tasa de mora (usura certificada menos 2 puntos) | `interest_rate` |
+| Cálculo de intereses de mora | `interest_calculation` |
+| Tramo de intereses (cambia la tasa o el capital) | `interest_calculation_detail` |
+| Cartera histórica (apertura) | `opening_balance` (`opening_balance_batch`) |
+| Interrupción / suspensión de la prescripción | `prescription_event` |
+| Antigüedad de cartera | `cartera.antiguedad` (configuración) |
+| UVT (unidad de valor tributario) | `cartera.sanciones.uvt` (configuración) |
+| Asobancaria 2001 / CSV canónico (formatos del archivo de recaudo) | `ASOBANCARIA_2001` / `CANONICO_CSV_V1` (`recaudo.archivo_banco`) |
+| Evaluación de prescripción (expediente) | `prescription_evaluation` |
+| Corte de cartera / foto del corte | `portfolio_cutoff` / `collection_portfolio_snapshot` |
+| Regla de sanción | `penalty_rule` |
+| Referencia de la cuenta de recaudo (alias en el gestor de secretos) | `cuenta_recaudo_ref` (configuración) |
 | Administración tributaria | `tax_administration` |
 | Configuración de jurisdicción | `jurisdiction_config` |
 | Usuario funcionario | `admin_user` |

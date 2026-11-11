@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-09
+> **Última actualización:** 2026-11-11
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -12,7 +12,7 @@
 |---|---|
 | Fase actual | **Fase 0 — Fundaciones**: arquitectura aprobada; esqueletos de `backend/`, `frontend/` y `ui/` (librería `liv-components`) creados y en verde |
 | Código | 🔄 Fase 0 por cerrar (ADR 0031). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.3.1 publicada en npm con 18 componentes, y pruebas de navegador en local. Todavía sin funcionalidad de negocio |
-| Documentación funcional (01–04, ERD) | ✅ Existente (insumo del proyecto) |
+| Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
 | Arquitectura (00–05) | ✅ **Aprobada** el 2026-11-01: ADR 0001–0020 aceptados sin ajustes (Java 21 LTS en lugar de 25); ADR 0021 (backend con Maven y la base del equipo) y ADR 0022 (librería como proyecto `ui/` publicado en npm) aceptados el mismo día |
 | Diseño en Figma | 🔄 Estilos, hoja de fundamentos, variables de espaciado y radios, 38 iconos y logotipo hechos; 20 componentes y 15 pantallas de la feature 001 (versión 2, rediseñada) aprobados por el responsable funcional (2026-11-01) |
 | Decisiones del equipo | ✅ 8 de 10 decididas; P6 espera a la entidad y P7 es provisional (§5) |
@@ -21,21 +21,7 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
-**Orquestador activo: feature [005 · Cartera y recaudo](spec/features/005-cartera-y-recaudo/spec.md)** (desde el 2026-11-08). Incorpora el Doc. 05 (Módulo 5), el Doc. 04 v0.2 sin la pasarela de pagos, las secciones nuevas de la configuración, el ERD 2.2 y el esquema de configuración 1.1. Es documentación, configuración y contrato, sin código de negocio. Por la decisión 14 de la H1, F0‑11 no espera a esta feature.
-
-| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
-|---|---|---|---|---|---|
-| Spec (H1) | raíz | `f005-diseno`, PR #147 (integrado) | — | ✅ Aprobada el 2026-11-08, con las 14 recomendaciones | — |
-| Plan (H2) | raíz | `f005-diseno`, PR #147 (integrado el 2026-11-09) | Spec (H1) | ✅ Aprobado el 2026-11-09, con P19 en la opción (a) | — |
-| Tareas | raíz | `f005-tareas`, PR #150 (integrado) | Plan (H2) | ✅ 20 tareas en los 8 PR (R0, R1, R2, R3a, R3b, R4, B0 y B1) | — |
-| T1 y T2 · R2, ERD 2.2 | raíz | `f005-r2-erd` / `feat/005-erd` | Tareas | 🔄 En curso (ola 1) | La H3 de su PR |
-| T3 y T4 · R0, ADR 0034 | raíz | `f005-r0-adr`, PR #152 y #154 (integrados) | Tareas | ✅ ADR 0034 aceptado el 2026-11-09 | — |
-| T7 a T9 · R3b, anexos | raíz | `f005-r3b-anexos` / `feat/005-anexos`, PR #153 | Tareas | ✅ H3 aprobada el 2026-11-09: YAML congelados en `6f2c817`. Se integra después de B1 | Integrarlo después de B1 |
-| T5 y T6 · B0, pruebas por versión | `backend/` | `f005-b0-pruebas` / `feat/005-pruebas-por-version` | R0 integrado | 🔄 En curso (ola 2) | La H3 de su PR |
-| T10 · R1, Doc. 05 | raíz | — | R2 terminado y la H3 de R3b | ⏳ En cola: espera a R2 y un hueco (máximo tres sesiones) | — |
-| T11 a T14 · R3a, Doc. 04, Doc. 03 y Excel | raíz | `f005-r3a-recaudo` / `feat/005-recaudo-doc` | La H3 de R3b; las filas del Doc. 05 §14, de R1 | 🔄 En curso (ola 2) | La H3 de su PR |
-| T15 a T17 · B1, esquema 1.1 | `backend/` | — | B0 integrado y la H3 de R3b | ⏳ Pendiente (ola 3) | — |
-| T18 y T19 · R4, reglas y referencias | raíz | — | R1 y R3a | ⏳ Pendiente (ola 3) | — |
+**Sin orquestador activo.** No hay ninguna feature en curso: la 005 · Cartera y recaudo se cerró el 2026-11-11 (PR #147, #150 y #152 a #162). La siguiente es F0‑11 (pruebas *golden* en rojo), la única que falta para cerrar la Fase 0.
 
 ---
 
@@ -43,8 +29,8 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 
 | Documento | Estado | Versión |
 |---|---|---|
-| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `ERD_…` | ✅ Existente | 0.1–0.4; Doc. 01 en 0.3 y ERD en 2.1 desde el cierre de la feature 001 |
-| `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` | ✅ Existente | Esquema 1.0 |
+| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Desde la feature 005 (2026-11-11): Doc. 01 0.4, Doc. 02 0.2, Doc. 03 0.5, Doc. 04 0.2, Doc. 05 0.1 y ERD 2.2 (79 tablas) |
+| `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` · `Formatos_Intercambio_Recaudo.xlsx` | ✅ Existente | Esquema 1.1 desde la feature 005 |
 | `README.md` | ✅ Creado: mapa del repositorio | — |
 | `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.0 |
 | `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.0 |
@@ -136,25 +122,30 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
 2. Antes de entregar el proyecto al desarrollador: la plantilla de PR y los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
 3. Cerrar la Fase 0 (ADR 0031): el CI de cada proyecto obligatorio en `main` (F0‑07), los archivos de los ADR 0001–0022 (F0‑02), el esquema JSON de la configuración de jurisdicción (F0‑10, hecho el 2026-11-08) y las pruebas *golden* en rojo (F0‑11), lo único que falta. La T24 de la feature 001 queda para antes de *staging*.
-4. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
-5. `liv-components` (el frontend usa la 0.3.1):
+4. Seguimiento de la feature 005, sin fecha:
+   - referencias que todavía dicen «CJ01–CJ14» o «Doc. 05 pendiente»: `docs/arquitectura/00` y `01`, `spec/constitution/tech-stack.md`, `mission.md` y un comentario de `backend/.../jurisdiction/package-info.java`, cada uno por su proceso;
+   - llevar a `AGENTS.md` §5.1 y §5.2 las reglas nuevas de los Docs. 03 a 05 (RLS, tasas nacionales, redondeo, imputación);
+   - la *release* `jsonschema-config-jurisdiccion-v1.1` quedó marcada «Latest» en GitHub, como la 1.0;
+   - verificar contra la fuente oficial la UVT 2026, las tasas de usura y la fórmula de intereses (pendientes del Doc. 05 §11, jurídica).
+5. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
+6. `liv-components` (el frontend usa la 0.3.1):
    - decidir los tres puntos abiertos de T05 (bitácora del 2026-11-02): el estilo de texto de la etiqueta de sección, el recorte de textos y las opciones deshabilitadas del menú;
    - usar en el frontend el tercer nivel del menú (`NavItem` con `Subgroup` y `Nested`, desde la 0.3.0) cuando haya opciones 1.5.x y 1.6.x;
    - **backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
-6. Identidad, decisiones pendientes del responsable:
+7. Identidad, decisiones pendientes del responsable:
    - un trabajo de CI que construya la imagen de Keycloak, ejecute `backend/identity/theme/check.sh`, la revise con Trivy y la publique;
    - si la imagen `node` que compila el tema queda cubierta por "Tailwind CLI" en el ADR 0023;
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
-7. BFF, decisiones pendientes del responsable (`plan.md` de la feature 001, «Ajustes de T16», «Ajustes de T17» y «Ajustes de T18»):
+8. BFF, decisiones pendientes del responsable (`plan.md` de la feature 001, «Ajustes de T16», «Ajustes de T17» y «Ajustes de T18»):
    - **T16:** la publicación de la imagen del BFF y la etiqueta `bff-vX.Y.Z`; aceptar Spring Boot 4.1.2, adoptado cuando tenía menos de dos semanas de publicado; las dependencias de prueba del BFF;
    - **T17:** si `spring-boot-starter-session-jdbc` queda cubierto por el ADR 0023; los motivos con que se registra el cierre de una sesión (`EndSession`); el sitio común del proveedor de identidad;
    - **T18:** el prefijo `__Host-` de la cookie CSRF; los códigos de error del proveedor que terminan la sesión; la revocación con `invalid_grant`.
-8. Contratos (ADR 0027), configuración pendiente del responsable:
+9. Contratos (ADR 0027), configuración pendiente del responsable:
    - activar las *releases* inmutables y un *ruleset* para las etiquetas `contract-*`;
    - fijar `distributionSha256Sum` en el *wrapper* de Maven;
    - exigir el *check* de cambios incompatibles en contratos (Q08, `docs/arquitectura/04`), si se retoma la idea de hacer obligatorios los *checks* de cada proyecto.
-9. T24 de la feature 001, antes de producción (`tasks.md`):
+10. T24 de la feature 001, antes de producción (`tasks.md`):
    - imágenes publicadas de la API, el BFF con sus migraciones, el frontend y la identidad;
    - el trabajo de CI de la imagen del frontend, que necesita aprobación;
    - `infra/` solo con imágenes y TLS, y el e2e contra ellas y en CI (F0‑12);
@@ -166,6 +157,30 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-11
+
+- **Feature 005 · Cartera y recaudo: hecha.** Fue la primera feature con el orquestador (ADR 0033). La implementación entró en 10 PR, cada uno con su revisión adversarial de nivel alto, las cuatro lentes y la H3 de la persona:
+  - R0: ADR 0034 (#152 y #154);
+  - R2: ERD 2.2 (#156 y #159);
+  - R3b: anexos 1.1 (#153);
+  - B0: pruebas por versión (#158);
+  - B1: esquema 1.1 (#160);
+  - R1: Doc. 05 (#161);
+  - R3a: Doc. 04 v0.2, Doc. 03 v0.5 y Excel (#157);
+  - R4: `AGENTS.md` y referencias (#162).
+- **Cierre (T20):**
+  - cada criterio 005‑01 a 005‑22 marcado con su evidencia;
+  - la *release* `jsonschema-config-jurisdiccion-v1.1` comprobada contra `main` (T17);
+  - las decisiones de la persona en las H3 registradas en `spec.md` («Ajustes aprobados en las H3») y en `plan.md`;
+  - el roadmap con la feature en «Hecho», la Fase 5 en el *backlog* según el menú del Doc. 05 y el validador CJ01–CJ16;
+  - el glosario (`docs/arquitectura/01` §15) con los términos de cartera.
+- **Desvíos del plan:**
+  - B1 se integró antes que R1 y R3a, y las referencias adelantadas se cerraron al integrar estos dos;
+  - el ERD 2.2 entró en dos PR, porque el #156 se integró antes de los cambios de su H3;
+  - el ADR 0034 entró «Propuesto» y se aceptó en un PR aparte (#154).
+- **Queda para después** (§6, punto 4): referencias que todavía dicen «CJ01–CJ14» o «Doc. 05 pendiente» fuera del alcance de R4, `AGENTS.md` §5.1 y §5.2, la marca «Latest» de la *release* 1.1 y la verificación jurídica de la UVT, las tasas y la fórmula de intereses.
+- **Siguiente:** F0‑11, pruebas *golden* en rojo, que cierra la Fase 0.
 
 ### 2026-11-09
 

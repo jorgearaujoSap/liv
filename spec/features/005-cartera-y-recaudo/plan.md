@@ -290,6 +290,12 @@ Son 19. Los 1 a 8 son los del insumo (Doc. 05 §11), que se conservan sin cambio
   - El ERD 2.2 lo dice en la nota de la vista. El número de tablas no cambia (79).
   - **Descartado:** dejar la vista materializada «para consultas», que filtra datos entre administraciones.
 
+### Ajustes de las H3 (registro del orquestador, 2026-11-11)
+
+Las H3 de R2, R3b, R3a, B1, R1 y R4 cambiaron algunos nombres y reglas de este plan. El detalle está en `spec.md`, «Ajustes aprobados en las H3», y prevalece sobre el texto de P8, P17 y del paso 1.
+
+Además, el orden real de integración fue distinto del previsto en P1. B1 (#160) entró antes que R1 (#161) y R3a (#157), y las referencias adelantadas se cerraron al integrar R1 y R3a. El ERD 2.2 entró en dos PR (#156 y #159), porque la persona integró el #156 antes de que llegaran los cambios de su H3.
+
 ## Riesgos
 
 - **Errores al pasar el Doc. 05 al repositorio:** la revisión de R1 lo compara con el insumo, verificado por SHA‑256, y la revisión adversarial de lo implementado repite el recálculo de §4.3 (005‑04).
