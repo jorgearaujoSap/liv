@@ -3,6 +3,7 @@ package co.com.sapenlinea.liv.contracts;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -170,6 +171,45 @@ final class JurisdictionConfigFieldClasses {
           no(text("PENDIENTE")));
   static final FieldClass ESTADO = closed("estado", "VIGENTE", "POR_CONFIRMAR", "PENDIENTE");
 
+  /** Version 1.1 (P7): a year, an integer >= 0, that may also be PENDIENTE. */
+  static final FieldClass YEAR_OR_PENDING =
+      of(
+          "año o PENDIENTE",
+          ok(integer(0)),
+          ok(integer(2019)),
+          ok(text("PENDIENTE")),
+          no(integer(-1)),
+          no(decimal("2019.0")),
+          no(decimal("0.5")),
+          no(text("2019")),
+          no(text("pendiente")),
+          no(text("POR_CONFIRMAR")));
+
+  /** Version 1.1 (P7): the code of a rule of {@code normas}, that may also be PENDIENTE. */
+  static final FieldClass RULE_OR_PENDING =
+      of(
+          "norma o PENDIENTE",
+          ok(text("ET_ART_641")),
+          ok(text("PENDIENTE")),
+          no(text("et_art_641")),
+          no(text("POR_CONFIRMAR")),
+          no(text("A B")),
+          no(text("")),
+          no(integer(1)),
+          no(bool(true)));
+
+  /** Version 1.1 (P8): an amount in UVT, a number >= 0 that is never PENDIENTE. */
+  static final FieldClass UVT_AMOUNT =
+      of(
+          "cantidad de UVT",
+          ok(integer(0)),
+          ok(integer(10)),
+          ok(decimal("10.5")),
+          no(integer(-1)),
+          no(decimal("-0.5")),
+          no(text("PENDIENTE")),
+          no(text("10")));
+
   /** The closed lists of 004-05 in the version 1.0, by field, with their exact values. */
   private static final Map<String, List<String>> CLOSED_LISTS_1_0 =
       Map.ofEntries(
@@ -193,11 +233,47 @@ final class JurisdictionConfigFieldClasses {
               List.of("NO_APLICA", "DIAS_DESDE_CAUSACION")),
           Map.entry("/recaudo/descuento_pago_parcial", List.of("NO_APLICA", "PROPORCIONAL")));
 
+  /**
+   * The closed lists of the version 1.1: those of the 1.0, which it keeps, and the four of {@code
+   * cartera} (P3 and P8).
+   */
+  private static final Map<String, List<String>> CLOSED_LISTS_1_1 =
+      merge(
+          CLOSED_LISTS_1_0,
+          Map.ofEntries(
+              Map.entry(
+                  "/cartera/intereses_mora/redondeo_causacion/metodo",
+                  List.of("MULTIPLO_MAS_CERCANO", "MULTIPLO_SUPERIOR", "SIN_REDONDEO")),
+              Map.entry(
+                  "/cartera/sanciones/sistema_determinacion",
+                  List.of("LIQUIDACION_FACTURA", "DECLARACION", "PENDIENTE")),
+              Map.entry(
+                  "/cartera/prescripcion/inicio_termino",
+                  List.of(
+                      "FECHA_EJECUTORIA_FACTURA",
+                      "FECHA_LIMITE_PAGO",
+                      "FECHA_PRESENTACION_DECLARACION")),
+              Map.entry(
+                  "/cartera/cartera_historica/intereses_historicos",
+                  List.of("RECALCULAR", "TOMAR_DEL_LEGADO"))));
+
   /** The closed lists of each version. A version without an entry fails, never takes another's. */
   private static final Map<String, Map<String, List<String>>> CLOSED_LISTS =
-      Map.of("1.0", CLOSED_LISTS_1_0);
+      Map.of("1.0", CLOSED_LISTS_1_0, "1.1", CLOSED_LISTS_1_1);
 
   private JurisdictionConfigFieldClasses() {}
+
+  /** The lists of a version that keeps those of the previous one, plus the new ones. */
+  private static Map<String, List<String>> merge(
+      Map<String, List<String>> kept, Map<String, List<String>> added) {
+    Map<String, List<String>> all = new HashMap<>(kept);
+    added.forEach((path, values) -> {
+      if (all.put(path, values) != null) {
+        throw new IllegalStateException("lista cerrada repetida: " + path);
+      }
+    });
+    return Map.copyOf(all);
+  }
 
   /** The versions that have closed lists. */
   static Set<String> versions() {
