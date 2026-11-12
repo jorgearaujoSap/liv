@@ -1,12 +1,15 @@
 package co.com.sapenlinea.liv.tax.golden;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+import co.com.sapenlinea.liv.contracts.CommonCases;
 import co.com.sapenlinea.liv.contracts.SafeYamlLoader;
 import co.com.sapenlinea.liv.golden.GoldenCase;
 import co.com.sapenlinea.liv.golden.GoldenComparator;
 import co.com.sapenlinea.liv.golden.GoldenConfiguration;
+import co.com.sapenlinea.liv.golden.GoldenEngineNotImplementedException;
 import co.com.sapenlinea.liv.golden.GoldenFixtures;
 import co.com.sapenlinea.liv.golden.GoldenFixtures.Fixture;
 import co.com.sapenlinea.liv.golden.GoldenFixtures.Problem;
@@ -24,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Disabled;
@@ -36,6 +42,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.platform.commons.support.AnnotationSupport;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.DecimalNode;
 import tools.jackson.databind.node.DoubleNode;
@@ -46,8 +53,8 @@ import tools.jackson.databind.node.ObjectNode;
  * says (006-01, 006-04, 006-05, 006-10), that {@code AssessmentGoldenTest} is skipped only with its
  * issue and names its cases as the spec says (006-06, 006-07), and that the comparison finds any
  * difference in a real case. The cases come from {@code golden/tax}; the damaged variants start
- * from a synthetic valid text written here. The tax values are not repeated here: they are in the
- * fixtures and are compared with the documents.
+ * from a synthetic valid text written here (its values are not tax values). The tax values are not
+ * repeated here: they are in the fixtures and are compared with the documents.
  */
 class AssessmentGoldenFixturesTest {
 
@@ -135,16 +142,16 @@ class AssessmentGoldenFixturesTest {
       Map.ofEntries(
           Map.entry("L1", Set.of("vehicle_category", "taxable_base")),
           Map.entry("L2", Set.of("vehicle_category", "taxable_base")),
-          Map.entry("L3", Set.of("vehicle_category", "table_value")),
+          Map.entry("L3", Set.of("vehicle_category", "table_value", "new_vehicle")),
           Map.entry("L4", Set.of("vehicle_category")),
-          Map.entry("L5", Set.of("vehicle_category", "taxable_base")),
-          Map.entry("L6", Set.of("vehicle_category", "taxable_base", "fiscal_year")),
-          Map.entry("L7", Set.of("vehicle_category")),
-          Map.entry("L8", Set.of("vehicle_category")),
-          Map.entry("L9", Set.of("vehicle_category")),
-          Map.entry("L10", Set.of("vehicle_category")),
-          Map.entry("L11", Set.of("vehicle_category")),
-          Map.entry("L12", Set.of("vehicle_category")),
+          Map.entry("L5", Set.of("vehicle_category", "taxable_base", "new_vehicle")),
+          Map.entry("L6", Set.of("vehicle_category", "taxable_base", "fiscal_year", "new_vehicle")),
+          Map.entry("L7", Set.of("vehicle_category", "new_vehicle")),
+          Map.entry("L8", Set.of("vehicle_category", "new_vehicle")),
+          Map.entry("L9", Set.of("vehicle_category", "new_vehicle")),
+          Map.entry("L10", Set.of("vehicle_category", "new_vehicle")),
+          Map.entry("L11", Set.of("vehicle_category", "new_vehicle")),
+          Map.entry("L12", Set.of("vehicle_category", "new_vehicle")),
           Map.entry("L13", Set.of("vehicle_category")),
           Map.entry("L14", Set.of()),
           Map.entry("L15", Set.of()));
@@ -171,10 +178,8 @@ class AssessmentGoldenFixturesTest {
     }
     sources.put("L6", new GoldenCase.Source("Doc. 02", "0.2", "§11", null));
     // L7 to L13 are rows 1 to 7 of the Doc. 03 section 9.3 table.
-    int firstOf93 = 7;
-    for (int row = 1; row <= 7; row++) {
-      sources.put(
-          "L" + (firstOf93 + row - 1), new GoldenCase.Source("Doc. 03", "0.5", "§9.3", row));
+    for (int number = 7; number <= 13; number++) {
+      sources.put("L" + number, new GoldenCase.Source("Doc. 03", "0.5", "§9.3", number - 6));
     }
     sources.put("L14", new GoldenCase.Source("Doc. 03", "0.5", "§9.7", 1));
     sources.put("L15", new GoldenCase.Source("Doc. 03", "0.5", "§9.7", 3));
@@ -300,6 +305,64 @@ class AssessmentGoldenFixturesTest {
               .as(goldenCase.id() + " · existen en la configuración")
               .allSatisfy(path -> assertThat(resolves(configuration, path)).as(path).isTrue());
         });
+  }
+
+  @Test
+  @DisplayName("El descuento efectivo es el neto menos el valor a pagar con descuento (LQ-C04)")
+  void theEffectiveDiscountIsTheNetMinusTheAmountToPay() {
+    assertThat(cases())
+        .filteredOn(goldenCase -> goldenCase.expected().has("effective_discount"))
+        .isNotEmpty()
+        .allSatisfy(goldenCase -> {
+          JsonNode expected = goldenCase.expected();
+          assertThat(expected.get("effective_discount").decimalValue())
+              .as(goldenCase.id())
+              .isEqualByComparingTo(
+                  expected
+                      .get("net_tax")
+                      .decimalValue()
+                      .subtract(expected.get("net_tax_with_discount").decimalValue()));
+        });
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("inputsOfTheWrongType")
+  @DisplayName("Una entrada de otro tipo falla al convertirse y no se lee como 0 ni false (006-04)")
+  void anInputOfTheWrongTypeFailsToConvert(Consumer<ObjectNode> change) {
+    GoldenCase table = cases().stream().filter(c -> c.id().equals("L9")).findFirst().orElseThrow();
+    ObjectNode input = (ObjectNode) table.input().deepCopy();
+    change.accept(input);
+    GoldenCase damaged =
+        new GoldenCase(
+            table.id(),
+            table.rules(),
+            table.description(),
+            table.source(),
+            table.assumptions(),
+            table.inferredInputs(),
+            table.dependsOn(),
+            input,
+            table.expected(),
+            table.comparison(),
+            table.configuration());
+
+    assertThatThrownBy(() -> AssessmentGoldenInputs.from(damaged))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  static Stream<Arguments> inputsOfTheWrongType() {
+    return Stream.of(
+        mutationOfInput("la vigencia como texto", input -> input.put("fiscal_year", "2026")),
+        mutationOfInput("el vehículo nuevo como texto", input -> input.put("new_vehicle", "false")),
+        mutationOfInput(
+            "el valor de tabla como texto", input -> input.put("table_value_thousands", "7")),
+        mutationOfInput("la categoría como número", input -> input.put("vehicle_category", 7)),
+        mutationOfInput(
+            "un ajuste como número", input -> input.putArray("base_adjustments").add(1)));
+  }
+
+  private static Arguments mutationOfInput(String name, Consumer<ObjectNode> change) {
+    return Arguments.of(Named.of(name, change));
   }
 
   @Test
@@ -504,7 +567,27 @@ class AssessmentGoldenFixturesTest {
             "un documento que no es de liquidación",
             "code: \"Doc. 03\"",
             "code: \"Doc. 04\"",
-            problem("/document/code", "enum")));
+            problem("/document/code", "enum")),
+        variant(
+            "un vehículo nuevo sin fecha de causación",
+            "      accrual_date: 2030-01-10\n",
+            "",
+            problem("/cases/1/input/accrual_date", "required")),
+        variant(
+            "un vehículo no nuevo con fecha de causación",
+            "new_vehicle: false",
+            "new_vehicle: false\n      accrual_date: 2030-01-09",
+            problem("/cases/0/input", "not")),
+        variant(
+            "una base ya ajustada que lista ajustes",
+            "      base_source_type: \"OFFICIAL_TABLE\"\n      table_value_thousands: 7\n",
+            "      taxable_base: 7000\n",
+            problem("/cases/0/input/base_adjustments", "base-adjusted")),
+        variant(
+            "un origen de la base en un caso sin base",
+            "new_vehicle: true",
+            "new_vehicle: true\n      base_source_type: \"INVOICE\"",
+            problem("/cases/1/input/base_source_type", "base-source")));
   }
 
   // ---- the comparison finds a difference in a real case (006-05) ----
@@ -584,6 +667,16 @@ class AssessmentGoldenFixturesTest {
       byName.put(
           "menos " + step.toPlainString(),
           tree -> tree.set(key, decimal(value.decimalValue().subtract(step))));
+      if (comparison == null) {
+        // Exact fields: a hidden tolerance smaller than the step would still pass the coarse one.
+        BigDecimal fine = step.movePointLeft(1);
+        byName.put(
+            "más " + fine.toPlainString(),
+            tree -> tree.set(key, decimal(value.decimalValue().add(fine))));
+        byName.put(
+            "menos " + fine.toPlainString(),
+            tree -> tree.set(key, decimal(value.decimalValue().subtract(fine))));
+      }
       byName.put("como texto", tree -> tree.put(key, value.decimalValue().toPlainString()));
       byName.put("como double", tree -> tree.set(key, DoubleNode.valueOf(value.doubleValue())));
     }
@@ -601,31 +694,58 @@ class AssessmentGoldenFixturesTest {
   // ---- AssessmentGoldenTest is disabled only with its issue (006-06, 006-07) ----
 
   /** A reason that starts with the number of its issue. */
-  private static final String ISSUE = "^Issue #\\d+";
+  private static final Pattern ISSUE = Pattern.compile("^Issue #(\\d+)");
 
   private static final String JUNIT_CONDITIONS = "org.junit.jupiter.api.condition";
 
+  /** The extensions of {@code @ParameterizedTest} itself: the only ones the class may carry. */
+  private static final String JUNIT_PARAMS = "org.junit.jupiter.params";
+
   /**
-   * AssessmentGoldenTest and its methods: where a {@code @Disabled} or a condition could skip a
-   * case.
+   * AssessmentGoldenTest with its fields, constructors, methods, parameters and nested classes:
+   * everywhere a {@code @Disabled}, a condition or an extension could skip a case.
    */
   private static List<AnnotatedElement> goldenTestElements() {
     List<AnnotatedElement> elements = new ArrayList<>();
-    elements.add(AssessmentGoldenTest.class);
-    elements.addAll(Arrays.asList(AssessmentGoldenTest.class.getDeclaredMethods()));
+    addMembers(AssessmentGoldenTest.class, elements);
     return elements;
+  }
+
+  private static void addMembers(Class<?> type, List<AnnotatedElement> elements) {
+    elements.add(type);
+    elements.addAll(Arrays.asList(type.getDeclaredFields()));
+    elements.addAll(Arrays.asList(type.getDeclaredConstructors()));
+    for (Method method : type.getDeclaredMethods()) {
+      elements.add(method);
+      elements.addAll(Arrays.asList(method.getParameters()));
+    }
+    for (Class<?> nested : type.getDeclaredClasses()) {
+      addMembers(nested, elements);
+    }
+  }
+
+  /** The reasons of every {@code @Disabled}, also the ones inside an annotation of the project. */
+  private static List<String> disabledReasons() {
+    return goldenTestElements().stream()
+        .flatMap(element -> AnnotationSupport.findAnnotation(element, Disabled.class).stream())
+        .map(Disabled::value)
+        .toList();
   }
 
   @Test
   @DisplayName(
-      "Todo @Disabled de AssessmentGoldenTest, de clase o de método, cita su issue (006-06)")
-  void everyDisabledCitesAnIssue() {
-    assertThat(goldenTestElements())
-        .filteredOn(element -> element.isAnnotationPresent(Disabled.class))
-        .allSatisfy(element ->
-            assertThat(element.getAnnotation(Disabled.class).value())
-                .as(element.toString())
-                .containsPattern(ISSUE));
+      "Todo @Disabled de AssessmentGoldenTest, de clase o de método, cita el mismo issue (006-06)")
+  void everyDisabledCitesTheSameIssue() {
+    List<String> reasons = disabledReasons();
+
+    assertThat(reasons).allSatisfy(reason -> assertThat(reason).containsPattern(ISSUE));
+    assertThat(
+            reasons.stream()
+                .map(reason -> ISSUE.matcher(reason))
+                .filter(Matcher::find)
+                .map(matcher -> matcher.group(1))
+                .distinct())
+        .hasSizeLessThanOrEqualTo(1);
   }
 
   @Test
@@ -637,67 +757,124 @@ class AssessmentGoldenFixturesTest {
             .map(element ->
                 () ->
                     assertThat(conditionsAndExtensions(element)).as(element.toString()).isEmpty()));
-    assertThat(AssessmentGoldenTest.class.getDeclaredFields())
-        .noneMatch(field -> field.isAnnotationPresent(RegisterExtension.class));
   }
 
-  /** The conditions and extensions of an element, also inside annotations of the project itself. */
+  /** The conditions and the extensions of an element, also inside annotations of the project. */
   private static List<String> conditionsAndExtensions(AnnotatedElement element) {
     List<String> found = new ArrayList<>();
     for (Annotation annotation : element.getAnnotations()) {
-      collectConditionsAndExtensions(annotation.annotationType(), found, new HashSet<>());
+      collectConditions(annotation.annotationType(), found, new HashSet<>());
+    }
+    // Repeated and meta-present @ExtendWith too (JUnit wraps repeated ones in @Extensions).
+    for (ExtendWith extendWith :
+        AnnotationSupport.findRepeatableAnnotations(element, ExtendWith.class)) {
+      for (Class<?> extension : extendWith.value()) {
+        if (!extension.getPackageName().startsWith(JUNIT_PARAMS)) {
+          found.add(extension.getName());
+        }
+      }
+    }
+    if (element.isAnnotationPresent(RegisterExtension.class)) {
+      found.add(RegisterExtension.class.getName());
     }
     return found;
   }
 
-  /** Adds the type if it is a condition or an extension, and searches the annotations it has. */
-  private static void collectConditionsAndExtensions(
+  /** Adds the type if it is a JUnit condition, and searches the annotations of the project. */
+  private static void collectConditions(
       Class<? extends Annotation> type, List<String> found, Set<Class<?>> seen) {
     if (!seen.add(type)) {
       return;
     }
-    if (type.getPackageName().equals(JUNIT_CONDITIONS) || type == ExtendWith.class) {
+    if (type.getPackageName().equals(JUNIT_CONDITIONS)) {
       found.add(type.getName());
     }
-    // Not searched inside the annotations of JUnit: @ParameterizedTest itself carries an
-    // extension. Only the annotations of the project, which could hide one, are searched.
+    // Not searched inside the annotations of JUnit (@ParameterizedTest itself carries an
+    // extension); only the annotations of the project, which could hide one, are searched.
     if (!type.getPackageName().startsWith("org.junit.")
         && !type.getPackageName().startsWith("java.")) {
       for (Annotation meta : type.getAnnotations()) {
-        collectConditionsAndExtensions(meta.annotationType(), found, seen);
+        collectConditions(meta.annotationType(), found, seen);
       }
     }
   }
 
   @Test
   @DisplayName(
-      "AssessmentGoldenTest tiene un método por criterio de la spec, y cada uno tiene casos (006-07)")
-  void thereIsOneMethodPerCriterionAndEachHasCases() {
-    Set<String> criteria =
-        Set.of(
-            "CA-L01", "CA-L02", "CA-L03", "CA-L04", "006-02", "006-14", "LQ-C01", "LQ-C02",
-            "LQ-C04");
-    List<Method> methods =
-        Arrays.stream(AssessmentGoldenTest.class.getDeclaredMethods())
-            .filter(method -> method.isAnnotationPresent(ParameterizedTest.class))
-            .toList();
+      "Un motor real no queda oculto por el @Disabled de la clase: se mueve a los métodos (006-06)")
+  void aRealEngineIsNotHiddenByAClassLevelDisabled() {
+    boolean engineExists =
+        !(AssessmentGoldenEngines.current() instanceof NotImplementedAssessmentEngine);
 
-    assertThat(AssessmentGoldenTest.class.getAnnotation(Tag.class).value()).isEqualTo("golden");
-    assertThat(methods)
-        .extracting(method -> method.getAnnotation(Tag.class).value())
-        .containsExactlyInAnyOrderElementsOf(criteria);
+    assertThat(engineExists && AssessmentGoldenTest.class.isAnnotationPresent(Disabled.class))
+        .as("current() ya devuelve el motor real; el @Disabled de la clase oculta todos los casos")
+        .isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "Mientras no hay motor, cada invocación en rojo falla por GoldenEngineNotImplementedException (006-04)")
+  void whileThereIsNoEngineEveryInvocationFailsForThatReason() {
+    if (!(AssessmentGoldenEngines.current() instanceof NotImplementedAssessmentEngine)) {
+      return; // Phase 2: the golden test itself decides.
+    }
     assertAll(
-        methods.stream()
-            .map(method ->
-                () -> {
-                  String code = method.getAnnotation(Tag.class).value();
-                  assertThat(method.getAnnotation(AssessmentGoldenTest.RuleCases.class).value())
-                      .as(method.getName() + " · el código de las etiquetas y el de sus casos")
-                      .isEqualTo(code);
-                  assertThat(cases())
-                      .as(code + " · casos")
-                      .anySatisfy(goldenCase -> assertThat(goldenCase.rules()).contains(code));
-                }));
+        goldenMethodCodes().stream()
+            .flatMap(code -> AssessmentGoldenTest.casesFor(code).stream())
+            .map(goldenCase ->
+                () ->
+                    assertThatThrownBy(() -> AssessmentGoldenTest.assertCase(goldenCase))
+                        .as(goldenCase.id())
+                        .isInstanceOf(GoldenEngineNotImplementedException.class)));
+  }
+
+  /** The code each criterion method of AssessmentGoldenTest runs. */
+  private static List<String> goldenMethodCodes() {
+    return goldenMethods().stream()
+        .map(method -> method.getAnnotation(AssessmentGoldenTest.RuleCases.class).value())
+        .toList();
+  }
+
+  private static List<Method> goldenMethods() {
+    return Arrays.stream(AssessmentGoldenTest.class.getDeclaredMethods())
+        .filter(method -> method.isAnnotationPresent(ParameterizedTest.class))
+        .toList();
+  }
+
+  @Test
+  @DisplayName(
+      "AssessmentGoldenTest tiene un método por código de la spec, con su etiqueta y sus casos (006-07)")
+  void thereIsOneMethodPerCodeAndEachHasCases() {
+    Set<String> codes = RULES.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
+
+    assertThat(
+            AnnotationSupport.findRepeatableAnnotations(AssessmentGoldenTest.class, Tag.class)
+                .stream()
+                .map(Tag::value))
+        .containsExactly("golden");
+    assertThat(goldenMethods())
+        .allSatisfy(method ->
+            assertThat(AnnotationSupport.findRepeatableAnnotations(method, Tag.class))
+                .as(method.getName() + " · una sola etiqueta, la de su código")
+                .extracting(Tag::value)
+                .containsExactly(
+                    method.getAnnotation(AssessmentGoldenTest.RuleCases.class).value()));
+    assertThat(goldenMethodCodes()).containsExactlyInAnyOrderElementsOf(codes);
+    assertThat(codes)
+        .allSatisfy(code ->
+            assertThat(AssessmentGoldenTest.casesFor(code)).as(code + " · casos").isNotEmpty());
+    assertThat(schemaRuleCodes()).containsExactlyInAnyOrderElementsOf(codes);
+  }
+
+  /** The codes the schema accepts in {@code rules}. */
+  private static List<String> schemaRuleCodes() {
+    JsonNode schema =
+        CommonCases.EXACT.readTree(GoldenFixtures.GOLDEN.resolve("tax.schema.json").toFile());
+    return schema
+        .at("/$defs/case/properties/rules/items/enum")
+        .valueStream()
+        .map(JsonNode::stringValue)
+        .toList();
   }
 
   @Test

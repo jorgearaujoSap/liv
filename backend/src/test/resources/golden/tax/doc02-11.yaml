@@ -13,8 +13,9 @@ cases:
     assumptions: ["ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "fiscal_year", reason: "CA-L02 no repite la vigencia (CA-L01 sí trae 2026)"}
-      - {field: "vehicle_category", reason: "el documento no nombra la categoría; PARTICULAR es la única con tramos en la configuración"}
+      - {field: "vehicle_category", reason: "el documento no nombra la categoría; el borde de 57.349.000 es el del primer tramo de PARTICULAR (MOTO y ELECTRICO tienen un solo tramo)"}
       - {field: "taxable_base", reason: "el documento da la base sin su origen (tabla o factura); se entra como base ya ajustada, sin origen"}
+      - {field: "new_vehicle", reason: "CA-L02 no dice si es nuevo ni da meses; una base sola se entra como vehículo no nuevo"}
     input:
       fiscal_year: 2026
       vehicle_category: "PARTICULAR"

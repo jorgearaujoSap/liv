@@ -167,20 +167,22 @@ Una celda vacía del documento es una clave ausente. Los montos finales se compa
 ### Supuestos y entradas inferidas
 
 - `MODALIDAD_B_HIPOTETICA`: L7 a L9 y L11 a L13. La nota del Doc. 03 §9.3 dice que, con A + C, el municipio solo liquida el internado (L10); las demás filas son el cálculo si se activa el convenio con Nariño. L10 no lo lleva. L1 a L6 son «régimen nacional» y la competencia está fuera de la frontera.
-- `ENTRADA_INFERIDA`: el caso trae una entrada que el documento no da; cada una está en `inferred_inputs` con su motivo. Son la categoría (`PARTICULAR`, `MOTO` o `ELECTRICO`, por el mapeo `categorias` de la configuración) en L1 a L13, la forma de la base de L1, L2, L5 y L6 (`taxable_base`, la «Base» del documento, sin origen) y de L3 (`table_value`), y la vigencia de L6. L14 y L15 no llevan ninguna: no traen base ni categoría.
+- `ENTRADA_INFERIDA`: el caso trae una entrada que el documento no da; cada una está en `inferred_inputs` con su motivo. Son la categoría (`PARTICULAR`, `MOTO` o `ELECTRICO`) en L1 a L13: por el mapeo `categorias` de la configuración, salvo en L5 y L6, donde el documento solo da un borde de tramo y `PARTICULAR` es la categoría con más de un tramo; `new_vehicle: false` en L3, L5, L6 y L7 a L12, que el documento no dice (L1 y L2 son «usado», y los vehículos nuevos lo dicen); la forma de la base de L1, L2, L5 y L6 (`taxable_base`, la «Base» del documento, sin origen) y de L3 (`table_value`); y la vigencia de L6. L14 y L15 no llevan ninguna: no traen base ni categoría.
 - La causación de un vehículo usado no está en el *fixture*: la da la configuración. Los vehículos nuevos traen su `accrual_date`.
 
 ### `depends_on`
 
-Si cambia alguno de estos valores de la configuración, estos son los casos que hay que revisar: `tarifas.MOTO` (L11), `causacion.proporcionalidad_nuevos` (L4 y L13; Doc. 02 §12, pendiente 2), `redondeo.empate` (L8, cuyo bruto cae en $500 exactos) y `categorias` y `sujecion` (L11; los dos están `POR_CONFIRMAR`).
+La lista no es exhaustiva: son los valores `POR_CONFIRMAR` de la configuración que la revisión del plan identificó. Si cambia alguno de ellos, estos son los casos que hay que revisar: `tarifas.MOTO` (L11), `causacion.proporcionalidad_nuevos` (L4 y L13; Doc. 02 §12, pendiente 2), `redondeo.empate` (L8, cuyo bruto cae en $500 exactos) y `categorias` y `sujecion` (L11; los dos están `POR_CONFIRMAR`).
 
 ### La frontera de `tax`
 
-El adaptador ejerce el Doc. 02 §B.6 (ajustes de base y multiplicador de tablas), §B.7 (tarifa y meses), §B.8 (bruto, neto redondeado y descuento) y el calendario del Doc. 03 §9.6 y §9.7. **No** evalúa los prerrequisitos y la sujeción (§B.3; por ejemplo, el cilindraje de la moto de L11), la competencia y el universo de la modalidad, ni la homologación: la categoría, el origen de la base y los ajustes son entradas.
+El adaptador ejerce el Doc. 02 §B.6 (ajustes de base y multiplicador de tablas), §B.7 (tarifa y meses), §B.8 (bruto, neto redondeado y descuento) y el calendario del Doc. 03 §9.6 y §9.7. **No** evalúa los prerrequisitos y la sujeción (§B.3; por ejemplo, el cilindraje de la moto de L11), la competencia y el universo de la modalidad, ni la homologación: la categoría, el origen de la base y los ajustes son entradas. El adaptador real de la Fase 2 solo **traduce** la entrada de un caso al puerto de aplicación de `tax` y carga la configuración con el mismo lector y modelo que producción; no elige el tramo, no multiplica ni redondea por su cuenta. Si lo hiciera, estas pruebas probarían el adaptador y no el motor.
 
 ### Ejecutarlas en rojo
 
-El comando de «Ejecutarlas en rojo» (sección general de este README) selecciona `AssessmentGoldenTest`: sus 31 invocaciones (una por caso y por código que cita) fallan con `GoldenEngineNotImplementedException`. Para ponerlas en verde, sigue «Ponerlas en verde (Fases 2 y 4)» y cierra el *issue* #171.
+El comando de «Ejecutarlas en rojo» (sección general de este README) selecciona `AssessmentGoldenTest`: sus 31 invocaciones (una por caso y por código que cita) fallan con `GoldenEngineNotImplementedException`. Para ponerlas en verde, sigue «Ponerlas en verde (Fases 2 y 4)» y cierra el *issue* #171. Mientras `AssessmentGoldenEngines.current()` devuelva `NotImplementedAssessmentEngine`, `AssessmentGoldenFixturesTest` comprueba en verde que cada una de las invocaciones falla por esa excepción; cuando devuelva el motor real, comprueba que el `@Disabled` ya no esté en la clase.
+
+**Cuidado con la granularidad.** Un método agrupa todos los casos de un código: `LQ-C01`, `LQ-C02` y `LQ-C04` cubren L7 a L13. Si un solo caso falla en la Fase 2 (por ejemplo, L11 por un valor `POR_CONFIRMAR`), no desactives el método entero sin decirlo en el *issue*: apagarías también los casos que pasan. Lo preferible es corregir el motor o el documento; si hace falta apartar un caso, que sea por una decisión explícita de la persona.
 
 ## Cuenta corriente (`ledger`)
 

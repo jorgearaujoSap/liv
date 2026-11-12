@@ -19,6 +19,7 @@ cases:
     assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «automóvil»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     input:
       fiscal_year: 2026
       vehicle_category: "PARTICULAR"
@@ -42,6 +43,7 @@ cases:
     assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «camioneta»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     depends_on: ["redondeo.empate"]
     input:
       fiscal_year: 2026
@@ -66,6 +68,7 @@ cases:
     assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «camioneta»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     input:
       fiscal_year: 2026
       vehicle_category: "PARTICULAR"
@@ -90,6 +93,7 @@ cases:
     assumptions: ["ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «internado temporalmente»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     input:
       fiscal_year: 2026
       vehicle_category: "PARTICULAR"
@@ -114,6 +118,7 @@ cases:
     assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «moto de más de 125 cc»; MOTO por el mapeo categorias de la configuración (POR_CONFIRMAR); la sujeción (cilindraje) no la evalúa el adaptador"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     depends_on: ["tarifas.MOTO", "categorias", "sujecion"]
     input:
       fiscal_year: 2026
@@ -138,6 +143,7 @@ cases:
     assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «eléctrico»; ELECTRICO por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     input:
       fiscal_year: 2026
       vehicle_category: "ELECTRICO"
@@ -154,6 +160,9 @@ cases:
       net_tax_with_discount: 750000
       discount_deadline: 2026-04-30
 
+  # L13: la celda «A pagar» dice «$1.042.000 hasta el 31-dic-2026» y el descuento efectivo, «—»
+  # (sin descuento, §9.7). Se compara el neto, el plazo sin intereses (`due_date`) y
+  # `discount_applies: false`; el documento no da «mora desde» en esta fila.
   - id: "L13"
     row: 7
     rules: ["CA-L03", "LQ-C01", "LQ-C02", "LQ-C04"]

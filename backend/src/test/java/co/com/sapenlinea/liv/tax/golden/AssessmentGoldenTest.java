@@ -8,6 +8,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,8 @@ import tools.jackson.databind.JsonNode;
 @Disabled("Issue #171: el motor de liquidación no existe (Fase 2); ver golden/README.md")
 @DisplayName("Pruebas golden de la liquidación (en rojo hasta la Fase 2)")
 class AssessmentGoldenTest {
+
+  private static final String MODULE = "tax";
 
   /** The hyphen the documents use in the codes (U+2011); the tags use the ASCII one. */
   private static final char NON_BREAKING_HYPHEN = '‑';
@@ -121,7 +124,15 @@ class AssessmentGoldenTest {
     return String.join(", ", goldenCase.rules()).replace('-', NON_BREAKING_HYPHEN);
   }
 
-  private static void assertCase(GoldenCase goldenCase) {
+  /** The cases that cite a rule code: the ones the method of that code runs. */
+  static List<GoldenCase> casesFor(String code) {
+    return GoldenFixtures.cases(MODULE).stream()
+        .filter(goldenCase -> goldenCase.rules().contains(code))
+        .toList();
+  }
+
+  /** Runs one case against the engine of {@link AssessmentGoldenEngines#current()}. */
+  static void assertCase(GoldenCase goldenCase) {
     JsonNode configuration = GoldenConfiguration.load(goldenCase.configuration().file());
     AssessmentGoldenResult result =
         AssessmentGoldenEngines.current()
@@ -147,8 +158,7 @@ class AssessmentGoldenTest {
     public Stream<? extends Arguments> provideArguments(
         ParameterDeclarations parameters, ExtensionContext context) {
       String code = context.getRequiredTestMethod().getAnnotation(RuleCases.class).value();
-      return GoldenFixtures.cases("tax").stream()
-          .filter(goldenCase -> goldenCase.rules().contains(code))
+      return casesFor(code).stream()
           .map(goldenCase -> Arguments.of(Named.of(displayName(goldenCase), goldenCase)));
     }
   }

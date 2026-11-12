@@ -22,6 +22,10 @@ import tools.jackson.databind.JsonNode;
  * 03 section 9.5, OB-02 and OB-03), the homologation and the derivation of the category. The
  * category, the origin of the base and the adjustments are inputs.
  *
+ * <p>The real adapter of Phase 2 only translates the input to the application port of {@code tax}
+ * and reads the configuration with the production reader and model. It must not choose the bracket,
+ * multiply or round by itself: the cases would then test the adapter and not the engine.
+ *
  * <p>The configuration is only a source of parameters: rates, ranges, adjustments, rounding and
  * calendar. No tax value lives in the adapter. The cases and the way to run them are described in
  * {@code src/test/resources/golden/README.md}.

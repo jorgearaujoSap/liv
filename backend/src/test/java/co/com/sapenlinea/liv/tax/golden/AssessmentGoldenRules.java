@@ -18,10 +18,15 @@ import tools.jackson.databind.JsonNode;
  *       the calendar (dates and whether the discount applies) may give none;
  *   <li>{@code base-source}: the origin matches the form (a table value comes from the official
  *       table, an invoice value from the invoice, and a base given already adjusted has none);
+ *   <li>{@code base-adjusted}: a base given already adjusted lists no adjustments, so that none is
+ *       applied twice;
  *   <li>{@code category-required}: a case that compares amounts gives the vehicle category.
  * </ul>
  */
 final class AssessmentGoldenRules {
+
+  /** The form of a base that comes already adjusted: no origin and no adjustments to apply. */
+  private static final String ADJUSTED_BASE = "taxable_base";
 
   /** The origin of a base given already adjusted: it has none. */
   private static final String NO_ORIGIN = "";
@@ -29,10 +34,14 @@ final class AssessmentGoldenRules {
   /** The four forms of the base, and the origin each one takes. */
   private static final Map<String, String> BASE_FORMS =
       Map.of(
-          "taxable_base", NO_ORIGIN,
-          "table_value", "OFFICIAL_TABLE",
-          "table_value_thousands", "OFFICIAL_TABLE",
-          "invoice_value_without_vat", "INVOICE");
+          ADJUSTED_BASE,
+          NO_ORIGIN,
+          "table_value",
+          "OFFICIAL_TABLE",
+          "table_value_thousands",
+          "OFFICIAL_TABLE",
+          "invoice_value_without_vat",
+          "INVOICE");
 
   /**
    * The keys of a case that only asks for the calendar: its dates and whether the discount applies.
@@ -71,6 +80,12 @@ final class AssessmentGoldenRules {
       problems.add(new Problem(path, "base-required"));
     } else if (forms.size() == 1) {
       checkSource(input, path, BASE_FORMS.get(forms.get(0)), problems);
+      if (forms.get(0).equals(ADJUSTED_BASE) && !input.path("base_adjustments").isEmpty()) {
+        problems.add(new Problem(path + "/base_adjustments", "base-adjusted"));
+      }
+    }
+    if (forms.isEmpty() && input.has("base_source_type")) {
+      problems.add(new Problem(path + "/base_source_type", "base-source"));
     }
     if (!calendarOnly && !input.has("vehicle_category")) {
       problems.add(new Problem(path + "/vehicle_category", "category-required"));

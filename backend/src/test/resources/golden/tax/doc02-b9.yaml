@@ -53,6 +53,7 @@ cases:
     inferred_inputs:
       - {field: "vehicle_category", reason: "el documento dice «camioneta particular»; PARTICULAR por el mapeo categorias de la configuración"}
       - {field: "table_value", reason: "el documento dice «tabla $120.000.000», en pesos; se entra como valor de tabla en pesos (OFFICIAL_TABLE)"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     input:
       fiscal_year: 2026
       vehicle_category: "PARTICULAR"
@@ -93,8 +94,9 @@ cases:
     description: "Base exactamente 57.349.000: borde superior inclusivo del primer tramo"
     assumptions: ["ENTRADA_INFERIDA"]
     inferred_inputs:
-      - {field: "vehicle_category", reason: "el documento no nombra la categoría; PARTICULAR es la única con tramos en la configuración"}
+      - {field: "vehicle_category", reason: "el documento no nombra la categoría; el borde de 57.349.000 es el del primer tramo de PARTICULAR (MOTO y ELECTRICO tienen un solo tramo)"}
       - {field: "taxable_base", reason: "el documento da la «Base» sin su origen (tabla o factura); se entra como base ya ajustada, sin origen"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
     input:
       fiscal_year: 2026
       vehicle_category: "PARTICULAR"

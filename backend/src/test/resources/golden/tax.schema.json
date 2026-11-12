@@ -110,6 +110,9 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["fiscal_year", "new_vehicle"],
+          "if": { "properties": { "new_vehicle": { "const": true } } },
+          "then": { "required": ["accrual_date"] },
+          "else": { "not": { "required": ["accrual_date"] } },
           "properties": {
             "fiscal_year": { "type": "integer", "minimum": 2000, "maximum": 2100 },
             "vehicle_category": { "enum": ["PARTICULAR", "MOTO", "ELECTRICO", "PUBLICO"] },
