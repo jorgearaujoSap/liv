@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fixtures golden de la cuenta corriente (módulo ledger): casos C1 a C9 del Doc. 04",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document", "configuration", "cases"],
+  "properties": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "version", "section"],
+      "properties": {
+        "code": { "const": "Doc. 04" },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "section": { "type": "string", "minLength": 1 }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "sha256"],
+      "properties": {
+        "file": { "const": "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml" },
+        "sha256": { "const": "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872" }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "amountInPesos": { "type": "integer" },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "modality": { "enum": ["UEDF_INTERNACION", "CONVENIO_DEPTO"] },
+    "component": { "enum": ["TAX", "INTEREST", "PENALTY"] },
+    "reconciledPaymentStatus": { "const": "CONCILIADO", "description": "Solo pagos ya conciliados: la conciliación (Doc. 04 §4.4) queda fuera de la frontera." },
+    "inputMovement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "component", "signed_amount"],
+      "properties": {
+        "type": { "enum": ["ASSESSMENT", "INTEREST_ACCRUAL", "PENALTY", "PAYMENT", "EARLY_PAYMENT_DISCOUNT"] },
+        "component": { "$ref": "#/$defs/component" },
+        "signed_amount": { "$ref": "#/$defs/amountInPesos" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["EMISSION", "PAYMENT", "BANK_REVERSAL", "ALLOCATION"] }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "EMISSION" } } },
+          "then": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "net_tax", "net_tax_with_discount", "origin_modality"],
+            "properties": {
+              "type": true,
+              "net_tax": { "$ref": "#/$defs/amountInPesos" },
+              "net_tax_with_discount": { "$ref": "#/$defs/amountInPesos" },
+              "origin_modality": { "$ref": "#/$defs/modality" }
+            }
+          }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "PAYMENT" } } },
+          "then": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "date", "amount", "status"],
+            "properties": {
+              "type": true,
+              "date": { "$ref": "#/$defs/date" },
+              "amount": { "$ref": "#/$defs/amountInPesos", "minimum": 1 },
+              "status": { "$ref": "#/$defs/reconciledPaymentStatus" }
+            }
+          }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "BANK_REVERSAL" } } },
+          "then": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { "type": true }
+          }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "ALLOCATION" } } },
+          "then": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "payment", "movements"],
+            "properties": {
+              "type": true,
+              "payment": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["status", "amount"],
+                "properties": {
+                  "status": { "$ref": "#/$defs/reconciledPaymentStatus" },
+                  "amount": { "$ref": "#/$defs/amountInPesos", "minimum": 1 }
+                }
+              },
+              "movements": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/inputMovement" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rules", "description", "input", "expected"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^C[1-9]$" },
+        "row": { "type": "integer", "minimum": 1, "description": "Fila de la tabla del documento o número del ejemplo (si el caso sale de una)." },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["CA-4.01", "CA-4.02", "CA-4.03", "CA-4.04", "CA-4.08", "CA-4.09", "LQ-C04", "IM-01", "IM-03"] }
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "assumptions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["MODALIDAD_B_HIPOTETICA", "DEUDA_DADA_A_LA_FECHA_DEL_PAGO", "ENTRADA_INFERIDA"] }
+        },
+        "inferred_inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "reason"],
+            "properties": {
+              "field": {
+                "type": "string",
+                "pattern": "^/(obligation|opening_movements|events)(/[A-Za-z0-9_]+)*$",
+                "description": "JSON Pointer a la entrada del caso que el documento no da."
+              },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "depends_on": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "recaudo",
+              "recaudo.descuento_pago_parcial",
+              "recaudo.imputacion.redondeo_componentes",
+              "redondeo.empate"
+            ]
+          }
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["events"],
+          "properties": {
+            "obligation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["origin_modality", "declared_address"],
+              "properties": {
+                "origin_modality": { "$ref": "#/$defs/modality" },
+                "declared_address": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["same_as_jurisdiction"],
+                  "properties": {
+                    "same_as_jurisdiction": { "type": "boolean", "description": "La dirección declarada es el municipio de la configuración (Ipiales)." },
+                    "name": { "type": "string", "minLength": 1 }
+                  },
+                  "if": { "required": ["same_as_jurisdiction"], "properties": { "same_as_jurisdiction": { "const": false } } },
+                  "then": { "required": ["name"] },
+                  "else": { "not": { "required": ["name"] } }
+                }
+              }
+            },
+            "opening_movements": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/inputMovement" }
+            },
+            "events": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/event" }
+            }
+          }
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "obligation": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "original_principal": { "$ref": "#/$defs/amountInPesos" },
+                "due_date": { "$ref": "#/$defs/date" },
+                "origin_modality": { "$ref": "#/$defs/modality" }
+              }
+            },
+            "movements": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "component", "signed_amount"],
+                "properties": {
+                  "type": { "enum": ["ASSESSMENT", "PAYMENT", "EARLY_PAYMENT_DISCOUNT", "REVERSAL"] },
+                  "component": { "$ref": "#/$defs/component" },
+                  "signed_amount": { "$ref": "#/$defs/amountInPesos" },
+                  "reverses": { "enum": ["PAYMENT", "EARLY_PAYMENT_DISCOUNT"], "description": "Tipo del movimiento que reversa (Doc. 04 §2.1 y §6.2)." },
+                  "derived_from": { "type": "string", "minLength": 1, "description": "El movimiento sale de una regla y no de una cifra del ejemplo: la sección de la regla. Es un dato del fixture; no se compara." }
+                }
+              }
+            },
+            "allocations": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["component", "amount"],
+                "properties": {
+                  "component": { "$ref": "#/$defs/component" },
+                  "amount": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "balances": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "TAX": { "$ref": "#/$defs/amountInPesos" },
+                "INTEREST": { "$ref": "#/$defs/amountInPesos" },
+                "PENALTY": { "$ref": "#/$defs/amountInPesos" }
+              }
+            },
+            "total_balance": { "$ref": "#/$defs/amountInPesos" },
+            "status": { "const": "PAGADA", "description": "Solo estados que no dependen de «hoy» (Doc. 04 §3.3): VIGENTE y EN_MORA no se comparan." },
+            "payment_status": { "const": "REVERSADO", "description": "Estado del pago tras el reverso bancario (Doc. 04 §6.2)." },
+            "distribution": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["beneficiary", "amount"],
+                "properties": {
+                  "beneficiary": { "enum": ["DEPARTAMENTO_NARINO", "MUNICIPIO_IPIALES", "MUNICIPIO_PASTO"] },
+                  "amount": { "type": "integer", "minimum": 0 },
+                  "disposition": { "enum": ["RETENIDO", "GIRADO"], "description": "Solo cuando el documento lo dice (Doc. 04 §7: «retenidos», «girados a Pasto»)." }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

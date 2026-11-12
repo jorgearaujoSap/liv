@@ -1,0 +1,76 @@
+# Casos C2, C4 y C5: los ejemplos del Doc. 04 §5.2 (Ipiales 2026, vehículo internado temporalmente).
+# `row` es el número del ejemplo: 1 (pago con descuento) y 2 (pago parcial en mora, con su variante
+# con una sanción de $30.000). Los movimientos son los de la tabla del documento; el reparto de C4 y
+# C5 es proporcional entre componentes (art. 804 ET); el método del redondeo «al peso» es el pendiente
+# 9 del Doc. 04 §14.
+#
+# C4 y C5 no tienen emisión: parten de `opening_movements`, la deuda por componente a la fecha del
+# pago. Los $15.000 de intereses y los $30.000 de sanción son ilustrativos (el documento lo dice):
+# el caso prueba la imputación, no la causación, que es del Módulo 5. La columna «Participación»
+# (95,80 % y 4,20 %) no se compara: es un paso intermedio del reparto y no una cifra del resultado.
+document: {code: "Doc. 04", version: "0.3", section: "§5.2"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+cases:
+  - id: "C2"
+    row: 1
+    rules: ["CA-4.02"]
+    description: "Pago de $308.000 el 20-abr con descuento sobre un neto de $342.000: el pago y el descuento saldan la obligación"
+    input:
+      events:
+        - {type: "EMISSION", net_tax: 342000, net_tax_with_discount: 308000, origin_modality: "UEDF_INTERNACION"}
+        - {type: "PAYMENT", date: 2026-04-20, amount: 308000, status: "CONCILIADO"}
+    expected:
+      movements:
+        - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}
+        - {type: "PAYMENT", component: "TAX", signed_amount: -308000}
+        - {type: "EARLY_PAYMENT_DISCOUNT", component: "TAX", signed_amount: -34000}
+      balances: {TAX: 0}
+      status: "PAGADA"
+
+  - id: "C4"
+    row: 2
+    rules: ["CA-4.04", "IM-01", "IM-03"]
+    description: "Pago parcial en mora de $200.000 con impuesto de $342.000 e intereses de $15.000"
+    assumptions: ["DEUDA_DADA_A_LA_FECHA_DEL_PAGO", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/date", reason: "el documento da el saldo «al 15-jul-2026» y no la fecha del pago; se entra la misma fecha"}
+    # El pendiente 9 del Doc. 04 §14 dice que depende «la tabla y su variante»: el método de «al peso»
+    # puede cambiar el reparto de este ejemplo.
+    depends_on: ["recaudo.imputacion.redondeo_componentes"]
+    input:
+      opening_movements:
+        - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}
+        - {type: "INTEREST_ACCRUAL", component: "INTEREST", signed_amount: 15000}
+      events:
+        - {type: "PAYMENT", date: 2026-07-15, amount: 200000, status: "CONCILIADO"}
+    expected:
+      allocations:
+        - {component: "TAX", amount: 191597}
+        - {component: "INTEREST", amount: 8403}
+      balances: {TAX: 150403, INTEREST: 6597}
+      total_balance: 157000
+
+  - id: "C5"
+    row: 2
+    rules: ["CA-4.04", "IM-01", "IM-03"]
+    description: "El mismo pago de $200.000 con una sanción de $30.000 adicional (variante del ejemplo 2)"
+    assumptions: ["DEUDA_DADA_A_LA_FECHA_DEL_PAGO", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/date", reason: "el documento da el saldo «al 15-jul-2026» y no la fecha del pago; se entra la misma fecha"}
+    # El método de «al peso» no está definido (Doc. 04 §14, pendiente 9): los valores son los del
+    # documento, que coinciden con el peso más cercano. El documento no da los saldos de esta variante.
+    depends_on: ["recaudo.imputacion.redondeo_componentes"]
+    input:
+      opening_movements:
+        - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}
+        - {type: "INTEREST_ACCRUAL", component: "INTEREST", signed_amount: 15000}
+        - {type: "PENALTY", component: "PENALTY", signed_amount: 30000}
+      events:
+        - {type: "PAYMENT", date: 2026-07-15, amount: 200000, status: "CONCILIADO"}
+    expected:
+      allocations:
+        - {component: "TAX", amount: 176744}
+        - {component: "INTEREST", amount: 7752}
+        - {component: "PENALTY", amount: 15504}
