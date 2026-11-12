@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-11
+> **Última actualización:** 2026-11-12
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -10,8 +10,8 @@
 
 | Tema | Estado |
 |---|---|
-| Fase actual | **Fase 0 — Fundaciones**: arquitectura aprobada; esqueletos de `backend/`, `frontend/` y `ui/` (librería `liv-components`) creados y en verde |
-| Código | 🔄 Fase 0 por cerrar (ADR 0031). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.3.1 publicada en npm con 18 componentes, y pruebas de navegador en local. Todavía sin funcionalidad de negocio |
+| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). Sigue la **Fase 1 — Tablas base y configuración**: la primera feature la elige la persona |
+| Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.3.1 publicada en npm con 18 componentes, y pruebas de navegador en local. Todavía sin funcionalidad de negocio |
 | Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
 | Arquitectura (00–05) | ✅ **Aprobada** el 2026-11-01: ADR 0001–0020 aceptados sin ajustes (Java 21 LTS en lugar de 25); ADR 0021 (backend con Maven y la base del equipo) y ADR 0022 (librería como proyecto `ui/` publicado en npm) aceptados el mismo día |
 | Diseño en Figma | 🔄 Estilos, hoja de fundamentos, variables de espaciado y radios, 38 iconos y logotipo hechos; 20 componentes y 15 pantallas de la feature 001 (versión 2, rediseñada) aprobados por el responsable funcional (2026-11-01) |
@@ -21,11 +21,7 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
-**Orquestador activo: feature 006 · Pruebas *golden* en rojo (F0‑11)** (desde el 2026-11-11). Es el último entregable para cerrar la Fase 0 (ADR 0031). La 005 · Cartera y recaudo se cerró el 2026-11-11 (PR #147, #150 y #152 a #163).
-
-| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
-|---|---|---|---|---|---|
-| Spec (H1) | raíz | `f006-diseno` / `feat/006-pruebas-golden` | — | 🔄 En curso | La H1 |
+**Sin orquestador activo.** No hay ninguna feature en curso: la 006 · Pruebas *golden* en rojo (F0‑11) se cerró el 2026-11-12 (PR #168, #169, #170, #172, #174 y este cierre), y con ella la Fase 0. La siguiente es la primera feature de la Fase 1, que elige la persona.
 
 ---
 
@@ -33,7 +29,7 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 
 | Documento | Estado | Versión |
 |---|---|---|
-| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Desde la feature 005 (2026-11-11): Doc. 01 0.4, Doc. 02 0.2, Doc. 03 0.5, Doc. 04 0.2, Doc. 05 0.1 y ERD 2.2 (79 tablas) |
+| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Desde la feature 005 (2026-11-11): Doc. 01 0.4, Doc. 02 0.2, Doc. 03 0.5, Doc. 04 0.3 (2026-11-12, pendientes 8 y 9 de la feature 006), Doc. 05 0.1 y ERD 2.2 (79 tablas) |
 | `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` · `Formatos_Intercambio_Recaudo.xlsx` | ✅ Existente | Esquema 1.1 desde la feature 005 |
 | `README.md` | ✅ Creado: mapa del repositorio | — |
 | `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.1 (2026-11-11) |
@@ -76,7 +72,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑08 | Roles de BD, RLS y primera migración | ✅ Para el cierre | Migraciones de la API `V202611010900`–`V202611031010` y del BFF `V202611032100`–`V202611061100`: esquemas `platform`, `core`, `audit` y `bff`, FK compuestas y RLS por `app.administration_id`, funciones `SECURITY DEFINER`, roles y permisos mínimos, auditoría de solo inserción y ShedLock; pruebas con Testcontainers como `liv_app`. Pendientes que no bloquean el cierre (ADR 0031): las tablas tributarias y la lista de verificación del ERD previa a Flyway, con la feature que cree cada tabla; las decisiones humanas de la bitácora del 2026-11-02 |
 | F0‑09 | Auditoría, correlación y observabilidad | ✅ Para el cierre | Correlación con `X-Correlation-Id` en la respuesta, el MDC y cada línea de log, y credenciales enmascaradas (PR #45). Auditoría de inicios, cierres, rechazos y eventos del proveedor (T15, feature 001). Pendiente que no bloquea el cierre (ADR 0031): log estructurado en JSON con enmascarado y datos personales, antes de *staging* |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ✅ | Feature [004 · Esquema de la configuración de jurisdicción](spec/features/004-esquema-configuracion-jurisdiccion/spec.md), hecha el 2026-11-08: esquema 1.0 y sus pruebas (PR #141), `jsonschema.sh check` y `publish` (PR #142) y el CI de contratos (PR #144), que juzga en cada PR que el esquema publicado no cambie y publicó la *release* `jsonschema-config-jurisdiccion-v1.0` al integrarse. Por decisión del responsable al cerrar, el validador de los anexos en la raíz y su CI (pasos 4 y 5, criterio 004‑13) pasaron a la feature 1.5.9: no se agregan más *checks* ni *rulesets* por ahora |
-| F0‑11 | Pruebas *golden* en rojo | 🔄 **Bloquea el cierre** | Feature 006, iniciada el 2026-11-11: spec en curso |
+| F0‑11 | Pruebas *golden* en rojo | ✅ | Feature [006 · Pruebas *golden* en rojo](spec/features/006-pruebas-golden/spec.md), hecha el 2026-11-12. Hay 24 casos: L1 a L15 de liquidación y C1 a C9 de cuenta corriente, en `backend/src/test/resources/golden/`. Sus pruebas están en rojo con `@Disabled` y su *issue* (#171, motor, Fase 2; #173, cuenta corriente, Fase 4). Pruebas en verde cuidan los *fixtures* y la comparación (PR #170, #172 y #174). Doc. 04 v0.3 con CA‑4.07 y el redondeo «al peso» como pendientes (PR #169) |
 | F0‑12 | Prueba Playwright de humo en CI | ✅ | Por decisión del responsable (ADR 0030), en la Fase 0 se cumple con el e2e local de T23 de la feature 001 (`e2e/`, PR #104), contra el entorno de desarrollo y sin imágenes ni CI. En CI y con imágenes, antes de producción (T24) |
 
 ---
@@ -125,7 +121,10 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
 2. Antes de entregar el proyecto al desarrollador: la plantilla de PR y los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
-3. Cerrar la Fase 0 (ADR 0031): el CI de cada proyecto obligatorio en `main` (F0‑07), los archivos de los ADR 0001–0022 (F0‑02), el esquema JSON de la configuración de jurisdicción (F0‑10, hecho el 2026-11-08) y las pruebas *golden* en rojo (F0‑11), lo único que falta. La T24 de la feature 001 queda para antes de *staging*.
+3. **Fase 0 cerrada el 2026-11-12** (ADR 0031). Elegir la primera feature de la Fase 1 (*roadmap*, *backlog*). Quedan de la feature 006, sin fecha:
+   - los pendientes 8 y 9 del Doc. 04 §14 (CA‑4.07 y el método del redondeo «al peso»), que decide el responsable funcional;
+   - propuestas de las H3: una huella de los valores esperados de las *golden* en el CI y dividir las clases de prueba de más de 400 líneas.
+   La T24 de la feature 001 queda para antes de *staging*.
 4. Seguimiento de la feature 005, sin fecha:
    - hecho el 2026-11-11: el comentario del *backend* (#165) y las reglas nuevas en `AGENTS.md` §5.1 y §5.2 (#166), ya integrados; y las referencias viejas de los documentos de arquitectura y la constitución (#167, a la espera de la H3 de la persona);
    - la marca «Latest» de la *release* `jsonschema-config-jurisdiccion-v1.1` en GitHub no la causan los *scripts* de `publish` (ya pasan `--latest=false`, y sus pruebas lo exigen): es el criterio por fecha de GitHub, que marca la más reciente cuando ninguna está fijada. Nada en el repositorio usa `releases/latest`. Opciones, sin aplicar y a decisión de la persona: dejarlo así, o fijar una *release* a propósito con `gh release edit <etiqueta> --latest` (p. ej. la primera `backend-vX.Y.Z`);
@@ -160,6 +159,32 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-12
+
+- **Feature 006 · Pruebas *golden* en rojo (F0‑11): hecha, y con ella se cierra la Fase 0** (ADR 0031). Las tres condiciones se cumplen:
+  - el *walking skeleton* funciona en local con las pruebas de navegador en verde;
+  - el CI de cada proyecto es obligatorio en `main`;
+  - F0‑02, F0‑10 y F0‑11 están hechos.
+- **PR de la feature**, integrados por la persona después de su H3:
+  - spec, plan y tareas: #168 (H1 y H2 del 2026-11-11);
+  - D1, Doc. 04 v0.3: #169;
+  - B1a, la base común: #170;
+  - B1b, liquidación L1 a L15 (*issue* #171): #172;
+  - B2, cuenta corriente C1 a C9 (*issue* #173): #174.
+- **Revisión:** cada PR de código pasó dos rondas de revisión adversarial de nivel alto y las cuatro lentes.
+- **Cierre:**
+  - cada criterio de `spec.md` marcado con su prueba: los de comportamiento, con su prueba *golden* en rojo;
+  - las tareas de `tasks.md` marcadas;
+  - en `plan.md`, la errata de la frontera (la modalidad viaja en `EMISSION` en C1, C2, C3 y C6) y las decisiones de las H3;
+  - el *roadmap* con la 006 en «Hecho» y la Fase 0 cerrada;
+  - el glosario (`docs/arquitectura/01` §15), con «prueba *golden*» y «*fixture*».
+- **Desvíos del plan, aceptados en las H3:**
+  - B1 entró en dos PR (B1a y B1b);
+  - B1b y B2 pasaron del tamaño estimado;
+  - C4 también depende del pendiente 9 del Doc. 04 §14.
+- **Las sesiones de las tareas y este cierre** los hizo la sesión de diseño a pedido de la persona, no el orquestador.
+- **Siguiente:** la primera feature de la Fase 1, que elige la persona.
 
 ### 2026-11-11
 

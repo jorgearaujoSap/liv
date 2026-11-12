@@ -554,6 +554,8 @@ El código usa los nombres en inglés del ERD; la interfaz, la documentación y 
 | Corte de cartera / foto del corte | `portfolio_cutoff` / `collection_portfolio_snapshot` |
 | Regla de sanción | `penalty_rule` |
 | Referencia de la cuenta de recaudo (alias en el gestor de secretos) | `cuenta_recaudo_ref` (configuración) |
+| Prueba *golden* (ejemplo numérico de un documento funcional convertido en prueba) | *golden test* (`*GoldenTest`) |
+| *Fixture* (archivo de datos con la entrada y el resultado esperado de un caso, en `backend/src/test/resources/golden/`) | *fixture* (`golden/<módulo>/*.yaml`) |
 | Administración tributaria | `tax_administration` |
 | Configuración de jurisdicción | `jurisdiction_config` |
 | Usuario funcionario | `admin_user` |

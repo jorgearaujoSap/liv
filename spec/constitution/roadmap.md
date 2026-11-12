@@ -23,13 +23,15 @@ _Features completadas, en orden de implementación._
   - `AGENTS.md` al día.
 
   Fue la primera feature con el orquestador.
+- ✅ **[006 · Pruebas *golden* en rojo](../features/006-pruebas-golden/spec.md)** — hecha el 2026-11-12. Entregable F0‑11, el último del cierre de la Fase 0 (ADR 0031). Los ejemplos numéricos de los Docs. 02, 03 y 04 quedan como 24 casos *golden* en el *backend* (L1 a L15 de liquidación y C1 a C9 de cuenta corriente). Son *fixtures* YAML con su esquema y pruebas en rojo con `@Disabled` y su *issue*: #171 para el motor, que entra en la Fase 2, y #173 para la cuenta corriente, en la Fase 4. Pruebas en verde cuidan los *fixtures* y la comparación. CA‑4.07 y el método del redondeo «al peso» quedaron como pendientes 8 y 9 del Doc. 04 §14 (v0.3).
+- ✅ **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031): *walking skeleton* en local con las pruebas de navegador en verde, CI de cada proyecto obligatorio en `main` y F0‑02, F0‑10 y F0‑11 hechos. Los entregables y sus pendientes, que no bloquean el cierre, siguen en `ESTADO.md` §3.
 
 ## Siguiente 🔜
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
 - ⏳ **T24 de la feature 001, antes de producción** — imágenes publicadas, `infra/` con TLS, el e2e en CI (F0‑12 completo), la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue. No se despliega a producción sin ella (ADR 0030).
-- **Fase 0 — Fundaciones** — no son features de negocio: se siguen como entregables F0‑01 a F0‑12 en `ESTADO.md`. Ninguna feature de negocio empieza antes de cerrar la Fase 0.
+- 🔜 **Fase 1 — Tablas base y configuración:** la primera feature la elige la persona, del *backlog* de abajo.
 
 ## Backlog / ideas 💡
 
