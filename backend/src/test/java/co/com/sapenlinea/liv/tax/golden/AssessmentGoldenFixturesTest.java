@@ -11,9 +11,14 @@ import co.com.sapenlinea.liv.golden.GoldenFixtures;
 import co.com.sapenlinea.liv.golden.GoldenFixtures.Fixture;
 import co.com.sapenlinea.liv.golden.GoldenFixtures.Problem;
 import com.networknt.schema.Schema;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,9 +26,13 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -34,10 +43,11 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Checks that the assessment golden fixtures L1 to L15 are complete and say what their document
- * says (006-01, 006-04, 006-05), and that the comparison finds any difference in a real case. The
- * cases come from {@code golden/tax}; the damaged variants start from a synthetic valid text
- * written here. The tax values are not repeated here: they are in the fixtures and are compared
- * with the documents.
+ * says (006-01, 006-04, 006-05, 006-10), that {@code AssessmentGoldenTest} is skipped only with its
+ * issue and names its cases as the spec says (006-06, 006-07), and that the comparison finds any
+ * difference in a real case. The cases come from {@code golden/tax}; the damaged variants start
+ * from a synthetic valid text written here. The tax values are not repeated here: they are in the
+ * fixtures and are compared with the documents.
  */
 class AssessmentGoldenFixturesTest {
 
@@ -586,6 +596,121 @@ class AssessmentGoldenFixturesTest {
       return BigDecimal.ONE.movePointLeft(comparison.scale());
     }
     return value.isIntegralNumber() ? BigDecimal.ONE : new BigDecimal("0.001");
+  }
+
+  // ---- AssessmentGoldenTest is disabled only with its issue (006-06, 006-07) ----
+
+  /** A reason that starts with the number of its issue. */
+  private static final String ISSUE = "^Issue #\\d+";
+
+  private static final String JUNIT_CONDITIONS = "org.junit.jupiter.api.condition";
+
+  /**
+   * AssessmentGoldenTest and its methods: where a {@code @Disabled} or a condition could skip a
+   * case.
+   */
+  private static List<AnnotatedElement> goldenTestElements() {
+    List<AnnotatedElement> elements = new ArrayList<>();
+    elements.add(AssessmentGoldenTest.class);
+    elements.addAll(Arrays.asList(AssessmentGoldenTest.class.getDeclaredMethods()));
+    return elements;
+  }
+
+  @Test
+  @DisplayName(
+      "Todo @Disabled de AssessmentGoldenTest, de clase o de método, cita su issue (006-06)")
+  void everyDisabledCitesAnIssue() {
+    assertThat(goldenTestElements())
+        .filteredOn(element -> element.isAnnotationPresent(Disabled.class))
+        .allSatisfy(element ->
+            assertThat(element.getAnnotation(Disabled.class).value())
+                .as(element.toString())
+                .containsPattern(ISSUE));
+  }
+
+  @Test
+  @DisplayName(
+      "AssessmentGoldenTest no tiene condiciones de JUnit ni extensiones que omitan casos (006-06)")
+  void noConditionAndNoExtensionCanSkipACase() {
+    assertAll(
+        goldenTestElements().stream()
+            .map(element ->
+                () ->
+                    assertThat(conditionsAndExtensions(element)).as(element.toString()).isEmpty()));
+    assertThat(AssessmentGoldenTest.class.getDeclaredFields())
+        .noneMatch(field -> field.isAnnotationPresent(RegisterExtension.class));
+  }
+
+  /** The conditions and extensions of an element, also inside annotations of the project itself. */
+  private static List<String> conditionsAndExtensions(AnnotatedElement element) {
+    List<String> found = new ArrayList<>();
+    for (Annotation annotation : element.getAnnotations()) {
+      collectConditionsAndExtensions(annotation.annotationType(), found, new HashSet<>());
+    }
+    return found;
+  }
+
+  /** Adds the type if it is a condition or an extension, and searches the annotations it has. */
+  private static void collectConditionsAndExtensions(
+      Class<? extends Annotation> type, List<String> found, Set<Class<?>> seen) {
+    if (!seen.add(type)) {
+      return;
+    }
+    if (type.getPackageName().equals(JUNIT_CONDITIONS) || type == ExtendWith.class) {
+      found.add(type.getName());
+    }
+    // Not searched inside the annotations of JUnit: @ParameterizedTest itself carries an
+    // extension. Only the annotations of the project, which could hide one, are searched.
+    if (!type.getPackageName().startsWith("org.junit.")
+        && !type.getPackageName().startsWith("java.")) {
+      for (Annotation meta : type.getAnnotations()) {
+        collectConditionsAndExtensions(meta.annotationType(), found, seen);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "AssessmentGoldenTest tiene un método por criterio de la spec, y cada uno tiene casos (006-07)")
+  void thereIsOneMethodPerCriterionAndEachHasCases() {
+    Set<String> criteria =
+        Set.of(
+            "CA-L01", "CA-L02", "CA-L03", "CA-L04", "006-02", "006-14", "LQ-C01", "LQ-C02",
+            "LQ-C04");
+    List<Method> methods =
+        Arrays.stream(AssessmentGoldenTest.class.getDeclaredMethods())
+            .filter(method -> method.isAnnotationPresent(ParameterizedTest.class))
+            .toList();
+
+    assertThat(AssessmentGoldenTest.class.getAnnotation(Tag.class).value()).isEqualTo("golden");
+    assertThat(methods)
+        .extracting(method -> method.getAnnotation(Tag.class).value())
+        .containsExactlyInAnyOrderElementsOf(criteria);
+    assertAll(
+        methods.stream()
+            .map(method ->
+                () -> {
+                  String code = method.getAnnotation(Tag.class).value();
+                  assertThat(method.getAnnotation(AssessmentGoldenTest.RuleCases.class).value())
+                      .as(method.getName() + " · el código de las etiquetas y el de sus casos")
+                      .isEqualTo(code);
+                  assertThat(cases())
+                      .as(code + " · casos")
+                      .anySatisfy(goldenCase -> assertThat(goldenCase.rules()).contains(code));
+                }));
+  }
+
+  @Test
+  @DisplayName("El nombre visible de un caso lleva sus códigos, su id y su descripción (006-07)")
+  void theDisplayNameCarriesTheCodesTheIdAndTheDescription() {
+    assertThat(cases())
+        .allSatisfy(goldenCase -> {
+          String name = AssessmentGoldenTest.displayName(goldenCase);
+          assertThat(name)
+              .startsWith(AssessmentGoldenTest.codes(goldenCase) + " · ")
+              .contains(" · " + goldenCase.id() + " · ")
+              .endsWith(goldenCase.description());
+        });
   }
 
   // ---- helpers ----
