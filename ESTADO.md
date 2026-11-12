@@ -21,7 +21,11 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
-**Sin orquestador activo.** No hay ninguna feature en curso: la 005 · Cartera y recaudo se cerró el 2026-11-11 (PR #147, #150 y #152 a #162). La siguiente es F0‑11 (pruebas *golden* en rojo), la única que falta para cerrar la Fase 0.
+**Orquestador activo: feature 006 · Pruebas *golden* en rojo (F0‑11)** (desde el 2026-11-11). Es el último entregable para cerrar la Fase 0 (ADR 0031). La 005 · Cartera y recaudo se cerró el 2026-11-11 (PR #147, #150 y #152 a #163).
+
+| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
+|---|---|---|---|---|---|
+| Spec (H1) | raíz | `f006-diseno` / `feat/006-pruebas-golden` | — | 🔄 En curso | La H1 |
 
 ---
 
@@ -72,7 +76,7 @@ Definidos en `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` §8.1.
 | F0‑08 | Roles de BD, RLS y primera migración | ✅ Para el cierre | Migraciones de la API `V202611010900`–`V202611031010` y del BFF `V202611032100`–`V202611061100`: esquemas `platform`, `core`, `audit` y `bff`, FK compuestas y RLS por `app.administration_id`, funciones `SECURITY DEFINER`, roles y permisos mínimos, auditoría de solo inserción y ShedLock; pruebas con Testcontainers como `liv_app`. Pendientes que no bloquean el cierre (ADR 0031): las tablas tributarias y la lista de verificación del ERD previa a Flyway, con la feature que cree cada tabla; las decisiones humanas de la bitácora del 2026-11-02 |
 | F0‑09 | Auditoría, correlación y observabilidad | ✅ Para el cierre | Correlación con `X-Correlation-Id` en la respuesta, el MDC y cada línea de log, y credenciales enmascaradas (PR #45). Auditoría de inicios, cierres, rechazos y eventos del proveedor (T15, feature 001). Pendiente que no bloquea el cierre (ADR 0031): log estructurado en JSON con enmascarado y datos personales, antes de *staging* |
 | F0‑10 | JSON Schema de la configuración de jurisdicción | ✅ | Feature [004 · Esquema de la configuración de jurisdicción](spec/features/004-esquema-configuracion-jurisdiccion/spec.md), hecha el 2026-11-08: esquema 1.0 y sus pruebas (PR #141), `jsonschema.sh check` y `publish` (PR #142) y el CI de contratos (PR #144), que juzga en cada PR que el esquema publicado no cambie y publicó la *release* `jsonschema-config-jurisdiccion-v1.0` al integrarse. Por decisión del responsable al cerrar, el validador de los anexos en la raíz y su CI (pasos 4 y 5, criterio 004‑13) pasaron a la feature 1.5.9: no se agregan más *checks* ni *rulesets* por ahora |
-| F0‑11 | Pruebas *golden* en rojo | ⏳ **Bloquea el cierre** | — |
+| F0‑11 | Pruebas *golden* en rojo | 🔄 **Bloquea el cierre** | Feature 006, iniciada el 2026-11-11: spec en curso |
 | F0‑12 | Prueba Playwright de humo en CI | ✅ | Por decisión del responsable (ADR 0030), en la Fase 0 se cumple con el e2e local de T23 de la feature 001 (`e2e/`, PR #104), contra el entorno de desarrollo y sin imágenes ni CI. En CI y con imágenes, antes de producción (T24) |
 
 ---
@@ -160,6 +164,8 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-11
 
+- **Empieza la feature 006 · Pruebas *golden* en rojo (F0‑11)**, por decisión de la persona, después de integrar el cierre de la 005 (PR #163). La sesión de diseño, de nivel alto, escribe la spec para la H1. Los ejemplos del Doc. 05 §4.3 quedan fuera, como fijó la decisión 14 de la H1 de la 005.
+- **Seguimiento de la 005 en curso**, en una sesión aparte que arrancó la persona: las referencias y las reglas pendientes de §6, punto 4.
 - **Feature 005 · Cartera y recaudo: hecha.** Fue la primera feature con el orquestador (ADR 0033). La implementación entró en 10 PR, cada uno con su revisión adversarial de nivel alto, las cuatro lentes y la H3 de la persona:
   - R0: ADR 0034 (#152 y #154);
   - R2: ERD 2.2 (#156 y #159);
