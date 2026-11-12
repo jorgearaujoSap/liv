@@ -36,10 +36,10 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 | `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Desde la feature 005 (2026-11-11): Doc. 01 0.4, Doc. 02 0.2, Doc. 03 0.5, Doc. 04 0.2, Doc. 05 0.1 y ERD 2.2 (79 tablas) |
 | `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` · `Formatos_Intercambio_Recaudo.xlsx` | ✅ Existente | Esquema 1.1 desde la feature 005 |
 | `README.md` | ✅ Creado: mapa del repositorio | — |
-| `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.0 |
-| `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.0 |
+| `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.1 (2026-11-11) |
+| `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.2 (2026-11-11) |
 | `docs/arquitectura/02_Seguridad.md` | ✅ Aprobado | 1.0 |
-| `docs/arquitectura/03_Escalabilidad_y_Operacion.md` | ✅ Aprobado | 1.0 |
+| `docs/arquitectura/03_Escalabilidad_y_Operacion.md` | ✅ Aprobado | 1.1 (2026-11-11) |
 | `docs/arquitectura/04_Calidad_Testing_y_CI.md` | ✅ Aprobado | 1.0 |
 | `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` | ✅ Aprobado | 1.0 |
 | `AGENTS.md` | ✅ Creado: reglas y metodología para cualquier agente de IA; fuente única de reglas | — |
@@ -127,9 +127,8 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 2. Antes de entregar el proyecto al desarrollador: la plantilla de PR y los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
 3. Cerrar la Fase 0 (ADR 0031): el CI de cada proyecto obligatorio en `main` (F0‑07), los archivos de los ADR 0001–0022 (F0‑02), el esquema JSON de la configuración de jurisdicción (F0‑10, hecho el 2026-11-08) y las pruebas *golden* en rojo (F0‑11), lo único que falta. La T24 de la feature 001 queda para antes de *staging*.
 4. Seguimiento de la feature 005, sin fecha:
-   - referencias que todavía dicen «CJ01–CJ14» o «Doc. 05 pendiente»: `docs/arquitectura/00` y `01`, `spec/constitution/tech-stack.md`, `mission.md` y un comentario de `backend/.../jurisdiction/package-info.java`, cada uno por su proceso;
-   - llevar a `AGENTS.md` §5.1 y §5.2 las reglas nuevas de los Docs. 03 a 05 (RLS, tasas nacionales, redondeo, imputación);
-   - la *release* `jsonschema-config-jurisdiccion-v1.1` quedó marcada «Latest» en GitHub, como la 1.0;
+   - hecho el 2026-11-11: el comentario del *backend* (#165) y las reglas nuevas en `AGENTS.md` §5.1 y §5.2 (#166), ya integrados; y las referencias viejas de los documentos de arquitectura y la constitución (#167, a la espera de la H3 de la persona);
+   - la marca «Latest» de la *release* `jsonschema-config-jurisdiccion-v1.1` en GitHub no la causan los *scripts* de `publish` (ya pasan `--latest=false`, y sus pruebas lo exigen): es el criterio por fecha de GitHub, que marca la más reciente cuando ninguna está fijada. Nada en el repositorio usa `releases/latest`. Opciones, sin aplicar y a decisión de la persona: dejarlo así, o fijar una *release* a propósito con `gh release edit <etiqueta> --latest` (p. ej. la primera `backend-vX.Y.Z`);
    - verificar contra la fuente oficial la UVT 2026, las tasas de usura y la fórmula de intereses (pendientes del Doc. 05 §11, jurídica).
 5. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
 6. `liv-components` (el frontend usa la 0.3.1):
@@ -164,6 +163,11 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-11
 
+- **Seguimiento de la feature 005 (referencias y reglas):** tres PR, uno por proyecto y cada uno por su proceso:
+  - comentario de `jurisdiction/package-info.java` (#165, integrado): flujo directo;
+  - `AGENTS.md` §5.1 y §5.2 (#166, integrado): RLS de `ledger` y tasa nacional, redondeo de los intereses con sus pendientes 2 y 12 sin resolver, imputación a la vigencia más antigua y CJ02, CJ15 y CJ16;
+  - documentos de arquitectura y constitución (#167, a la espera de la H3 de la persona): `docs/arquitectura/00` pasa a la versión 1.1 (documentos base 01 a 05 y fase 5 con el Doc. 05), `docs/arquitectura/01` a la 1.2 (CJ01–CJ16, saldos como vista normal y formatos del archivo bancario del Doc. 04 v0.2) y `docs/arquitectura/03` a la 1.1 (vista de saldos normal); `tech-stack.md` y `mission.md` alineados con el Doc. 03 v0.5 y el Doc. 05. Es una alineación con documentos ya aprobados, no una decisión nueva: sin ADR.
+  No se resolvió ningún `PENDIENTE`. La marca «Latest» de la *release* 1.1 queda como propuesta en §6, punto 4.
 - **Empieza la feature 006 · Pruebas *golden* en rojo (F0‑11)**, por decisión de la persona, después de integrar el cierre de la 005 (PR #163). La sesión de diseño, de nivel alto, escribe la spec para la H1. Los ejemplos del Doc. 05 §4.3 quedan fuera, como fijó la decisión 14 de la H1 de la 005.
 - **Seguimiento de la 005 en curso**, en una sesión aparte que arrancó la persona: las referencias y las reglas pendientes de §6, punto 4.
 - **Feature 005 · Cartera y recaudo: hecha.** Fue la primera feature con el orquestador (ADR 0033). La implementación entró en 10 PR, cada uno con su revisión adversarial de nivel alto, las cuatro lentes y la H3 de la persona:

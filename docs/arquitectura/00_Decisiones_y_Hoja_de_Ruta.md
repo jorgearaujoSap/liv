@@ -1,9 +1,9 @@
 # Arquitectura 00 — Decisiones técnicas, stack y hoja de ruta
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
-> **Documentos base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` · `01` a `04` · `config_jurisdiccion_*.yaml`
+> **Documentos base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` · `01` a `05` · `config_jurisdiccion_*.yaml`
 > **Serie de arquitectura:** `00` Decisiones (este) · `01` Arquitectura de software · `02` Seguridad · `03` Escalabilidad y operación · `04` Calidad, testing y CI · `05` Gobierno de agentes de IA y SDD
-> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.1 — 2026-11-11, documentos base y fase 5 alineados con el Doc. 05 (feature 005). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Alcance:** solo definición. No incluye implementación ni código.
 
 ---
@@ -190,7 +190,7 @@ Ninguna fase empieza sin su documento funcional aprobado y sin sus pendientes cr
 | 2 — Homologación y liquidación individual | Homologación 2.6, motor de liquidación, liquidación individual (3.1) y simulador (3.3) | 02, 03 | Los ejemplos de Doc. 02 §B.9 y Doc. 03 §9.3 pasan como pruebas *golden* |
 | 3 — Liquidación masiva | Corridas 3.2, excepciones, consultas 3.6 | 02 | Corrida con volumen objetivo dentro del tiempo de 03 §1, con reinicio probado |
 | 4 — Cuenta corriente y recaudo | Módulo 4 completo | 04 | CA‑4.01 a CA‑4.13 automatizados en verde |
-| 5 — Cartera | Intereses, sanciones, prescripción, apertura de cartera histórica | **Pendiente: Doc. 05 funcional** | Por definir |
+| 5 — Cartera | Apertura de cartera histórica (5.1), intereses de mora (5.2), sanciones (5.3), prescripción (5.4), cortes y antigüedad (5.5), consultas (5.6) | 05 (borrador v0.1, con los pendientes de su §11) | Por definir: antes se resuelven los pendientes del Doc. 05 §11 |
 | 6 — Cobro y medidas cautelares | Esquemas `collection` y `enforcement` | **Pendiente** | Por definir |
 
 ### 8.1 Entregables de la Fase 0

@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0002, 0007, 0008) · `01_Arquitectura_de_Software.md`
-> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.1 — 2026-11-11, vista de saldos alineada con el Doc. 04 v0.2 y el ERD 2.2 (feature 005). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 
 ---
 
@@ -60,7 +60,7 @@ Los eventos entre módulos usan el *outbox* de PostgreSQL (ADR 0008). Se reeval�
 |---|---|
 | Índices | Diseñados a partir de los filtros de cada consulta documentada (Doc. 01 §7, Doc. 02 §B.14, Doc. 04 §9) y revisados en la fase de diseño SDD |
 | Particionamiento | `ledger.tax_account_movement` y `audit.audit_event` por año cuando superen el umbral definido en operación |
-| Vista de saldos | `ledger.v_obligation_balance` materializada, refrescada por evento o por lote, siempre recalculable desde los movimientos |
+| Vista de saldos | `ledger.v_obligation_balance`: vista normal con `security_invoker`, solo para consultas y siempre recalculable desde los movimientos; una vista materializada solo si hace falta rendimiento, con las condiciones del ERD 2.2 (Doc. 04 §11) |
 | Límites | `statement_timeout` para consultas interactivas; los procesos largos van al worker |
 | Monitoreo | `pg_stat_statements`, consultas lentas y crecimiento de tablas en el tablero de BD |
 

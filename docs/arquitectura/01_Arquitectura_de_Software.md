@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0002, 0003, 0005, 0006, 0008, 0009, 0012, 0013, 0016, 0017)
-> **Versión:** 1.1 — 2026-11-08, §5.3 cambiado por la feature 004 (esquema de la configuración de jurisdicción). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.2 — 2026-11-11, validador CJ01–CJ16, saldos como vista normal y formatos del archivo bancario alineados con los Docs. 03 v0.5 y 04 v0.2 y el ERD 2.2 (feature 005). La 1.1 (2026-11-08) cambió §5.3 por la feature 004 (esquema de la configuración de jurisdicción). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Alcance:** vistas de contexto y contenedores, módulos, arquitectura interna, motor de reglas, patrones, datos, API, frontend, procesos masivos, integraciones y estructura del repositorio. Sin código.
 
 ---
@@ -78,7 +78,7 @@ Un módulo por contexto de negocio, alineado con los esquemas del ERD y con el m
 | `platform` | `platform` | — | Transversal técnico: seguridad, contexto de inquilino, auditoría, motor genérico de ingesta (§6), exportación a Excel, almacenamiento, trabajos asíncronos | Técnico |
 | `core` | `core` | 1.1, 1.2, 2.x | Entidades territoriales, administraciones, contribuyentes, vehículos, matrículas, vínculos de propiedad, estado tributario | CRUD simplificado + reglas puntuales |
 | `documents` | `documents` | 1.3 | Normas, soportes y expediente documental | CRUD simplificado |
-| `jurisdiction` | `jurisdiction`¹ | 1.5.9 | Configuración de jurisdicción: ingesta del YAML, validador CJ01–CJ14, publicación, *snapshot* inmutable de reglas | Hexagonal completo |
+| `jurisdiction` | `jurisdiction`¹ | 1.5.9 | Configuración de jurisdicción: ingesta del YAML, validador CJ01–CJ16, publicación, *snapshot* inmutable de reglas | Hexagonal completo |
 | `valuation` | `valuation` | 1.5.2–1.5.4, 2.6 | Catálogos de avalúos, importación de tablas del Ministerio, homologación vehículo ↔ avalúo | Hexagonal completo |
 | `tax` | `tax` | 1.4, 1.5.5–1.5.8, 3.x | Vigencias, tarifas, calendario, beneficios, motor de liquidación, liquidación individual, simulador, corridas masivas | Hexagonal completo |
 | `ledger` | `ledger` | 4.x | Obligaciones, recibos, pagos, conciliación, imputación, saldos a favor, reversiones, distribución, participación 20 % | Hexagonal completo |
@@ -204,7 +204,7 @@ El mismo diseño (cadena de pasos puros con traza) se aplica a:
 - la **cascada de homologación** de 8 niveles (Doc. 03 §4): cada nivel es un eslabón que resuelve o pasa al siguiente;
 - la **imputación** de pagos (Doc. 04 §5): proporcional dentro de la obligación según el art. 804 ET;
 - la **distribución del recaudo** (Doc. 04 §7): una estrategia por modalidad activa;
-- el **validador de la configuración** (CJ01–CJ14) y los validadores de archivos (R0xx, F0xx).
+- el **validador de la configuración** (CJ01–CJ16) y los validadores de archivos (R0xx, F0xx).
 
 ### 5.3 Configuración de jurisdicción como contrato
 
@@ -313,7 +313,7 @@ Se usan patrones donde resuelven un problema documentado, no por costumbre.
 | Migraciones | Flyway, nombre `V<AAAAMMDDHHmm>__<modulo>_<descripcion>.sql` (marca de tiempo para evitar colisiones entre ramas y agentes). Una migración aplicada **nunca** se edita. Cambios sin interrupción con *expand/contract* |
 | JPA vs. jOOQ | JPA para cargar y guardar agregados; jOOQ para consultas con filtros, reportes, exportaciones y escrituras masivas. jOOQ genera su código desde el esquema migrado en CI, así que un SQL incompatible falla en compilación |
 | Particionamiento | `ledger.tax_account_movement` y `audit.audit_event` particionadas por año cuando el volumen lo justifique (03 §2) |
-| Saldos | Nunca almacenados como dato editable. Vista materializada `ledger.v_obligation_balance` recalculable (Doc. 04 §11) |
+| Saldos | Nunca almacenados como dato editable. Vista normal `ledger.v_obligation_balance` con `security_invoker`, no materializada y solo para consultas; una vista materializada solo si hace falta rendimiento, con las condiciones del ERD 2.2 (Doc. 04 §11) |
 
 ---
 
@@ -430,7 +430,7 @@ El repositorio de ejecuciones de Spring Batch vive en PostgreSQL. El progreso de
 | Integración | Hoy | Diseño |
 |---|---|---|
 | Tablas del Ministerio | Archivo XLSX cargado por un funcionario | Lector en `valuation` sobre el motor de ingesta |
-| Recaudo bancario | Archivo por banco (formato por confirmar, Doc. 04 §14) | Un adaptador por formato, seleccionado por `recaudo.archivo_banco` de la configuración |
+| Recaudo bancario | Archivo por banco: Asobancaria 2001 o CSV canónico, según lo que confirme cada banco (Doc. 04 §12) | Un adaptador por formato, seleccionado por `recaudo.archivo_banco` de la configuración (`formato_por_banco` y `formato_preferido`) |
 | Reporte del departamento (modalidad C) | Archivo | Adaptador en `ledger` |
 | SIBGA | Archivo Excel + ZIP de soportes generado | `reporting` (1.6.7) |
 | RUNT, PSE, firma digital | Futuro | Puertos definidos; adaptadores con tiempo de espera, reintentos con *backoff* y cortocircuito (Resilience4j) |
