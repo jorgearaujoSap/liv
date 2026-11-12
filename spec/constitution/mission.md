@@ -9,7 +9,7 @@ Un sistema para liquidar, recaudar y controlar el impuesto anual sobre vehículo
 1. **Tablas base y configuración** — cargue anual controlado de los avalúos del Ministerio de Transporte, tarifas, calendario, beneficios y la configuración de la jurisdicción (Doc. 01, Doc. 03).
 2. **Homologación y liquidación** — cruce de cada vehículo con su avalúo oficial y cálculo del impuesto, individual, simulado o masivo (Doc. 02).
 3. **Cuenta corriente y recaudo** — obligaciones, recibos, pagos, conciliación bancaria, imputación, saldos a favor y distribución del recaudo (Doc. 04).
-4. **Cartera y cobro** — intereses, sanciones, prescripción, cartera histórica, cobro y medidas cautelares (futuro; ERD).
+4. **Cartera y cobro** — cartera histórica, intereses de mora, sanciones, prescripción, cortes y antigüedad (Doc. 05, borrador v0.1); cobro y medidas cautelares (futuro; ERD).
 
 ## Para quién
 
