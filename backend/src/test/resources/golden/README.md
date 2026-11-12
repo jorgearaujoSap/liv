@@ -211,7 +211,7 @@ Nueve casos de la cuenta corriente (Fase 4, Módulo 4), del Doc. 04 v0.3. *Issue
 | C6 | Doc. 04 §13, CA‑4.08 (reverso: §6.2) | `CA-4.08` | los movimientos de C2 más dos `REVERSAL`, cada uno con su `reverses`, saldo $342.000 y pago `REVERSADO` |
 | C7, C8, C9 | Doc. 04 §7, filas 1 a 3 | `CA-4.09` | la distribución: beneficiario, valor y, para el municipio, si se retiene o se gira |
 
-CA‑4.07 no entra: es el pendiente 8 del Doc. 04 §14. Las listas (`movements`, `allocations`, `distribution`) se comparan como multiconjunto exacto: un movimiento de más (por ejemplo, un descuento indebido en C3), uno de menos, un componente cambiado, un `reverses` cambiado o un beneficiario o un «se retiene o se gira» cambiados fallan. Los movimientos que salen de una regla y no de una cifra del ejemplo llevan `derived_from` (el `PAYMENT` de C3 y los dos `REVERSAL` de C6). De C7 a C9, la línea del departamento no dice si se retiene o se gira, porque el documento no lo dice.
+CA‑4.07 no entra: es el pendiente 8 del Doc. 04 §14. Los códigos de C5 (`CA-4.04`) y de C7 y C8 (`CA-4.09`) son los del criterio de la spec que los ejecuta, aunque el documento no los cite en esa fila. Las listas (`movements`, `allocations`, `distribution`) se comparan como multiconjunto exacto: un movimiento de más (por ejemplo, un descuento indebido en C3), uno de menos, un componente cambiado, un `reverses` cambiado o un beneficiario o un «se retiene o se gira» cambiados fallan. Los movimientos que salen de una regla y no de una cifra del ejemplo llevan `derived_from` (el `PAYMENT` de C3 y los dos `REVERSAL` de C6). De C7 a C9, la línea del departamento no lleva `disposition`: el documento no dice si se retiene o se gira. El beneficiario y la disposición los saca el adaptador de la salida de la cuenta corriente, nunca de la entrada.
 
 ### Eventos de la entrada
 
@@ -222,7 +222,7 @@ Cada caso parte de **una** de tres formas: una emisión (`EMISSION`), unos movim
 | `EMISSION` | La liquidación emitida del internado (L10 del Doc. 03): neto $342.000, a pagar con descuento $308.000 y la modalidad `UEDF_INTERNACION`, que decidió la liquidación (Doc. 04 §3.1) | C1, C2, C3 y C6 |
 | `PAYMENT` | Un pago ya `CONCILIADO`, con fecha y valor | C2, C3, C4, C5 y C6 |
 | `BANK_REVERSAL` | El banco reversa el pago (Doc. 04 §6.2) | C6 |
-| `ALLOCATION` | La imputación ya hecha de un pago conciliado, con sus movimientos: la distribución se hace por cada imputación (Doc. 04 §7) | C7, C8 y C9 |
+| `ALLOCATION` | La imputación ya hecha de un pago conciliado, con sus movimientos: cada imputación se distribuye (Doc. 04 §7) | C7, C8 y C9 |
 
 `opening_movements` es la deuda a la fecha del pago, por componente, en C4 y C5 (`ASSESSMENT` TAX, `INTEREST_ACCRUAL` INTEREST y, en C5, `PENALTY` PENALTY): el adaptador no causa intereses. En C7 a C9, `obligation` trae la modalidad `CONVENIO_DEPTO` y la dirección declarada: `{same_as_jurisdiction: true}` (Ipiales) o `{same_as_jurisdiction: false, name: "Pasto"}`, que el adaptador compara con `jurisdiccion` de la configuración, sin códigos DANE inventados.
 
@@ -230,18 +230,23 @@ Cada caso parte de **una** de tres formas: una emisión (`EMISSION`), unos movim
 
 - `MODALIDAD_B_HIPOTETICA`: C7 a C9. El Doc. 04 §7 los llama «ejemplos con B activa» y Ipiales tiene B inactiva; los casos leen el bloque de distribución de la configuración.
 - `DEUDA_DADA_A_LA_FECHA_DEL_PAGO`: C4 y C5. La deuda de cada componente es una entrada, y los $15.000 de intereses y los $30.000 de sanción son ilustrativos (el documento lo dice).
-- `ENTRADA_INFERIDA`: cada una está en `inferred_inputs` con su motivo, como un puntero JSON a la entrada. Son la fecha del pago de C4 y C5 (el documento solo da «saldo al 15‑jul‑2026»); en C3, el valor con descuento y la modalidad de la emisión (CA‑4.03 da solo el neto); en C7 a C9, que todo el pago vaya al componente TAX; y, en C8, el descuento de $201.000, que sale del Doc. 03 §9.3 (L8): el Doc. 04 §7 solo dice que el descuento no se distribuye.
+- `ENTRADA_INFERIDA`: cada una está en `inferred_inputs` con su motivo, como un puntero JSON a la entrada. Son:
+  - C1: el valor con descuento de la emisión (CA‑4.01 da solo el neto);
+  - C3: el valor con descuento y la modalidad de la emisión, y el año del pago (CA‑4.03 da solo el neto y «20‑abr»);
+  - C4 y C5: la fecha del pago (el documento solo da «saldo al 15‑jul‑2026»);
+  - C7 a C9: que todo el pago vaya al componente TAX;
+  - C8: el descuento de $201.000, que sale del Doc. 03 §9.3 (L8): el Doc. 04 §7 solo dice que el descuento no se distribuye.
 
 ### `depends_on`
 
-`recaudo` (C3 y C7 a C9), `recaudo.descuento_pago_parcial` (C3, valor inicial `NO_APLICA`, pendiente 4 del Doc. 04 §14), `recaudo.imputacion.redondeo_componentes` (C5: el método del redondeo «al peso» es el pendiente 9 del Doc. 04 §14) y `redondeo.empate` (C7 y C8). Cuando se resuelvan los pendientes 8 y 9, CA‑4.07 puede entrar como caso y C5 actualiza su `depends_on`.
+`recaudo` (C3 y C7 a C9), `recaudo.descuento_pago_parcial` (C3, valor inicial `NO_APLICA`, pendiente 4 del Doc. 04 §14), `recaudo.imputacion.redondeo_componentes` (C4 y C5: el método del redondeo «al peso» es el pendiente 9 del Doc. 04 §14, que dice que depende «la tabla y su variante»; el plan solo nombraba a C5) y `redondeo.empate` (C7 y C8). Cuando se resuelvan los pendientes 8 y 9, CA‑4.07 puede entrar como caso y C4 y C5 actualizan su `depends_on`.
 
 ### La frontera de `ledger`
 
-El adaptador ejerce el nacimiento de la obligación (Doc. 04 §3.1), la imputación de un pago ya `CONCILIADO` (§5.1), el reverso bancario (§6.2) y la distribución de una imputación (§7). **No** evalúa la conciliación (§4.4), la causación de intereses (Módulo 5) ni la competencia. **La modalidad es siempre una entrada, nunca se deriva:** en C1, C2, C3 y C6 viaja en el evento `EMISSION`, porque la decidió la liquidación, y C1 comprueba que la obligación la toma de ahí; en C7 a C9, en la obligación de apertura (B hipotética); C4 y C5 no la usan. El adaptador real de la Fase 4 solo **traduce** la entrada al puerto de aplicación de `ledger` y carga la configuración con el mismo lector y modelo que producción; no imputa, no redondea ni distribuye por su cuenta.
+El adaptador ejerce el nacimiento de la obligación (Doc. 04 §3.1), la imputación de un pago ya `CONCILIADO` (§5.1), el reverso bancario (§6.2) y la distribución de una imputación (§7). **No** evalúa la conciliación (§4.4), la causación de intereses (Módulo 5) ni la competencia. **La modalidad es siempre una entrada, nunca se deriva:** en C1, C2, C3 y C6 viaja en el evento `EMISSION`, porque la decidió la liquidación, y C1 espera que la obligación la tome de ahí; todas las emisiones de los ejemplos son de la modalidad A, así que que el motor no la fije como constante lo comprueban sus pruebas unitarias de la Fase 4. En C7 a C9 viaja en la obligación de apertura (B hipotética). C4 y C5 parten de movimientos de apertura (el documento los titula «vehículo internado temporalmente», modalidad A) y no la usan: el adaptador de la Fase 4 arma esa deuda con los casos de uso reales o con un *stub* del puerto de intereses del Módulo 5 en código de prueba, nunca con un puerto de escritura libre en `src/main`. El adaptador real de la Fase 4 solo **traduce** la entrada al puerto de aplicación de `ledger` y carga la configuración con el mismo lector y modelo que producción; no imputa, no redondea ni distribuye por su cuenta.
 
 ### Ejecutarlas en rojo
 
-El comando de «Ejecutarlas en rojo» (sección general de este README) selecciona también `LedgerGoldenTest`: sus 9 invocaciones (una por caso, porque cada caso corre solo en el método de su criterio) fallan con `GoldenEngineNotImplementedException`. Para ponerlas en verde, sigue «Ponerlas en verde (Fases 2 y 4)» y cierra el *issue* #173. Mientras `LedgerGoldenEngines.current()` devuelva `NotImplementedLedgerEngine`, `LedgerGoldenFixturesTest` comprueba en verde que cada invocación falla por esa excepción; cuando devuelva la cuenta corriente real, comprueba que el `@Disabled` ya no esté en la clase.
+El comando de «Ejecutarlas en rojo» (sección general de este README) selecciona también `LedgerGoldenTest`: sus 9 invocaciones (6 métodos parametrizados; una invocación por caso, porque `CA-4.04` agrupa a C4 y C5, y `CA-4.09`, a C7 a C9) fallan con `GoldenEngineNotImplementedException`. Para ponerlas en verde, sigue «Ponerlas en verde (Fases 2 y 4)» y cierra el *issue* #173. Mientras `LedgerGoldenEngines.current()` devuelva `NotImplementedLedgerEngine`, `LedgerGoldenFixturesTest` comprueba en verde que cada invocación falla por esa excepción; cuando devuelva la cuenta corriente real, comprueba que el `@Disabled` ya no esté en la clase.
 
 **Cuidado con la granularidad.** `CA-4.04` agrupa C4 y C5, y `CA-4.09`, C7 a C9. Si un solo caso falla en la Fase 4 (por ejemplo, C5 por el redondeo «al peso»), no desactives el método entero sin decirlo en el *issue*: apagarías también los casos que pasan.

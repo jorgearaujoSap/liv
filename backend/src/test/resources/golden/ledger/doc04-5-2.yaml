@@ -6,7 +6,8 @@
 #
 # C4 y C5 no tienen emisión: parten de `opening_movements`, la deuda por componente a la fecha del
 # pago. Los $15.000 de intereses y los $30.000 de sanción son ilustrativos (el documento lo dice):
-# el caso prueba la imputación, no la causación, que es del Módulo 5.
+# el caso prueba la imputación, no la causación, que es del Módulo 5. La columna «Participación»
+# (95,80 % y 4,20 %) no se compara: es un paso intermedio del reparto y no una cifra del resultado.
 document: {code: "Doc. 04", version: "0.3", section: "§5.2"}
 configuration:
   file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
@@ -35,6 +36,9 @@ cases:
     assumptions: ["DEUDA_DADA_A_LA_FECHA_DEL_PAGO", "ENTRADA_INFERIDA"]
     inferred_inputs:
       - {field: "/events/0/date", reason: "el documento da el saldo «al 15-jul-2026» y no la fecha del pago; se entra la misma fecha"}
+    # El pendiente 9 del Doc. 04 §14 dice que depende «la tabla y su variante»: el método de «al peso»
+    # puede cambiar el reparto de este ejemplo.
+    depends_on: ["recaudo.imputacion.redondeo_componentes"]
     input:
       opening_movements:
         - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}

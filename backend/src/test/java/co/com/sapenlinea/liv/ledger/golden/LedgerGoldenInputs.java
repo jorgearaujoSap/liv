@@ -21,10 +21,20 @@ final class LedgerGoldenInputs {
    */
   static LedgerGoldenInput from(GoldenCase goldenCase) {
     JsonNode input = goldenCase.input();
-    return new LedgerGoldenInput(
-        obligation(input.get("obligation")),
-        movements(input.get("opening_movements"), "opening_movements"),
-        events(input.get("events")));
+    try {
+      return new LedgerGoldenInput(
+          obligation(optional(input, "obligation")),
+          movements(optional(input, "opening_movements"), "opening_movements"),
+          events(input.get("events")));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("caso " + goldenCase.id() + ": " + e.getMessage(), e);
+    }
+  }
+
+  /** An optional input: absent and an explicit {@code null} both read as not given. */
+  private static JsonNode optional(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    return value == null || value.isNull() ? null : value;
   }
 
   private static LedgerGoldenInput.Obligation obligation(JsonNode node) {
@@ -61,6 +71,9 @@ final class LedgerGoldenInputs {
     List<LedgerGoldenInput.Event> events = new ArrayList<>();
     for (JsonNode event : array(list, "events")) {
       events.add(event(event));
+    }
+    if (events.isEmpty()) {
+      throw new IllegalArgumentException("la entrada events no tiene ningún evento");
     }
     return events;
   }

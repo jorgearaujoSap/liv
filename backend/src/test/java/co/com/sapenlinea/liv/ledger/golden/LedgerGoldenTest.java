@@ -102,7 +102,7 @@ class LedgerGoldenTest {
   @ParameterizedTest(name = "{0}")
   @Tag("CA-4.09")
   @RuleCases({"CA-4.09"})
-  @DisplayName("La distribución da al departamento el 80 % y al municipio el residuo (CA-4.09)")
+  @DisplayName("La distribución da al departamento su parte y al municipio el residuo (CA-4.09)")
   void theDistributionGivesTheDepartmentItsShare(GoldenCase goldenCase) {
     assertCase(goldenCase);
   }
@@ -134,6 +134,7 @@ class LedgerGoldenTest {
     LedgerGoldenResult result =
         LedgerGoldenEngines.current().apply(LedgerGoldenInputs.from(goldenCase), configuration);
     GoldenComparator.assertMatches(goldenCase, result);
+    assertAll(reversesProblems(result).stream().map(problem -> () -> fail(problem)));
     return result;
   }
 
@@ -172,20 +173,58 @@ class LedgerGoldenTest {
       result
           .balances()
           .forEach((component, balance) -> {
+            BigDecimal left =
+                debt.getOrDefault(component, BigDecimal.ZERO)
+                    .subtract(allocated.getOrDefault(component, BigDecimal.ZERO));
             if (balance.signum() < 0) {
               problems.add("IM-03: el saldo de " + component + " es negativo (" + balance + ")");
+            }
+            if (balance.compareTo(left) != 0) {
+              problems.add(
+                  "IM-03: el saldo de "
+                      + component
+                      + " ("
+                      + balance
+                      + ") no es la deuda menos lo"
+                      + " imputado ("
+                      + left
+                      + ")");
             }
           });
     }
     return problems;
   }
 
+  /** The violations of {@code reverses}: only a {@code REVERSAL} reverses; empty if respected. */
+  static List<String> reversesProblems(LedgerGoldenResult result) {
+    List<String> problems = new ArrayList<>();
+    if (result.movements() != null) {
+      result
+          .movements()
+          .forEach(movement -> {
+            if (movement.reverses() != null && !"REVERSAL".equals(movement.type())) {
+              problems.add(
+                  "el movimiento " + movement.type() + " dice que reversa " + movement.reverses());
+            }
+          });
+    }
+    return problems;
+  }
+
+  /** The payment of a case that starts from opening movements: exactly one, and no emission. */
   private static BigDecimal paymentOf(LedgerGoldenInput input) {
-    return input.events().stream()
-        .filter(LedgerGoldenInput.Payment.class::isInstance)
-        .map(event -> ((LedgerGoldenInput.Payment) event).amount())
-        .findFirst()
-        .orElseThrow(() -> new IllegalArgumentException("el caso no tiene un pago"));
+    List<BigDecimal> payments =
+        input.events().stream()
+            .filter(LedgerGoldenInput.Payment.class::isInstance)
+            .map(event -> ((LedgerGoldenInput.Payment) event).amount())
+            .toList();
+    boolean emission =
+        input.events().stream().anyMatch(LedgerGoldenInput.Emission.class::isInstance);
+    if (payments.size() != 1 || emission) {
+      throw new IllegalArgumentException(
+          "IM-01 e IM-03 se comprueban en un caso con apertura y un solo pago, sin emisión");
+    }
+    return payments.get(0);
   }
 
   /**

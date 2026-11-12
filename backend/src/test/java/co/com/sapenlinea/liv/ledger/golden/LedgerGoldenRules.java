@@ -17,7 +17,9 @@ import tools.jackson.databind.JsonNode;
  *       opening_movements} or an {@code ALLOCATION} event;
  *   <li>{@code allocation-obligation}: an {@code ALLOCATION} needs the {@code obligation}, because
  *       the distribution depends on its modality and its declared address;
- *   <li>{@code reversal-payment}: a {@code BANK_REVERSAL} comes after a {@code PAYMENT}.
+ *   <li>{@code reversal-payment}: a {@code BANK_REVERSAL} comes after a {@code PAYMENT};
+ *   <li>{@code emission-first}: the {@code EMISSION} is one, and the first event;
+ *   <li>{@code allocation-alone}: the {@code ALLOCATION} is one, and the only event.
  * </ul>
  */
 final class LedgerGoldenRules {
@@ -56,6 +58,7 @@ final class LedgerGoldenRules {
     if (allocation && !obligation) {
       problems.add(new Problem(path + "/obligation", "allocation-obligation"));
     }
+    checkEventOrder(events, path, problems);
     boolean paid = false;
     for (int index = 0; index < events.size(); index++) {
       String type = typeOf(events.get(index));
@@ -63,6 +66,18 @@ final class LedgerGoldenRules {
       if (BANK_REVERSAL.equals(type) && !paid) {
         problems.add(new Problem(path + "/events/" + index, "reversal-payment"));
       }
+    }
+  }
+
+  private static void checkEventOrder(JsonNode events, String path, List<Problem> problems) {
+    for (int index = 0; index < events.size(); index++) {
+      if (EMISSION.equals(typeOf(events.get(index))) && index > 0) {
+        problems.add(new Problem(path + "/events/" + index, "emission-first"));
+      }
+    }
+    long allocations = events.valueStream().filter(e -> ALLOCATION.equals(typeOf(e))).count();
+    if (allocations > 1 || (allocations == 1 && events.size() > 1)) {
+      problems.add(new Problem(path, "allocation-alone"));
     }
   }
 

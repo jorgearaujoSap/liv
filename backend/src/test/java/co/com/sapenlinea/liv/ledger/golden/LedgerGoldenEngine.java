@@ -26,6 +26,12 @@ import tools.jackson.databind.JsonNode;
  * there (section 3.1). In a case that starts from an imputation it travels in the {@code
  * obligation}. A case that starts from opening movements does not use it.
  *
+ * <p><b>The expected values come from the ledger.</b> The beneficiaries and whether a share is
+ * retained or sent are read from what the ledger returns, never rebuilt from the input (for example
+ * from the name of the declared address): the case would then prove nothing. The opening debt of
+ * cases C4 and C5 is a datum of the case; the adapter builds it with the real use cases (or a stub
+ * of the interest port of Module 5 in test code), never with a free-write port in production code.
+ *
  * <p>The real adapter of Phase 4 only translates the input to the application port of {@code
  * ledger} and reads the configuration with the production reader and model. It must not impute,
  * round or distribute by itself: the cases would then test the adapter and not the ledger.

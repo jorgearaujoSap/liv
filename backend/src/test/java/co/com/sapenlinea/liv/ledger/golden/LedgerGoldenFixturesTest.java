@@ -118,9 +118,14 @@ class LedgerGoldenFixturesTest {
   /** The inputs the document does not give but the case needs, as JSON Pointers, by case. */
   private static final Map<String, Set<String>> INFERRED =
       Map.ofEntries(
-          Map.entry("C1", Set.of()),
+          Map.entry("C1", Set.of("/events/0/net_tax_with_discount")),
           Map.entry("C2", Set.of()),
-          Map.entry("C3", Set.of("/events/0/net_tax_with_discount", "/events/0/origin_modality")),
+          Map.entry(
+              "C3",
+              Set.of(
+                  "/events/0/net_tax_with_discount",
+                  "/events/0/origin_modality",
+                  "/events/1/date")),
           Map.entry("C4", Set.of("/events/0/date")),
           Map.entry("C5", Set.of("/events/0/date")),
           Map.entry("C6", Set.of()),
@@ -138,6 +143,7 @@ class LedgerGoldenFixturesTest {
   private static final Map<String, Set<String>> DEPENDS_ON =
       Map.of(
           "C3", Set.of("recaudo", "recaudo.descuento_pago_parcial"),
+          "C4", Set.of("recaudo.imputacion.redondeo_componentes"),
           "C5", Set.of("recaudo.imputacion.redondeo_componentes"),
           "C7", Set.of("recaudo", "redondeo.empate"),
           "C8", Set.of("recaudo", "redondeo.empate"),
@@ -294,7 +300,7 @@ class LedgerGoldenFixturesTest {
   }
 
   @Test
-  @DisplayName("C1 comprueba que la obligación toma la modalidad del evento de emisión (§3.1)")
+  @DisplayName("C1 espera en la obligación la modalidad que trae el evento de emisión (§3.1)")
   void c1TakesTheModalityFromTheEmission() {
     GoldenCase c1 = byId("C1");
 
@@ -495,6 +501,76 @@ class LedgerGoldenFixturesTest {
     assertThat(hasMovementOfType(byId("C8"), "EARLY_PAYMENT_DISCOUNT"))
         .as("C8 trae el descuento en la imputación, para probar que no se distribuye")
         .isTrue();
+  }
+
+  // ---- what the key sets and the schema cannot say ----
+
+  @Test
+  @DisplayName("La obligación de C1 compara exactamente su capital, su vencimiento y su modalidad")
+  void theObligationOfC1ComparesItsThreeValues() {
+    assertThat(keys(byId("C1").expected().get("obligation")))
+        .containsExactlyInAnyOrder("original_principal", "due_date", "origin_modality");
+  }
+
+  @Test
+  @DisplayName(
+      "Toda línea del municipio dice si se retiene o se gira y la del departamento no (§7)")
+  void everyMunicipalityLineSaysWhetherItIsRetainedOrSent() {
+    assertThat(cases())
+        .filteredOn(goldenCase -> goldenCase.expected().has("distribution"))
+        .hasSize(3)
+        .allSatisfy(goldenCase ->
+            goldenCase
+                .expected()
+                .get("distribution")
+                .forEach(line -> {
+                  boolean municipality =
+                      line.get("beneficiary").stringValue().startsWith("MUNICIPIO_");
+                  assertThat(line.has("disposition"))
+                      .as(goldenCase.id() + " · " + line.get("beneficiary"))
+                      .isEqualTo(municipality);
+                }));
+  }
+
+  @Test
+  @DisplayName(
+      "C1: el capital de la obligación es el neto de la emisión, sin restar el descuento (LQ-C04)")
+  void theOriginalPrincipalOfC1IsTheNetOfTheEmission() {
+    GoldenCase c1 = byId("C1");
+    JsonNode emission = c1.input().at("/events/0");
+    JsonNode movement = c1.expected().at("/movements/0");
+
+    assertThat(c1.expected().at("/obligation/original_principal").decimalValue())
+        .isEqualByComparingTo(emission.get("net_tax").decimalValue())
+        .isNotEqualByComparingTo(emission.get("net_tax_with_discount").decimalValue());
+    assertThat(movement.get("signed_amount").decimalValue())
+        .isEqualByComparingTo(emission.get("net_tax").decimalValue());
+  }
+
+  @Test
+  @DisplayName("Solo un REVERSAL puede decir que reversa a otro movimiento")
+  void onlyAReversalMayReverse() {
+    GoldenCase c6 = byId("C6");
+    LedgerGoldenResult expected = expectedAsResult(c6);
+    List<LedgerGoldenResult.Movement> movements = new ArrayList<>(expected.movements());
+    LedgerGoldenResult.Movement payment = movements.get(1);
+    movements.set(
+        1,
+        new LedgerGoldenResult.Movement(
+            payment.type(), payment.component(), payment.signedAmount(), "ASSESSMENT"));
+    LedgerGoldenResult wrong =
+        new LedgerGoldenResult(
+            expected.obligation(),
+            movements,
+            expected.allocations(),
+            expected.balances(),
+            expected.totalBalance(),
+            expected.status(),
+            expected.paymentStatus(),
+            expected.distribution());
+
+    assertThat(LedgerGoldenTest.reversesProblems(expected)).isEmpty();
+    assertThat(LedgerGoldenTest.reversesProblems(wrong)).hasSize(1);
   }
 
   // ---- conversion to the input of the adapter (006-04) ----
@@ -701,8 +777,8 @@ class LedgerGoldenFixturesTest {
                 - {type: "PAYMENT", component: "TAX", signed_amount: -3000}
         expected:
           distribution:
-            - {beneficiary: "DEPARTAMENTO_NARINO", amount: 2400}
-            - {beneficiary: "MUNICIPIO_PASTO", amount: 600, disposition: "GIRADO"}
+            - {beneficiary: "DEPARTAMENTO_NARINO", amount: 1800}
+            - {beneficiary: "MUNICIPIO_PASTO", amount: 1200, disposition: "GIRADO"}
     """
         .formatted(IPIALES_FILE, IPIALES_SHA256);
   }
@@ -755,8 +831,8 @@ class LedgerGoldenFixturesTest {
         variant(
             "un caso sin expected",
             "    expected:\n      distribution:\n"
-                + "        - {beneficiary: \"DEPARTAMENTO_NARINO\", amount: 2400}\n"
-                + "        - {beneficiary: \"MUNICIPIO_PASTO\", amount: 600, disposition: \"GIRADO\"}\n",
+                + "        - {beneficiary: \"DEPARTAMENTO_NARINO\", amount: 1800}\n"
+                + "        - {beneficiary: \"MUNICIPIO_PASTO\", amount: 1200, disposition: \"GIRADO\"}\n",
             "",
             problem("/cases/2/expected", "required")),
         variant(
@@ -906,7 +982,19 @@ class LedgerGoldenFixturesTest {
             "un reverso bancario sin pago",
             "        - {type: \"PAYMENT\", date: 2030-01-10, amount: 999, status: \"CONCILIADO\"}\n",
             "",
-            problem("/cases/0/input/events/1", "reversal-payment")));
+            problem("/cases/0/input/events/1", "reversal-payment")),
+        variant(
+            "una segunda emisión después del pago",
+            "        - {type: \"BANK_REVERSAL\"}\n",
+            "        - {type: \"BANK_REVERSAL\"}\n"
+                + "        - {type: \"EMISSION\", net_tax: 5, net_tax_with_discount: 4, origin_modality: \"CONVENIO_DEPTO\"}\n",
+            problem("/cases/0/input/events/3", "emission-first")),
+        variant(
+            "una imputación mezclada con otro evento",
+            "            - {type: \"PAYMENT\", component: \"TAX\", signed_amount: -3000}\n",
+            "            - {type: \"PAYMENT\", component: \"TAX\", signed_amount: -3000}\n"
+                + "        - {type: \"PAYMENT\", date: 2030-03-05, amount: 5, status: \"CONCILIADO\"}\n",
+            problem("/cases/2/input", "allocation-alone")));
   }
 
   // ---- the comparison finds a difference in a real case (006-05) ----
@@ -960,7 +1048,7 @@ class LedgerGoldenFixturesTest {
     ObjectNode discount = ((ArrayNode) tree.get("movements")).addObject();
     discount.put("type", "EARLY_PAYMENT_DISCOUNT");
     discount.put("component", "TAX");
-    discount.put("signed_amount", -34000);
+    discount.put("signed_amount", -1);
     discount.putNull("reverses");
 
     assertThat(GoldenComparator.differences(c3, () -> tree))
@@ -1199,7 +1287,7 @@ class LedgerGoldenFixturesTest {
                 .filter(Matcher::find)
                 .map(matcher -> matcher.group(1))
                 .distinct())
-        .hasSizeLessThanOrEqualTo(1);
+        .containsExactly("173");
   }
 
   @Test

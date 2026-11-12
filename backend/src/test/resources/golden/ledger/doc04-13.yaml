@@ -15,6 +15,9 @@ cases:
     row: 1
     rules: ["CA-4.01", "LQ-C04"]
     description: "Emisión de la liquidación del internado: la obligación nace con el neto de $342.000, sin restar el descuento"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/net_tax_with_discount", reason: "CA-4.01 da el neto y no el valor con descuento; sale de la liquidación del internado (L10, Doc. 03 §9.3)"}
     input:
       events:
         - {type: "EMISSION", net_tax: 342000, net_tax_with_discount: 308000, origin_modality: "UEDF_INTERNACION"}
@@ -31,6 +34,7 @@ cases:
     inferred_inputs:
       - {field: "/events/0/net_tax_with_discount", reason: "CA-4.03 da el neto y no el valor con descuento; sale del mismo internado (Doc. 04 §4.1 y §5.2)"}
       - {field: "/events/0/origin_modality", reason: "CA-4.03 no dice la modalidad; el neto de $342.000 es el del internado, modalidad A (Doc. 04 §5.2)"}
+      - {field: "/events/1/date", reason: "CA-4.03 dice «20-abr» sin el año; se entra 2026, el de la vigencia de la configuración de Ipiales"}
     # Sin descuento en un pago parcial depende de `recaudo.descuento_pago_parcial` (valor inicial
     # NO_APLICA; pendiente 4 de §14).
     depends_on: ["recaudo", "recaudo.descuento_pago_parcial"]

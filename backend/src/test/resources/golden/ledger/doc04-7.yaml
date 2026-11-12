@@ -7,8 +7,9 @@
 # solo da el valor pagado. La dirección declarada se compara con el municipio de la configuración:
 # `same_as_jurisdiction: true` es Ipiales y no hay códigos DANE.
 #
-# La línea de Nariño no dice si se retiene o se gira, porque el documento no lo dice: solo las del
-# municipio («retenidos», «girados a Pasto»).
+# La línea de Nariño no lleva `disposition`: el Doc. 04 §7 solo dice «retenidos» y «girados a Pasto»
+# del municipio. Los beneficiarios y la disposición son valores esperados que el adaptador de la
+# Fase 4 saca de la salida de la cuenta corriente, nunca de la entrada.
 document: {code: "Doc. 04", version: "0.3", section: "§7"}
 configuration:
   file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
