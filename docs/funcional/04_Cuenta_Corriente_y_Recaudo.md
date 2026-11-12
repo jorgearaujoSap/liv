@@ -4,7 +4,7 @@
 > **Documentos relacionados:** `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_Homologacion_y_Reglas_de_Liquidacion.md` · `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` · `05_Cartera_Intereses_Sanciones_Prescripcion.md` · `config_jurisdiccion_52356_2026.yaml` · `anexos/Formatos_Intercambio_Recaudo.xlsx`
 > **Tablas del ERD:** `ledger.tax_obligation`, `ledger.obligation_component`, `ledger.tax_account_movement`, `ledger.payment`, `ledger.payment_allocation`, `ledger.credit_balance`, `ledger.revenue_distribution`
 > **Alcance:** obligaciones, recibos y pagos, conciliación bancaria, imputación, saldos a favor, reversiones, distribución del recaudo y control de la participación del 20 %, con consultas y exportación a Excel.
-> **Versión:** 0.2 — bancos, archivo bancario (Asobancaria 2001 y CSV canónico), reporte del 20 % e imputación «más antigua primero» aprobada por el equipo (§12); borrador funcional para validación
+> **Versión:** 0.3 — registra como pendiente la fecha del pago de CA‑4.07 y el método del redondeo «al peso» (§14, filas 8 y 9; feature 006). La 0.2 trajo bancos, archivo bancario (Asobancaria 2001 y CSV canónico), reporte del 20 % e imputación «más antigua primero» aprobada por el equipo (§12); borrador funcional para validación
 > **Fuera de alcance:** el cálculo de intereses de mora y de sanciones, que corresponde al Módulo 5 (`05_Cartera_Intereses_Sanciones_Prescripcion.md`). Este módulo los recibe ya calculados como componentes de la obligación. Tampoco incluye la pasarela de pagos en línea, que llega después del piloto (nota de §12).
 
 ---
@@ -431,7 +431,7 @@ Agregados en `config_jurisdiccion_52356_2026.yaml` y en la plantilla. En Ipiales
 | CA‑4.04 | Pago en mora de $200.000 con intereses de $15.000 | Imputación $191.597 / $8.403 |
 | CA‑4.05 | Cargar dos veces el mismo archivo del banco | Rechazo por SHA‑256 |
 | CA‑4.06 | Pago con referencia inexistente | Bandeja de pagos sin imputar |
-| CA‑4.07 | Pago de $350.000 sobre recibo de $342.000 | Saldo a favor de $8.000 |
+| CA‑4.07 | Pago de $350.000 sobre recibo de $342.000 | Saldo a favor de $8.000 (pendiente 8 de §14) |
 | CA‑4.08 | Reverso bancario de un pago con descuento | Reverso del pago y del descuento; saldo $342.000 |
 | CA‑4.09 | Con B activa, pago de $342.000 con dirección en Pasto | $273.600 a Nariño, $68.400 a Pasto |
 | CA‑4.10 | Con C activa, giro del 20 % a los 25 días del recaudo | `GIRO_TARDIO` |
@@ -461,6 +461,8 @@ CA‑4.18 conserva su número (véase la nota de §12) y supone que cada banco y
 | 5 | Requisitos y plazos de devolución y compensación del estatuto municipal | Pendiente |
 | 6 | Requisitos del paz y salvo | Pendiente |
 | 7 | Cuentas bancarias de recepción de giros (del 20 % y de la distribución), también como referencia al gestor de secretos | Pendiente |
+| 8 | CA‑4.07 (pago de $350.000 sobre un recibo de $342.000; también en §6.1) no da la fecha del pago, y con las fechas de Ipiales su resultado no está definido. Si el recibo de $342.000 es el neto sin descuento, solo existe entre el límite del descuento y el límite sin intereses (§4.1), y en Ipiales los dos son el 30‑abr: esa ventana está vacía. Hasta el 30‑abr, el recibo sería el valor con descuento, y el pago de $350.000 lo supera; el paso 2 de §5.1 manda registrar el descuento «por la diferencia entre el neto y lo pagado», que aquí sería negativa, y no queda claro si se reconoce el descuento. Después del 30‑abr, la obligación está en mora y el ejemplo no da los intereses. Se resuelve fijando la fecha del pago y el resultado esperado; hasta entonces CA‑4.07 no entra como prueba *golden* (feature 006, decisión 6) | **Pendiente:** lo decide el responsable funcional |
+| 9 | Método del redondeo «al peso» en la imputación y en la distribución (§5.1, paso 4, y §7): los textos dicen que los componentes se calculan «al peso», pero no cuál es el método. El caso C5 de la feature 006 (no está en este documento) depende de él (con otro método, el resultado cambia). No es lo mismo que el empate de medio peso de `redondeo.empate`. Se resuelve fijando el método; hasta entonces C5 transcribe el valor del documento y lo marca como dependiente (feature 006, H2, punto 2) | **Pendiente:** lo decide el responsable funcional |
 
 ## 15. Módulo 5 — Cartera
 
