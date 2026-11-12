@@ -1,0 +1,36 @@
+# Casos L14 y L15: fechas del calendario de vehículos nuevos con los valores iniciales de Ipiales
+# (Doc. 03 §9.7). La fila del 15-ago es la de L13 (§9.3) y no se repite. El documento no da base
+# ni categoría: los casos comparan solo las fechas. «Mora desde» es `default_from`, una clave
+# propia de la prueba.
+document: {code: "Doc. 03", version: "0.5", section: "§9.7"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+comparison:
+  gross_tax: {scale: 2, rounding: "HALF_UP"}
+cases:
+  - id: "L14"
+    row: 1
+    rules: ["006-14"]
+    description: "Vehículo nuevo, causación el 10-mar-2026: antes del límite general, rigen las fechas generales"
+    input:
+      fiscal_year: 2026
+      new_vehicle: true
+      accrual_date: 2026-03-10
+    expected:
+      discount_deadline: 2026-04-30
+      due_date: 2026-04-30
+      default_from: 2026-05-01
+
+  - id: "L15"
+    row: 3
+    rules: ["006-14"]
+    description: "Vehículo nuevo, causación el 20-dic-2026: sin descuento y con plazo hasta el fin de la vigencia"
+    input:
+      fiscal_year: 2026
+      new_vehicle: true
+      accrual_date: 2026-12-20
+    expected:
+      discount_applies: false
+      due_date: 2026-12-31
+      default_from: 2027-01-01

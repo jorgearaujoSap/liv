@@ -1,0 +1,188 @@
+# Casos L7 a L13: liquidaciones de prueba con la configuración de Ipiales (Doc. 03 §9.3, vigencia
+# 2026, tarifas nacionales, multiplicador 1000). Según la nota del documento, solo el internado
+# (L10) lo liquida el municipio con las modalidades iniciales (A + C); las demás filas son el
+# cálculo que aplicaría si se activa el convenio con Nariño (modalidad B).
+# Descuento efectivo (`effective_discount`): neto redondeado menos el neto con descuento redondeado
+# (`net_tax_with_discount`, el «a pagar hasta el 30-abr»), según la nota 1 del §9.3. `row` es la
+# fila de la tabla del documento.
+document: {code: "Doc. 03", version: "0.5", section: "§9.3"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+comparison:
+  gross_tax: {scale: 2, rounding: "HALF_UP"}
+cases:
+  - id: "L7"
+    row: 1
+    rules: ["LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Automóvil, valor de tabla 21.600"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «automóvil»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value_thousands: 21600
+      new_vehicle: false
+    expected:
+      taxable_base: 21600000
+      applied_rate: 0.015
+      taxable_months: 12
+      gross_tax: 324000.00
+      net_tax: 324000
+      effective_discount: 32000
+      net_tax_with_discount: 292000
+      discount_deadline: 2026-04-30
+
+  - id: "L8"
+    row: 2
+    rules: ["LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Camioneta, valor de tabla 80.460: el bruto cae en $500 exactos y sube al múltiplo superior"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «camioneta»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
+    depends_on: ["redondeo.empate"]
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value_thousands: 80460
+      new_vehicle: false
+    expected:
+      taxable_base: 80460000
+      applied_rate: 0.025
+      taxable_months: 12
+      gross_tax: 2011500.00
+      net_tax: 2012000
+      effective_discount: 201000
+      net_tax_with_discount: 1811000
+      discount_deadline: 2026-04-30
+
+  - id: "L9"
+    row: 3
+    rules: ["CA-L04", "LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Camioneta blindada, valor de tabla 120.000 (+10 %)"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «camioneta»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value_thousands: 120000
+      base_adjustments: ["BLINDADO"]
+      new_vehicle: false
+    expected:
+      taxable_base: 132000000
+      applied_rate: 0.035
+      taxable_months: 12
+      gross_tax: 4620000.00
+      net_tax: 4620000
+      effective_discount: 462000
+      net_tax_with_discount: 4158000
+      discount_deadline: 2026-04-30
+
+  - id: "L10"
+    row: 4
+    rules: ["LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Internado temporalmente, valor de tabla 45.640 (50 %): base 22.820.000"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «internado temporalmente»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value_thousands: 45640
+      base_adjustments: ["INTERNACION_TEMPORAL"]
+      new_vehicle: false
+    expected:
+      taxable_base: 22820000
+      applied_rate: 0.015
+      taxable_months: 12
+      gross_tax: 342300.00
+      net_tax: 342000
+      effective_discount: 34000
+      net_tax_with_discount: 308000
+      discount_deadline: 2026-04-30
+
+  - id: "L11"
+    row: 5
+    rules: ["LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Moto de más de 125 cc, valor de tabla 6.590"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «moto de más de 125 cc»; MOTO por el mapeo categorias de la configuración (POR_CONFIRMAR); la sujeción (cilindraje) no la evalúa el adaptador"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
+    depends_on: ["tarifas.MOTO", "categorias", "sujecion"]
+    input:
+      fiscal_year: 2026
+      vehicle_category: "MOTO"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value_thousands: 6590
+      new_vehicle: false
+    expected:
+      taxable_base: 6590000
+      applied_rate: 0.015
+      taxable_months: 12
+      gross_tax: 98850.00
+      net_tax: 99000
+      effective_discount: 10000
+      net_tax_with_discount: 89000
+      discount_deadline: 2026-04-30
+
+  - id: "L12"
+    row: 6
+    rules: ["LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Eléctrico, valor de tabla 83.330"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «eléctrico»; ELECTRICO por el mapeo categorias de la configuración"}
+      - {field: "new_vehicle", reason: "el documento no dice si es nuevo; se entra como no nuevo porque da 12 meses gravables"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "ELECTRICO"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value_thousands: 83330
+      new_vehicle: false
+    expected:
+      taxable_base: 83330000
+      applied_rate: 0.01
+      taxable_months: 12
+      gross_tax: 833300.00
+      net_tax: 833000
+      effective_discount: 83000
+      net_tax_with_discount: 750000
+      discount_deadline: 2026-04-30
+
+  # L13: la celda «A pagar» dice «$1.042.000 hasta el 31-dic-2026» y el descuento efectivo, «—»
+  # (sin descuento, §9.7). Se compara el neto, el plazo sin intereses (`due_date`) y
+  # `discount_applies: false`; el documento no da «mora desde» en esta fila.
+  - id: "L13"
+    row: 7
+    rules: ["CA-L03", "LQ-C01", "LQ-C02", "LQ-C04"]
+    description: "Vehículo nuevo, factura sin IVA de 100.000.000, causación el 15-ago-2026: sin descuento"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento solo dice «nuevo»; PARTICULAR por el mapeo categorias de la configuración"}
+    depends_on: ["causacion.proporcionalidad_nuevos"]
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "INVOICE"
+      invoice_value_without_vat: 100000000
+      new_vehicle: true
+      accrual_date: 2026-08-15
+    expected:
+      taxable_base: 100000000
+      applied_rate: 0.025
+      taxable_months: 5
+      gross_tax: 1041666.67
+      net_tax: 1042000
+      discount_applies: false
+      due_date: 2026-12-31
