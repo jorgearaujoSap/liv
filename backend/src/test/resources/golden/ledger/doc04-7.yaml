@@ -1,0 +1,83 @@
+# Casos C7 a C9: los «Ejemplos con B activa» de la distribución del recaudo (Doc. 04 §7). `row` es la
+# fila de la tabla. La modalidad B (convenio con Nariño) está inactiva en Ipiales: los casos son
+# hipotéticos (`MODALIDAD_B_HIPOTETICA`) y leen el bloque de distribución de la configuración.
+#
+# La distribución se hace por cada imputación (§7), así que la entrada es la imputación ya hecha de
+# un pago conciliado. Que todo el pago vaya al componente TAX es una entrada inferida: el documento
+# solo da el valor pagado. La dirección declarada se compara con el municipio de la configuración:
+# `same_as_jurisdiction: true` es Ipiales y no hay códigos DANE.
+#
+# La línea de Nariño no dice si se retiene o se gira, porque el documento no lo dice: solo las del
+# municipio («retenidos», «girados a Pasto»).
+document: {code: "Doc. 04", version: "0.3", section: "§7"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+cases:
+  - id: "C7"
+    row: 1
+    rules: ["CA-4.09"]
+    description: "Con B, pago de $2.012.000 sin descuento y dirección en Ipiales: el 20 % se retiene"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/movements/0", reason: "el documento solo da el valor pagado; se entra todo el pago al componente TAX"}
+    depends_on: ["recaudo", "redondeo.empate"]
+    input:
+      obligation:
+        origin_modality: "CONVENIO_DEPTO"
+        declared_address: {same_as_jurisdiction: true}
+      events:
+        - type: "ALLOCATION"
+          payment: {status: "CONCILIADO", amount: 2012000}
+          movements:
+            - {type: "PAYMENT", component: "TAX", signed_amount: -2012000}
+    expected:
+      distribution:
+        - {beneficiary: "DEPARTAMENTO_NARINO", amount: 1609600}
+        - {beneficiary: "MUNICIPIO_IPIALES", amount: 402400, disposition: "RETENIDO"}
+
+  - id: "C8"
+    row: 2
+    rules: ["CA-4.09"]
+    description: "Con B, pago de $1.811.000 con descuento y dirección en Ipiales: el descuento de $201.000 no se distribuye"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/movements/0", reason: "el documento solo da el valor pagado; se entra todo el pago al componente TAX"}
+      - {field: "/events/0/movements/1", reason: "el descuento de $201.000 sale del Doc. 03 §9.3 (L8, la camioneta de $2.012.000 de neto); el Doc. 04 §7 solo dice que el descuento no se distribuye"}
+    depends_on: ["recaudo", "redondeo.empate"]
+    input:
+      obligation:
+        origin_modality: "CONVENIO_DEPTO"
+        declared_address: {same_as_jurisdiction: true}
+      events:
+        - type: "ALLOCATION"
+          payment: {status: "CONCILIADO", amount: 1811000}
+          movements:
+            - {type: "PAYMENT", component: "TAX", signed_amount: -1811000}
+            - {type: "EARLY_PAYMENT_DISCOUNT", component: "TAX", signed_amount: -201000}
+    expected:
+      distribution:
+        - {beneficiary: "DEPARTAMENTO_NARINO", amount: 1448800}
+        - {beneficiary: "MUNICIPIO_IPIALES", amount: 362200, disposition: "RETENIDO"}
+
+  - id: "C9"
+    row: 3
+    rules: ["CA-4.09"]
+    description: "Con B, pago de $342.000 y dirección en Pasto: el 20 % se gira a Pasto"
+    assumptions: ["MODALIDAD_B_HIPOTETICA", "ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/movements/0", reason: "el documento solo da el valor pagado; se entra todo el pago al componente TAX"}
+    depends_on: ["recaudo"]
+    input:
+      obligation:
+        origin_modality: "CONVENIO_DEPTO"
+        declared_address: {same_as_jurisdiction: false, name: "Pasto"}
+      events:
+        - type: "ALLOCATION"
+          payment: {status: "CONCILIADO", amount: 342000}
+          movements:
+            - {type: "PAYMENT", component: "TAX", signed_amount: -342000}
+    expected:
+      distribution:
+        - {beneficiary: "DEPARTAMENTO_NARINO", amount: 273600}
+        - {beneficiary: "MUNICIPIO_PASTO", amount: 68400, disposition: "GIRADO"}

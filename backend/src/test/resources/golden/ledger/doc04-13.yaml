@@ -1,0 +1,64 @@
+# Casos C1, C3 y C6: los criterios de aceptación CA-4.01, CA-4.03 y CA-4.08 del Doc. 04 §13. `row` es
+# la fila de la tabla de §13. Los tres usan el internado de Ipiales (neto $342.000, a pagar con
+# descuento $308.000, L10 del Doc. 03 §9.3); la emisión del caso lleva su modalidad
+# (`UEDF_INTERNACION`), que decidió la liquidación (Doc. 04 §3.1). C6 es el ejemplo 1 de §5.2 (C2)
+# seguido del reverso bancario del pago (§6.2).
+#
+# Los movimientos con `derived_from` salen de una regla y no de una cifra del ejemplo. El reverso es
+# el opuesto exacto del movimiento que reversa (Doc. 04 §2.1; ERD 2.2) y `reverses` dice cuál es.
+document: {code: "Doc. 04", version: "0.3", section: "§13"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+cases:
+  - id: "C1"
+    row: 1
+    rules: ["CA-4.01", "LQ-C04"]
+    description: "Emisión de la liquidación del internado: la obligación nace con el neto de $342.000, sin restar el descuento"
+    input:
+      events:
+        - {type: "EMISSION", net_tax: 342000, net_tax_with_discount: 308000, origin_modality: "UEDF_INTERNACION"}
+    expected:
+      obligation: {original_principal: 342000, due_date: 2026-04-30, origin_modality: "UEDF_INTERNACION"}
+      movements:
+        - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}
+
+  - id: "C3"
+    row: 3
+    rules: ["CA-4.03"]
+    description: "Pago parcial de $200.000 el 20-abr sobre un neto de $342.000: sin descuento, el saldo es $142.000"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "/events/0/net_tax_with_discount", reason: "CA-4.03 da el neto y no el valor con descuento; sale del mismo internado (Doc. 04 §4.1 y §5.2)"}
+      - {field: "/events/0/origin_modality", reason: "CA-4.03 no dice la modalidad; el neto de $342.000 es el del internado, modalidad A (Doc. 04 §5.2)"}
+    # Sin descuento en un pago parcial depende de `recaudo.descuento_pago_parcial` (valor inicial
+    # NO_APLICA; pendiente 4 de §14).
+    depends_on: ["recaudo", "recaudo.descuento_pago_parcial"]
+    input:
+      events:
+        - {type: "EMISSION", net_tax: 342000, net_tax_with_discount: 308000, origin_modality: "UEDF_INTERNACION"}
+        - {type: "PAYMENT", date: 2026-04-20, amount: 200000, status: "CONCILIADO"}
+    expected:
+      movements:
+        - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}
+        - {type: "PAYMENT", component: "TAX", signed_amount: -200000, derived_from: "Doc. 04 §5.1, paso 2: un pago parcial dentro del plazo se imputa como abono, por el valor pagado"}
+      balances: {TAX: 142000}
+
+  - id: "C6"
+    row: 8
+    rules: ["CA-4.08"]
+    description: "Reverso bancario del pago con descuento de C2: se reversan el pago y el descuento y el saldo vuelve a $342.000"
+    input:
+      events:
+        - {type: "EMISSION", net_tax: 342000, net_tax_with_discount: 308000, origin_modality: "UEDF_INTERNACION"}
+        - {type: "PAYMENT", date: 2026-04-20, amount: 308000, status: "CONCILIADO"}
+        - {type: "BANK_REVERSAL"}
+    expected:
+      movements:
+        - {type: "ASSESSMENT", component: "TAX", signed_amount: 342000}
+        - {type: "PAYMENT", component: "TAX", signed_amount: -308000}
+        - {type: "EARLY_PAYMENT_DISCOUNT", component: "TAX", signed_amount: -34000}
+        - {type: "REVERSAL", component: "TAX", signed_amount: 308000, reverses: "PAYMENT", derived_from: "Doc. 04 §2.1 y §6.2; ERD 2.2: el reverso es el opuesto exacto del pago"}
+        - {type: "REVERSAL", component: "TAX", signed_amount: 34000, reverses: "EARLY_PAYMENT_DISCOUNT", derived_from: "Doc. 04 §2.1 y §6.2; ERD 2.2: el reverso es el opuesto exacto del descuento"}
+      balances: {TAX: 342000}
+      payment_status: "REVERSADO"
