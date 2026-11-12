@@ -32,7 +32,7 @@ import tools.jackson.databind.JsonNode;
  * an error, never a validation against another version. The validator follows ADR 0032: no remote
  * loading of schemas and a decimal is never an integer ({@code 1000.0} is not {@code 1000}).
  */
-final class JurisdictionConfigSchemas {
+public final class JurisdictionConfigSchemas {
 
   static final Path FOLDER = CommonCases.FOLDER;
 
@@ -112,12 +112,12 @@ final class JurisdictionConfigSchemas {
   }
 
   /** A schema with the configuration of ADR 0032 (no remote loading, strict integers). */
-  static Schema compile(JsonNode schema) {
+  public static Schema compile(JsonNode schema) {
     return REGISTRY.getSchema(schema);
   }
 
   /** The errors of a schema against the Draft 2020-12 meta-schema, which the validator bundles. */
-  static List<Error> metaSchemaErrors(JsonNode schema) {
+  public static List<Error> metaSchemaErrors(JsonNode schema) {
     return REGISTRY.getSchema(SchemaLocation.of(META_SCHEMA)).validate(schema);
   }
 

@@ -1,0 +1,37 @@
+# Fixture sintético y válido. Solo lo usa GoldenFixturesTest para armar variantes dañadas
+# (un cambio por variante). No es un caso golden y no está en golden/tax ni en golden/ledger.
+document:
+  code: "Doc. 02"
+  version: "9.9"
+  section: "§0.0"
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+comparison:
+  scaled_value:
+    scale: 2
+    rounding: "HALF_UP"
+cases:
+  - id: "T1"
+    row: 1
+    rules: ["X-01"]
+    description: "Caso sintético uno"
+    assumptions: ["SYNTHETIC"]
+    depends_on: ["recaudo"]
+    input:
+      amount: 1000
+    expected:
+      amount: 1000
+      scaled_value: 2500.00
+      ratio: 0.125
+      due_date: "2030-01-15"
+  - id: "T2"
+    rules: ["X-02", "X-03"]
+    description: "Caso sintético dos"
+    inferred_inputs:
+      - field: "kind"
+        reason: "motivo sintético"
+    input:
+      amount: 2000
+    expected:
+      amount: 2000

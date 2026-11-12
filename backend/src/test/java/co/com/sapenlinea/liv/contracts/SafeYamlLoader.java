@@ -44,7 +44,7 @@ import tools.jackson.databind.node.ObjectNode;
  * Test code only: the production loader belongs to the option 1.5.9 and must pass the same common
  * cases ({@code 1.0.casos.json}).
  */
-final class SafeYamlLoader {
+public final class SafeYamlLoader {
 
   /**
    * Why a document is rejected. The names are the codes of the field {@code motivo} of the common
@@ -122,7 +122,7 @@ final class SafeYamlLoader {
   private SafeYamlLoader() {}
 
   /** Loads a file: first its size, before reading it, and then its encoding. */
-  static JsonNode load(Path file) throws IOException {
+  public static JsonNode load(Path file) throws IOException {
     if (Files.size(file) > MAX_BYTES) {
       throw new UnsafeYamlException(Reason.TAMANO, "el archivo pasa de " + MAX_BYTES + " bytes");
     }
@@ -140,7 +140,7 @@ final class SafeYamlLoader {
    * Loads a text with the rules in their order: size, control characters, syntax and then, in the
    * order of the document, the rules of each event.
    */
-  static JsonNode load(String text) {
+  public static JsonNode load(String text) {
     if (text.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
       throw new UnsafeYamlException(Reason.TAMANO, "el texto pasa de " + MAX_BYTES + " bytes");
     }
