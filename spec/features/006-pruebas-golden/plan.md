@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador
+**Estado:** aprobado (H2) — 2026-11-11, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las cuatro recomendaciones de «Aprobaciones que pide la H2»
 _(borrador → aprobado (H2))_
 
 ## Enfoque
@@ -44,7 +44,7 @@ Hay tres PR, cada uno de un solo proyecto (`AGENTS.md` §4.6). El orden obligato
 
 ### D1 · Doc. 04 v0.3: CA‑4.07 como pendiente (raíz, `docs/006-ca-4-07`)
 
-Cubre el criterio 006‑13. El texto registra el hueco **sin calcular un resultado**: no se resuelve con un supuesto (`AGENTS.md` §2).
+Cubre el criterio 006‑13 (filas 8 y 9). El texto registra el hueco **sin calcular un resultado**: no se resuelve con un supuesto (`AGENTS.md` §2).
 
 - **Encabezado:** la versión pasa de 0.2 a 0.3, con el motivo: «registra como pendiente la fecha del pago de CA‑4.07 (feature 006)».
 - **§14, fila nueva 8:** «CA‑4.07 (pago de $350.000 sobre un recibo de $342.000; también en §6.1) no da la fecha del pago, y con las fechas de Ipiales su resultado no está definido».
@@ -54,12 +54,12 @@ Cubre el criterio 006‑13. El texto registra el hueco **sin calcular un resulta
   - Se resuelve fijando la fecha del pago y el resultado esperado. Hasta entonces no es *golden* (feature 006, decisión 6).
   - Estado: **Pendiente**; lo decide el responsable funcional.
 - **§13:** a CA‑4.07 se le agrega «(pendiente 8 de §14)» en la columna «Esperado», sin cambiar su texto.
-- **Según la H2:** si se aprueba el punto 2 de «Aprobaciones que pide la H2», D1 agrega la fila 9 («método del redondeo al peso en la imputación y en la distribución, §5.1 paso 4 y §7»), con la misma forma.
+- **§14, fila nueva 9** (aprobada en la H2, punto 2): («método del redondeo al peso en la imputación y en la distribución, §5.1 paso 4 y §7»), con la misma forma.
 - **Fuera de D1:** ningún otro documento cambia. El Doc. 03 §8, punto 8, ya remite a los pendientes del Doc. 04 §14. La bitácora de `ESTADO.md` la escribe el orquestador (`AGENTS.md` §7).
 
 ### B1 · Base de las *golden* y casos de liquidación (`backend/`, `feat/006-golden-tax`)
 
-Cubre 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, y 006‑04 a 006‑12 en su parte de liquidación.
+Cubre 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, 006‑14, y 006‑04 a 006‑12 en su parte de liquidación.
 
 1. **Reuso de la feature 004: solo visibilidad.** Pasan a `public`, sin cambiar su comportamiento ni sus pruebas:
    - en `SafeYamlLoader.java`, la clase, `load(Path)` y `load(String)` (para las variantes dañadas escritas como texto);
@@ -113,7 +113,8 @@ Cubre 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, y 0
    - **Tres *fixtures*** en `src/test/resources/golden/tax/`:
      - `doc02-b9.yaml`: L1 a L5;
      - `doc02-11.yaml`: L6;
-     - `doc03-9-3.yaml`: L7 a L13.
+     - `doc03-9-3.yaml`: L7 a L13;
+     - `doc03-9-7.yaml`: L14 y L15 (H2). Su `input` no trae base: `GoldenFixtures` admite que falte la base solo cuando `expected` tiene únicamente fechas del calendario.
    - **Claves en inglés**, con los nombres del ERD (`tax.tax_assessment`: `taxable_base`, `gross_tax`, `net_tax`; `tax.tax_calendar` y `ledger.tax_obligation`: `discount_deadline`, `due_date`) y del Doc. 02 §B.8 (`net_tax_with_discount`). La descripción va en español y los valores, como en el documento.
      - `effective_discount` es una clave propia de la prueba: el descuento efectivo del Doc. 03 §9.3, nota 1 (neto menos el valor a pagar redondeado). No se usa `discount` porque en el Doc. 02 §B.8 y en `tax_assessment` es el 10 % del neto redondeado, antes de redondear el valor a pagar (34.200 en L10), otro valor.
      - `discount_applies` es un campo propio de la prueba, para el «—» de L13.
@@ -162,6 +163,8 @@ Cubre 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, y 0
      | L4 | `taxable_base`, `applied_rate`, `taxable_months` y `gross_tax` (el Doc. 02 §B.9 da la base) |
      | L6 | `applied_rate` |
      | L7 a L12 | `taxable_base`, `applied_rate`, `taxable_months`, `gross_tax`, `net_tax`, `effective_discount`, `net_tax_with_discount` y `discount_deadline` |
+     | L14 | `discount_deadline` 2026‑04‑30, `due_date` 2026‑04‑30 y `default_from` 2026‑05‑01 (clave propia de la prueba: «mora desde») |
+     | L15 | `discount_applies: false`, `due_date` 2026‑12‑31 y `default_from` 2027‑01‑01 |
      | L13 | `taxable_base`, `applied_rate`, `taxable_months`, `gross_tax`, `net_tax`, `discount_applies: false` (el «—») y `due_date: 2026-12-31` |
 
    - **Entradas inferidas**, en `inferred_inputs`, cada una con su motivo:
@@ -183,14 +186,14 @@ Cubre 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, y 0
    - `AssessmentGoldenEngines.current()`: el único punto que elige el adaptador. Hoy devuelve el *stub*; en la Fase 2 solo cambia ese punto.
 5. **Prueba en rojo `AssessmentGoldenTest`**, en el mismo paquete:
    - **Anotaciones:** `@Tag("golden")` y `@Disabled("Issue #<n>: el motor de liquidación no existe (Fase 2); ver golden/README.md")`.
-   - **Un método `@ParameterizedTest` por criterio de la spec**, con un `@Tag` por cada código del criterio: `CA-L01`, `CA-L02`, `CA-L03`, `CA-L04`, `006-02`, `LQ-C01`, `LQ-C02` y `LQ-C04`.
+   - **Un método `@ParameterizedTest` por criterio de la spec**, con un `@Tag` por cada código del criterio: `CA-L01`, `CA-L02`, `CA-L03`, `CA-L04`, `006-02`, `006-14`, `LQ-C01`, `LQ-C02` y `LQ-C04`.
      - Las etiquetas usan el guion ASCII; el nombre visible, el del documento.
      - Cada método toma los casos que citan su código, así que un caso con varios códigos corre en varios métodos.
      - El `README` aclara que `006-02` identifica un criterio de la spec, no una regla funcional: la tarifa por tramo del Doc. 02 §B.7 no tiene código.
    - **Nombre visible:** `{códigos} · {id} · {descripción}`, p. ej. «CA‑L04 · L9 · Camioneta blindada, valor de tabla 120.000 (+10 %)» (006‑07).
    - **Cada caso:** `GoldenComparator.assertMatches(caso, AssessmentGoldenEngines.current().assess(...))`.
 6. **Prueba en verde `AssessmentGoldenFixturesTest`**, en el mismo paquete, sin `@Disabled`:
-   - el conjunto de ids es exactamente L1 a L13 (006‑05);
+   - el conjunto de ids es exactamente L1 a L15 (006‑05);
    - cada caso se convierte sin error en `AssessmentGoldenInput` (006‑04). Así, al ejecutar en rojo, el único fallo posible es el del *stub*;
    - cada código de método de `AssessmentGoldenTest` tiene al menos un caso, para que JUnit no falle por un método sin argumentos;
    - **`@Disabled` con *issue*, por *reflection*, en la clase y en cada método de `AssessmentGoldenTest`** (006‑06):
@@ -212,7 +215,7 @@ Cubre 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, y 0
        - un nulo o la clave ausente.
 
      Así, la comparación no deja pasar en verde un resultado que difiera en una sola clave del documento.
-7. ***Issue* del motor.** Se crea al abrir B1, como se aprobó en la H1 (decisión 1). Título: «Pruebas *golden* del motor de liquidación (L1 a L13) en rojo hasta la Fase 2». Lleva la lista de casos, el comando para ejecutarlas y el criterio para cerrarlo (todas en verde y sin `@Disabled`). Su número va en el `@Disabled`.
+7. ***Issue* del motor.** Se crea al abrir B1, como se aprobó en la H1 (decisión 1). Título: «Pruebas *golden* del motor de liquidación (L1 a L15) en rojo hasta la Fase 2». Lleva la lista de casos, el comando para ejecutarlas y el criterio para cerrarlo (todas en verde y sin `@Disabled`). Su número va en el `@Disabled`.
 8. **`src/test/resources/golden/README.md`** (006‑12):
    - **Qué son** las *golden*, de dónde sale cada *fixture*, la frontera del adaptador y el significado de `assumptions`, `inferred_inputs` y `depends_on`.
    - **Cómo se ejecutan en rojo.** El comando se comprobó en este *worktree* con JUnit 6.0.3 y Surefire 3.5.6: con el parámetro, una prueba con `@Disabled` se ejecutó y falló; sin él, se omitió.
@@ -345,7 +348,7 @@ Los ejemplos coinciden con su documento, pero algunos no distinguen la regla que
 
 | PR | Verificación |
 |---|---|
-| D1 | Diff del Doc. 04 solo en el encabezado, §13 (CA‑4.07) y §14: la fila 8, y la 9 si la H2 aprueba el punto 2. El texto no calcula un resultado. Revisión de legibilidad |
+| D1 | Diff del Doc. 04 solo en el encabezado, §13 (CA‑4.07) y §14: las filas 8 y 9. El texto no calcula un resultado. Revisión de legibilidad |
 | B1 | `./mvnw verify` en verde, con las pruebas en verde de los *fixtures* y de la comparación. Comando en rojo: todas las invocaciones de `AssessmentGoldenTest` fallan con `GoldenEngineNotImplementedException`. Diff sin otro `@Disabled`. Revisión adversarial con `liv-revisor-critico` y las cuatro lentes (ruta crítica) |
 | B2 | Igual que B1, con `LedgerGoldenTest` |
 
@@ -424,4 +427,8 @@ La revisión adversarial encontró puntos que tocan documentos funcionales, la s
 
 **Lente de legibilidad (2026-11-11),** antes del *commit*: 10 hallazgos (3 altos de referencias y nombres internos, 6 medios y 1 bajo), todos corregidos. Dos ajustan la redacción de la spec (006‑07 y el alcance de «Qué hace»).
 
-- [ ] Aprobación H2: <quién, fecha>.
+- [x] Aprobación H2: la persona que dirige el trabajo, 2026-11-11, con las cuatro recomendaciones:
+  1. L14 y L15 entran como casos de B1 (criterio 006‑14);
+  2. D1 registra también la fila 9 del Doc. 04 §14 (método del redondeo «al peso»);
+  3. la nueva redacción de 006‑01 y 006‑07 queda aprobada;
+  4. sin tercera ronda sobre el plan: la revisión adversarial del código de B1 y B2 comprueba los dos altos de la ronda 2 (la frontera en C1 y las mutaciones de la comparación).

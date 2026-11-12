@@ -1,6 +1,6 @@
 # 006 · Pruebas *golden* en rojo
 
-**Estado:** aprobada (H1) — 2026-11-11, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las nueve recomendaciones de la spec (véase «Decisiones de la H1»)
+**Estado:** aprobada (H1) — 2026-11-11, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las nueve recomendaciones de la spec (véase «Decisiones de la H1»). **H2 aprobada** el 2026-11-11 con las cuatro recomendaciones del plan: L14 y L15, el método del redondeo «al peso» como pendiente del Doc. 04, la redacción de 006‑01 y 006‑07, y los dos altos de la ronda 2 a la revisión del código
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
 **Módulo:** `tax` y `ledger` (solo pruebas del *backend*; sin código de negocio) · **Menú:** ninguno (prepara los Módulos 3 y 4) · **Tipo de cambio:** crítico: pruebas en rutas críticas (`backend/**/liv/tax/**`, `backend/**/liv/ledger/**`) y pruebas desactivadas con `@Disabled` y su *issue*, aprobado en la H1 (decisión 1; `AGENTS.md` §4.3 y §4.5). Un PR de documento aparte registra un pendiente en el Doc. 04 (decisión 6)
@@ -43,6 +43,13 @@ Valores tal como están en los documentos, recalculados aparte con aritmética e
 
 ¹ En L7 a L12, la fecha hasta la que se paga con descuento (`fecha_limite_descuento`); en L13, el plazo sin intereses del vehículo nuevo (Doc. 03 §9.7), porque no tiene descuento.
 
+**Fechas del calendario de vehículos nuevos** (módulo `tax`; Doc. 03 §9.7, con los valores iniciales de Ipiales). La fila del 15‑ago es la de L13 y no se repite. Agregadas en la H2.
+
+| Caso | Fuente | Entrada | Descuento hasta | Sin intereses hasta | Mora desde |
+|---|---|---|---|---|---|
+| L14 | Doc. 03 §9.7, fila 1 | Vehículo nuevo, causación 10‑mar‑2026 | 30‑abr‑2026 | 30‑abr‑2026 | 1‑may‑2026 |
+| L15 | Doc. 03 §9.7, fila 3 | Vehículo nuevo, causación 20‑dic‑2026 | — (no aplica) | 31‑dic‑2026 | 1‑ene‑2027 |
+
 **Cuenta corriente (módulo `ledger`)**
 
 | Caso | Fuente | Entrada | Resultado esperado |
@@ -69,12 +76,13 @@ CA‑4.07 (pago de $350.000 sobre un recibo de $342.000) queda fuera: no da la f
 
 **Liquidación**
 
-- [ ] **006‑01** — Dados los casos L1 a L13 de «Casos *golden*», cuando se transcriben, entonces cada uno tiene su *fixture* con la entrada, la referencia a la copia de la configuración de Ipiales que usa, con su SHA‑256 (decisión 4), el resultado esperado de cada columna con valor y su fuente (documento, versión, sección y fila). Ningún *fixture* trae un valor **esperado** que el documento no dé, ni otros casos que los de la tabla. Una **entrada** que el documento no da pero el caso necesita (p. ej. la categoría de L5 y L6) va marcada como inferida, con su motivo (ajuste de la H2, revisión adversarial). _Prueba:_ pendiente
+- [ ] **006‑01** — Dados los casos L1 a L15 de «Casos *golden*», cuando se transcriben, entonces cada uno tiene su *fixture* con la entrada, la referencia a la copia de la configuración de Ipiales que usa, con su SHA‑256 (decisión 4), el resultado esperado de cada columna con valor y su fuente (documento, versión, sección y fila). Ningún *fixture* trae un valor **esperado** que el documento no dé, ni otros casos que los de la tabla. Una **entrada** que el documento no da pero el caso necesita (p. ej. la categoría de L5 y L6) va marcada como inferida, con su motivo (ajuste de la H2, revisión adversarial). _Prueba:_ pendiente
 - [ ] **CA‑L01 · CA‑L02** — Dadas las bases $57.349.000 (L5) y $57.349.001 (L6), cuando se liquidan, entonces la tarifa es 1,5 % (borde superior inclusivo) y 2,5 %, y el bruto de L5 es $860.235. _Prueba:_ pendiente
 - [ ] **CA‑L03** — Dado el vehículo nuevo con causación el 15‑ago‑2026 (L4 y L13), cuando se liquida, entonces tiene 5 meses gravables y bruto $1.041.666,67 (comparado al centavo, decisión 7), y con la configuración de Ipiales, neto $1.042.000, sin descuento y fecha límite 31‑dic‑2026. _Prueba:_ pendiente
 - [ ] **CA‑L04** — Dada la camioneta blindada con tabla $120.000.000 (L3 y L9), cuando se liquida, entonces la base ajustada es $132.000.000 y la tarifa es la del tramo de esa base, 3,5 %, con bruto $4.620.000. _Prueba:_ pendiente
 - [ ] **006‑02** — Dados los automóviles usados de L1 y L2, cuando se liquidan, entonces la tarifa y el bruto son los de la tabla ($675.000 y $2.000.000). _Prueba:_ pendiente
 - [ ] **LQ‑C01 · LQ‑C02 · LQ‑C04** — Dados los casos L7 a L13 con la configuración de Ipiales, cuando se liquidan, entonces el neto redondeado, el descuento efectivo, el valor a pagar con descuento y la fecha límite son los de la tabla: redondeo al $1.000 más cercano solo al final, un $500 exacto sube (L8), el descuento es la diferencia entre el neto y el valor a pagar redondeado (Doc. 03 §9.3, nota 1) y no reduce el neto. _Prueba:_ pendiente
+- [ ] **006‑14** — Dados los vehículos nuevos de L14 y L15, cuando se calculan sus fechas con la configuración de Ipiales (`calendario.vehiculos_nuevos`), entonces el límite del descuento (o que no aplica), el límite sin intereses y el inicio de la mora son los de la tabla (Doc. 03 §9.7). El documento no da base ni categoría: los casos comparan solo las fechas (H2). _Prueba:_ pendiente
 
 **Cuenta corriente**
 
@@ -89,14 +97,14 @@ CA‑4.07 (pago de $350.000 sobre un recibo de $342.000) queda fuera: no da la f
 
 - [ ] **006‑04** — Dado el código actual, en el que no existen el motor ni la cuenta corriente, cuando se ejecutan las pruebas *golden* con el comando del `README`, que usa el parámetro `junit.jupiter.conditions.deactivate` de JUnit para que se ejecuten las pruebas marcadas con `@Disabled`, entonces **todas fallan**, y fallan porque el motor o la cuenta corriente no están implementados: ninguna falla por un *fixture* que no carga, un campo que falta o un error de la prueba. _Prueba:_ pendiente
 - [ ] **006‑05** — Dados todos los *fixtures*, cuando corre el CI, entonces una prueba **en verde** comprueba que cada uno carga, tiene todos sus campos, sus montos son decimales exactos (nunca `float` ni `double`), sus códigos de regla son de la lista de esta spec y cada caso de «Casos *golden*» tiene su *fixture*. Si alguien borra o daña un *fixture*, esa prueba falla. _Prueba:_ pendiente
-- [ ] **006‑06** — Dada la compuerta Q02, cuando se integra la feature, entonces el CI del *backend* sigue en verde y obligatorio, ninguna prueba que ya existía se desactiva ni se debilita, y las pruebas *golden* en rojo se apartan del CI solo con `@Disabled`, cuyo motivo cita su *issue*: uno para el motor de liquidación (L1 a L13) y otro para la cuenta corriente (C1 a C9), aprobados en la H1 (decisión 1, Q02). Ninguna otra prueba lleva `@Disabled`, y no cambian el `pom.xml` ni los *workflows*. _Prueba:_ pendiente
+- [ ] **006‑06** — Dada la compuerta Q02, cuando se integra la feature, entonces el CI del *backend* sigue en verde y obligatorio, ninguna prueba que ya existía se desactiva ni se debilita, y las pruebas *golden* en rojo se apartan del CI solo con `@Disabled`, cuyo motivo cita su *issue*: uno para el motor de liquidación (L1 a L15) y otro para la cuenta corriente (C1 a C9), aprobados en la H1 (decisión 1, Q02). Ninguna otra prueba lleva `@Disabled`, y no cambian el `pom.xml` ni los *workflows*. _Prueba:_ pendiente
 - [ ] **006‑07** — Dado cada caso, entonces su prueba lleva en el nombre visible (en español) los códigos de regla de su fila y el número del caso, p. ej. «CA‑L04 · L9 · camioneta blindada, tabla 120.000», y como etiqueta los códigos del criterio de la spec que la ejecuta (`docs/arquitectura/04` §4.3). JUnit no permite una etiqueta distinta en cada invocación de una prueba parametrizada (ajuste de la H2, revisión de legibilidad). _Prueba:_ pendiente
 - [ ] **006‑08** — Dado el código de las pruebas, entonces no tiene ningún valor tributario: tarifas, rangos, porcentajes, fechas y redondeo salen de la configuración de jurisdicción o del *fixture*, nunca de la clase de la prueba (CC‑01, `AGENTS.md` §4.5). _Prueba:_ pendiente
 - [ ] **006‑09** — Dados los *fixtures* y las pruebas, entonces están dentro de `backend/` y no leen nada fuera de él (IN‑01, `AGENTS.md` §4.6): la configuración que usan es la copia de Ipiales del *backend*, identificada por su SHA‑256 calculado con fin de línea LF, como en el Doc. 03 §9.2 (decisión 4). _Prueba:_ pendiente
 - [ ] **006‑10** — Dado un *fixture*, entonces dice de qué versión del documento salió (decisión 9). _Prueba:_ pendiente
 - [ ] **006‑11** — Dados los ejemplos del Doc. 05 §4.3 (intereses de mora), entonces ningún *fixture* los transcribe ni cita el Doc. 05: no son *golden* hasta resolver los pendientes 2, 10, 11 y 12 del Doc. 05 (`AGENTS.md` §5.3; decisión 14 de la H1 de la feature 005). _Prueba:_ pendiente
 - [ ] **006‑12** — Dadas las pruebas *golden*, entonces su `README` explica cómo ejecutarlas en rojo, cómo se ponen en verde cuando llegue el motor y qué hacer cuando cambia un ejemplo del documento (decisión 9), y el `CHANGELOG.md` del *backend* tiene su entrada. _Prueba:_ pendiente
-- [ ] **006‑13** — Dado CA‑4.07, entonces el Doc. 04 lo registra como pendiente en §14 (falta la fecha del pago y el resultado esperado con las fechas de Ipiales), con su versión subida, en un PR de documento aparte (decisión 6). _Prueba:_ pendiente
+- [ ] **006‑13** — Dado CA‑4.07, entonces el Doc. 04 lo registra como pendiente en §14 (falta la fecha del pago y el resultado esperado con las fechas de Ipiales), y también el método del redondeo «al peso» en la imputación y en la distribución, del que depende C5 (H2), con su versión subida, en un PR de documento aparte (decisión 6). _Prueba:_ pendiente
 
 ## Fuera de alcance
 
@@ -114,7 +122,7 @@ CA‑4.07 (pago de $350.000 sobre un recibo de $342.000) queda fuera: no da la f
 
 _La persona que dirige el trabajo aprobó la spec el 2026-11-11 con las nueve recomendaciones (respuesta textual: «Sí, todas (Recomendado)»), incluida la aprobación de `AGENTS.md` §4.5 para desactivar las pruebas *golden* con `@Disabled` y su *issue*._
 
-1. **Pruebas en rojo y Q02: `@Disabled` con *issue*** (opción A). Cada clase *golden* lleva `@Disabled` con el número de su *issue* y la etiqueta `golden`: un *issue* para el motor de liquidación (L1 a L13) y otro para la cuenta corriente (C1 a C9). Los *issues* se crean en la implementación. Se ejecutan en rojo con el parámetro `junit.jupiter.conditions.deactivate` de JUnit, y la prueba en verde de 006‑05 cuida los *fixtures*. No cambian el `pom.xml` ni los *workflows*. Se descartaron la etiqueta excluida con perfil de Maven (cambia el `pom.xml`), las pruebas que esperan el fallo (no verifican nada) y las suposiciones (se omiten en silencio).
+1. **Pruebas en rojo y Q02: `@Disabled` con *issue*** (opción A). Cada clase *golden* lleva `@Disabled` con el número de su *issue* y la etiqueta `golden`: un *issue* para el motor de liquidación (L1 a L15) y otro para la cuenta corriente (C1 a C9). Los *issues* se crean en la implementación. Se ejecutan en rojo con el parámetro `junit.jupiter.conditions.deactivate` de JUnit, y la prueba en verde de 006‑05 cuida los *fixtures*. No cambian el `pom.xml` ni los *workflows*. Se descartaron la etiqueta excluida con perfil de Maven (cambia el `pom.xml`), las pruebas que esperan el fallo (no verifican nada) y las suposiciones (se omiten en silencio).
 2. **Ubicación y formato.** Pruebas en `backend/src/test/java/co/com/sapenlinea/liv/tax/…` y `…/liv/ledger/…`; *fixtures* en YAML en `backend/src/test/resources/golden/tax/` y `golden/ledger/`, un archivo por tabla de origen, con los montos como decimales exactos, leídos con el cargador seguro del *backend* (`SafeYamlLoader`) y sin dependencias nuevas. El plan fija el subpaquete y cómo se reusa el cargador.
 3. **Interfaz: un adaptador de prueba**, en el código de pruebas y no en `src/main`, uno por módulo, con tipos propios de los *fixtures*. Su única implementación hoy lanza «no implementado». Con el motor, solo cambia el cuerpo del adaptador. No se crean puertos ni el tipo `Dinero`.
 4. **Configuración: la copia de Ipiales 1.1 del *backend*** (`src/test/resources/contracts/jsonschema/config-jurisdiccion/1.1/`), identificada en el *fixture* por su SHA‑256. Las pruebas de liquidación prueban el cálculo, no la competencia; los casos del Doc. 02 §B.9 comparan solo la tarifa, los meses y el bruto; la distribución de C7 a C9 lee el bloque de la modalidad B de la configuración.
