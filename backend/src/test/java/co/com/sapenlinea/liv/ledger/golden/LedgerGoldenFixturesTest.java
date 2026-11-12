@@ -4,17 +4,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+import co.com.sapenlinea.liv.contracts.CommonCases;
 import co.com.sapenlinea.liv.contracts.SafeYamlLoader;
 import co.com.sapenlinea.liv.golden.GoldenCase;
 import co.com.sapenlinea.liv.golden.GoldenComparator;
 import co.com.sapenlinea.liv.golden.GoldenConfiguration;
+import co.com.sapenlinea.liv.golden.GoldenEngineNotImplementedException;
 import co.com.sapenlinea.liv.golden.GoldenFixtures;
 import co.com.sapenlinea.liv.golden.GoldenFixtures.Fixture;
 import co.com.sapenlinea.liv.golden.GoldenFixtures.Problem;
 import com.networknt.schema.Schema;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -23,15 +29,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.platform.commons.support.AnnotationSupport;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.DecimalNode;
@@ -1118,6 +1131,326 @@ class LedgerGoldenFixturesTest {
     } else {
       ((ObjectNode) parent).remove(last);
     }
+  }
+
+  // ---- LedgerGoldenTest is disabled only with its issue (006-06, 006-07) ----
+
+  /** A reason that starts with the number of its issue. */
+  private static final Pattern ISSUE = Pattern.compile("^Issue #(\\d+)");
+
+  /** The package of the conditional annotations of JUnit (operating system, JRE, properties). */
+  private static final String JUNIT_CONDITIONS = "org.junit.jupiter.api.condition";
+
+  /** The package of {@code @ParameterizedTest}: its own extensions are not a way to skip a case. */
+  private static final String JUNIT_PARAMS = "org.junit.jupiter.params";
+
+  /** The criteria of the spec, each with the codes that tag its method. */
+  private static final List<List<String>> CRITERIA =
+      List.of(
+          List.of("CA-4.01", "LQ-C04"),
+          List.of("CA-4.02"),
+          List.of("CA-4.03"),
+          List.of("CA-4.04", "IM-01", "IM-03"),
+          List.of("CA-4.08"),
+          List.of("CA-4.09"));
+
+  /**
+   * LedgerGoldenTest with its fields, constructors, methods, parameters and nested classes:
+   * everywhere a {@code @Disabled}, a condition or an extension could skip a case.
+   */
+  private static List<AnnotatedElement> goldenTestElements() {
+    List<AnnotatedElement> elements = new ArrayList<>();
+    addMembers(LedgerGoldenTest.class, elements);
+    return elements;
+  }
+
+  private static void addMembers(Class<?> type, List<AnnotatedElement> elements) {
+    elements.add(type);
+    elements.addAll(Arrays.asList(type.getDeclaredFields()));
+    elements.addAll(Arrays.asList(type.getDeclaredConstructors()));
+    for (Method method : type.getDeclaredMethods()) {
+      elements.add(method);
+      elements.addAll(Arrays.asList(method.getParameters()));
+    }
+    for (Class<?> nested : type.getDeclaredClasses()) {
+      addMembers(nested, elements);
+    }
+  }
+
+  /** The reasons of every {@code @Disabled}, also the ones inside an annotation of the project. */
+  private static List<String> disabledReasons() {
+    return goldenTestElements().stream()
+        .flatMap(element -> AnnotationSupport.findAnnotation(element, Disabled.class).stream())
+        .map(Disabled::value)
+        .toList();
+  }
+
+  @Test
+  @DisplayName(
+      "Todo @Disabled de LedgerGoldenTest, de clase o de método, cita el mismo issue (006-06)")
+  void everyDisabledCitesTheSameIssue() {
+    List<String> reasons = disabledReasons();
+
+    assertThat(reasons).isNotEmpty();
+    assertThat(reasons).allSatisfy(reason -> assertThat(reason).containsPattern(ISSUE));
+    assertThat(
+            reasons.stream()
+                .map(ISSUE::matcher)
+                .filter(Matcher::find)
+                .map(matcher -> matcher.group(1))
+                .distinct())
+        .hasSizeLessThanOrEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "LedgerGoldenTest no tiene condiciones de JUnit ni extensiones que omitan casos (006-06)")
+  void noConditionAndNoExtensionCanSkipACase() {
+    assertAll(
+        goldenTestElements().stream()
+            .map(element ->
+                () ->
+                    assertThat(conditionsAndExtensions(element)).as(element.toString()).isEmpty()));
+  }
+
+  /** The conditions and the extensions of an element, also inside annotations of the project. */
+  private static List<String> conditionsAndExtensions(AnnotatedElement element) {
+    List<String> found = new ArrayList<>();
+    for (Annotation annotation : element.getAnnotations()) {
+      collectConditions(annotation.annotationType(), found, new HashSet<>());
+    }
+    // Repeated and meta-present @ExtendWith too (JUnit wraps repeated ones in @Extensions).
+    for (ExtendWith extendWith :
+        AnnotationSupport.findRepeatableAnnotations(element, ExtendWith.class)) {
+      for (Class<?> extension : extendWith.value()) {
+        if (!extension.getPackageName().startsWith(JUNIT_PARAMS)) {
+          found.add(extension.getName());
+        }
+      }
+    }
+    if (element.isAnnotationPresent(RegisterExtension.class)) {
+      found.add(RegisterExtension.class.getName());
+    }
+    return found;
+  }
+
+  /** Adds the type if it is a JUnit condition, and searches the annotations of the project. */
+  private static void collectConditions(
+      Class<? extends Annotation> type, List<String> found, Set<Class<?>> seen) {
+    if (!seen.add(type)) {
+      return;
+    }
+    if (type.getPackageName().equals(JUNIT_CONDITIONS)) {
+      found.add(type.getName());
+    }
+    // Not searched inside the annotations of JUnit (@ParameterizedTest itself carries an
+    // extension); only the annotations of the project, which could hide one, are searched.
+    if (!type.getPackageName().startsWith("org.junit.")
+        && !type.getPackageName().startsWith("java.")) {
+      for (Annotation meta : type.getAnnotations()) {
+        collectConditions(meta.annotationType(), found, seen);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "Una cuenta corriente real no queda oculta por el @Disabled de la clase: se mueve a los métodos (006-06)")
+  void aRealLedgerIsNotHiddenByAClassLevelDisabled() {
+    boolean ledgerExists = !(LedgerGoldenEngines.current() instanceof NotImplementedLedgerEngine);
+
+    assertThat(
+            ledgerExists && AnnotationSupport.isAnnotated(LedgerGoldenTest.class, Disabled.class))
+        .as(
+            "current() ya devuelve la cuenta corriente real; el @Disabled de la clase oculta los casos")
+        .isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "Mientras no hay cuenta corriente, cada invocación en rojo falla por GoldenEngineNotImplementedException (006-04)")
+  void whileThereIsNoLedgerEveryInvocationFailsForThatReason() {
+    if (!(LedgerGoldenEngines.current() instanceof NotImplementedLedgerEngine)) {
+      return; // Phase 4: the golden test itself decides.
+    }
+    List<GoldenCase> invocations =
+        goldenMethodCodes().stream()
+            .flatMap(codes -> LedgerGoldenTest.casesFor(codes).stream())
+            .toList();
+
+    assertThat(invocations).hasSize(IDS.size());
+    assertAll(
+        invocations.stream()
+            .map(goldenCase ->
+                () ->
+                    assertThatThrownBy(() -> LedgerGoldenTest.assertCase(goldenCase))
+                        .as(goldenCase.id())
+                        .isInstanceOf(GoldenEngineNotImplementedException.class)));
+  }
+
+  /** The codes each criterion method of LedgerGoldenTest runs. */
+  private static List<List<String>> goldenMethodCodes() {
+    return goldenMethods().stream()
+        .map(method -> List.of(method.getAnnotation(LedgerGoldenTest.RuleCases.class).value()))
+        .toList();
+  }
+
+  private static List<Method> goldenMethods() {
+    return Arrays.stream(LedgerGoldenTest.class.getDeclaredMethods())
+        .filter(method -> method.isAnnotationPresent(ParameterizedTest.class))
+        .toList();
+  }
+
+  @Test
+  @DisplayName(
+      "LedgerGoldenTest tiene un método por criterio de la spec, con las etiquetas de sus códigos y sus casos (006-07)")
+  void thereIsOneMethodPerCriterionAndEachHasCases() {
+    Set<String> codes = RULES.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
+
+    assertThat(
+            AnnotationSupport.findRepeatableAnnotations(LedgerGoldenTest.class, Tag.class).stream()
+                .map(Tag::value))
+        .containsExactly("golden");
+    assertThat(goldenMethods())
+        .allSatisfy(method ->
+            assertThat(AnnotationSupport.findRepeatableAnnotations(method, Tag.class))
+                .as(method.getName() + " · las etiquetas son los códigos de su criterio")
+                .extracting(Tag::value)
+                .containsExactlyElementsOf(
+                    List.of(method.getAnnotation(LedgerGoldenTest.RuleCases.class).value())));
+    assertThat(goldenMethodCodes()).containsExactlyInAnyOrderElementsOf(CRITERIA);
+    assertThat(CRITERIA.stream().flatMap(List::stream).toList())
+        .containsExactlyInAnyOrderElementsOf(codes);
+    assertThat(CRITERIA)
+        .allSatisfy(criterion ->
+            assertThat(LedgerGoldenTest.casesFor(criterion))
+                .as(criterion + " · casos")
+                .isNotEmpty());
+    assertThat(schemaRuleCodes()).containsExactlyInAnyOrderElementsOf(codes);
+  }
+
+  @Test
+  @DisplayName("Cada caso corre en exactamente un método: el de su criterio (006-07)")
+  void everyCaseRunsInExactlyOneMethod() {
+    assertThat(cases())
+        .allSatisfy(goldenCase ->
+            assertThat(
+                    goldenMethodCodes().stream()
+                        .filter(codes -> LedgerGoldenTest.casesFor(codes).contains(goldenCase))
+                        .count())
+                .as(goldenCase.id())
+                .isEqualTo(1));
+  }
+
+  /** The codes the schema accepts in {@code rules}. */
+  private static List<String> schemaRuleCodes() {
+    JsonNode schema =
+        CommonCases.EXACT.readTree(GoldenFixtures.GOLDEN.resolve("ledger.schema.json").toFile());
+    return schema
+        .at("/$defs/case/properties/rules/items/enum")
+        .valueStream()
+        .map(JsonNode::stringValue)
+        .toList();
+  }
+
+  @Test
+  @DisplayName("El nombre visible de un caso lleva sus códigos, su id y su descripción (006-07)")
+  void theDisplayNameCarriesTheCodesTheIdAndTheDescription() {
+    assertThat(cases())
+        .allSatisfy(goldenCase -> {
+          String name = LedgerGoldenTest.displayName(goldenCase);
+          assertThat(name)
+              .startsWith(LedgerGoldenTest.codes(goldenCase) + " · ")
+              .contains(" · " + goldenCase.id() + " · ")
+              .endsWith(goldenCase.description());
+        });
+  }
+
+  // ---- IM-01 and IM-03 are checked on the result (CA-4.04) ----
+
+  @Test
+  @DisplayName("Un resultado que respeta IM-01 e IM-03 no tiene problemas en C4 ni en C5")
+  void aResultThatRespectsTheInvariantsHasNoProblems() {
+    assertThat(List.of(byId("C4"), byId("C5")))
+        .allSatisfy(goldenCase ->
+            assertThat(
+                    LedgerGoldenTest.allocationProblems(
+                        LedgerGoldenInputs.from(goldenCase), expectedAsResult(goldenCase)))
+                .as(goldenCase.id())
+                .isEmpty());
+  }
+
+  @Test
+  @DisplayName("Un resultado que imputa de más o de menos que el pago falla en IM-01")
+  void anAllocationThatIsNotThePaymentBreaksIm01() {
+    GoldenCase c4 = byId("C4");
+    LedgerGoldenResult expected = expectedAsResult(c4);
+    List<LedgerGoldenResult.Allocation> more =
+        List.of(
+            new LedgerGoldenResult.Allocation("TAX", new BigDecimal("191598")),
+            new LedgerGoldenResult.Allocation("INTEREST", new BigDecimal("8403")));
+    List<LedgerGoldenResult.Allocation> fewer = List.of(expected.allocations().get(0));
+
+    assertThat(
+            LedgerGoldenTest.allocationProblems(
+                LedgerGoldenInputs.from(c4), withAllocations(expected, more)))
+        .anyMatch(problem -> problem.startsWith("IM-01"));
+    assertThat(
+            LedgerGoldenTest.allocationProblems(
+                LedgerGoldenInputs.from(c4), withAllocations(expected, fewer)))
+        .anyMatch(problem -> problem.startsWith("IM-01"));
+  }
+
+  @Test
+  @DisplayName("Un resultado que imputa más que la deuda de un componente falla en IM-03")
+  void anAllocationAboveTheDebtBreaksIm03() {
+    GoldenCase c4 = byId("C4");
+    List<LedgerGoldenResult.Allocation> overInterest =
+        List.of(
+            new LedgerGoldenResult.Allocation("TAX", new BigDecimal("184000")),
+            new LedgerGoldenResult.Allocation("INTEREST", new BigDecimal("16000")));
+
+    assertThat(
+            LedgerGoldenTest.allocationProblems(
+                LedgerGoldenInputs.from(c4), withAllocations(expectedAsResult(c4), overInterest)))
+        .anyMatch(problem -> problem.startsWith("IM-03"));
+  }
+
+  @Test
+  @DisplayName("Un resultado con un saldo negativo falla en IM-03")
+  void aNegativeBalanceBreaksIm03() {
+    GoldenCase c4 = byId("C4");
+    LedgerGoldenResult expected = expectedAsResult(c4);
+    LedgerGoldenResult negative = withBalances(expected, Map.of("TAX", new BigDecimal("-1")));
+
+    assertThat(LedgerGoldenTest.allocationProblems(LedgerGoldenInputs.from(c4), negative))
+        .anyMatch(problem -> problem.startsWith("IM-03"));
+  }
+
+  private static LedgerGoldenResult withBalances(
+      LedgerGoldenResult result, Map<String, BigDecimal> balances) {
+    return new LedgerGoldenResult(
+        result.obligation(),
+        result.movements(),
+        result.allocations(),
+        balances,
+        result.totalBalance(),
+        result.status(),
+        result.paymentStatus(),
+        result.distribution());
+  }
+
+  private static LedgerGoldenResult withAllocations(
+      LedgerGoldenResult result, List<LedgerGoldenResult.Allocation> allocations) {
+    return new LedgerGoldenResult(
+        result.obligation(),
+        result.movements(),
+        allocations,
+        result.balances(),
+        result.totalBalance(),
+        result.status(),
+        result.paymentStatus(),
+        result.distribution());
   }
 
   // ---- helpers ----
