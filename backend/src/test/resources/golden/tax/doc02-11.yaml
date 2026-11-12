@@ -1,0 +1,24 @@
+# Caso L6: criterio de aceptación CA-L02 del Doc. 02 §11 (base 57.349.001). El documento solo da
+# la tarifa, así que el caso compara solo la tarifa.
+document: {code: "Doc. 02", version: "0.2", section: "§11"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+comparison:
+  gross_tax: {scale: 2, rounding: "HALF_UP"}
+cases:
+  - id: "L6"
+    rules: ["CA-L02"]
+    description: "Base 57.349.001: un peso sobre el borde del primer tramo"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "fiscal_year", reason: "CA-L02 no repite la vigencia (CA-L01 sí trae 2026)"}
+      - {field: "vehicle_category", reason: "el documento no nombra la categoría; PARTICULAR es la única con tramos en la configuración"}
+      - {field: "taxable_base", reason: "el documento da la base sin su origen (tabla o factura); se entra como base ya ajustada, sin origen"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      taxable_base: 57349001
+      new_vehicle: false
+    expected:
+      applied_rate: 0.025

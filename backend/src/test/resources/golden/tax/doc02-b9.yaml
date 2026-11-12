@@ -1,0 +1,106 @@
+# Casos L1 a L5: ejemplos de cálculo del Doc. 02 §B.9 (vigencia 2026, régimen nacional, sin
+# beneficios). Cada caso compara solo las columnas que el documento da: tarifa, meses y bruto.
+# En L1, L2 y L5 la base es la entrada (la «Base» de la tabla); en L3 y L4 el documento también
+# da la base, que se compara.
+document: {code: "Doc. 02", version: "0.2", section: "§B.9"}
+configuration:
+  file: "contracts/jsonschema/config-jurisdiccion/1.1/config_jurisdiccion_52356_2026.yaml"
+  sha256: "e038e12a30223ce8944cb2220869b6dc52914c6a8cc90a93c273ec869680c872"
+comparison:
+  gross_tax: {scale: 2, rounding: "HALF_UP"}
+cases:
+  - id: "L1"
+    row: 1
+    rules: ["006-02"]
+    description: "Automóvil particular usado, base 45.000.000"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «automóvil particular»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "taxable_base", reason: "el documento da la «Base» sin su origen (tabla o factura); se entra como base ya ajustada, sin origen"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      taxable_base: 45000000
+      new_vehicle: false
+    expected:
+      applied_rate: 0.015
+      taxable_months: 12
+      gross_tax: 675000
+
+  - id: "L2"
+    row: 2
+    rules: ["006-02"]
+    description: "Automóvil particular usado, base 80.000.000"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «automóvil particular»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "taxable_base", reason: "el documento da la «Base» sin su origen (tabla o factura); se entra como base ya ajustada, sin origen"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      taxable_base: 80000000
+      new_vehicle: false
+    expected:
+      applied_rate: 0.025
+      taxable_months: 12
+      gross_tax: 2000000
+
+  - id: "L3"
+    row: 3
+    rules: ["CA-L04"]
+    description: "Camioneta particular blindada, valor de tabla 120.000.000 (+10 %): el ajuste la pasa al tramo 3"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento dice «camioneta particular»; PARTICULAR por el mapeo categorias de la configuración"}
+      - {field: "table_value", reason: "el documento dice «tabla $120.000.000», en pesos; se entra como valor de tabla en pesos (OFFICIAL_TABLE)"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "OFFICIAL_TABLE"
+      table_value: 120000000
+      base_adjustments: ["BLINDADO"]
+      new_vehicle: false
+    expected:
+      taxable_base: 132000000
+      applied_rate: 0.035
+      taxable_months: 12
+      gross_tax: 4620000
+
+  - id: "L4"
+    row: 4
+    rules: ["CA-L03"]
+    description: "Vehículo nuevo, factura sin IVA de 100.000.000, causación el 15-ago-2026"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento solo dice «vehículo nuevo»; PARTICULAR por el mapeo categorias de la configuración"}
+    depends_on: ["causacion.proporcionalidad_nuevos"]
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      base_source_type: "INVOICE"
+      invoice_value_without_vat: 100000000
+      new_vehicle: true
+      accrual_date: 2026-08-15
+    expected:
+      taxable_base: 100000000
+      applied_rate: 0.025
+      taxable_months: 5
+      gross_tax: 1041666.67
+
+  - id: "L5"
+    row: 5
+    rules: ["CA-L01"]
+    description: "Base exactamente 57.349.000: borde superior inclusivo del primer tramo"
+    assumptions: ["ENTRADA_INFERIDA"]
+    inferred_inputs:
+      - {field: "vehicle_category", reason: "el documento no nombra la categoría; PARTICULAR es la única con tramos en la configuración"}
+      - {field: "taxable_base", reason: "el documento da la «Base» sin su origen (tabla o factura); se entra como base ya ajustada, sin origen"}
+    input:
+      fiscal_year: 2026
+      vehicle_category: "PARTICULAR"
+      taxable_base: 57349000
+      new_vehicle: false
+    expected:
+      applied_rate: 0.015
+      taxable_months: 12
+      gross_tax: 860235
