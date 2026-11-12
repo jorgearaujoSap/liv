@@ -133,7 +133,54 @@ Cambiar una regla o un ejemplo no es un cambio directo: va por el SDD (`AGENTS.m
 
 ## Liquidación (`tax`)
 
-_La completa el PR de los casos de liquidación (feature 006, B1b): archivos, casos L1 a L15, supuestos y número del *issue*._
+Quince casos del motor de liquidación (Fase 2, Módulo 3), de los Docs. 02 v0.2 y 03 v0.5. *Issue*: [#171](https://github.com/jorgearaujoSap/liv/issues/171), «Pruebas *golden* del motor de liquidación (L1 a L15) en rojo hasta la Fase 2».
+
+### Archivos
+
+| Qué | Dónde |
+|---|---|
+| Esquema | `golden/tax.schema.json`. Fija por `const` la copia de Ipiales (ruta y SHA‑256) y `comparison` (`gross_tax`: escala 2, `HALF_UP`); los códigos de regla, los supuestos y `depends_on` son listas cerradas; los montos en pesos son enteros |
+| *Fixtures* | `golden/tax/doc02-b9.yaml` (L1 a L5), `doc02-11.yaml` (L6), `doc03-9-3.yaml` (L7 a L13) y `doc03-9-7.yaml` (L14 y L15) |
+| Prueba en rojo | `tax/golden/AssessmentGoldenTest`: `@Tag("golden")` y `@Disabled("Issue #171: …")`; un método por código que citan los casos (`CA-L01` a `CA-L04`, `006-02`, `006-14`, `LQ-C01`, `LQ-C02` y `LQ-C04`) |
+| Prueba en verde | `tax/golden/AssessmentGoldenFixturesTest`: los quince casos y su fuente, sus claves esperadas, las entradas inferidas, las variantes dañadas del esquema, las mutaciones sobre los casos reales y que el `@Disabled` cite su *issue* |
+| Adaptador | `tax/golden/AssessmentGoldenEngine` (la interfaz, con la frontera en su Javadoc), `NotImplementedAssessmentEngine` (lanza `GoldenEngineNotImplementedException`) y `AssessmentGoldenEngines.current()`, el único punto que elige el adaptador |
+| Entrada y resultado | `AssessmentGoldenInput` y `AssessmentGoldenResult`, *records* con `BigDecimal`, `LocalDate`, `Integer` y `Boolean`; `AssessmentGoldenInputs` convierte un caso en su entrada y `AssessmentGoldenRules` comprueba lo que el esquema no expresa |
+
+### Casos
+
+La columna «Fuente» es el documento y la fila; «Códigos» son los que cita el campo `rules` del *fixture*. Cada caso compara solo las claves de `expected`, que son las columnas con valor en el documento.
+
+| Caso | Fuente | Códigos | Compara |
+|---|---|---|---|
+| L1, L2 | Doc. 02 §B.9, filas 1 y 2 | `006-02` | tarifa, meses y bruto |
+| L3 | Doc. 02 §B.9, fila 3 | `CA-L04` | base, tarifa, meses y bruto |
+| L4 | Doc. 02 §B.9, fila 4 | `CA-L03` | base, tarifa, meses y bruto |
+| L5 | Doc. 02 §B.9, fila 5 | `CA-L01` | tarifa, meses y bruto |
+| L6 | Doc. 02 §11 | `CA-L02` | tarifa |
+| L7, L8, L10, L11, L12 | Doc. 03 §9.3, filas 1, 2, 4, 5 y 6 | `LQ-C01`, `LQ-C02`, `LQ-C04` | la fila completa: base, tarifa, meses, bruto, neto, descuento efectivo, valor con descuento y fecha límite del descuento |
+| L9 | Doc. 03 §9.3, fila 3 | `CA-L04` y los tres `LQ-C0x` | como L7 |
+| L13 | Doc. 03 §9.3, fila 7 | `CA-L03` y los tres `LQ-C0x` | base, tarifa, meses, bruto, neto, `discount_applies: false` y plazo sin intereses (31‑dic‑2026) |
+| L14, L15 | Doc. 03 §9.7, filas 1 y 3 | `006-14` | solo las fechas del calendario: límite del descuento (o que no aplica), límite sin intereses y mora desde |
+
+Una celda vacía del documento es una clave ausente. Los montos finales se comparan al peso y el bruto al centavo con `HALF_UP`. L4 no tiene neto en el documento, y L6 solo tiene tarifa.
+
+### Supuestos y entradas inferidas
+
+- `MODALIDAD_B_HIPOTETICA`: L7 a L9 y L11 a L13. La nota del Doc. 03 §9.3 dice que, con A + C, el municipio solo liquida el internado (L10); las demás filas son el cálculo si se activa el convenio con Nariño. L10 no lo lleva. L1 a L6 son «régimen nacional» y la competencia está fuera de la frontera.
+- `ENTRADA_INFERIDA`: el caso trae una entrada que el documento no da; cada una está en `inferred_inputs` con su motivo. Son la categoría (`PARTICULAR`, `MOTO` o `ELECTRICO`, por el mapeo `categorias` de la configuración) en L1 a L13, la forma de la base de L1, L2, L5 y L6 (`taxable_base`, la «Base» del documento, sin origen) y de L3 (`table_value`), y la vigencia de L6. L14 y L15 no llevan ninguna: no traen base ni categoría.
+- La causación de un vehículo usado no está en el *fixture*: la da la configuración. Los vehículos nuevos traen su `accrual_date`.
+
+### `depends_on`
+
+Si cambia alguno de estos valores de la configuración, estos son los casos que hay que revisar: `tarifas.MOTO` (L11), `causacion.proporcionalidad_nuevos` (L4 y L13; Doc. 02 §12, pendiente 2), `redondeo.empate` (L8, cuyo bruto cae en $500 exactos) y `categorias` y `sujecion` (L11; los dos están `POR_CONFIRMAR`).
+
+### La frontera de `tax`
+
+El adaptador ejerce el Doc. 02 §B.6 (ajustes de base y multiplicador de tablas), §B.7 (tarifa y meses), §B.8 (bruto, neto redondeado y descuento) y el calendario del Doc. 03 §9.6 y §9.7. **No** evalúa los prerrequisitos y la sujeción (§B.3; por ejemplo, el cilindraje de la moto de L11), la competencia y el universo de la modalidad, ni la homologación: la categoría, el origen de la base y los ajustes son entradas.
+
+### Ejecutarlas en rojo
+
+El comando de «Ejecutarlas en rojo» (sección general de este README) selecciona `AssessmentGoldenTest`: sus 31 invocaciones (una por caso y por código que cita) fallan con `GoldenEngineNotImplementedException`. Para ponerlas en verde, sigue «Ponerlas en verde (Fases 2 y 4)» y cierra el *issue* #171.
 
 ## Cuenta corriente (`ledger`)
 
