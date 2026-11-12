@@ -99,8 +99,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - La sección nueva `cartera` trae `intereses_mora`, `sanciones`, `prescripcion`, `cartera_historica` y `antiguedad`. Cuatro definiciones nuevas: `anio_o_pendiente` (`vigencias_desde`), `norma_o_pendiente` (`estatuto_territorial`), `cantidad_uvt` (`sancion_minima_uvt`) y `referencia_secreto` (`cuenta_recaudo_ref`); cinco listas cerradas nuevas (`inicio_termino`, `intereses_historicos`, `sistema_determinacion`, `redondeo_causacion.metodo` y los componentes de `intereses_mora.base`: `TAX`, `INTEREST` y `PENALTY`). `PENDIENTE` entra en dos campos que no lo admitían y en una lista cerrada (excepciones a 004‑08 aprobadas en la H2).
   - Pruebas: las copias de los anexos 1.1 de la raíz (`src/test/resources/…/1.1/`), la tabla de campos y las clases de la 1.1 (con las excepciones del oráculo de P2), `JurisdictionConfigSchema11Test` (CJ01, que los casos de la 1.0 no cambian con la 1.1 publicada, y que lo válido en la 1.0 es válido en la 1.1: cada mutación y cada caso de la 1.0, con la versión cambiada primero) y los casos de `1.1.casos.json` de `bancos[]`, `formato_por_banco[]` y `cartera`. Las de la 1.0 no cambian.
   - Al integrarse, `backend-main` publica la *release* `jsonschema-config-jurisdiccion-v1.1`.
+- Base de las pruebas *golden* (feature 006, F0‑11; PR B1a): solo código de prueba, sin dependencias nuevas y sin cambios en el `pom.xml` ni en los *workflows*.
+  - Apoyo común en `co.com.sapenlinea.liv.golden` (no es un módulo, no depende de `tax` ni de `ledger`): carga y validación de los *fixtures* YAML con el cargador seguro y el validador de la feature 004, SHA‑256 de la configuración citada con fin de línea LF, y un comparador de resultados exactos (escala por campo, listas como multiconjunto exacto, sin coma flotante).
+  - `GoldenFixturesTest` (los *fixtures* están completos y bien formados; once variantes dañadas se rechazan por el motivo correcto) y `GoldenComparatorTest` (una mutación por tipo de diferencia, con valores sintéticos), ambas en verde.
+  - `src/test/resources/golden/README.md`: qué son las *golden*, el formato, la frontera del adaptador, cómo ejecutarlas en rojo, cómo ponerlas en verde y qué hacer cuando cambia un ejemplo. Los esquemas, los casos y las pruebas de liquidación (B1b) y de cuenta corriente (B2) llegan en sus PR.
 
 ### Cambiado
+
+- `SafeYamlLoader`, `JurisdictionConfigSchemas` y `CommonCases` (pruebas de la feature 004) pasan a `public` para que las use el paquete `golden`: solo cambia la visibilidad de la clase y de `load`, `compile`, `metaSchemaErrors`, `BACKEND` y `EXACT`; el comportamiento y las pruebas no cambian.
 
 - Pruebas del esquema de configuración de jurisdicción por versión (feature 005, B0; ADR 0034), sin cambiar lo que comprueban las de la 1.0:
   - las copias de los anexos de prueba pasan a `src/test/resources/contracts/jsonschema/config-jurisdiccion/1.0/`;
