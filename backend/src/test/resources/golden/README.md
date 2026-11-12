@@ -79,6 +79,7 @@ Las etiquetas `006-xx` (por ejemplo, `006-02`) son **criterios de la spec** de l
 - las listas (movimientos, distribución), como **multiconjunto exacto**: ni un elemento de más ni uno de menos, en cualquier orden;
 - un valor esperado con resultado nulo o con la clave ausente falla;
 - un número en coma flotante falla;
+- un valor esperado `null` exige que el resultado emita la clave con `null` (`GoldenResult.asTree()`): una clave ausente es una diferencia;
 - un objeto se compara por las claves del esperado: una clave que el resultado agrega no cuenta, también dentro de una lista (para exigir `reverses` en todo movimiento, el *fixture* lo escribe, con `null` en los que no son reversos);
 - un objeto esperado sin ninguna clave que comparar (`{}`) falla, porque aceptaría cualquier resultado;
 - todas las diferencias se reportan juntas.

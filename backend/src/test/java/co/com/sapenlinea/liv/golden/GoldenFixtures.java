@@ -32,6 +32,7 @@ public final class GoldenFixtures {
   /** The modules that have golden fixtures. */
   public static final List<String> MODULES = List.of("tax", "ledger");
 
+  /** The folder of the golden schemas, fixtures and README. */
   public static final Path GOLDEN = GoldenConfiguration.RESOURCES.resolve("golden");
 
   /** The folder of the synthetic schema and fixture of the tests of this package. */
@@ -45,7 +46,8 @@ public final class GoldenFixtures {
    */
   private static final Pattern DOC_05 =
       Pattern.compile(
-          "(?i)\\bdocs?\\.?[\\s\\u00A0]*0?5\\b|05_cartera|\\b(?:MO|SA|PS|CH)-[0-9]|\\bcartera\\.");
+          "(?i)\\bdoc(?:umento)?s?\\.?[\\s\\u00A0\\u202F]*0?5\\b|05_cartera|\\bcartera\\.[a-z_]"
+              + "|\\b(?-i:(?:MO|SA|PS|CH)[-\\u2010-\\u2013][0-9])");
 
   /** The keywords of the portable subset (no {@code oneOf} and no {@code multipleOf}). */
   private static final Set<String> KEYWORDS =
@@ -56,8 +58,7 @@ public final class GoldenFixtures {
           "$defs",
           "title",
           "description",
-          "default",
-          "examples",
+          "$comment",
           "type",
           "enum",
           "const",
@@ -77,7 +78,6 @@ public final class GoldenFixtures {
           "minLength",
           "maxLength",
           "pattern",
-          "format",
           "minimum",
           "maximum",
           "exclusiveMinimum",
@@ -185,11 +185,11 @@ public final class GoldenFixtures {
       String child = path + "/" + escape(keyword);
       if (!KEYWORDS.contains(keyword)) {
         problems.add(child + " palabra clave desconocida o fuera del subconjunto portable");
-      } else if (SCHEMA_MAPS.contains(keyword)) {
+      } else if (SCHEMA_MAPS.contains(keyword) && value.isObject()) {
         for (Map.Entry<String, JsonNode> named : value.properties()) {
           checkKeywords(named.getValue(), child + "/" + escape(named.getKey()), problems);
         }
-      } else if (SCHEMA_LISTS.contains(keyword)) {
+      } else if (SCHEMA_LISTS.contains(keyword) && value.isArray()) {
         for (int index = 0; index < value.size(); index++) {
           checkKeywords(value.get(index), child + "/" + index, problems);
         }
@@ -224,7 +224,7 @@ public final class GoldenFixtures {
     List<GoldenCase> cases = new ArrayList<>();
     Set<String> ids = new HashSet<>();
     for (Fixture fixture : fixtures(module)) {
-      for (GoldenCase goldenCase : cases(fixture.tree())) {
+      for (GoldenCase goldenCase : casesOf(fixture)) {
         if (!ids.add(goldenCase.id())) {
           throw new IllegalStateException(
               "el id " + goldenCase.id() + " se repite en " + fixture.file());
@@ -233,6 +233,14 @@ public final class GoldenFixtures {
       }
     }
     return cases;
+  }
+
+  private static List<GoldenCase> casesOf(Fixture fixture) {
+    try {
+      return cases(fixture.tree());
+    } catch (RuntimeException e) {
+      throw new IllegalStateException(fixture.file() + ": " + e.getMessage(), e);
+    }
   }
 
   /**

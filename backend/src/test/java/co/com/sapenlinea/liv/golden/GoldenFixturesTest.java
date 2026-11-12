@@ -78,6 +78,8 @@ class GoldenFixturesTest {
                 "{\"properties\": {\"a\": {\"requried\": [\"b\"]}}}"),
             "/properties/a/requried"),
         Arguments.of(Named.of("oneOf, fuera del subconjunto", "{\"oneOf\": [{}]}"), "/oneOf"),
+        Arguments.of(Named.of("format, que no valida nada", "{\"format\": \"date\"}"), "/format"),
+        Arguments.of(Named.of("una lista que no es lista", "{\"anyOf\": {\"a\": {}}}"), "/"),
         Arguments.of(
             Named.of("multipleOf, fuera del subconjunto", "{\"multipleOf\": 5}"), "/multipleOf"),
         Arguments.of(Named.of("un valor de type mal escrito", "{\"type\": \"objet\"}"), "/type"));
@@ -89,6 +91,20 @@ class GoldenFixturesTest {
     String schema = "{\"properties\": {\"oneOf\": {\"type\": \"string\"}}}";
 
     assertThat(GoldenFixtures.metaSchemaProblems(CommonCases.EXACT.readTree(schema))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Una frase que termina en «cartera.» no cita el Doc. 05 (006-11)")
+  void aSentenceEndingInCarteraIsNotACitation() {
+    String text =
+        replaceOnce(
+            validText(),
+            "description: \"Caso sintético uno\"",
+            "description: \"Sube el saldo de la cartera. Sa-1 no es un código\"");
+
+    assertThat(
+            GoldenFixtures.problems(GoldenFixtures.schema(TEST_SCHEMA), SafeYamlLoader.load(text)))
+        .isEmpty();
   }
 
   @Test
@@ -212,6 +228,28 @@ class GoldenFixturesTest {
             "depends_on: [\"recaudo\"]",
             "depends_on: [\"cartera.intereses_mora\"]",
             problem("/cases/0/depends_on/0", "no-doc-05")),
+        variant(
+            "el nombre del archivo del Doc. 05",
+            "description: \"Caso sintético uno\"",
+            "description: \"Ver 05_Cartera_Intereses\"",
+            problem("/cases/0/description", "no-doc-05")),
+        variant(
+            "un código del Doc. 05 con guion no separable",
+            "rules: [\"X-01\"]",
+            "rules: [\"MO\u201103\"]",
+            problem("/cases/0/rules/0", "no-doc-05")),
+        variant(
+            "un documento sin código",
+            "code: \"Doc. 02\"",
+            "code: \"\"",
+            problem("/document/code", "minLength"),
+            problem("/document/code", "document-code")),
+        variant(
+            "una suposición que no es texto",
+            "assumptions: [\"SYNTHETIC\"]",
+            "assumptions: [7]",
+            problem("/cases/0/assumptions/0", "enum"),
+            problem("/cases/0/assumptions/0", "not-text")),
         variant(
             "un documento sin versión",
             "  version: \"9.9\"\n",

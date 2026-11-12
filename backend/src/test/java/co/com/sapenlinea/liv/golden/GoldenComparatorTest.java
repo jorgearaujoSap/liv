@@ -389,7 +389,7 @@ class GoldenComparatorTest {
   }
 
   private static JsonNodeFactory nodes() {
-    return tools.jackson.databind.node.JsonNodeFactory.instance;
+    return JsonNodeFactory.instance;
   }
 
   private static DecimalNode decimal(String value) {
