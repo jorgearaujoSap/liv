@@ -5,6 +5,7 @@ import co.com.sapenlinea.liv.contracts.SafeYamlLoader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -46,8 +47,14 @@ public final class GoldenConfiguration {
     try {
       Path root = RESOURCES.normalize();
       Path file = root.resolve(relative).normalize();
-      return file.startsWith(root) && !file.equals(root) ? Optional.of(file) : Optional.empty();
-    } catch (InvalidPathException e) {
+      if (!file.startsWith(root) || file.equals(root)) {
+        return Optional.empty();
+      }
+      // A link inside the resources may point outside them (IN-01).
+      boolean linkedOutside =
+          Files.exists(file) && !file.toRealPath().startsWith(root.toRealPath());
+      return linkedOutside ? Optional.empty() : Optional.of(file);
+    } catch (InvalidPathException | IOException e) {
       return Optional.empty();
     }
   }

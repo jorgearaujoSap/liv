@@ -101,7 +101,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - Al integrarse, `backend-main` publica la *release* `jsonschema-config-jurisdiccion-v1.1`.
 - Base de las pruebas *golden* (feature 006, F0‑11; PR B1a): solo código de prueba, sin dependencias nuevas y sin cambios en el `pom.xml` ni en los *workflows*.
   - Apoyo común en `co.com.sapenlinea.liv.golden` (no es un módulo, no depende de `tax` ni de `ledger`): carga y validación de los *fixtures* YAML con el cargador seguro y el validador de la feature 004, SHA‑256 de la configuración citada con fin de línea LF, y un comparador de resultados exactos (escala por campo, listas como multiconjunto exacto, sin coma flotante).
-  - `GoldenFixturesTest` (los *fixtures* están completos y bien formados; once variantes dañadas se rechazan por el motivo correcto) y `GoldenComparatorTest` (una mutación por tipo de diferencia, con valores sintéticos), ambas en verde.
+  - `GoldenFixturesTest` (los *fixtures* están completos y bien formados; diecisiete variantes dañadas, comunes a todos los módulos, se rechazan solo por el motivo correcto; el esquema de liquidación suma las suyas en B1b) y `GoldenComparatorTest` (una mutación por tipo de diferencia, con valores sintéticos), ambas en verde.
   - `src/test/resources/golden/README.md`: qué son las *golden*, el formato, la frontera del adaptador, cómo ejecutarlas en rojo, cómo ponerlas en verde y qué hacer cuando cambia un ejemplo. Los esquemas, los casos y las pruebas de liquidación (B1b) y de cuenta corriente (B2) llegan en sus PR.
 
 ### Cambiado

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -18,10 +19,17 @@ import tools.jackson.databind.JsonNode;
  *   <li>numbers by value ({@code compareTo}), rounded to the scale of the case where its {@code
  *       comparison} says so; a floating-point number is never accepted;
  *   <li>text, codes and dates (ISO-8601 text) by equality, flags by equality;
- *   <li>a list as an exact multiset: neither one element more nor one less, in any order.
+ *   <li>a list as an exact multiset: neither one element more nor one less, in any order;
+ *   <li>an object by the keys of the expected one: a key the result adds is not compared, and a key
+ *       of the test itself ({@code derived_from}) is not part of the result.
  * </ul>
+ *
+ * The scale of a {@code comparison} applies to every field with that name, at any depth.
  */
 public final class GoldenComparator {
+
+  /** Keys of the test itself, in an expected object: the engine does not return them. */
+  private static final Set<String> METADATA = Set.of("derived_from");
 
   private GoldenComparator() {}
 
@@ -55,15 +63,24 @@ public final class GoldenComparator {
         differences.add(difference(path, "se esperaba un objeto y se obtuvo " + actual));
         return;
       }
+      int compared = 0;
       for (Map.Entry<String, JsonNode> entry : expected.properties()) {
         String key = entry.getKey();
-        String child = path + "/" + key.replace("~", "~0").replace("/", "~1");
+        if (METADATA.contains(key)) {
+          continue;
+        }
+        compared++;
+        String child = path + "/" + GoldenFixtures.escape(key);
         JsonNode value = actual.get(key);
         if (value == null) {
           differences.add(difference(child, "falta la clave; se esperaba " + entry.getValue()));
         } else {
           compare(entry.getValue(), value, child, key, comparison, differences);
         }
+      }
+      if (compared == 0) {
+        // An object that expects nothing would accept any result.
+        differences.add(difference(path, "el objeto esperado no tiene ninguna clave que comparar"));
       }
     } else if (expected.isArray()) {
       compareLists(expected, actual, path, field, comparison, differences);

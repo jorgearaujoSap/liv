@@ -61,9 +61,9 @@ No son del ERD ni de los documentos: los define esta feature.
 | `assumptions` | Lo que el documento da por hecho. Valores cerrados que valida el esquema (por ejemplo, `MODALIDAD_B_HIPOTETICA`, `DEUDA_DADA_A_LA_FECHA_DEL_PAGO` y `ENTRADA_INFERIDA`) |
 | `inferred_inputs` | Entradas que el documento no da y el caso necesita, cada una con su motivo |
 | `depends_on` | Las claves de la configuración de jurisdicción cuyo valor usa el caso. Si ese valor cambia, estos son los casos que hay que revisar |
-| `derived_from` | En un movimiento esperado que sale de una regla y no de una cifra del ejemplo: la sección de la regla |
+| `derived_from` | En un movimiento esperado que sale de una regla y no de una cifra del ejemplo: la sección de la regla. Es un dato del *fixture*: el comparador no lo busca en el resultado |
 | `reverses` | En un reverso, el movimiento que revierte. Se compara, para que un reverso enlazado al movimiento equivocado falle aunque los montos cuadren |
-| `comparison` | Escala y redondeo por campo (el bruto, al centavo con la mitad hacia arriba). El esquema lo fija por `const` |
+| `comparison` | Escala y redondeo por campo (el bruto, al centavo con la mitad hacia arriba). El esquema de cada módulo lo fija (por `const`), para que editar el *fixture* no cambie la precisión. Se aplica a todo campo con ese nombre, a cualquier profundidad: no le pongas el nombre de un monto que se compara exacto |
 
 ### Etiquetas
 
@@ -79,9 +79,17 @@ Las etiquetas `006-xx` (por ejemplo, `006-02`) son **criterios de la spec** de l
 - las listas (movimientos, distribución), como **multiconjunto exacto**: ni un elemento de más ni uno de menos, en cualquier orden;
 - un valor esperado con resultado nulo o con la clave ausente falla;
 - un número en coma flotante falla;
+- un objeto se compara por las claves del esperado: una clave que el resultado agrega no cuenta, también dentro de una lista (para exigir `reverses` en todo movimiento, el *fixture* lo escribe, con `null` en los que no son reversos);
+- un objeto esperado sin ninguna clave que comparar (`{}`) falla, porque aceptaría cualquier resultado;
 - todas las diferencias se reportan juntas.
 
 El SHA‑256 de la configuración se calcula sobre el contenido con **fin de línea LF**, como el Doc. 03 §9.2. En Windows, con `core.autocrlf=true`, la copia tiene CRLF y su SHA‑256 directo es otro.
+
+## Qué comprueban los *fixtures* en cada CI
+
+`GoldenFixtures` comprueba, además del esquema del módulo: el código y la versión del documento; que ninguno cite el Doc. 05 (por nombre, archivo, códigos `MO-`, `SA-`, `PS-` y `CH-` o secciones `cartera.`); que la configuración citada esté dentro de `src/test/resources` y su SHA‑256 con LF coincida; que los ids no se repitan; que un campo con `comparison` no traiga más decimales que su escala; que las listas de reglas, supuestos y `depends_on` sean de texto; y que `expected` no tenga objetos vacíos. En `golden/` solo puede haber las carpetas de módulo, `test-only/`, los esquemas y este `README`, y en la carpeta de un módulo solo archivos `.yaml`. Cada esquema se valida contra el meta‑esquema 2020‑12 **y** contra la lista de palabras clave del subconjunto portable (sin `oneOf` ni `multipleOf`), porque el meta‑esquema acepta una palabra clave mal escrita y apagaría la regla en silencio.
+
+El esquema del módulo puede exigir más (por ejemplo, fijar la copia de Ipiales por `const`), y una regla propia del módulo se agrega con `GoldenFixtures.Rule`. La prueba de cada módulo debe exigir además el conjunto exacto de ids de sus casos: sin eso, una carpeta borrada o vacía no se notaría.
 
 ## La frontera del adaptador
 

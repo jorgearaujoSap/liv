@@ -14,9 +14,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -60,16 +58,48 @@ class GoldenFixturesTest {
                         .isEmpty()));
   }
 
-  @Test
-  @DisplayName("Un esquema con una palabra clave mal escrita no pasa el meta-esquema (006-05)")
-  void aMisspelledKeywordIsFoundByTheMetaSchema() {
-    JsonNode schema = CommonCases.EXACT.readTree("{\"type\": \"objet\"}");
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("damagedSchemas")
+  @DisplayName(
+      "Un esquema con una palabra clave mal escrita o fuera del subconjunto no pasa (006-05)")
+  void aDamagedSchemaIsFound(String schema, String path) {
+    assertThat(GoldenFixtures.metaSchemaProblems(CommonCases.EXACT.readTree(schema)))
+        .anySatisfy(problem -> assertThat(problem).startsWith(path));
+  }
 
-    assertThat(GoldenFixtures.metaSchemaProblems(schema)).isNotEmpty();
+  static Stream<Arguments> damagedSchemas() {
+    return Stream.of(
+        Arguments.of(
+            Named.of("additionalProperties mal escrita", "{\"additionalPropertes\": false}"),
+            "/additionalPropertes"),
+        Arguments.of(
+            Named.of(
+                "required mal escrita en una propiedad",
+                "{\"properties\": {\"a\": {\"requried\": [\"b\"]}}}"),
+            "/properties/a/requried"),
+        Arguments.of(Named.of("oneOf, fuera del subconjunto", "{\"oneOf\": [{}]}"), "/oneOf"),
+        Arguments.of(
+            Named.of("multipleOf, fuera del subconjunto", "{\"multipleOf\": 5}"), "/multipleOf"),
+        Arguments.of(Named.of("un valor de type mal escrito", "{\"type\": \"objet\"}"), "/type"));
   }
 
   @Test
-  @DisplayName("Todo fixture de tax y ledger carga, es válido y trae sus campos (006-05, 006-10)")
+  @DisplayName("Una propiedad que se llama como una palabra clave no es una palabra clave (006-05)")
+  void aPropertyNamedLikeAKeywordIsNotFlagged() {
+    String schema = "{\"properties\": {\"oneOf\": {\"type\": \"string\"}}}";
+
+    assertThat(GoldenFixtures.metaSchemaProblems(CommonCases.EXACT.readTree(schema))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("En golden/ solo hay carpetas de módulo, esquemas y el README (006-11)")
+  void goldenHoldsNothingElse() {
+    assertThat(GoldenFixtures.unexpectedEntries()).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "Si hay fixtures de tax o ledger, son válidos y sus ids no se repiten (006-05, 006-10)")
   void everyFixtureIsValid() {
     for (String module : GoldenFixtures.MODULES) {
       List<Fixture> fixtures = GoldenFixtures.fixtures(module);
@@ -117,83 +147,114 @@ class GoldenFixturesTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("damagedVariants")
-  @DisplayName("Una variante dañada se rechaza por el motivo correcto (006-05, 006-09, 006-11)")
-  void aDamagedVariantIsRejectedForTheRightReason(
-      String from, String to, String path, String rule) {
+  @DisplayName(
+      "Una variante dañada se rechaza solo por el motivo correcto (006-05, 006-09, 006-11)")
+  void aDamagedVariantIsRejectedForTheRightReason(String from, String to, List<Problem> expected) {
     JsonNode damaged = SafeYamlLoader.load(replaceOnce(validText(), from, to));
 
     assertThat(GoldenFixtures.problems(GoldenFixtures.schema(TEST_SCHEMA), damaged))
-        .contains(new Problem(path, rule));
+        .containsExactlyInAnyOrderElementsOf(expected);
   }
 
   static Stream<Arguments> damagedVariants() {
-    String sha = "sha256: \"" + IPIALES_SHA256 + "\"";
+    String file = "file: \"" + IPIALES_FILE + "\"";
     return Stream.of(
-        variant("un id repetido", "id: \"T2\"", "id: \"T1\"", "/cases/1/id", "unique-id"),
+        variant("un id repetido", "id: \"T2\"", "id: \"T1\"", problem("/cases/1/id", "unique-id")),
+        variant(
+            "un id vacío",
+            "id: \"T2\"",
+            "id: \"\"",
+            problem("/cases/1/id", "case-id-required"),
+            problem("/cases/1/id", "pattern")),
         variant(
             "un SHA-256 distinto",
-            sha,
+            "sha256: \"" + IPIALES_SHA256 + "\"",
             "sha256: \"" + "0".repeat(64) + "\"",
-            "/configuration/sha256",
-            "configuration-sha256"),
+            problem("/configuration/sha256", "configuration-sha256")),
         variant(
             "una ruta fuera de src/test/resources",
-            "file: \"" + IPIALES_FILE + "\"",
+            file,
             "file: \"../../pom.xml\"",
-            "/configuration/file",
-            "configuration-path"),
+            problem("/configuration/file", "configuration-path")),
         variant(
             "una ruta absoluta",
-            "file: \"" + IPIALES_FILE + "\"",
+            file,
             "file: \"/etc/hosts\"",
-            "/configuration/file",
-            "configuration-path"),
+            problem("/configuration/file", "configuration-path")),
         variant(
             "un archivo de configuración que no existe",
-            "file: \"" + IPIALES_FILE + "\"",
+            file,
             "file: \"contracts/no-existe.yaml\"",
-            "/configuration/file",
-            "configuration-missing"),
+            problem("/configuration/file", "configuration-missing")),
+        variant(
+            "sin archivo de configuración",
+            "  " + file + "\n",
+            "",
+            problem("/configuration/file", "required"),
+            problem("/configuration/file", "configuration-required")),
         variant(
             "el Doc. 05 como documento",
             "code: \"Doc. 02\"",
             "code: \"Doc. 05\"",
-            "/document/code",
-            "no-doc-05"),
+            problem("/document/code", "no-doc-05")),
         variant(
             "el Doc. 05 citado en una descripción",
             "description: \"Caso sintético uno\"",
             "description: \"Según el Doc. 05 §4.3\"",
-            "/cases/0/description",
-            "no-doc-05"),
+            problem("/cases/0/description", "no-doc-05")),
+        variant(
+            "un código de regla del Doc. 05",
+            "rules: [\"X-01\"]",
+            "rules: [\"MO-03\"]",
+            problem("/cases/0/rules/0", "no-doc-05")),
+        variant(
+            "una sección de configuración del Doc. 05",
+            "depends_on: [\"recaudo\"]",
+            "depends_on: [\"cartera.intereses_mora\"]",
+            problem("/cases/0/depends_on/0", "no-doc-05")),
         variant(
             "un documento sin versión",
             "  version: \"9.9\"\n",
             "",
-            "/document/version",
-            "document-version"),
-        variant(
-            "un documento sin versión (esquema)",
-            "  version: \"9.9\"\n",
-            "",
-            "/document/version",
-            "required"),
+            problem("/document/version", "required"),
+            problem("/document/version", "document-version")),
         variant(
             "una clave desconocida en la cabecera",
             "cases:\n",
             "unknown_key: 1\ncases:\n",
-            "/unknown_key",
-            "additionalProperties"),
+            problem("/unknown_key", "additionalProperties")),
         variant(
             "un valor con más decimales que su comparación",
             "scaled_value: 2500.00",
             "scaled_value: 2500.005",
-            "/cases/0/expected/scaled_value",
-            "scale"));
+            problem("/cases/0/expected/scaled_value", "scale")),
+        variant(
+            "una comparación sin escala",
+            "    scale: 2\n",
+            "",
+            problem("/comparison/scaled_value/scale", "required"),
+            problem("/comparison/scaled_value", "comparison")),
+        variant(
+            "una regla que no es texto",
+            "rules: [\"X-01\"]",
+            "rules: [6]",
+            problem("/cases/0/rules/0", "type"),
+            problem("/cases/0/rules/0", "not-text")),
+        variant(
+            "un resultado esperado vacío",
+            "    expected:\n      amount: 2000\n",
+            "    expected: {}\n",
+            problem("/cases/1/expected", "minProperties"),
+            problem("/cases/1/expected", "empty-expected")));
   }
 
-  private static Arguments variant(String name, String from, String to, String path, String rule) {
-    return Arguments.of(Named.of(name, from), to, path, rule);
+  private static Problem problem(String path, String rule) {
+    return new Problem(path, rule);
+  }
+
+  /** Arguments: the text to replace (shown as the name), its replacement and the exact problems. */
+  private static Arguments variant(String name, String from, String to, Problem... problems) {
+    return Arguments.of(Named.of(name, from), to, List.of(problems));
   }
 
   @Test
@@ -223,17 +284,6 @@ class GoldenFixturesTest {
             .replace("\r\n", "\n");
     assertThat(GoldenConfiguration.sha256Lf(text)).isEqualTo(IPIALES_SHA256);
     assertThat(GoldenConfiguration.sha256Lf(text.replace("\n", "\r\n"))).isEqualTo(IPIALES_SHA256);
-  }
-
-  @Test
-  @DisplayName("Un id repetido es el único problema de la variante, en el segundo caso (006-05)")
-  void everyRepeatedIdIsReported() {
-    String text = replaceOnce(validText(), "id: \"T2\"", "id: \"T1\"");
-    Set<String> paths = new HashSet<>();
-    GoldenFixtures.problems(GoldenFixtures.schema(TEST_SCHEMA), SafeYamlLoader.load(text))
-        .forEach(problem -> paths.add(problem.rule() + problem.path()));
-
-    assertThat(paths).containsExactly("unique-id/cases/1/id");
   }
 
   private static String validText() {

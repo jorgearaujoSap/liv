@@ -34,10 +34,77 @@ public final class GoldenFixtures {
 
   public static final Path GOLDEN = GoldenConfiguration.RESOURCES.resolve("golden");
 
+  /** The folder of the synthetic schema and fixture of the tests of this package. */
+  private static final String TEST_ONLY = "test-only";
+
+  private static final String README = "README.md";
+
   /**
-   * The Doc. 05 (interest) has no golden case until its open items 2, 10, 11 and 12 are resolved.
+   * What cites the Doc. 05 (interest), which has no golden case until its open items 2, 10, 11 and
+   * 12 are resolved: its name, its file, its rule codes and its configuration section.
    */
-  private static final Pattern DOC_05 = Pattern.compile("(?i)\\bdoc(?:umento)?\\.?\\s*0?5\\b");
+  private static final Pattern DOC_05 =
+      Pattern.compile(
+          "(?i)\\bdocs?\\.?[\\s\\u00A0]*0?5\\b|05_cartera|\\b(?:MO|SA|PS|CH)-[0-9]|\\bcartera\\.");
+
+  /** The keywords of the portable subset (no {@code oneOf} and no {@code multipleOf}). */
+  private static final Set<String> KEYWORDS =
+      Set.of(
+          "$schema",
+          "$id",
+          "$ref",
+          "$defs",
+          "title",
+          "description",
+          "default",
+          "examples",
+          "type",
+          "enum",
+          "const",
+          "properties",
+          "patternProperties",
+          "required",
+          "additionalProperties",
+          "propertyNames",
+          "minProperties",
+          "maxProperties",
+          "items",
+          "prefixItems",
+          "contains",
+          "minItems",
+          "maxItems",
+          "uniqueItems",
+          "minLength",
+          "maxLength",
+          "pattern",
+          "format",
+          "minimum",
+          "maximum",
+          "exclusiveMinimum",
+          "exclusiveMaximum",
+          "anyOf",
+          "allOf",
+          "not",
+          "if",
+          "then",
+          "else");
+
+  /** Keywords whose value maps names to schemas, lists schemas or is one schema. */
+  private static final Set<String> SCHEMA_MAPS = Set.of("properties", "patternProperties", "$defs");
+
+  private static final Set<String> SCHEMA_LISTS = Set.of("anyOf", "allOf", "prefixItems");
+  private static final Set<String> SCHEMAS =
+      Set.of(
+          "additionalProperties",
+          "propertyNames",
+          "items",
+          "contains",
+          "not",
+          "if",
+          "then",
+          "else");
+
+  private static final List<String> TEXT_LISTS = List.of("rules", "assumptions", "depends_on");
 
   private GoldenFixtures() {}
 
@@ -54,10 +121,27 @@ public final class GoldenFixtures {
 
   /** The schemas {@code golden/*.schema.json}. */
   public static List<Path> schemaFiles() {
-    return files(GOLDEN, ".schema.json");
+    return entries(GOLDEN).stream()
+        .filter(file -> file.getFileName().toString().endsWith(".schema.json"))
+        .toList();
   }
 
-  /** The schema of a module; it fails if the module has fixtures and no schema. */
+  /**
+   * What is in {@code golden/} and is neither a module, the synthetic folder, a schema nor README.
+   */
+  public static List<String> unexpectedEntries() {
+    return entries(GOLDEN).stream()
+        .filter(entry -> {
+          String name = entry.getFileName().toString();
+          return Files.isDirectory(entry)
+              ? !MODULES.contains(name) && !TEST_ONLY.equals(name)
+              : !README.equals(name) && !name.endsWith(".schema.json");
+        })
+        .map(entry -> entry.getFileName().toString())
+        .toList();
+  }
+
+  /** The schema of a module; it fails if {@code golden/<module>.schema.json} does not exist. */
   public static Schema schema(String module) {
     Path file = GOLDEN.resolve(module + ".schema.json");
     if (!Files.isRegularFile(file)) {
@@ -68,29 +152,69 @@ public final class GoldenFixtures {
 
   /** A schema from its file, with the validator of the feature 004. */
   public static Schema schema(Path file) {
-    return JurisdictionConfigSchemas.compile(CommonCases.EXACT.readTree(file.toFile()));
+    try {
+      return JurisdictionConfigSchemas.compile(CommonCases.EXACT.readTree(file.toFile()));
+    } catch (RuntimeException e) {
+      throw new IllegalStateException(
+          "no se pudo cargar el esquema " + file + ": " + e.getMessage(), e);
+    }
   }
 
-  /** The errors of a schema against the meta-schema 2020-12; empty if it is valid. */
+  /**
+   * What is wrong in a schema: its errors against the meta-schema 2020-12 and every keyword that is
+   * not in the portable subset (the meta-schema accepts a misspelled keyword, which would turn a
+   * rule off in silence); empty if it is valid.
+   */
   public static List<String> metaSchemaProblems(JsonNode schema) {
-    return JurisdictionConfigSchemas.metaSchemaErrors(schema).stream()
-        .map(error -> error.getInstanceLocation() + " " + error.getKeyword())
-        .toList();
+    List<String> problems =
+        new ArrayList<>(
+            JurisdictionConfigSchemas.metaSchemaErrors(schema).stream()
+                .map(error -> error.getInstanceLocation() + " " + error.getKeyword())
+                .toList());
+    checkKeywords(schema, "", problems);
+    return problems;
   }
 
-  /** The fixtures of a module, by file name; empty if the module has none. */
+  private static void checkKeywords(JsonNode schema, String path, List<String> problems) {
+    if (!schema.isObject()) {
+      return;
+    }
+    for (Map.Entry<String, JsonNode> entry : schema.properties()) {
+      String keyword = entry.getKey();
+      JsonNode value = entry.getValue();
+      String child = path + "/" + escape(keyword);
+      if (!KEYWORDS.contains(keyword)) {
+        problems.add(child + " palabra clave desconocida o fuera del subconjunto portable");
+      } else if (SCHEMA_MAPS.contains(keyword)) {
+        for (Map.Entry<String, JsonNode> named : value.properties()) {
+          checkKeywords(named.getValue(), child + "/" + escape(named.getKey()), problems);
+        }
+      } else if (SCHEMA_LISTS.contains(keyword)) {
+        for (int index = 0; index < value.size(); index++) {
+          checkKeywords(value.get(index), child + "/" + index, problems);
+        }
+      } else if (SCHEMAS.contains(keyword)) {
+        checkKeywords(value, child, problems);
+      }
+    }
+  }
+
+  /**
+   * The fixtures of a module, by file name; empty if the module has no folder. Anything in the
+   * folder that is not a {@code .yaml} file is an error, so that a fixture is never skipped.
+   */
   public static List<Fixture> fixtures(String module) {
     Path folder = GOLDEN.resolve(module);
     if (!Files.isDirectory(folder)) {
       return List.of();
     }
     List<Fixture> fixtures = new ArrayList<>();
-    for (Path file : files(folder, ".yaml")) {
-      try {
-        fixtures.add(new Fixture(file, SafeYamlLoader.load(file)));
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
+    for (Path file : entries(folder)) {
+      if (!Files.isRegularFile(file) || !file.getFileName().toString().endsWith(".yaml")) {
+        throw new IllegalStateException(
+            "golden/" + module + " solo admite archivos .yaml: " + file);
       }
+      fixtures.add(new Fixture(file, load(file)));
     }
     return fixtures;
   }
@@ -111,50 +235,78 @@ public final class GoldenFixtures {
     return cases;
   }
 
-  /** The cases of one fixture, with the header (document, configuration, comparison). */
+  /**
+   * The cases of one fixture, with the header (document, configuration, comparison). The fixture is
+   * expected to have no problems; a malformed comparison is an error that names it.
+   */
   public static List<GoldenCase> cases(JsonNode fixture) {
     JsonNode document = fixture.path("document");
     GoldenCase.Configuration configuration =
         new GoldenCase.Configuration(
             text(fixture.path("configuration"), "file"),
             text(fixture.path("configuration"), "sha256"));
-    Map<String, GoldenCase.Comparison> comparison = new LinkedHashMap<>();
-    fixture
-        .path("comparison")
-        .properties()
-        .forEach(field ->
-            comparison.put(
-                field.getKey(),
-                new GoldenCase.Comparison(
-                    field.getValue().path("scale").intValue(),
-                    RoundingMode.valueOf(text(field.getValue(), "rounding")))));
+    Map<String, GoldenCase.Comparison> comparison = comparison(fixture);
     return fixture
         .path("cases")
         .valueStream()
-        .map(node -> {
-          JsonNode row = node.path("row");
-          return new GoldenCase(
-              text(node, "id"),
-              strings(node.path("rules")),
-              text(node, "description"),
-              new GoldenCase.Source(
-                  text(document, "code"),
-                  text(document, "version"),
-                  text(document, "section"),
-                  row.isIntegralNumber() ? row.intValue() : null),
-              strings(node.path("assumptions")),
-              node.path("inferred_inputs")
-                  .valueStream()
-                  .map(input ->
-                      new GoldenCase.InferredInput(text(input, "field"), text(input, "reason")))
-                  .toList(),
-              strings(node.path("depends_on")),
-              node.path("input"),
-              node.path("expected"),
-              comparison,
-              configuration);
-        })
+        .map(node ->
+            new GoldenCase(
+                text(node, "id"),
+                strings(node.path("rules")),
+                text(node, "description"),
+                source(document, node.path("row")),
+                strings(node.path("assumptions")),
+                inferredInputs(node.path("inferred_inputs")),
+                strings(node.path("depends_on")),
+                node.path("input"),
+                node.path("expected"),
+                comparison,
+                configuration))
         .toList();
+  }
+
+  private static GoldenCase.Source source(JsonNode document, JsonNode row) {
+    return new GoldenCase.Source(
+        text(document, "code"),
+        text(document, "version"),
+        text(document, "section"),
+        row.isIntegralNumber() ? row.intValue() : null);
+  }
+
+  private static List<GoldenCase.InferredInput> inferredInputs(JsonNode list) {
+    return list.valueStream()
+        .map(input -> new GoldenCase.InferredInput(text(input, "field"), text(input, "reason")))
+        .toList();
+  }
+
+  private static Map<String, GoldenCase.Comparison> comparison(JsonNode fixture) {
+    Map<String, GoldenCase.Comparison> comparison = new LinkedHashMap<>();
+    for (Map.Entry<String, JsonNode> field : fixture.path("comparison").properties()) {
+      if (!isValidComparison(field.getValue())) {
+        throw new IllegalStateException(
+            "comparison." + field.getKey() + " no tiene un scale entero y un rounding válido");
+      }
+      comparison.put(
+          field.getKey(),
+          new GoldenCase.Comparison(
+              field.getValue().get("scale").intValue(),
+              RoundingMode.valueOf(field.getValue().get("rounding").stringValue())));
+    }
+    return Map.copyOf(comparison);
+  }
+
+  /** A non-negative integer scale and a rounding mode that rounds (not {@code UNNECESSARY}). */
+  private static boolean isValidComparison(JsonNode spec) {
+    JsonNode scale = spec.path("scale");
+    JsonNode rounding = spec.path("rounding");
+    if (!scale.isIntegralNumber() || scale.intValue() < 0 || !rounding.isString()) {
+      return false;
+    }
+    try {
+      return RoundingMode.valueOf(rounding.stringValue()) != RoundingMode.UNNECESSARY;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   /**
@@ -177,9 +329,14 @@ public final class GoldenFixtures {
     List<Problem> problems = new ArrayList<>();
     checkDocument(fixture.path("document"), problems);
     checkConfiguration(fixture.path("configuration"), problems);
-    checkCaseIds(fixture.path("cases"), problems);
+    checkComparison(fixture, problems);
+    JsonNode cases = fixture.path("cases");
+    checkCaseIds(cases, problems);
+    Map<String, Integer> scales = scales(fixture);
+    for (int index = 0; index < cases.size(); index++) {
+      checkCase(cases.get(index), "/cases/" + index, scales, problems);
+    }
     scanForDoc05(fixture, "", problems);
-    checkScales(fixture, problems);
     return problems;
   }
 
@@ -192,32 +349,15 @@ public final class GoldenFixtures {
     }
   }
 
-  private static void checkCaseIds(JsonNode cases, List<Problem> problems) {
-    Set<String> ids = new HashSet<>();
-    for (int index = 0; index < cases.size(); index++) {
-      String id = text(cases.get(index), "id");
-      if (!id.isEmpty() && !ids.add(id)) {
-        problems.add(new Problem("/cases/" + index + "/id", "unique-id"));
-      }
-    }
-  }
-
-  private static void checkScales(JsonNode fixture, List<Problem> problems) {
-    Map<String, Integer> scales = new LinkedHashMap<>();
-    fixture
-        .path("comparison")
-        .properties()
-        .forEach(field -> scales.put(field.getKey(), field.getValue().path("scale").intValue()));
-    JsonNode cases = fixture.path("cases");
-    for (int index = 0; index < cases.size(); index++) {
-      checkScale(
-          cases.get(index).path("expected"), "/cases/" + index + "/expected", "", scales, problems);
-    }
-  }
-
   private static void checkConfiguration(JsonNode configuration, List<Problem> problems) {
     String file = text(configuration, "file");
-    if (file.isEmpty()) {
+    if (file.isBlank()) {
+      problems.add(new Problem("/configuration/file", "configuration-required"));
+    }
+    if (text(configuration, "sha256").isBlank()) {
+      problems.add(new Problem("/configuration/sha256", "configuration-required"));
+    }
+    if (file.isBlank()) {
       return;
     }
     Optional<Path> copy = GoldenConfiguration.insideResources(file);
@@ -234,25 +374,76 @@ public final class GoldenFixtures {
     try {
       return GoldenConfiguration.sha256Lf(Files.readString(file));
     } catch (IOException e) {
-      throw new UncheckedIOException(e);
+      throw new UncheckedIOException("no se pudo leer " + file, e);
     }
   }
 
-  private static void scanForDoc05(JsonNode node, String path, List<Problem> problems) {
-    if (node.isString() && DOC_05.matcher(node.stringValue()).find()) {
-      problems.add(new Problem(path, "no-doc-05"));
-    } else if (node.isObject()) {
-      node.properties()
-          .forEach(field ->
-              scanForDoc05(field.getValue(), path + "/" + escape(field.getKey()), problems));
-    } else if (node.isArray()) {
-      for (int index = 0; index < node.size(); index++) {
-        scanForDoc05(node.get(index), path + "/" + index, problems);
+  private static void checkComparison(JsonNode fixture, List<Problem> problems) {
+    for (Map.Entry<String, JsonNode> field : fixture.path("comparison").properties()) {
+      if (!isValidComparison(field.getValue())) {
+        problems.add(new Problem("/comparison/" + escape(field.getKey()), "comparison"));
       }
     }
   }
 
-  /** A number under a field with a comparison has no more decimals than that comparison's scale. */
+  private static void checkCaseIds(JsonNode cases, List<Problem> problems) {
+    Set<String> ids = new HashSet<>();
+    for (int index = 0; index < cases.size(); index++) {
+      String id = text(cases.get(index), "id");
+      String path = "/cases/" + index + "/id";
+      if (id.isEmpty()) {
+        problems.add(new Problem(path, "case-id-required"));
+      } else if (!ids.add(id)) {
+        problems.add(new Problem(path, "unique-id"));
+      }
+    }
+  }
+
+  /**
+   * The lists of text hold text, the expected result holds no empty object, and a number under a
+   * field with a comparison has no more decimals than its scale.
+   */
+  private static void checkCase(
+      JsonNode testCase, String path, Map<String, Integer> scales, List<Problem> problems) {
+    for (String list : TEXT_LISTS) {
+      JsonNode values = testCase.path(list);
+      for (int index = 0; index < values.size(); index++) {
+        if (!values.get(index).isString()) {
+          problems.add(new Problem(path + "/" + list + "/" + index, "not-text"));
+        }
+      }
+    }
+    checkNoEmptyObjects(testCase.path("expected"), path + "/expected", problems);
+    checkScale(testCase.path("expected"), path + "/expected", "", scales, problems);
+  }
+
+  /** An empty object expects nothing, so it would accept any result. */
+  private static void checkNoEmptyObjects(JsonNode node, String path, List<Problem> problems) {
+    if (node.isObject() && node.isEmpty()) {
+      problems.add(new Problem(path, "empty-expected"));
+    }
+    if (node.isObject()) {
+      for (Map.Entry<String, JsonNode> field : node.properties()) {
+        checkNoEmptyObjects(field.getValue(), path + "/" + escape(field.getKey()), problems);
+      }
+    } else if (node.isArray()) {
+      for (int index = 0; index < node.size(); index++) {
+        checkNoEmptyObjects(node.get(index), path + "/" + index, problems);
+      }
+    }
+  }
+
+  /** The scale of every valid entry of the comparison, by field name. */
+  private static Map<String, Integer> scales(JsonNode fixture) {
+    Map<String, Integer> scales = new LinkedHashMap<>();
+    for (Map.Entry<String, JsonNode> field : fixture.path("comparison").properties()) {
+      if (isValidComparison(field.getValue())) {
+        scales.put(field.getKey(), field.getValue().get("scale").intValue());
+      }
+    }
+    return scales;
+  }
+
   private static void checkScale(
       JsonNode node,
       String path,
@@ -260,14 +451,14 @@ public final class GoldenFixtures {
       Map<String, Integer> scales,
       List<Problem> problems) {
     if (node.isObject()) {
-      node.properties()
-          .forEach(entry ->
-              checkScale(
-                  entry.getValue(),
-                  path + "/" + escape(entry.getKey()),
-                  entry.getKey(),
-                  scales,
-                  problems));
+      for (Map.Entry<String, JsonNode> entry : node.properties()) {
+        checkScale(
+            entry.getValue(),
+            path + "/" + escape(entry.getKey()),
+            entry.getKey(),
+            scales,
+            problems);
+      }
     } else if (node.isArray()) {
       for (int index = 0; index < node.size(); index++) {
         checkScale(node.get(index), path + "/" + index, field, scales, problems);
@@ -276,6 +467,24 @@ public final class GoldenFixtures {
         && scales.containsKey(field)
         && node.decimalValue().scale() > scales.get(field)) {
       problems.add(new Problem(path, "scale"));
+    }
+  }
+
+  private static void scanForDoc05(JsonNode node, String path, List<Problem> problems) {
+    if (node.isString() && DOC_05.matcher(node.stringValue()).find()) {
+      problems.add(new Problem(path, "no-doc-05"));
+    } else if (node.isObject()) {
+      for (Map.Entry<String, JsonNode> field : node.properties()) {
+        String child = path + "/" + escape(field.getKey());
+        if (DOC_05.matcher(field.getKey()).find()) {
+          problems.add(new Problem(child, "no-doc-05"));
+        }
+        scanForDoc05(field.getValue(), child, problems);
+      }
+    } else if (node.isArray()) {
+      for (int index = 0; index < node.size(); index++) {
+        scanForDoc05(node.get(index), path + "/" + index, problems);
+      }
     }
   }
 
@@ -290,19 +499,33 @@ public final class GoldenFixtures {
     return path;
   }
 
-  private static String escape(String key) {
+  /** A key as a JSON Pointer token (RFC 6901). */
+  static String escape(String key) {
     return key.replace("~", "~0").replace("/", "~1");
   }
 
-  private static List<Path> files(Path folder, String suffix) {
-    try (Stream<Path> files = Files.list(folder)) {
-      return files
-          .filter(Files::isRegularFile)
-          .filter(file -> file.getFileName().toString().endsWith(suffix))
-          .sorted()
-          .toList();
+  /** The entries of a folder, sorted; it fails with the absolute path if the folder is missing. */
+  private static List<Path> entries(Path folder) {
+    if (!Files.isDirectory(folder)) {
+      throw new IllegalStateException(
+          "no está la carpeta "
+              + folder.toAbsolutePath()
+              + " (¿corre fuera de Maven? basedir="
+              + System.getProperty("basedir")
+              + ")");
+    }
+    try (Stream<Path> entries = Files.list(folder)) {
+      return entries.sorted().toList();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+  }
+
+  private static JsonNode load(Path file) {
+    try {
+      return SafeYamlLoader.load(file);
+    } catch (IOException | RuntimeException e) {
+      throw new IllegalStateException("no se pudo cargar " + file + ": " + e.getMessage(), e);
     }
   }
 
@@ -312,7 +535,8 @@ public final class GoldenFixtures {
     return value.isString() ? value.stringValue() : "";
   }
 
+  /** The elements that are text; the others are reported by {@code checkCase}. */
   private static List<String> strings(JsonNode list) {
-    return list.valueStream().map(JsonNode::stringValue).toList();
+    return list.valueStream().filter(JsonNode::isString).map(JsonNode::stringValue).toList();
   }
 }

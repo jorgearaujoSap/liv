@@ -38,8 +38,10 @@ class GoldenComparatorTest {
       {"amount": 1000, "ratio": 0.125, "months": 7, "scaled_value": 2500.00,
        "applies": true, "kind": "KIND_A", "due_date": "2030-01-15",
        "movements": [
-         {"type": "T_ONE", "component": "C_ONE", "amount": 1000},
-         {"type": "T_TWO", "component": "C_ONE", "amount": -400, "reverses": "T_ONE"}],
+         {"type": "T_ONE", "component": "C_ONE", "amount": 1000, "retained": true},
+         {"type": "T_TWO", "component": "C_ONE", "amount": -400, "reverses": "T_ONE",
+          "retained": false, "derived_from": "§0"}],
+       "obligation": {"due_date": "2030-02-01", "kind": "KIND_A"},
        "codes": ["K1", "K2"]}
       """;
 
@@ -155,6 +157,22 @@ class GoldenComparatorTest {
         mutationAt("/kind", "código ausente", n -> n.remove("kind")),
         mutationAt("/applies", "valor lógico ausente", n -> n.remove("applies")),
         mutationAt("/movements", "lista ausente", n -> n.remove("movements")),
+        mutationAt(
+            "/obligation/due_date",
+            "fecha anidada +1 día",
+            n -> ((ObjectNode) n.get("obligation")).put("due_date", "2030-02-02")),
+        mutationAt(
+            "/obligation/due_date",
+            "fecha anidada ausente",
+            n -> ((ObjectNode) n.get("obligation")).remove("due_date")),
+        mutationAt(
+            "/obligation", "objeto anidado reemplazado por texto", n -> n.put("obligation", "x")),
+        mutationAt("/obligation", "objeto anidado nulo", n -> n.putNull("obligation")),
+        mutationAt("/obligation", "objeto anidado ausente", n -> n.remove("obligation")),
+        mutationAt(
+            "/scaled_value",
+            "bruto como double",
+            n -> n.set("scaled_value", DoubleNode.valueOf(2500.0))),
         mutationAt("/codes", "lista de códigos ausente", n -> n.remove("codes")));
   }
 
@@ -174,6 +192,18 @@ class GoldenComparatorTest {
 
   static Stream<Arguments> failingListMutations() {
     return Stream.of(
+        mutationAt(
+            "/movements",
+            "valor lógico de true a false",
+            n -> element(n, 0).put("retained", false)),
+        mutationAt(
+            "/movements", "valor lógico de false a true", n -> element(n, 1).put("retained", true)),
+        mutationAt("/movements", "valor lógico nulo", n -> element(n, 0).putNull("retained")),
+        mutationAt("/movements", "valor lógico ausente", n -> element(n, 0).remove("retained")),
+        mutationAt(
+            "/movements",
+            "un elemento que es un texto",
+            n -> movements(n).set(0, nodes().stringNode("x"))),
         mutationAt(
             "/movements",
             "un movimiento de más",
@@ -265,6 +295,62 @@ class GoldenComparatorTest {
         .isEmpty();
     assertThat(GoldenComparator.differences(tenths, result(object("{\"scaled_value\": 2500.05}"))))
         .isNotEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "La clave derived_from es del fixture: el resultado no la trae y no se compara (006-01)")
+  void metadataKeysAreNotCompared() {
+    ObjectNode withoutIt = expected();
+    element(withoutIt, 1).remove("derived_from");
+    ObjectNode other = expected();
+    element(other, 1).put("derived_from", "otra sección");
+
+    assertThat(GoldenComparator.differences(caseOf(expected()), result(withoutIt))).isEmpty();
+    assertThat(GoldenComparator.differences(caseOf(expected()), result(other))).isEmpty();
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("expectationsThatExpectNothing")
+  @DisplayName(
+      "Un objeto esperado sin ninguna clave que comparar falla, no acepta cualquier resultado")
+  void anEmptyExpectationFails(String expectedJson) {
+    ObjectNode anyResult =
+        object(
+            "{\"amount\": 1, \"obligation\": {\"kind\": \"K\"}, \"movements\": [{\"type\": \"T_ONE\"}]}");
+
+    assertThat(GoldenComparator.differences(caseOf(object(expectedJson)), result(anyResult)))
+        .isNotEmpty();
+  }
+
+  static Stream<Arguments> expectationsThatExpectNothing() {
+    return Stream.of(
+        Arguments.of(Named.of("el esperado es {}", "{}")),
+        Arguments.of(Named.of("un elemento de lista es {}", "{\"movements\": [{}]}")),
+        Arguments.of(
+            Named.of(
+                "un objeto con solo derived_from", "{\"movements\": [{\"derived_from\": \"x\"}]}")),
+        Arguments.of(Named.of("un objeto anidado es {}", "{\"obligation\": {}}")));
+  }
+
+  @Test
+  @DisplayName("Un valor esperado nulo exige un nulo, y una lista esperada vacía exige una vacía")
+  void nullAndEmptyExpectations() {
+    GoldenCase nothing = caseOf(object("{\"reverses\": null, \"codes\": []}"));
+
+    assertThat(
+            GoldenComparator.differences(
+                nothing, result(object("{\"reverses\": null, \"codes\": []}"))))
+        .isEmpty();
+    assertThat(
+            GoldenComparator.differences(
+                nothing, result(object("{\"reverses\": \"T_ONE\", \"codes\": []}"))))
+        .hasSize(1);
+    assertThat(GoldenComparator.differences(nothing, result(object("{\"codes\": []}")))).hasSize(1);
+    assertThat(
+            GoldenComparator.differences(
+                nothing, result(object("{\"reverses\": null, \"codes\": [\"K1\"]}"))))
+        .hasSize(1);
   }
 
   // ---- helpers ----
