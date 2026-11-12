@@ -29,7 +29,7 @@ Lo que ejerce cada caso y lo que el adaptador **no** debe evaluar. Si lo evaluar
 | Módulo | Ejerce | No evalúa (se da como entrada o no aplica) |
 |---|---|---|
 | `tax` | Doc. 02 §B.6 (ajustes de base y multiplicador de tablas), §B.7 (tarifa y meses gravables), §B.8 (bruto, neto redondeado y descuento) y las fechas del calendario de la configuración (Doc. 03 §9.6 y §9.7) | Prerrequisitos y sujeción (§B.3; p. ej. el cilindraje de la moto de L11), competencia y universo de la modalidad (Doc. 03 §9.5, OB‑02 y OB‑03), homologación y derivación de la categoría: la categoría, el origen de la base y los ajustes son entradas |
-| `ledger` | Nacimiento de la obligación (Doc. 04 §3.1), imputación de un pago ya `CONCILIADO` (§5.1), reverso bancario (§6.2) y distribución de una imputación (§7) | Conciliación (§4.4), causación de intereses (Módulo 5: la deuda de apertura es la deuda a la fecha del pago, sin causación adicional) y competencia. La modalidad es siempre una entrada: en C1 a C6 viaja en el evento `EMISSION`, porque la decidió la liquidación, y C1 comprueba que la obligación la toma de ahí (§3.1); en C7 a C9, en la obligación de apertura (B hipotética) |
+| `ledger` | Nacimiento de la obligación (Doc. 04 §3.1), imputación de un pago ya `CONCILIADO` (§5.1), reverso bancario (§6.2) y distribución de una imputación (§7) | Conciliación (§4.4), causación de intereses (Módulo 5: la deuda de apertura es la deuda a la fecha del pago, sin causación adicional) y competencia. La modalidad es siempre una entrada: en C1, C2, C3 y C6 viaja en el evento `EMISSION` (C4 y C5 parten de `opening_movements` y no la usan; errata corregida al cierre), porque la decidió la liquidación, y C1 comprueba que la obligación la toma de ahí (§3.1); en C7 a C9, en la obligación de apertura (B hipotética) |
 
 - **La configuración** se usa solo como fuente de parámetros: tarifas, ajustes, redondeo, calendario, `recaudo` y el bloque de distribución de la modalidad B, que se lee aunque B tenga `activa: false` (decisión 4).
 - **Cada caso con supuestos los declara** en `assumptions`, un campo con valores cerrados que valida el esquema:
@@ -432,3 +432,26 @@ La revisión adversarial encontró puntos que tocan documentos funcionales, la s
   2. D1 registra también la fila 9 del Doc. 04 §14 (método del redondeo «al peso»);
   3. la nueva redacción de 006‑01 y 006‑07 queda aprobada;
   4. sin tercera ronda sobre el plan: la revisión adversarial del código de B1 y B2 comprueba los dos altos de la ronda 2 (la frontera en C1 y las mutaciones de la comparación).
+
+### Ajustes de las H3 (registro del cierre, 2026-11-12)
+
+La persona integró los cuatro PR tal como estaban, con lo que aceptó lo que cada uno llevó a su H3:
+
+- **#169 (D1):** las filas 8 y 9 del Doc. 04 §14, sin calcular un resultado.
+- **#170 (B1a):** `GoldenFixtures` y algunas clases de prueba pasan de 400 líneas (`CodeSizeGuardTest` solo revisa `src/main`).
+- **#172 (B1b):**
+  - unas 2.100 líneas, frente a las ~850 estimadas;
+  - `new_vehicle` como entrada inferida y el motivo de la categoría de L5 y L6;
+  - el «—» de L13 y L15 solo con `discount_applies: false`;
+  - los valores esperados sin huella en el CI;
+  - un `@Disabled` que agrupa varios casos por método;
+  - `categorias` en `depends_on` solo en L11;
+  - la prueba en verde que comprueba que, sin motor, cada invocación falla por la excepción esperada, como complemento del `@Disabled`.
+- **#174 (B2):**
+  - C4 también declara `recaudo.imputacion.redondeo_componentes`, porque la fila 9 del Doc. 04 §14 dice que afecta «la tabla y su variante» (prevalece el documento, `AGENTS.md` §3);
+  - `depends_on: recaudo` en C4 y C5;
+  - los saldos de C2, C3 y C6 son del componente `TAX`;
+  - la línea de Nariño no dice si se retiene o se gira;
+  - el tamaño de las clases de prueba.
+
+Quedan como propuestas, sin aplicar: la huella de los valores esperados en el CI y dividir las clases de prueba de más de 400 líneas.

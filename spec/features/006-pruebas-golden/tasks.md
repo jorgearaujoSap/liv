@@ -15,6 +15,8 @@ _Con eso el orquestador decide qué corre en paralelo (`liv-orquestador`)._
 - **Lo que no escriben las tareas:** `ESTADO.md`, el *roadmap*, el glosario, las marcas de esta lista ni los criterios de `spec.md`. Se lo reportan al orquestador (`AGENTS.md` §7, ADR 0033).
 - **Commits:** todo el código de esta feature es de prueba. Los *commits* de código de prueba usan `test:`, y el primero de cada par deja la prueba en rojo por el motivo correcto; los de documentación (`README`, `CHANGELOG.md`), `docs:`.
 
+**Hecho el 2026-11-12:** D1 (#169), B1a (#170), B1b (#172, *issue* #171) y B2 (#174, *issue* #173), integrados por la persona después de su H3; el cierre (T13) va en su propio PR. Las sesiones de las tareas las abrió la sesión de diseño a pedido de la persona.
+
 ## Mapa de los cuatro PR
 
 El plan prevé B1 en un solo PR si no pasa de ~650 líneas, y si no, partido en B1a y B1b. Estimado: B1 da unas 1.500 líneas (unas 400 de *fixtures* y esquema). Por eso va en dos PR.
@@ -69,7 +71,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
 
 ## PR D1 · Doc. 04 v0.3 (raíz, rama `docs/006-ca-4-07`) — 006‑13
 
-- [ ] **T1** · Doc. 04 v0.3: CA‑4.07 y el método del redondeo «al peso» como pendientes (plan, D1).
+- [x] **T1** · Doc. 04 v0.3: CA‑4.07 y el método del redondeo «al peso» como pendientes (plan, D1).
   - **Proyecto:** raíz · **PR:** D1
   - **Archivos:** `docs/funcional/04_Cuenta_Corriente_y_Recaudo.md`, solo en estas partes:
     - el encabezado: versión 0.3 y su motivo;
@@ -86,7 +88,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
 
 ## PR B1a · Base común de las *golden* (`backend/`, rama `feat/006-golden-base`) — 006‑05, 006‑06 (parte común), 006‑09, 006‑10, 006‑11 y 006‑12
 
-- [ ] **T2** · **Rojo:** las pruebas del apoyo común, con el esqueleto mínimo para que compilen (plan, B1, pasos 1 y 2). *Commit* `test:`.
+- [x] **T2** · **Rojo:** las pruebas del apoyo común, con el esqueleto mínimo para que compilen (plan, B1, pasos 1 y 2). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B1a
   - **Archivos:**
     - visibilidad, sin otro cambio:
@@ -111,7 +113,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
       - en las listas, falla con un elemento de más, uno de menos y uno cambiado, y no depende del orden (multiconjunto exacto);
       - reporta todas las diferencias juntas (`assertAll`).
   - **Verificación del rojo:** `./mvnw verify` falla en esas pruebas por `UnsupportedOperationException` del esqueleto, no por un error de compilación. Las pruebas que ya existían siguen en verde.
-- [ ] **T3** · **Verde:** el apoyo común (plan, B1, paso 2). *Commit* `test:`.
+- [x] **T3** · **Verde:** el apoyo común (plan, B1, paso 2). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B1a
   - **Archivos:** las clases de `golden/` de T2 (sin las pruebas).
   - **Depende de:** T2.
@@ -122,7 +124,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
     - Los montos se leen con `decimalValue()`.
     - Ningún valor tributario en el código (006‑08).
   - **Verificación:** `./mvnw verify` en verde, con Spotless y `CodeSizeGuardTest`. Comprobar que Spring Modulith no cuenta `golden` como un módulo (riesgo del plan); si lo cuenta, avisar al orquestador antes de seguir.
-- [ ] **T4** · `README` de las *golden* y registro (plan, B1, paso 8). *Commit* `docs:`.
+- [x] **T4** · `README` de las *golden* y registro (plan, B1, paso 8). *Commit* `docs:`.
   - **Proyecto:** `backend/` · **PR:** B1a
   - **Archivos:** `backend/src/test/resources/golden/README.md` (nuevo) y `backend/CHANGELOG.md` («Sin publicar»).
   - **Depende de:** T3.
@@ -141,7 +143,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
 
 ## PR B1b · Casos de liquidación (`backend/`, rama `feat/006-golden-tax`) — 006‑01, CA‑L01 a CA‑L04, 006‑02, LQ‑C01·LQ‑C02·LQ‑C04, 006‑14, 006‑04, 006‑06 y 006‑07
 
-- [ ] **T5** · **Rojo:** las pruebas de los casos de liquidación, que fallan hasta tener sus *fixtures* (plan, B1, paso 6). Correrán en verde en el CI. *Commit* `test:`.
+- [x] **T5** · **Rojo:** las pruebas de los casos de liquidación, que fallan hasta tener sus *fixtures* (plan, B1, paso 6). Correrán en verde en el CI. *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B1b
   - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/tax/golden/`:
     - `AssessmentGoldenFixturesTest.java`;
@@ -157,7 +159,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
     - **variantes del esquema de liquidación**, rechazadas por el motivo correcto: monto entre comillas, monto en pesos con decimales, caso sin `expected`, dos formas de base, sin base en un caso que compara montos, `depends_on` o código de regla fuera de la lista, bruto con tres decimales y `comparison` distinto de `const`;
     - **mutaciones de cada caso real** con `GoldenComparator` y un adaptador que devuelve el `expected`: el adaptador tal cual pasa; ±1 peso, ±0,01 en el bruto, ±0,001 en la tasa, ±1 día, ±1 mes en los meses, `discount_applies` invertido, un nulo o la clave ausente fallan.
   - **Verificación del rojo:** falla porque no hay *fixtures* ni esquema de liquidación, no por un error de compilación.
-- [ ] **T6** · **Verde:** el esquema y los *fixtures* de liquidación (plan, B1, paso 3). *Commit* `test:`.
+- [x] **T6** · **Verde:** el esquema y los *fixtures* de liquidación (plan, B1, paso 3). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B1b
   - **Archivos:**
     - `backend/src/test/resources/golden/tax.schema.json`;
@@ -170,7 +172,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
     - **Comillas** en los códigos de regla y en el `sha256`.
     - **`depends_on`** según el plan: `tarifas.MOTO` (L11), `causacion.proporcionalidad_nuevos` (L4 y L13), `redondeo.empate` (L8), y `categorias` y `sujecion` (L11).
     - **`assumptions`:** `MODALIDAD_B_HIPOTETICA` en L7 a L9 y L11 a L13, y `ENTRADA_INFERIDA` donde corresponda.
-- [ ] **T7** · Adaptador, prueba en rojo e *issue* del motor (plan, B1, pasos 4, 5 y 7). *Commit* `test:`.
+- [x] **T7** · Adaptador, prueba en rojo e *issue* del motor (plan, B1, pasos 4, 5 y 7). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B1b
   - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/tax/golden/`:
     - `AssessmentGoldenEngine.java`, con el Javadoc de la frontera;
@@ -192,7 +194,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
   - **Verificación (006‑04):**
     - el comando en rojo del `README`: todas las invocaciones fallan con `GoldenEngineNotImplementedException`; se anotan el número de invocaciones y el conteo del informe de Surefire;
     - sin el parámetro, `./mvnw verify` en verde, con `AssessmentGoldenTest` omitida.
-- [ ] **T8** · `README` (sección de liquidación) y registro. *Commit* `docs:`.
+- [x] **T8** · `README` (sección de liquidación) y registro. *Commit* `docs:`.
   - **Proyecto:** `backend/` · **PR:** B1b
   - **Archivos:** `backend/src/test/resources/golden/README.md` (la sección de liquidación: archivos, casos, supuestos y número del *issue*) y `backend/CHANGELOG.md`.
   - **Depende de:** T7.
@@ -202,7 +204,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
 
 ## PR B2 · Casos de la cuenta corriente (`backend/`, rama `feat/006-golden-ledger`) — 006‑03, CA‑4.01·LQ‑C04, CA‑4.02·CA‑4.03, CA‑4.04·IM‑01·IM‑03, CA‑4.08, CA‑4.09, 006‑04, 006‑06 y 006‑07
 
-- [ ] **T9** · **Rojo:** las pruebas de los casos de la cuenta corriente, que fallan hasta tener sus *fixtures* (plan, B2, paso 4). Correrán en verde en el CI. *Commit* `test:`.
+- [x] **T9** · **Rojo:** las pruebas de los casos de la cuenta corriente, que fallan hasta tener sus *fixtures* (plan, B2, paso 4). Correrán en verde en el CI. *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B2
   - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/ledger/golden/`:
     - `LedgerGoldenFixturesTest.java`;
@@ -219,7 +221,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
     - las variantes del esquema de la cuenta corriente se rechazan por el motivo correcto;
     - **mutaciones de cada caso real:** las de B1b, más las de las listas: un movimiento o una línea de distribución de más, uno de menos, el componente cambiado, `reverses` cambiado, y el beneficiario o el «se retiene o se gira» cambiados.
   - **Verificación del rojo:** falla porque no hay *fixtures* ni esquema de la cuenta corriente.
-- [ ] **T10** · **Verde:** el esquema y los *fixtures* de la cuenta corriente (plan, B2, paso 1). *Commit* `test:`.
+- [x] **T10** · **Verde:** el esquema y los *fixtures* de la cuenta corriente (plan, B2, paso 1). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B2
   - **Archivos:**
     - `backend/src/test/resources/golden/ledger.schema.json`;
@@ -235,7 +237,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
       - `recaudo.imputacion.redondeo_componentes` (C5);
       - `redondeo.empate` (C7 y C8).
     - **`assumptions`:** `MODALIDAD_B_HIPOTETICA` en C7 a C9, y `DEUDA_DADA_A_LA_FECHA_DEL_PAGO` en C4 y C5.
-- [ ] **T11** · Adaptador, prueba en rojo e *issue* de la cuenta corriente (plan, B2, pasos 2, 3 y 5). *Commit* `test:`.
+- [x] **T11** · Adaptador, prueba en rojo e *issue* de la cuenta corriente (plan, B2, pasos 2, 3 y 5). *Commit* `test:`.
   - **Proyecto:** `backend/` · **PR:** B2
   - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/ledger/golden/`:
     - `LedgerGoldenEngine.java`, con el Javadoc de la frontera: la modalidad siempre es una entrada;
@@ -249,7 +251,7 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
     - métodos `CA-4.01` (con `LQ-C04`), `CA-4.02`, `CA-4.03`, `CA-4.04` (con `IM-01` e `IM-03`), `CA-4.08` y `CA-4.09`;
     - en C4 y C5, además, que la suma imputada sea el pago y que ningún saldo quede negativo.
   - **Verificación (006‑04):** el comando en rojo, con todas las invocaciones de `LedgerGoldenTest` con `GoldenEngineNotImplementedException`, y `./mvnw verify` en verde.
-- [ ] **T12** · `README` (sección de la cuenta corriente) y registro. *Commit* `docs:`.
+- [x] **T12** · `README` (sección de la cuenta corriente) y registro. *Commit* `docs:`.
   - **Proyecto:** `backend/` · **PR:** B2
   - **Archivos:** `backend/src/test/resources/golden/README.md` (la sección de la cuenta corriente: archivos, casos, eventos, supuestos y número del *issue*) y `backend/CHANGELOG.md`.
   - **Depende de:** T11.
@@ -257,17 +259,17 @@ El plan aprobado en la H2 no los nombra. No cambian su diseño; se declaran aqu�
   - **Prueba primero** (lista de comprobación): la sección nombra los tres *fixtures*, los nueve casos, los cuatro tipos de evento, la frontera de `ledger` y el *issue*.
   - **Al terminar T9 a T12:** la revisión adversarial (los dos revisores comprueban el otro alto de la ronda 2 del plan: que la modalidad de C1 viaje en `EMISSION` y la frontera no se contradiga; plan, «Revisión»), las cuatro lentes y el PR (H3).
 
-## Cierre (orquestador)
+## Cierre (orquestador; lo hizo la sesión de diseño a pedido de la persona)
 
-- [ ] **T13** · El orquestador cierra la feature. Lo escribe solo él (`AGENTS.md` §7):
+- [x] **T13** · El orquestador cierra la feature. Lo escribe solo él (`AGENTS.md` §7):
   - el *roadmap*: F0‑11 hecho y, con él, la Fase 0 (ADR 0031);
   - el glosario (`docs/arquitectura/01` §15): «prueba *golden*» y «*fixture*»;
   - `ESTADO.md`: la tabla de F0‑11, la bitácora y el pendiente nuevo del Doc. 04 §14 (filas 8 y 9);
   - los criterios de `spec.md`, cada uno con su prueba.
-- [ ] **T13.1** (orquestador) · Revisión adversarial independiente de lo implementado y las cuatro lentes de `liv-revision-4r` en cada PR; hallazgos resueltos o justificados.
-- [ ] **T13.2** (orquestador) · Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
-- [ ] **T13.3** (orquestador) · Compuertas de CI en verde y cada PR integrado por una persona (H3).
-- [ ] **T13.4** (orquestador) · Mover la feature a «Hecho» en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
+- [x] **T13.1** (orquestador) · Revisión adversarial independiente de lo implementado y las cuatro lentes de `liv-revision-4r` en cada PR; hallazgos resueltos o justificados.
+- [x] **T13.2** (orquestador) · Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra.
+- [x] **T13.3** (orquestador) · Compuertas de CI en verde y cada PR integrado por una persona (H3).
+- [x] **T13.4** (orquestador) · Mover la feature a «Hecho» en `../../constitution/roadmap.md` y actualizar `ESTADO.md`.
 
 ## Mantenimiento (checklist recurrente)
 
