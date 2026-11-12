@@ -358,7 +358,9 @@ class AssessmentGoldenFixturesTest {
             "el valor de tabla como texto", input -> input.put("table_value_thousands", "7")),
         mutationOfInput("la categoría como número", input -> input.put("vehicle_category", 7)),
         mutationOfInput(
-            "un ajuste como número", input -> input.putArray("base_adjustments").add(1)));
+            "un ajuste como número", input -> input.putArray("base_adjustments").add(1)),
+        mutationOfInput(
+            "los ajustes como texto", input -> input.put("base_adjustments", "BLINDADO")));
   }
 
   private static Arguments mutationOfInput(String name, Consumer<ObjectNode> change) {
@@ -668,7 +670,7 @@ class AssessmentGoldenFixturesTest {
           "menos " + step.toPlainString(),
           tree -> tree.set(key, decimal(value.decimalValue().subtract(step))));
       if (comparison == null) {
-        // Exact fields: a hidden tolerance smaller than the step would still pass the coarse one.
+        // Exact fields: a finer step than the coarse one, to find a small hidden tolerance.
         BigDecimal fine = step.movePointLeft(1);
         byName.put(
             "más " + fine.toPlainString(),
@@ -806,7 +808,9 @@ class AssessmentGoldenFixturesTest {
     boolean engineExists =
         !(AssessmentGoldenEngines.current() instanceof NotImplementedAssessmentEngine);
 
-    assertThat(engineExists && AssessmentGoldenTest.class.isAnnotationPresent(Disabled.class))
+    assertThat(
+            engineExists
+                && AnnotationSupport.isAnnotated(AssessmentGoldenTest.class, Disabled.class))
         .as("current() ya devuelve el motor real; el @Disabled de la clase oculta todos los casos")
         .isFalse();
   }

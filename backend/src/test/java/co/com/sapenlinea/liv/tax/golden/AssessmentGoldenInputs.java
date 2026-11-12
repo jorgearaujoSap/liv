@@ -75,6 +75,9 @@ final class AssessmentGoldenInputs {
   }
 
   private static List<String> adjustments(JsonNode list) {
+    if (!list.isMissingNode() && !list.isArray()) {
+      throw new IllegalArgumentException("los ajustes de la base no son una lista");
+    }
     return list.valueStream()
         .map(adjustment -> {
           if (!adjustment.isString()) {

@@ -110,7 +110,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["fiscal_year", "new_vehicle"],
-          "if": { "properties": { "new_vehicle": { "const": true } } },
+          "if": { "required": ["new_vehicle"], "properties": { "new_vehicle": { "const": true } } },
           "then": { "required": ["accrual_date"] },
           "else": { "not": { "required": ["accrual_date"] } },
           "properties": {
