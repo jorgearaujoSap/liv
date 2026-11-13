@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import theme from '../../styles/theme.css' with { loader: 'text' };
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -42,15 +42,21 @@ const NEXT: Option = {
   `,
 })
 class HostComponent {
-  value: string | null = null;
+  value = signal<string | null>(null);
   options: Option[] = [CURRENT, NEXT];
   disabled = false;
   name: string | undefined;
 }
 
-function render(inputs: Partial<HostComponent> = {}) {
+interface RenderInputs extends Partial<Omit<HostComponent, 'value'>> {
+  value?: string | null;
+}
+
+function render(inputs: RenderInputs = {}) {
   const fixture = TestBed.createComponent(HostComponent);
-  Object.assign(fixture.componentInstance, inputs);
+  const { value, ...rest } = inputs;
+  Object.assign(fixture.componentInstance, rest);
+  if (value !== undefined) fixture.componentInstance.value.set(value);
   fixture.detectChanges();
   const host = fixture.nativeElement.querySelector('liv-radio-group') as HTMLElement;
   const radios = Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
@@ -58,6 +64,21 @@ function render(inputs: Partial<HostComponent> = {}) {
   const cards = Array.from(host.querySelectorAll<HTMLElement>('.radio-option'));
   return { fixture, host, radios, options, cards, page: fixture.componentInstance };
 }
+
+/**
+ * Cuerpo de la regla de `radio-option.component.css` con ese selector, en el texto fuente (con sus
+ * `@apply` sin expandir). Sirve para lo que jsdom no calcula: `:hover` y las variables de sombra de
+ * Tailwind, que su regla universal pisa.
+ */
+function ruleBody(selector: string): string {
+  const start = optionCss.indexOf(`${selector} {`);
+  if (start === -1) throw new Error(`La hoja de la opción no tiene la regla ${selector}`);
+  return optionCss.slice(start, optionCss.indexOf('}', start));
+}
+
+const SELECTED = ":host([data-selected='true'])";
+const DISABLED = ":host([data-state='disabled'])";
+const DISABLED_SELECTED = ":host([data-state='disabled'][data-selected='true'])";
 
 /** Teclado: `:focus-visible` solo se activa tras una tecla, como en el navegador. */
 function focusWithKeyboard(element: HTMLElement): void {
@@ -109,10 +130,10 @@ describe('RadioGroup', () => {
     const { fixture, radios, page } = render({ value: '2026' });
     radios[1].click();
     fixture.detectChanges();
-    expect(page.value).toBe('2027');
+    expect(page.value()).toBe('2027');
     expect(radios.map((radio) => radio.checked)).toEqual([false, true]);
 
-    page.value = '2026';
+    page.value.set('2026');
     fixture.detectChanges();
     expect(radios.map((radio) => radio.checked)).toEqual([true, false]);
   });
@@ -121,7 +142,7 @@ describe('RadioGroup', () => {
     const { fixture, radios, page } = render();
     radios[0].click();
     fixture.detectChanges();
-    expect(page.value).toBe('2026');
+    expect(page.value()).toBe('2026');
   });
 
   describe('Disabled', () => {
@@ -141,14 +162,14 @@ describe('RadioGroup', () => {
       expect(options.map((option) => option.dataset['state'])).toEqual(['default', 'disabled']);
       radios[1].click();
       fixture.detectChanges();
-      expect(page.value).toBe('2026');
+      expect(page.value()).toBe('2026');
     });
 
     it('un grupo deshabilitado no cambia de valor', () => {
       const { fixture, radios, page } = render({ value: '2026', disabled: true });
       radios[1].click();
       fixture.detectChanges();
-      expect(page.value).toBe('2026');
+      expect(page.value()).toBe('2026');
     });
   });
 
@@ -161,20 +182,20 @@ describe('RadioGroup', () => {
     expect(() => TestBed.createComponent(Orphan).detectChanges()).toThrow();
   });
 
-  it('cumple axe (007-21) en cada variante y estado', async () => {
-    const withGroup = [
-      {},
-      { value: '2026' },
-      { value: '2027' },
-      { options: [CURRENT] },
-      { options: [CURRENT], value: '2026' },
-      { options: [{ value: '2026', label: '2026' }] },
-      { value: '2026', disabled: true },
+  it.each<[string, RenderInputs]>([
+    ['sin elegir', {}],
+    ['con la primera elegida', { value: '2026' }],
+    ['con la segunda elegida', { value: '2027' }],
+    ['con una sola opción', { options: [CURRENT] }],
+    ['con una sola opción elegida', { options: [CURRENT], value: '2026' }],
+    ['sin descripción', { options: [{ value: '2026', label: '2026' }] }],
+    ['deshabilitado', { value: '2026', disabled: true }],
+    [
+      'con una opción deshabilitada',
       { value: '2026', options: [CURRENT, { ...NEXT, disabled: true }] },
-    ];
-    for (const inputs of withGroup) {
-      await expectNoAxeViolations(render(inputs).host);
-    }
+    ],
+  ])('cumple axe (007-21) %s', async (_name, inputs) => {
+    await expectNoAxeViolations(render(inputs).host);
   });
 });
 
@@ -204,7 +225,6 @@ describe('RadioOption', () => {
   it('cada opción tiene identificadores únicos', () => {
     const { radios } = render();
     const ids = radios.flatMap((radio) => [
-      radio.id,
       radio.getAttribute('aria-labelledby'),
       radio.getAttribute('aria-describedby'),
     ]);
@@ -216,7 +236,7 @@ describe('RadioOption', () => {
     expect(cards[0].tagName).toBe('LABEL');
     cards[1].click();
     fixture.detectChanges();
-    expect(page.value).toBe('2027');
+    expect(page.value()).toBe('2027');
   });
 
   it('el radio nativo se oculta a la vista pero conserva el foco', () => {
@@ -246,8 +266,10 @@ describe('RadioOption', () => {
       const circle = cards[1].querySelector('.radio-option__circle') as HTMLElement;
       expect(declaredStyle(circle, 'border-color')).toContain('var(--color-border-strong,');
       expect(declaredStyle(circle, 'border-width')).toBe('2px');
-      expect(declaredStyle(circle, 'width')).toContain('20px');
-      expect(optionCss).toContain("[data-selected='true'] .radio-option__circle::after");
+      expect(declaredStyle(circle, 'width')).toContain('--spacing-5');
+      // El punto solo existe si está elegida.
+      expect(optionCss.match(/__circle::after/g)).toHaveLength(2);
+      expect(ruleBody(`${SELECTED} .radio-option__circle::after`)).toContain('bg-action-primary');
     });
 
     it('Selected: fondo action/primary-subtle, borde action/primary de 2 px y punto interior', () => {
@@ -256,17 +278,14 @@ describe('RadioOption', () => {
         'var(--color-action-primary-subtle',
       );
       expect(declaredStyle(cards[0], 'border-color')).toContain('var(--color-action-primary,');
-      // 1 px de borde más 1 px de anillo interior: 2 px sin mover el contenido.
+      // 1 px de borde más 1 px de anillo interior: 2 px sin mover el contenido. jsdom no puede leer
+      // `--tw-inset-ring-shadow` (la regla universal de Tailwind la pisa), así que se mira el texto.
       expect(declaredStyle(cards[0], 'border-width')).toBe('1px');
-      expect(declaredStyle(cards[0], '--tw-inset-ring-shadow')).toContain('1px');
-      expect(declaredStyle(cards[0], '--tw-inset-ring-shadow')).toContain(
-        'var(--color-action-primary,',
+      expect(ruleBody(`${SELECTED} .radio-option`)).toContain(
+        'inset-ring-1 inset-ring-action-primary',
       );
       const circle = cards[0].querySelector('.radio-option__circle') as HTMLElement;
       expect(declaredStyle(circle, 'border-color')).toContain('var(--color-action-primary,');
-      expect(optionCss).toMatch(
-        /\[data-selected='true'\] \.radio-option__circle::after\s*\{[^}]*bg-action-primary/,
-      );
     });
 
     it('la elegida no depende solo del color: el radio nativo queda marcado', () => {
@@ -276,11 +295,9 @@ describe('RadioOption', () => {
 
     it('Hover sin elegir: fondo bg/subtle; elegida o deshabilitada, no cambia', () => {
       // jsdom no evalúa :hover: se comprueba el texto de las reglas y se revisa en Storybook.
-      const hover = optionCss.match(/([^{}]*\.radio-option:hover[^{}]*)\{([^}]*)\}/g) ?? [];
-      expect(hover).toHaveLength(1);
-      expect(hover[0]).toContain("[data-state='default']");
-      expect(hover[0]).toContain("[data-selected='false']");
-      expect(hover[0]).toContain('bg-bg-subtle');
+      expect(optionCss.match(/:hover/g)).toHaveLength(1);
+      const hover = ":host([data-state='default'][data-selected='false']) .radio-option:hover";
+      expect(ruleBody(hover)).toContain('bg-bg-subtle');
     });
 
     it('Disabled sin elegir: fondo bg/subtle, borde border/default y texto text/disabled', () => {
@@ -302,13 +319,15 @@ describe('RadioOption', () => {
     it('Disabled elegida: borde border/default y punto text/disabled, sin azul', () => {
       const { cards } = render({ value: '2026', disabled: true });
       expect(declaredStyle(cards[0], 'border-color')).toContain('var(--color-border-default,');
-      expect(declaredStyle(cards[0], '--tw-inset-ring-shadow')).not.toContain(
-        'var(--color-action-primary,',
+      // `inset-ring-0` quita el anillo azul de Selected, que va antes.
+      expect(ruleBody(`${DISABLED} .radio-option`)).toContain('inset-ring-0');
+      expect(optionCss.indexOf(`${DISABLED} .radio-option {`)).toBeGreaterThan(
+        optionCss.indexOf(`${SELECTED} .radio-option {`),
       );
       const circle = cards[0].querySelector('.radio-option__circle') as HTMLElement;
       expect(declaredStyle(circle, 'border-color')).toContain('var(--color-border-default,');
-      expect(optionCss).toMatch(
-        /\[data-state='disabled'\]\[data-selected='true'\] \.radio-option__circle::after\s*\{[^}]*bg-text-disabled/,
+      expect(ruleBody(`${DISABLED_SELECTED} .radio-option__circle::after`)).toContain(
+        'bg-text-disabled',
       );
     });
 
@@ -346,8 +365,7 @@ describe('RadioOption', () => {
     });
   });
 
-  it('cumple axe (007-21) con y sin descripción, y con textos largos', async () => {
-    await expectNoAxeViolations(render({ options: [{ value: 'a', label: 'A' }] }).host);
+  it('cumple axe (007-21) con un texto largo, que ocupa varias líneas', async () => {
     await expectNoAxeViolations(
       render({
         value: 'a',

@@ -6,6 +6,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- `RadioGroup` y `RadioOption` (feature 007, PR 8c; Figma 73:514 y 64:629): grupo de selección única, aprobado por el responsable funcional. Se versionará con 0.4.0 (PR 8f).
+  - `liv-radio-group` es un `fieldset` con su `legend` visible (`legend`, el nombre accesible), `[(value)]` (`string | null`; `null` es sin elección), `name` opcional y `disabled`.
+  - `liv-radio-option` (`value`, `label`, `description` y `disabled`) es un radio nativo dentro de una tarjeta y solo existe dentro de un grupo.
+  - Estados: Default, Hover, Focus y Disabled, elegida o no. La elegida no depende solo del color: borde, fondo y punto interior.
+  - Los radios comparten un `name`, así que las flechas y el Tab que entra solo a la opción marcada los da el navegador.
 - *Skill* `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
 
 ### Cambiado

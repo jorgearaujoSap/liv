@@ -1,0 +1,21 @@
+<label class="radio-option">
+  <!-- aria-labelledby: el nombre accesible es solo la etiqueta; el `label` que envuelve incluiría la descripción. -->
+  <input
+    class="radio-option__input"
+    type="radio"
+    [name]="groupName()"
+    [value]="value()"
+    [checked]="selected()"
+    [disabled]="isDisabled()"
+    [attr.aria-labelledby]="labelId"
+    [attr.aria-describedby]="descriptionText() ? descriptionId : null"
+    (change)="onChange()"
+  />
+  <span class="radio-option__circle" aria-hidden="true"></span>
+  <span class="radio-option__text">
+    <span class="radio-option__label" [id]="labelId">{{ label() }}</span>
+    @if (descriptionText(); as text) {
+      <span class="radio-option__description" [id]="descriptionId">{{ text }}</span>
+    }
+  </span>
+</label>

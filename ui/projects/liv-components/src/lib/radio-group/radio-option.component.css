@@ -1,0 +1,84 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block;
+}
+
+/*
+ * Borde de 1 px más, si está elegida, un anillo interior de 1 px: 2 px como en Figma, sin mover el
+ * contenido al cambiar de estado.
+ */
+.radio-option {
+  @apply relative box-border flex w-full cursor-pointer items-start gap-3;
+  @apply rounded-lg border border-solid border-border-default bg-bg-surface;
+  @apply px-4 py-[11px];
+}
+
+/* El radio nativo no se ve, pero sigue en el orden de tabulación y recibe el foco. */
+.radio-option__input {
+  @apply sr-only;
+}
+
+.radio-option__circle {
+  @apply relative box-border size-5 shrink-0 rounded-full border-2 border-solid border-border-strong;
+}
+
+.radio-option__text {
+  @apply flex min-w-0 flex-1 flex-col gap-[2px] break-words;
+}
+
+.radio-option__label {
+  @apply text-body-md-strong text-text-primary;
+}
+
+.radio-option__description {
+  @apply text-body-sm text-text-secondary;
+}
+
+/* Hover: solo la opción sin elegir y habilitada cambia de fondo, como en Figma. */
+
+:host([data-state='default'][data-selected='false']) .radio-option:hover {
+  @apply bg-bg-subtle;
+}
+
+/* Selected */
+
+:host([data-selected='true']) .radio-option {
+  @apply border-action-primary bg-action-primary-subtle inset-ring-1 inset-ring-action-primary;
+}
+
+:host([data-selected='true']) .radio-option__circle {
+  @apply border-action-primary;
+}
+
+:host([data-selected='true']) .radio-option__circle::after {
+  content: '';
+  @apply absolute inset-0 m-auto size-[10px] rounded-full bg-action-primary;
+}
+
+/*
+ * Focus: el anillo de foco rodea la tarjeta solo con el teclado. En alto contraste (forced-colors) las
+ * sombras desaparecen y `outline-hidden` deja un contorno.
+ */
+.radio-option:has(.radio-option__input:focus-visible) {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+/* Disabled. Va después de Selected, con igual o mayor especificidad: la elegida pierde el azul. */
+
+:host([data-state='disabled']) .radio-option {
+  @apply cursor-not-allowed border-border-default bg-bg-subtle inset-ring-0;
+}
+
+:host([data-state='disabled']) .radio-option__circle {
+  @apply border-border-default;
+}
+
+:host([data-state='disabled'][data-selected='true']) .radio-option__circle::after {
+  @apply bg-text-disabled;
+}
+
+:host([data-state='disabled']) .radio-option__label,
+:host([data-state='disabled']) .radio-option__description {
+  @apply text-text-disabled;
+}

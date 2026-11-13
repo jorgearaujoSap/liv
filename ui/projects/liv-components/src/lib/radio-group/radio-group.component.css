@@ -1,0 +1,19 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block;
+}
+
+/* `min-w-0`: un fieldset no se encoge por debajo de su contenido si no se lo indica. */
+.radio-group {
+  @apply m-0 min-w-0 border-0 p-0;
+}
+
+/* Un `gap` no separa la `legend` del contenido del fieldset: el espacio de Figma (8 px) va en su margen. */
+.radio-group__legend {
+  @apply mb-2 block w-full p-0 text-label-md text-text-primary;
+}
+
+.radio-group__options {
+  @apply flex flex-col gap-2;
+}
