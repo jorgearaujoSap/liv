@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 @Tag("001-17")
 class LivAppGrantsTest {
 
-  private static final String SCHEMAS = "ARRAY['core', 'platform', 'audit']";
+  private static final String SCHEMAS = "ARRAY['core', 'platform', 'audit', 'tax']";
 
   private static final Map<String, String> TABLE_GRANTS =
       Map.ofEntries(
@@ -34,14 +34,20 @@ class LivAppGrantsTest {
           Map.entry("platform.role_permission", "SELECT"),
           Map.entry("platform.shedlock", "INSERT,SELECT,UPDATE"),
           Map.entry("audit.audit_event", "INSERT,SELECT"),
-          Map.entry("audit.import_cursor", "INSERT,SELECT,UPDATE"));
+          Map.entry("audit.import_cursor", "INSERT,SELECT,UPDATE"),
+          // 007: el año es nacional y solo se lee; la vigencia de la administración se crea
+          // y cambia de estado, pero nunca se borra.
+          Map.entry("tax.fiscal_year", "SELECT"),
+          Map.entry("tax.administration_fiscal_year", "INSERT,SELECT"));
 
   private static final Map<String, String> COLUMN_UPDATES =
       Map.of(
           "core.admin_user", "last_login_at",
           "core.user_session", "end_reason,ended_at",
           "platform.event_publication",
-              "completion_attempts,completion_date,last_resubmission_date,status");
+              "completion_attempts,completion_date,last_resubmission_date,status",
+          // Nunca assessments_enabled: la liquidación no se habilita en la 007.
+          "tax.administration_fiscal_year", "status,updated_at,updated_by");
 
   @Test
   @DisplayName(
@@ -115,14 +121,16 @@ class LivAppGrantsTest {
                        has_schema_privilege('liv_app', 'bff', 'USAGE'),
                        has_schema_privilege('liv_app', 'core', 'CREATE')
                          OR has_schema_privilege('liv_app', 'audit', 'CREATE')
-                         OR has_schema_privilege('liv_app', 'platform', 'CREATE'),
+                         OR has_schema_privilege('liv_app', 'platform', 'CREATE')
+                         OR has_schema_privilege('liv_app', 'tax', 'CREATE'),
                        has_schema_privilege('liv_app', 'core', 'USAGE'),
-                       EXISTS (SELECT 1 FROM pg_auth_members m WHERE m.member = r.oid)
+                       EXISTS (SELECT 1 FROM pg_auth_members m WHERE m.member = r.oid),
+                       has_schema_privilege('liv_app', 'tax', 'USAGE')
                   FROM pg_roles r WHERE r.rolname = 'liv_app'
                 """)
             .get(0);
 
-    assertThat(role).containsExactly(false, false, false, false, true, false);
+    assertThat(role).containsExactly(false, false, false, false, true, false, true);
   }
 
   @Test
@@ -170,7 +178,11 @@ class LivAppGrantsTest {
         .extracting(row -> row[0])
         .as("tablas de una administración")
         .contains(
-            "core.tax_administration", "core.admin_user", "core.user_session", "audit.audit_event");
+            "core.tax_administration",
+            "core.admin_user",
+            "core.user_session",
+            "audit.audit_event",
+            "tax.administration_fiscal_year");
 
     assertThat(
             rows(
