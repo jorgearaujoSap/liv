@@ -30,16 +30,19 @@ public final class PreparationChecklist {
   private PreparationChecklist(List<PreparationItem> items) {
     this.items = List.copyOf(items);
     this.missing =
-        items.stream().filter(PreparationItem::missing).map(PreparationItem::number).toList();
+        this.items.stream().filter(PreparationItem::missing).map(PreparationItem::number).toList();
   }
 
   /**
-   * Evaluates the checklist.
+   * Evaluates the checklist. An exception of an implementation of the port is not caught: it fails
+   * the whole evaluation (see {@link PreparationItemCheck}).
    *
    * @param administrationId the administration of the fiscal year
-   * @param year the fiscal year
-   * @param preparationOpened whether the fiscal year is {@code EN_PREPARACION} or in a later state
-   *     (and not {@code PLANEADA})
+   * @param year the fiscal year, already validated by the caller (this class does not check its
+   *     range)
+   * @param preparationOpened false only while the fiscal year is {@code PLANEADA}; true in {@code
+   *     EN_PREPARACION} and in every later state. The caller derives it from the state, and its
+   *     test covers the five states
    * @param checks the implementations of the port, at most one per point and none for point 1
    * @throws IllegalArgumentException if a point has two implementations or point 1 has one
    */
@@ -66,7 +69,8 @@ public final class PreparationChecklist {
     Objects.requireNonNull(checks, "checks");
     Map<PreparationPoint, PreparationItemCheck> byPoint = new EnumMap<>(PreparationPoint.class);
     for (PreparationItemCheck check : checks) {
-      PreparationPoint point = Objects.requireNonNull(check.point(), "point");
+      Objects.requireNonNull(check, "check");
+      PreparationPoint point = Objects.requireNonNull(check.point(), "point of a check");
       if (point == PreparationPoint.FISCAL_YEAR_IN_PREPARATION) {
         throw new IllegalArgumentException("Point 1 comes from the state of the fiscal year");
       }
@@ -79,9 +83,11 @@ public final class PreparationChecklist {
 
   private static PreparationItem fiscalYearPoint(boolean preparationOpened) {
     PreparationPoint point = PreparationPoint.FISCAL_YEAR_IN_PREPARATION;
-    return preparationOpened
-        ? new PreparationItem(point, PreparationItemStatus.MET, PreparationCheckResult.MET_REASON)
-        : new PreparationItem(point, PreparationItemStatus.PENDING, FISCAL_YEAR_PLANNED);
+    return new PreparationItem(
+        point,
+        preparationOpened
+            ? PreparationCheckResult.met()
+            : PreparationCheckResult.pending(FISCAL_YEAR_PLANNED));
   }
 
   private static PreparationItem fromPort(
@@ -89,8 +95,9 @@ public final class PreparationChecklist {
     PreparationCheckResult result =
         check == null
             ? PreparationCheckResult.optionNotAvailable()
-            : Objects.requireNonNull(check.check(administrationId, year), "result");
-    return new PreparationItem(point, result.status(), result.reason());
+            : Objects.requireNonNull(
+                check.check(administrationId, year), "result of point " + point.number());
+    return new PreparationItem(point, result);
   }
 
   /** The nine points, in the order of Doc. 01 §6.1. */
@@ -98,7 +105,12 @@ public final class PreparationChecklist {
     return items;
   }
 
-  /** True only when every required point is met (V-03). In feature 007 it is always false. */
+  /**
+   * True only when every required point is met (V-03). In feature 007 it is always false because
+   * the port has no implementations. It is a reading of the moment, not a permission: enabling the
+   * assessments also needs the state of the fiscal year, read again inside its own transaction (a
+   * later feature, 1.5.1).
+   */
   public boolean canEnable() {
     return missing.isEmpty();
   }

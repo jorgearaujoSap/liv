@@ -1,11 +1,13 @@
 package co.com.sapenlinea.liv.tax.domain;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
- * What a {@link PreparationItemCheck} answers for a point: its state and the reason, a code (not a
- * text) that the screen turns into the message of the design. The reason has at most 64 characters,
- * as the contract says.
+ * What a {@link PreparationItemCheck} answers for a point: its state and the reason. The reason is
+ * a code in upper case with digits and underscores (never a free text, a message or a datum), 1 to
+ * 64 characters long, as {@code contracts/openapi/tax.yaml} documents for {@code
+ * PreparationItem.reason}; the screen turns it into the message of the design.
  */
 public record PreparationCheckResult(PreparationItemStatus status, String reason) {
 
@@ -15,15 +17,16 @@ public record PreparationCheckResult(PreparationItemStatus status, String reason
   /** The reason of a point whose menu option does not exist yet. */
   public static final String OPTION_NOT_AVAILABLE = "OPTION_NOT_AVAILABLE";
 
-  private static final int MAX_REASON_LENGTH = 64;
+  private static final Pattern REASON_CODE = Pattern.compile("[A-Z][A-Z0-9_]{0,63}");
 
   public PreparationCheckResult {
     Objects.requireNonNull(status, "status");
     Objects.requireNonNull(reason, "reason");
-    if (reason.isBlank() || reason.length() > MAX_REASON_LENGTH) {
-      throw new IllegalArgumentException("The reason is a code of 1 to 64 characters");
+    if (!REASON_CODE.matcher(reason).matches()) {
+      throw new IllegalArgumentException("The reason is a code of 1 to 64 characters: A-Z, 0-9, _");
     }
-    if (status == PreparationItemStatus.MET != MET_REASON.equals(reason)) {
+    boolean isMet = status == PreparationItemStatus.MET;
+    if (isMet != MET_REASON.equals(reason)) {
       throw new IllegalArgumentException("Only a point that is met has the reason MET");
     }
   }

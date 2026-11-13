@@ -2,13 +2,15 @@ package co.com.sapenlinea.liv.tax.domain;
 
 import java.util.Objects;
 
-/** One evaluated point of the preparation checklist of a fiscal year. */
-public record PreparationItem(PreparationPoint point, PreparationItemStatus status, String reason) {
+/**
+ * One evaluated point of the preparation checklist of a fiscal year. It is built from a {@link
+ * PreparationCheckResult}, so its state and reason are always valid.
+ */
+public record PreparationItem(PreparationPoint point, PreparationCheckResult result) {
 
   public PreparationItem {
     Objects.requireNonNull(point, "point");
-    Objects.requireNonNull(status, "status");
-    Objects.requireNonNull(reason, "reason");
+    Objects.requireNonNull(result, "result");
   }
 
   /** The number of the point in Doc. 01 §6.1. */
@@ -30,8 +32,17 @@ public record PreparationItem(PreparationPoint point, PreparationItemStatus stat
     return point.option();
   }
 
+  public PreparationItemStatus status() {
+    return result.status();
+  }
+
+  /** Why the point has its state, as a code. */
+  public String reason() {
+    return result.reason();
+  }
+
   /** Whether the point is a required one that is not met. */
   boolean missing() {
-    return point.required() && status != PreparationItemStatus.MET;
+    return point.required() && result.status() != PreparationItemStatus.MET;
   }
 }
