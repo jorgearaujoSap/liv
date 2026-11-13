@@ -6,6 +6,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Iconos `plus` y `circle` en `Icon` (feature 007, PR 8d; Figma 63:247 y 63:250): `Icon` pasa de 38 a 40 iconos de Lucide. Se versionarán con 0.4.0 (PR 8f).
+  - `plus` es para las acciones de alta, como «Crear vigencia»; `circle` es el estado pendiente de la lista de preparación y nunca es la única señal: va siempre con el texto del estado.
+  - Toman el color de su contenedor (`currentColor`), como el resto. `IconName` crece con los dos nombres; es compatible con lo anterior.
+  - `chevron-left`, que Figma también propone, no entra: solo lo usa la paginación y llega con la 1.6.
+  - `ChecklistItem` (PR 8b) dibuja su estado `Pending` con un círculo propio porque `Icon` no tenía `circle`; pasarlo a `liv-icon` es un cambio aparte.
 - `RadioGroup` y `RadioOption` (feature 007, PR 8c; Figma 73:514 y 64:629): grupo de selección única, aprobado por el responsable funcional. Se versionará con 0.4.0 (PR 8f).
   - `liv-radio-group` es un `fieldset` con su `legend` visible (`legend`, el nombre accesible), `[(value)]` (`string | null`; `null` es sin elección), `name` opcional y `disabled`.
   - `liv-radio-option` (`value`, `label`, `description` y `disabled`) es un radio nativo dentro de una tarjeta y solo existe dentro de un grupo.

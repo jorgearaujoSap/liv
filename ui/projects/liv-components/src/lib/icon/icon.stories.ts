@@ -32,6 +32,12 @@ export const ConTextoAlternativo: Story = {
   args: { name: 'circle-alert', label: 'Error' },
 };
 
+/** `plus`: acciones de alta, como «Crear vigencia» (Figma 63:247). */
+export const Plus: Story = { args: { name: 'plus' } };
+
+/** `circle`: estado pendiente de una lista de verificación; nunca es la única señal (Figma 63:250). */
+export const Circle: Story = { args: { name: 'circle' } };
+
 export const Tamano16: Story = { args: { size: 16 } };
 
 export const Tamano20: Story = { args: { size: 20 } };
