@@ -15,7 +15,15 @@ export {
   type ButtonType,
   type ButtonVariant,
 } from './lib/button/button.component';
+export {
+  ChecklistItemComponent,
+  type ChecklistItemStatus,
+} from './lib/checklist-item/checklist-item.component';
 export { CodeInputComponent } from './lib/code-input/code-input.component';
+export {
+  DescriptionItemComponent,
+  type DescriptionItemType,
+} from './lib/description-item/description-item.component';
 export { DialogComponent } from './lib/dialog/dialog.component';
 export {
   IconButtonComponent,
@@ -29,6 +37,7 @@ export { ModuleCardComponent } from './lib/module-card/module-card.component';
 export { NavItemComponent, type NavItemType } from './lib/nav-item/nav-item.component';
 export { NavSectionComponent } from './lib/side-nav/nav-section.component';
 export { PageHeaderComponent } from './lib/page-header/page-header.component';
+export { PanelComponent } from './lib/panel/panel.component';
 export { RadioGroupComponent } from './lib/radio-group/radio-group.component';
 export { RadioOptionComponent } from './lib/radio-group/radio-option.component';
 export {
@@ -43,3 +52,4 @@ export {
   type SpinnerTone,
 } from './lib/spinner/spinner.component';
 export { TextFieldComponent, type TextFieldType } from './lib/text-field/text-field.component';
+export { formatBusinessDate, type BusinessDateFormat } from './lib/shared/business-date';

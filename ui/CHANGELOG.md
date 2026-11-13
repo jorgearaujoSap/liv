@@ -13,6 +13,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - Los radios comparten un `name`, así que las flechas y el Tab que entra solo a la opción marcada los da el navegador.
   - El valor es un texto: una pantalla con valores numéricos (un año) lo convierte en los dos sentidos. El grupo no corrige su valor si la opción elegida desaparece; los `value` deben ser únicos y el `name`, si se da, único en la página.
   - En alto contraste (forced-colors) la elegida se distingue por su borde de 2 px y su punto, dibujado con borde, y la deshabilitada usa `GrayText` (único color que no sale de un token).
+- `ChecklistItem`, `DescriptionItem`, `Panel` y el formateador de fechas de negocio (feature 007, PR 8b; Figma 64:573, 64:583 y 64:631). Se versionarán con 0.4.0 (PR 8f).
+  - `li[livChecklistItem]` es un punto de una lista de verificación, para usarse dentro de un `<ol role="list">`. Es un componente de **selector de atributo** (con una excepción de ESLint justificada en el código): un elemento `liv-*` entre el `ol` y sus `li` rompería la estructura de la lista.
+    - Entradas: `status` (`met`, `pending` u `observed`), `number`, `heading` (el `Title` de Figma, que no se llama `title` para no chocar con el atributo del navegador), `reason`, `optional`, `link` y `linkHref`. Un estado desconocido se muestra como `pending`.
+    - El estado se dice con texto en un `Badge` («Cumplido», «Pendiente», «Con observación»); el icono es decorativo.
+    - El enlace es un `<a href>` que emite `navigate` con un clic normal, como `NavItem`; sin texto o sin destino no se dibuja. El destino no se sanea: debe ser una ruta propia de la aplicación.
+    - `Pending` dibuja su círculo vacío en el propio componente porque `Icon` todavía no tiene `circle` (PR 8d).
+    - La pantalla quita al `ol` el relleno y el margen del navegador (`m-0 list-none p-0`).
+  - `div[livDescriptionItem]` es un par etiqueta–valor (`dt` y `dd`) para una lista de descripción (`<dl>`), también de selector de atributo (la regla `definition-list` de axe no admite un elemento propio entre el `dl` y sus `dt` y `dd`).
+    - Entradas: `type` (`text` o `badge`), `label` y `value`.
+    - Se agrega `tone` (por omisión `primary`, el tono del diseño), que Figma no trae: el estado de una vigencia cambia de tono (en el diseño del detalle, «Planeada» es neutra). No afecta a `Type=Text`.
+    - La pantalla quita al `dl` el margen del navegador.
+  - `liv-panel` es una región (`section`) con borde, nombrada por su título, con su descripción enlazada con `aria-describedby`.
+    - Entradas: `heading`, `description` opcional y el contenido proyectado.
+    - `headingLevel` elige `h2` (por omisión) o `h3`; el aspecto es el mismo (en el diseño es `heading/h3`). Los títulos de una página deben ser distintos: cada panel es una región.
+  - `formatBusinessDate(value, format)` formatea una fecha de negocio (`AAAA-MM-DD`) **sin convertir de zona**: `long` (por omisión) da «1 de enero de 2026» y `short`, `01/01/2026` (`dd/mm/aaaa`).
+    - Es la fecha larga de la decisión H2‑13; `new Date('2026-01-01')` mostraría el 31 de diciembre de 2025 en Bogotá.
+    - Escribe los meses en español, sin depender de `Intl` ni de los datos de idioma del equipo.
+    - Devuelve `null` si el valor está ausente, no es un texto o no es una fecha que exista.
 - *Skill* `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
 
 ### Cambiado

@@ -1,0 +1,8 @@
+<dt class="description-item__label">{{ label() }}</dt>
+<dd class="description-item__value">
+  @if (type() === 'badge') {
+    <liv-badge class="description-item__badge" [tone]="tone()">{{ value() }}</liv-badge>
+  } @else {
+    {{ value() }}
+  }
+</dd>
