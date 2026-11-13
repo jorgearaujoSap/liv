@@ -52,3 +52,4 @@ export {
   type SpinnerTone,
 } from './lib/spinner/spinner.component';
 export { TextFieldComponent, type TextFieldType } from './lib/text-field/text-field.component';
+export { formatBusinessDate, type BusinessDateFormat } from './lib/shared/business-date';
