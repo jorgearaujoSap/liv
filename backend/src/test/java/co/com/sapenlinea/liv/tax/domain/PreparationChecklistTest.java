@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,6 +20,8 @@ class PreparationChecklistTest {
 
   private static final UUID ADMINISTRATION =
       UUID.fromString("00000000-0000-0000-0000-000000000052");
+  private static final UUID OTHER_ADMINISTRATION =
+      UUID.fromString("00000000-0000-0000-0000-000000000099");
   private static final int YEAR = 2026;
 
   private static PreparationChecklist withoutChecks(boolean preparationOpened) {
@@ -56,6 +59,7 @@ class PreparationChecklistTest {
   // --- 007-11: the nine points of Doc. 01 §6.1
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · La lista tiene los nueve puntos del Doc. 01 §6.1, en orden, del 1 al 9")
   void hasTheNinePointsInOrder() {
     PreparationChecklist checklist = withoutChecks(true);
@@ -67,6 +71,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · Cada punto trae su code del contrato (tax.yaml), por número")
   void eachPointHasItsContractCode() {
     assertThat(withoutChecks(true).items())
@@ -84,6 +89,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · Los puntos 1 a 5, 8 y 9 son obligatorios y el 6 y el 7 son opcionales")
   void requiredAndOptionalPoints() {
     PreparationChecklist checklist = withoutChecks(true);
@@ -94,6 +100,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · Cada punto lleva a la opción del menú que lo atiende")
   void eachPointLinksToItsMenuOption() {
     assertThat(withoutChecks(true).items())
@@ -102,6 +109,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName(
       "007-11 · El punto 1 no se cumple con la vigencia PLANEADA: pendiente, FISCAL_YEAR_PLANNED")
   void pointOneIsPendingWhileThePreparationIsNotOpen() {
@@ -112,8 +120,8 @@ class PreparationChecklistTest {
   }
 
   @Test
-  @DisplayName(
-      "007-11 · El punto 1 se cumple desde EN_PREPARACION (y los estados posteriores): MET")
+  @Tag("007-11")
+  @DisplayName("007-11 · El punto 1 se cumple con la preparación abierta (EN_PREPARACION): MET")
   void pointOneIsMetOnceThePreparationIsOpen() {
     PreparationItem one = item(withoutChecks(true), 1);
 
@@ -122,8 +130,10 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName(
-      "007-11 · Sin implementaciones del puerto, los puntos 2 a 9 dan OPTION_NOT_AVAILABLE, nunca cumplido")
+      "007-11 · Sin implementaciones del puerto, los puntos 2 a 9 dan OPTION_NOT_AVAILABLE, nunca"
+          + " cumplido")
   void withoutImplementationsPointsTwoToNineAreNeverMet() {
     for (boolean opened : new boolean[] {false, true}) {
       PreparationChecklist checklist = withoutChecks(opened);
@@ -137,6 +147,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · El resultado de una implementación del puerto es el estado de su punto")
   void aCheckResultIsTheStatusOfItsPoint() {
     PreparationChecklist checklist =
@@ -158,9 +169,11 @@ class PreparationChecklistTest {
   }
 
   @Test
-  @DisplayName("007-11 · El puerto recibe la administración y el año de la vigencia")
+  @Tag("007-11")
+  @DisplayName("007-11 · El puerto recibe la administración y el año de la vigencia, y una vez")
   void thePortReceivesTheAdministrationAndTheYear() {
-    List<Object> received = new ArrayList<>();
+    List<UUID> administrations = new ArrayList<>();
+    List<Integer> years = new ArrayList<>();
     PreparationItemCheck spy =
         new PreparationItemCheck() {
           @Override
@@ -170,18 +183,44 @@ class PreparationChecklistTest {
 
           @Override
           public PreparationCheckResult check(UUID administrationId, int year) {
-            received.add(administrationId);
-            received.add(year);
+            administrations.add(administrationId);
+            years.add(year);
             return PreparationCheckResult.met();
           }
         };
 
-    PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, List.of(spy));
+    PreparationChecklist.evaluate(OTHER_ADMINISTRATION, 2031, true, List.of(spy));
 
-    assertThat(received).containsExactly(ADMINISTRATION, YEAR);
+    assertThat(administrations).containsExactly(OTHER_ADMINISTRATION);
+    assertThat(years).containsExactly(2031);
   }
 
   @Test
+  @Tag("007-11")
+  @DisplayName(
+      "007-11 · Si una implementación del puerto falla, la lista falla: nunca queda cumplido")
+  void aFailingCheckFailsTheWholeChecklist() {
+    IllegalStateException failure = new IllegalStateException("boom");
+    PreparationItemCheck failing =
+        new PreparationItemCheck() {
+          @Override
+          public PreparationPoint point() {
+            return PreparationPoint.TAX_RATES;
+          }
+
+          @Override
+          public PreparationCheckResult check(UUID administrationId, int year) {
+            throw failure;
+          }
+        };
+
+    assertThatThrownBy(
+            () -> PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, List.of(failing)))
+        .isSameAs(failure);
+  }
+
+  @Test
+  @Tag("007-11")
   @DisplayName("007-11 · El punto 1 no sale del puerto: una implementación para él se rechaza")
   void pointOneCannotBeProvidedByThePort() {
     List<PreparationItemCheck> checks =
@@ -192,6 +231,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · Dos implementaciones para el mismo punto se rechazan, no se elige una")
   void twoChecksForTheSamePointAreRejected() {
     List<PreparationItemCheck> checks =
@@ -204,18 +244,33 @@ class PreparationChecklistTest {
   }
 
   @Test
-  @DisplayName("007-11 · Un valor nulo (administración, implementaciones o resultado) se rechaza")
+  @Tag("007-11")
+  @DisplayName(
+      "007-11 · Un valor nulo (administración, lista, elemento, punto o resultado) se rechaza")
   void nullInputsAreRejected() {
     assertThatThrownBy(() -> PreparationChecklist.evaluate(null, YEAR, true, List.of()))
         .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, null))
         .isInstanceOf(NullPointerException.class);
-    List<PreparationItemCheck> returnsNull = List.of(check(PreparationPoint.TAX_RATES, null));
-    assertThatThrownBy(() -> PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, returnsNull))
+
+    List<PreparationItemCheck> withNullElement = Arrays.asList((PreparationItemCheck) null);
+    assertThatThrownBy(
+            () -> PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, withNullElement))
         .isInstanceOf(NullPointerException.class);
+
+    List<PreparationItemCheck> withoutPoint = List.of(check(null, PreparationCheckResult.met()));
+    assertThatThrownBy(
+            () -> PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, withoutPoint))
+        .isInstanceOf(NullPointerException.class);
+
+    List<PreparationItemCheck> returnsNull = List.of(check(PreparationPoint.TAX_CALENDAR, null));
+    assertThatThrownBy(() -> PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, returnsNull))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("point 5");
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · La lista que se entrega no se puede modificar")
   void theItemsAreImmutable() {
     PreparationChecklist checklist = withoutChecks(true);
@@ -226,30 +281,59 @@ class PreparationChecklistTest {
         .isInstanceOf(UnsupportedOperationException.class);
   }
 
+  @Test
+  @Tag("007-11")
+  @DisplayName(
+      "007-11 · Un punto se arma con un resultado ya validado, no con un estado y un motivo sueltos")
+  void anItemIsBuiltFromAValidatedResult() {
+    PreparationItem item =
+        new PreparationItem(PreparationPoint.TAX_RATES, PreparationCheckResult.pending("EMPTY"));
+
+    assertThat(item.status()).isEqualTo(PreparationItemStatus.PENDING);
+    assertThat(item.reason()).isEqualTo("EMPTY");
+    assertThatThrownBy(() -> new PreparationItem(PreparationPoint.TAX_RATES, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new PreparationItem(null, PreparationCheckResult.met()))
+        .isInstanceOf(NullPointerException.class);
+  }
+
   // --- V-03 · CA-14 · 007-12: enabling
 
   @Test
+  @Tag("V-03")
+  @Tag("CA-14")
+  @Tag("007-12")
   @DisplayName(
-      "V-03 · CA-14 · 007-12 · En la 007 canEnable() es falso, con la vigencia PLANEADA o EN_PREPARACION")
-  void canEnableIsAlwaysFalseInFeature007() {
+      "V-03 · CA-14 · 007-12 · Sin implementaciones del puerto (la 007), canEnable() es falso")
+  void canEnableIsFalseWithoutImplementations() {
     assertThat(withoutChecks(false).canEnable()).isFalse();
     assertThat(withoutChecks(true).canEnable()).isFalse();
   }
 
   @Test
+  @Tag("V-03")
+  @Tag("CA-14")
+  @Tag("007-12")
   @DisplayName(
-      "V-03 · CA-14 · 007-12 · missing lista los obligatorios que faltan: 2, 3, 4, 5, 8 y 9 con la vigencia EN_PREPARACION")
+      "V-03 · CA-14 · 007-12 · missing lista los obligatorios que faltan: 2, 3, 4, 5, 8 y 9 con la"
+          + " vigencia EN_PREPARACION")
   void missingListsTheRequiredPointsThatAreNotMet() {
     assertThat(withoutChecks(true).missing()).containsExactly(2, 3, 4, 5, 8, 9);
   }
 
   @Test
+  @Tag("V-03")
+  @Tag("CA-14")
+  @Tag("007-12")
   @DisplayName("V-03 · CA-14 · 007-12 · Con la vigencia PLANEADA falta también el punto 1")
   void missingIncludesPointOneWhilePlanned() {
     assertThat(withoutChecks(false).missing()).containsExactly(1, 2, 3, 4, 5, 8, 9);
   }
 
   @Test
+  @Tag("V-03")
+  @Tag("CA-14")
+  @Tag("007-12")
   @DisplayName("V-03 · CA-14 · 007-12 · Los opcionales (6 y 7) nunca están en missing")
   void optionalPointsAreNeverMissing() {
     assertThat(withoutChecks(false).missing()).doesNotContain(6, 7);
@@ -257,8 +341,10 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("V-03")
   @DisplayName(
-      "V-03 · canEnable() es verdadero solo con todos los obligatorios cumplidos, aunque los opcionales no lo estén")
+      "V-03 · canEnable() es verdadero solo con todos los obligatorios cumplidos, aunque los"
+          + " opcionales no lo estén")
   void canEnableOnlyWithEveryRequiredPointMet() {
     PreparationChecklist checklist =
         PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, allRequiredMet());
@@ -270,6 +356,22 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("V-03")
+  @DisplayName("V-03 · Un opcional con observación no bloquea ni aparece en missing")
+  void anObservedOptionalPointDoesNotBlock() {
+    List<PreparationItemCheck> checks = allRequiredMet();
+    checks.add(check(PreparationPoint.TAX_BENEFITS, PreparationCheckResult.observed("NO_RULES")));
+    checks.add(check(PreparationPoint.PENALTY_RULES, PreparationCheckResult.observed("NO_RULES")));
+
+    PreparationChecklist checklist =
+        PreparationChecklist.evaluate(ADMINISTRATION, YEAR, true, checks);
+
+    assertThat(checklist.canEnable()).isTrue();
+    assertThat(checklist.missing()).isEmpty();
+  }
+
+  @Test
+  @Tag("V-03")
   @DisplayName(
       "V-03 · Con todo cumplido pero la vigencia PLANEADA, canEnable() es falso: falta el punto 1")
   void canEnableIsFalseWhilePlannedEvenWithEveryOtherPointMet() {
@@ -281,6 +383,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("V-03")
   @DisplayName("V-03 · Un obligatorio con observación no cuenta como cumplido")
   void anObservedRequiredPointBlocksTheEnabling() {
     List<PreparationItemCheck> checks = allRequiredMet();
@@ -296,6 +399,7 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("V-03")
   @DisplayName(
       "V-03 · Un obligatorio pendiente por una implementación tampoco cuenta como cumplido")
   void aPendingRequiredPointBlocksTheEnabling() {
@@ -316,6 +420,7 @@ class PreparationChecklistTest {
   // --- The result of a check: the reason is a code of the contract (maxLength 64)
 
   @Test
+  @Tag("007-11")
   @DisplayName("007-11 · MET lleva siempre el motivo MET y los demás estados, un motivo propio")
   void resultReasons() {
     assertThat(PreparationCheckResult.met().reason()).isEqualTo("MET");
@@ -327,17 +432,45 @@ class PreparationChecklistTest {
   }
 
   @Test
+  @Tag("007-11")
   @DisplayName(
-      "007-11 · Un motivo vacío, de más de 64 caracteres o igual a MET en un no cumplido se rechaza")
+      "007-11 · Un motivo que no es un código (vacío, minúsculas, espacios, más de 64) o MET en un"
+          + " no cumplido se rechaza")
   void invalidReasonsAreRejected() {
-    for (String reason : Arrays.asList(null, "", "  ", "x".repeat(65), "MET")) {
+    for (String reason :
+        List.of(
+            "", "  ", "x".repeat(10), "HAS SPACE", "1_STARTS_WITH_DIGIT", "X".repeat(65), "MET")) {
       assertThatThrownBy(() -> PreparationCheckResult.pending(reason))
           .as("pending(%s)", reason)
-          .isInstanceOf(RuntimeException.class);
+          .isInstanceOf(IllegalArgumentException.class);
       assertThatThrownBy(() -> PreparationCheckResult.observed(reason))
           .as("observed(%s)", reason)
-          .isInstanceOf(RuntimeException.class);
+          .isInstanceOf(IllegalArgumentException.class);
     }
-    assertThat(PreparationCheckResult.pending("x".repeat(64)).reason()).hasSize(64);
+    assertThatThrownBy(() -> PreparationCheckResult.pending(null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  @Tag("007-11")
+  @DisplayName("007-11 · El motivo admite hasta 64 caracteres del contrato: 63 y 64 sí, 65 no")
+  void reasonLengthBoundary() {
+    assertThat(PreparationCheckResult.pending("X".repeat(63)).reason()).hasSize(63);
+    assertThat(PreparationCheckResult.pending("X".repeat(64)).reason()).hasSize(64);
+    assertThatThrownBy(() -> PreparationCheckResult.pending("X".repeat(65)))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @Tag("007-11")
+  @DisplayName(
+      "007-11 · Solo un punto cumplido lleva el motivo MET: MET con otro motivo se rechaza")
+  void metWithAnotherReasonIsRejected() {
+    assertThatThrownBy(() -> new PreparationCheckResult(PreparationItemStatus.MET, "OTHER"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new PreparationCheckResult(PreparationItemStatus.PENDING, "MET"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new PreparationCheckResult(PreparationItemStatus.OBSERVED, "MET"))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
