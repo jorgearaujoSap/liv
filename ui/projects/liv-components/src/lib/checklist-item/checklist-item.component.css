@@ -1,0 +1,55 @@
+@reference '../tailwind-reference.css';
+
+/* Cada punto lleva su propia línea inferior, como en Figma. */
+:host {
+  @apply box-border flex items-start gap-3 border-b border-solid border-border-default py-4;
+}
+
+.checklist-item__icon {
+  @apply inline-flex shrink-0;
+}
+
+:host([data-status='met']) .checklist-item__icon {
+  @apply text-status-success;
+}
+
+:host([data-status='pending']) .checklist-item__icon {
+  @apply text-text-muted;
+}
+
+:host([data-status='observed']) .checklist-item__icon {
+  @apply text-status-warning;
+}
+
+.checklist-item__content {
+  @apply flex min-w-0 flex-1 flex-col items-start gap-1;
+}
+
+.checklist-item__heading {
+  @apply flex flex-wrap items-center gap-x-2;
+}
+
+.checklist-item__number {
+  @apply text-body-md text-text-muted;
+}
+
+.checklist-item__title {
+  @apply text-body-md-strong text-text-primary;
+}
+
+.checklist-item__reason {
+  @apply m-0 text-body-sm text-text-secondary;
+}
+
+.checklist-item__link {
+  @apply rounded-sm text-label-sm text-action-primary no-underline hover:underline;
+}
+
+/* Focus: el anillo rodea solo el enlace y solo con el teclado; en alto contraste queda un contorno. */
+.checklist-item__link:focus-visible {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+.checklist-item__status {
+  @apply shrink-0;
+}

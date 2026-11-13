@@ -1,0 +1,42 @@
+<span class="checklist-item__icon" aria-hidden="true">
+  @if (presentation().icon; as icon) {
+    <liv-icon [name]="icon" [size]="20" />
+  } @else {
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  }
+</span>
+<div class="checklist-item__content">
+  <div class="checklist-item__heading">
+    @if (numberText(); as number) {
+      <span class="checklist-item__number">{{ number }}</span>
+    }
+    <span class="checklist-item__title">{{ heading() }}</span>
+    @if (optional()) {
+      <liv-badge class="checklist-item__optional">Opcional</liv-badge>
+    }
+  </div>
+  @if (reasonText(); as reason) {
+    <p class="checklist-item__reason">{{ reason }}</p>
+  }
+  @if (linkText(); as text) {
+    @if (target(); as href) {
+      <a class="checklist-item__link" [attr.href]="href" (click)="onLinkClick($event)">{{
+        text
+      }}</a>
+    }
+  }
+</div>
+<liv-badge class="checklist-item__status" [tone]="presentation().tone">{{
+  presentation().label
+}}</liv-badge>

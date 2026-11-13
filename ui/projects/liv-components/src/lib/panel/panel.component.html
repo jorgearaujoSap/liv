@@ -1,0 +1,13 @@
+<section class="panel" [attr.aria-labelledby]="headingId">
+  <header class="panel__header">
+    @if (headingLevel() === 3) {
+      <h3 class="panel__heading" [id]="headingId">{{ heading() }}</h3>
+    } @else {
+      <h2 class="panel__heading" [id]="headingId">{{ heading() }}</h2>
+    }
+    @if (descriptionText(); as text) {
+      <p class="panel__description">{{ text }}</p>
+    }
+  </header>
+  <div class="panel__content"><ng-content /></div>
+</section>

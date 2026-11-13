@@ -1,0 +1,27 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block;
+}
+
+/* El borde delimita la superficie también en alto contraste (forced-colors), donde el fondo se descarta. */
+.panel {
+  @apply box-border flex flex-col gap-4 rounded-xl border border-solid border-border-default bg-bg-surface p-6;
+}
+
+.panel__header {
+  @apply flex flex-col gap-1;
+}
+
+/* Un h2 y un h3 se ven igual: el nivel es del documento, no del diseño. */
+.panel__heading {
+  @apply m-0 text-heading-h3 text-text-primary;
+}
+
+.panel__description {
+  @apply m-0 text-body-md text-text-secondary;
+}
+
+.panel__content {
+  @apply min-w-0;
+}

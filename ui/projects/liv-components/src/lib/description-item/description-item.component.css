@@ -1,0 +1,14 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply flex flex-col items-start gap-1;
+}
+
+.description-item__label {
+  @apply text-label-sm text-text-secondary;
+}
+
+/* `dd` trae un margen del navegador; un valor largo se parte en lugar de desbordar. */
+.description-item__value {
+  @apply m-0 text-body-md wrap-anywhere text-text-primary;
+}
