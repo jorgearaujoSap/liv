@@ -15,10 +15,46 @@ function render(name: IconName, extra: { size?: IconSize; label?: string } = {})
 }
 
 describe('Icon', () => {
-  it('tiene los 38 iconos de Lucide de la página 02 Componentes, sin repetir', () => {
-    expect(ICON_NAMES).toHaveLength(38);
-    expect(new Set(ICON_NAMES).size).toBe(38);
+  it('tiene los 40 iconos de Lucide de la página 02 Componentes, sin repetir', () => {
+    expect(ICON_NAMES).toHaveLength(40);
+    expect(new Set(ICON_NAMES).size).toBe(40);
   });
+
+  // Feature 007 (PR 8d, Figma 63:247 y 63:250): `plus` crea una vigencia y `circle` es el estado pendiente.
+  // `chevron-left` no entra: es de la paginación (1.6).
+  it('agrega plus y circle, y no chevron-left', () => {
+    expect(ICON_NAMES).toEqual(expect.arrayContaining(['plus', 'circle']));
+    expect(ICON_NAMES).not.toContain('chevron-left');
+  });
+
+  it('dibuja plus con las dos líneas de Lucide', () => {
+    const paths = Array.from(render('plus').svg.querySelectorAll('path')).map((path) =>
+      path.getAttribute('d'),
+    );
+    expect(paths).toEqual(['M5 12h14', 'M12 5v14']);
+  });
+
+  it('dibuja circle como una circunferencia de radio 10 centrada en el lienzo', () => {
+    const shapes = Array.from(render('circle').svg.querySelectorAll('path, circle, rect, line'));
+    expect(shapes).toHaveLength(1);
+    const [circle] = shapes;
+    expect(circle.tagName.toLowerCase()).toBe('circle');
+    expect(['cx', 'cy', 'r'].map((name) => circle.getAttribute(name))).toEqual(['12', '12', '10']);
+    expect(circle.hasAttribute('fill')).toBe(false);
+  });
+
+  it.each<[IconName]>([['plus'], ['circle']])(
+    '%s toma el color de su contenedor y no fija el suyo',
+    (name) => {
+      const { svg } = render(name);
+      expect(svg.getAttribute('stroke')).toBe('currentColor');
+      expect(svg.getAttribute('fill')).toBe('none');
+      for (const shape of Array.from(svg.querySelectorAll('path, circle, rect, line'))) {
+        expect(shape.hasAttribute('stroke')).toBe(false);
+        expect(shape.getAttribute('fill') ?? 'none').toBe('none');
+      }
+    },
+  );
 
   it.each(ICON_NAMES)('dibuja %s sobre el lienzo de 24 px con trazo de 2 px', (name) => {
     const { svg } = render(name);
@@ -82,4 +118,12 @@ describe('Icon', () => {
     await expectNoAxeViolations(render('lock').host);
     await expectNoAxeViolations(render('circle-alert', { label: 'Error' }).host);
   });
+
+  it.each<[IconName]>([['plus'], ['circle']])(
+    'cumple axe como decorativo y con texto alternativo: %s',
+    async (name) => {
+      await expectNoAxeViolations(render(name).host);
+      await expectNoAxeViolations(render(name, { label: 'Texto' }).host);
+    },
+  );
 });
