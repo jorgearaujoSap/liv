@@ -87,7 +87,6 @@ function forcedColorsBlock(): string {
 const color = (name: string) => solidColor(cssVariable(theme, `--color-${name}`));
 
 const SELECTED = ":host([data-selected='true'])";
-const DISABLED = ":host([data-state='disabled'])";
 const DISABLED_SELECTED = ":host([data-state='disabled'][data-selected='true'])";
 
 /** Teclado: `:focus-visible` solo se activa tras una tecla, como en el navegador. */
@@ -329,10 +328,10 @@ describe('RadioOption', () => {
       expect(declaredStyle(cards[0], 'border-color')).toContain('var(--color-action-primary,');
       expect(declaredStyle(cards[0], 'border-width')).toBe('2px');
       // El borde más grueso no mueve el contenido: el relleno baja 1 px para compensarlo.
-      expect(declaredStyle(cards[0], 'padding-left')).toBe('15px');
-      expect(declaredStyle(cards[0], 'padding-top')).toBe('10px');
-      expect(declaredStyle(cards[1], 'padding-left')).toContain('var(--spacing-4,');
-      expect(declaredStyle(cards[1], 'padding-top')).toBe('11px');
+      expect(declaredStyle(cards[0], 'padding-inline')).toBe('15px');
+      expect(declaredStyle(cards[0], 'padding-block')).toBe('10px');
+      expect(declaredStyle(cards[1], 'padding-inline')).toContain('var(--spacing-4,');
+      expect(declaredStyle(cards[1], 'padding-block')).toBe('11px');
       const circle = cards[0].querySelector('.radio-option__circle') as HTMLElement;
       expect(declaredStyle(circle, 'border-color')).toContain('var(--color-action-primary,');
     });
@@ -356,9 +355,10 @@ describe('RadioOption', () => {
       });
       const circle = cards[1].querySelector('.radio-option__circle') as HTMLElement;
       const label = host.querySelectorAll('.radio-option__label')[1] as HTMLElement;
-      expect(declaredStyle(cards[1], 'border-color', 'forced-colors')).toBe('GrayText');
-      expect(declaredStyle(circle, 'border-color', 'forced-colors')).toBe('GrayText');
-      expect(declaredStyle(label, 'color', 'forced-colors')).toBe('GrayText');
+      // `declaredStyle` devuelve las palabras clave de color en minúsculas (`GrayText` en el CSS).
+      expect(declaredStyle(cards[1], 'border-color', 'forced-colors')).toBe('graytext');
+      expect(declaredStyle(circle, 'border-color', 'forced-colors')).toBe('graytext');
+      expect(declaredStyle(label, 'color', 'forced-colors')).toBe('graytext');
       expect(declaredStyle(cards[0], 'border-color', 'forced-colors')).toBe('');
       expect(forcedColorsBlock()).toMatch(/__circle::after[^}]*GrayText/);
     });
@@ -402,7 +402,7 @@ describe('RadioOption', () => {
       expect(declaredStyle(cards[0], 'border-color')).toContain('var(--color-border-default,');
       // Sin el borde de 2 px de Selected, y con el relleno de una tarjeta sin elegir.
       expect(declaredStyle(cards[0], 'border-width')).toBe('1px');
-      expect(declaredStyle(cards[0], 'padding-top')).toBe('11px');
+      expect(declaredStyle(cards[0], 'padding-block')).toBe('11px');
       const circle = cards[0].querySelector('.radio-option__circle') as HTMLElement;
       expect(declaredStyle(circle, 'border-color')).toContain('var(--color-border-default,');
       expect(ruleBody(`${DISABLED_SELECTED} .radio-option__circle::after`)).toContain(

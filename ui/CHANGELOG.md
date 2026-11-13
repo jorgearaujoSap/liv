@@ -11,6 +11,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - `liv-radio-option` (`value`, `label`, `description` y `disabled`) es un radio nativo dentro de una tarjeta y solo existe dentro de un grupo.
   - Estados: Default, Hover, Focus y Disabled, elegida o no. La elegida no depende solo del color: borde, fondo y punto interior.
   - Los radios comparten un `name`, así que las flechas y el Tab que entra solo a la opción marcada los da el navegador.
+  - El valor es un texto: una pantalla con valores numéricos (un año) lo convierte en los dos sentidos. El grupo no corrige su valor si la opción elegida desaparece; los `value` deben ser únicos y el `name`, si se da, único en la página.
+  - En alto contraste (forced-colors) la elegida se distingue por su borde de 2 px y su punto, dibujado con borde, y la deshabilitada usa `GrayText` (único color que no sale de un token).
 - *Skill* `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
 
 ### Cambiado

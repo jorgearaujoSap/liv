@@ -13,7 +13,7 @@ interface RadioGroupArgs {
   legend: string;
   value: string | null;
   disabled: boolean;
-  /** Habilita la opción 2027, para ver una opción deshabilitada dentro de un grupo activo. */
+  /** Deshabilita la opción 2027, para ver una opción deshabilitada dentro de un grupo activo. */
   nextDisabled: boolean;
   showDescription: boolean;
   /** Cuántas opciones muestra el grupo (`Options` de Figma). */
