@@ -439,7 +439,18 @@ class PreparationChecklistTest {
   void invalidReasonsAreRejected() {
     for (String reason :
         List.of(
-            "", "  ", "x".repeat(10), "HAS SPACE", "1_STARTS_WITH_DIGIT", "X".repeat(65), "MET")) {
+            "",
+            "  ",
+            "x".repeat(10),
+            "HAS SPACE",
+            "Pending",
+            "A-B",
+            "_LEADING",
+            "AÑO",
+            "A\n",
+            "1_STARTS_WITH_DIGIT",
+            "X".repeat(65),
+            "MET")) {
       assertThatThrownBy(() -> PreparationCheckResult.pending(reason))
           .as("pending(%s)", reason)
           .isInstanceOf(IllegalArgumentException.class);

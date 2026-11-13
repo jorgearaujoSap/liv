@@ -6,8 +6,9 @@ import java.util.regex.Pattern;
 /**
  * What a {@link PreparationItemCheck} answers for a point: its state and the reason. The reason is
  * a code in upper case with digits and underscores (never a free text, a message or a datum), 1 to
- * 64 characters long, as {@code contracts/openapi/tax.yaml} documents for {@code
- * PreparationItem.reason}; the screen turns it into the message of the design.
+ * 64 characters long. The contract ({@code contracts/openapi/tax.yaml}, {@code
+ * PreparationItem.reason}) fixes only the maximum length; this format is stricter, on purpose. The
+ * screen turns the code into the message of the design.
  */
 public record PreparationCheckResult(PreparationItemStatus status, String reason) {
 

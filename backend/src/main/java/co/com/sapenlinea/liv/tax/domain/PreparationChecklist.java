@@ -41,8 +41,8 @@ public final class PreparationChecklist {
    * @param year the fiscal year, already validated by the caller (this class does not check its
    *     range)
    * @param preparationOpened false only while the fiscal year is {@code PLANEADA}; true in {@code
-   *     EN_PREPARACION} and in every later state. The caller derives it from the state, and its
-   *     test covers the five states
+   *     EN_PREPARACION} and in every later state. The caller must derive it from the state, and its
+   *     test must cover the five states
    * @param checks the implementations of the port, at most one per point and none for point 1
    * @throws IllegalArgumentException if a point has two implementations or point 1 has one
    */
