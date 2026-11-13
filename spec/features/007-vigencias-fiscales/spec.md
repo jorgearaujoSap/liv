@@ -1,6 +1,6 @@
 # 007 · Vigencias fiscales
 
-**Estado:** aprobada (H1) — 2026-11-12, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las siete recomendaciones de la spec (véase «Decisiones de la H1») · enmiendas 1, 2 y 3 (007-04, 007-06, 007-08, 007-10 y 007-20) aprobadas por la misma persona como responsable funcional en la H2 del 2026-11-12, que firmó de nuevo la H1 (véase «Enmiendas de la H2»)
+**Estado:** aprobada (H1) · plan aprobado (H2) — 2026-11-13. H1 del 2026-11-12, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las siete recomendaciones de la spec (véase «Decisiones de la H1») · enmiendas 1, 2 y 3 (007-04, 007-06, 007-08, 007-10 y 007-20) aprobadas por la misma persona como responsable funcional en la H2 del 2026-11-12, que firmó de nuevo la H1 (véase «Enmiendas de la H2»)
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
 **Módulo:** `tax` (vigencias), con la matriz de permisos de `platform`, la auditoría de `audit`, el frontend y, si el diseño lo pide, la librería `liv-components` · **Menú:** 1.4 · **Tipo de cambio:** crítico (`AGENTS.md` §4.3; decisión 4 de la H1)

@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** decidido en la H2 (2026-11-12). La aprobación todavía no queda escrita: la verificación acotada encontró dos altos, ya corregidos en el plan y sin volver a verificar (véase «H2» y «Revisión»)
+**Estado:** aprobado (H2) — 2026-11-13, por la persona que dirige el trabajo, con las correcciones de los dos altos de la verificación acotada (véase «H2» y «Revisión»)
 _(borrador → aprobado (H2))_
 
 ## H2
@@ -12,13 +12,13 @@ La persona que dirige el trabajo resolvió la H2 el 2026-11-12 con las quince re
 - H2‑13 se resolvió con la fecha larga para fechas sueltas;
 - la aprobación del plan se escribe después de una verificación acotada del alto de la ronda 2, que ya se hizo (véase abajo).
 
+El 2026-11-13 aprobó la H2 aceptando las correcciones de los dos altos de esa verificación («Sí, apruebo la H2»). La revisión adversarial del código del paso 6 los comprobará.
+
 El detalle de cada decisión está en «Decisiones de la H2». Lo que queda después de la H2:
-- **En Figma**, antes de los PR que lo usan:
-  - la propiedad `Tone` de `Dialog`, antes del 8f (H2‑11);
-  - el componente `RadioGroup`, antes del 8c (H2‑12);
-  - quitar del diseño el mensaje «Sin permiso» del diálogo (H2‑14);
-  - la etiqueta de un año pasado en el diálogo de creación (`relation: PAST`, por ejemplo «Año anterior al año en curso»), que salió de la verificación acotada y no está en el *frame* 67:3040.
-- **La verificación acotada se hizo y encontró dos altos**, ya corregidos en el plan (véase «Revisión»). Como apareció un alto, la aprobación de la H2 no queda escrita todavía. La decide la persona: aceptar las correcciones como están o pedir otra verificación solo sobre ellas.
+- **En Figma:**
+  - ✅ hechos y aprobados por la persona el 2026-11-13: la propiedad `Tone` de `Dialog` (H2‑11), el componente `RadioGroup` (H2‑12) y quitar el mensaje «Sin permiso» del diálogo (H2‑14). Están en «Diseño de interfaz»;
+  - ⏳ **pendiente de aprobación:** la etiqueta de un año pasado en el diálogo de creación (`relation: PAST`, por ejemplo «Año anterior al año en curso»), que salió de la verificación acotada y no está en el *frame* 67:3040. Se diseña ahora y es requisito del PR que la use (9a).
+- **Los dos altos de la verificación acotada** están corregidos en el plan y se comprobarán en la revisión adversarial del código del paso 6 (véase «Revisión»).
 
 ## Enfoque
 
@@ -508,8 +508,17 @@ Al final, con el sistema levantado y `backend/dev/limpiar-vigencias.sh` ejecutad
 | Componente | Nodo | Cambio |
 |---|---|---|
 | `Button` | [65:456](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=65-456) | Entrada nueva `disabledReason`: un texto visible debajo, enlazado con `aria-describedby`; con motivo, el botón usa `aria-disabled="true"` en lugar de `disabled`, para seguir recibiendo foco. No cambia su aspecto |
-| `Dialog` (y H2‑11) | [65:472](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=65-472) | Un cuerpo con contenido proyectado entre la descripción y las acciones, y 520 px de ancho (el aprobado mide 440). En código: el cuerpo en una ranura con nombre, el ancho como tamaño `lg` y el tono del mosaico según H2‑11, para que el aviso de sesión de la 001 no cambie |
+| `Dialog` (y H2‑11) | Conjunto [73:482](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=73-482): variantes `Tone=Warning` [65:472](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=65-472) y `Tone=Primary` [73:467](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=73-467) | Un cuerpo con contenido proyectado entre la descripción y las acciones, y 520 px de ancho (el aprobado mide 440). La propiedad `Tone` (H2‑11, aprobada el 2026-11-13) da el mosaico de advertencia o el de la acción principal. En código: el cuerpo en una ranura con nombre, el ancho como tamaño `lg` y `tone` con `warning` por omisión, para que el aviso de sesión de la 001 no cambie |
 | `Icon` | [63:243](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=63-243) | Tres iconos Lucide: `plus`, `circle` y `chevron-left`. La 007 implementa los dos primeros; `chevron-left`, solo de la paginación, entra con la 1.6 |
+
+**Cambios aprobados el 2026-11-13**, después de la H2
+
+| Cambio | Nodo | Estado |
+|---|---|---|
+| `RadioGroup` (H2‑12), el grupo de opciones del año como componente | [73:514](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=73-514) | ✅ Aprobado. Requisito del PR 8c |
+| `Tone` de `Dialog` (H2‑11) | [73:482](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=73-482) | ✅ Aprobado. Requisito del PR 8f |
+| Sin el mensaje «Sin permiso» del diálogo (H2‑14) | [67:3284](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=67-3284) | ✅ Aprobado |
+| Etiqueta de un año pasado (`relation: PAST`) en el diálogo de creación | — | ⏳ Se diseña ahora y se aprueba después. Requisito del PR 9a: sin ella, ese PR no se abre |
 
 **Composiciones sin componente propio** (el diseño las arma con *auto layout*): el encabezado (`PageHeader` + `Button`), el estado centrado (`ResultState`), el grupo de opciones del año (que pasa a ser el componente `RadioGroup`, H2‑12), las fechas del diálogo (dos `DescriptionItem`) y el fondo del diálogo. En Figma, `Panel` se desacopla en las pantallas porque Figma no tiene espacios de contenido.
 
@@ -719,7 +728,7 @@ flowchart LR
   - el grupo de años sin opción marcada;
   - el *hover* de `Button` con motivo.
 - **Descartados:** ninguno.
-- **Resultado:** aparecieron dos altos, así que la aprobación de la H2 no queda escrita (lo pidió así la H2). Los dos están corregidos en el plan y nadie los volvió a verificar.
+- **Resultado:** aparecieron dos altos, corregidos en el plan. El 2026-11-13 la persona aprobó la H2 aceptando esas correcciones. **Los dos altos quedan para comprobarse en la revisión adversarial del código del paso 6:** que las pruebas del adaptador fuercen cada intercalación (el `UNIQUE` real, la apertura que pierde la carrera y el bloqueo, con su variante sin bloqueo) y que `relation` admita `PAST` con su prueba.
 
-- [ ] Revisión adversarial independiente del plan ejecutada; hallazgos resueltos o justificados (falta la decisión de la persona sobre los dos altos de la verificación acotada).
+- [x] Revisión adversarial independiente del plan ejecutada; hallazgos resueltos o justificados. Los dos altos de la verificación acotada se comprueban en la revisión del código del paso 6.
 - [ ] Aprobación H2: <quién, fecha>.
