@@ -1,5 +1,8 @@
 import { formatBusinessDate } from './business-date';
 
+/** Las pruebas corren en Node, pero `tsconfig.spec.json` no carga sus tipos (no hay `@types/node`). */
+declare const process: { env: Record<string, string | undefined> };
+
 /**
  * Colombia está en UTC−5 todo el año. En UTC el defecto que esta prueba vigila (`new Date('2026-01-01')`
  * muestra el 31 de diciembre de 2025) no se vería, así que la prueba fija la zona y comprueba que quedó
