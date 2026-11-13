@@ -23,6 +23,11 @@ public record AdministrationFiscalYear(
   public AdministrationFiscalYear {
     Objects.requireNonNull(administrationId, "administrationId");
     Objects.requireNonNull(status, "status");
+    // V-03: the database also fixes it (CHECK); the domain holds no state that cannot exist.
+    // The feature of option 1.5.1 replaces this guard when it adds the signed enabling.
+    if (assessmentsEnabled) {
+      throw new IllegalArgumentException("assessmentsEnabled is always false in feature 007");
+    }
   }
 
   /** A new year: {@code PLANEADA}, with the assessment disabled (V-01). */

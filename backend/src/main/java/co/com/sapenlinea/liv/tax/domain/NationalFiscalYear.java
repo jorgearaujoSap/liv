@@ -16,5 +16,8 @@ public record NationalFiscalYear(int year, LocalDate startsOn, LocalDate endsOn)
   public NationalFiscalYear {
     Objects.requireNonNull(startsOn, "startsOn");
     Objects.requireNonNull(endsOn, "endsOn");
+    if (endsOn.isBefore(startsOn)) {
+      throw new IllegalArgumentException("The year " + year + " ends before it starts");
+    }
   }
 }

@@ -358,7 +358,7 @@ class FiscalYearOpeningPolicyTest {
     FiscalYearOpeningPolicy policy = policy(2028, 2026, 2028);
 
     assertThatCode(() -> policy.check(2027)).doesNotThrowAnyException();
-    assertThat(years(policy)).containsExactly(2027);
+    assertThat(years(policy)).containsExactly(2027, 2029);
   }
 
   @Test

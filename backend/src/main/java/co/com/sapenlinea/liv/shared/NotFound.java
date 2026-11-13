@@ -11,7 +11,8 @@ public final class NotFound extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
   /**
-   * @param what what was not found, for the log only: it never reaches the answer
+   * @param what what was not found, for the log only (it never reaches the answer): the kind of
+   *     thing and a technical identifier, never personal data such as a plate or a document number
    */
   public NotFound(String what) {
     super("Not found: " + what);

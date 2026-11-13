@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.shared;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,11 +19,14 @@ public final class RuleViolation extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
+  /** Longest code the contracts allow ({@code Problem.code}). */
+  private static final int MAX_CODE_LENGTH = 32;
+
+  private static final Pattern CODE = Pattern.compile("[A-Z][A-Z0-9]*(-[A-Z0-9]+)+");
+
   /** Keys of the Problem Details itself: a detail cannot use them (ADR 0035). */
   private static final Set<String> RESERVED_KEYS =
       Set.of("type", "title", "status", "detail", "instance", "code");
-
-  private static final Pattern CODE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9.-]*");
 
   /** What kind of refusal it is, which decides the HTTP status. */
   public enum Type {
@@ -34,13 +38,13 @@ public final class RuleViolation extends RuntimeException {
 
   private final String code;
   private final Type type;
-  private final transient Map<String, Object> details;
+  private final Map<String, Object> details;
 
   /**
-   * @param code code of the rule, with the ASCII hyphen
+   * @param code code of the rule, in capitals with the ASCII hyphen, up to 32 characters
    * @param type kind of refusal
-   * @param details extensions of the answer: text, number or boolean values, none of them using a
-   *     key of the Problem Details
+   * @param details extensions of the answer: {@code String}, {@code Integer}, {@code Long}, {@code
+   *     BigDecimal} or {@code Boolean} values, none of them using a key of the Problem Details
    */
   public RuleViolation(String code, Type type, Map<String, ?> details) {
     super(describe(code, type));
@@ -67,21 +71,37 @@ public final class RuleViolation extends RuntimeException {
   private static String describe(String code, Type type) {
     Objects.requireNonNull(code, "code");
     Objects.requireNonNull(type, "type");
-    if (!CODE.matcher(code).matches()) {
-      throw new IllegalArgumentException("A rule code is ASCII, without spaces: " + code);
+    if (code.length() > MAX_CODE_LENGTH || !CODE.matcher(code).matches()) {
+      throw new IllegalArgumentException("Not a rule code (capitals and ASCII hyphen): " + code);
     }
     return code + " " + type;
+  }
+
+  /**
+   * Only immutable values that JSON writes exactly: no {@code Double} (NaN has no JSON form) and no
+   * {@code StringBuilder} or other mutable type.
+   */
+  private static boolean isScalar(Object value) {
+    return value instanceof String
+        || value instanceof Integer
+        || value instanceof Long
+        || value instanceof BigDecimal
+        || value instanceof Boolean;
   }
 
   private static Map<String, Object> copyOf(Map<String, ?> source) {
     Objects.requireNonNull(source, "details");
     Map<String, Object> copy = new LinkedHashMap<>();
     source.forEach((key, value) -> {
+      if (key == null || key.isEmpty()) {
+        throw new IllegalArgumentException("A detail key cannot be null or empty");
+      }
       if (RESERVED_KEYS.contains(key)) {
         throw new IllegalArgumentException("A detail cannot use the key " + key);
       }
-      if (!(value instanceof CharSequence || value instanceof Number || value instanceof Boolean)) {
-        throw new IllegalArgumentException("A detail is text, number or boolean: " + key);
+      if (!isScalar(value)) {
+        throw new IllegalArgumentException(
+            "A detail is a String, Integer, Long, BigDecimal or Boolean: " + key);
       }
       copy.put(key, value);
     });
