@@ -1,8 +1,8 @@
 # ADR-0035 · Dependencias entre módulos y errores de negocio de la feature 007: `audit → tax`, `tax → platform`, `shared` como módulo y la zona tributaria
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** 2026-11-13
-- **Decisores:** responsable del proyecto, que aprobó la decisión en la H2 de la feature 007 (H2‑5 de su `plan.md`) el 2026-11-12 (equipo de una persona, `AGENTS.md` §4.3). La aceptación formal queda para la H3 del PR que lo agrega
+- **Decisores:** responsable del proyecto, que aprobó la decisión en la H2 de la feature 007 (H2‑5 de su `plan.md`) el 2026-11-12 y la aceptó formalmente el 2026-11-13, después de integrar el PR que lo agregó como «Propuesto» (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** `spec/features/007-vigencias-fiscales/plan.md` (paso 2, H2‑5 y «Decisiones»); `docs/arquitectura/01` §3.1 y §3.2; `docs/arquitectura/02` §8 y §9; `docs/funcional/01` §6.1; ADR 0002, 0008, 0016, 0021 y 0025
 
 ## Contexto
