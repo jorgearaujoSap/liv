@@ -6,19 +6,22 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * The OpenAPI contracts of the feature 001 match the table "Contratos" of its plan (platform
- * repository, "Datos, API y seguridad") and the decisions of 2026-11-02. The build also validates
- * each file when it generates the interfaces. Paths are relative to backend/, where Maven runs the
- * tests.
+ * The OpenAPI contracts of the features 001 and 007 match the table "Contratos" of the plan of 001
+ * and "Datos, API y seguridad" of the plan of 007 (platform repository), and the decisions of
+ * 2026-11-02. The build also validates each file when it generates the interfaces. Paths are
+ * relative to backend/, where Maven runs the tests.
  */
-@DisplayName("Contratos OpenAPI de la feature 001 (T11)")
+@DisplayName("Contratos OpenAPI de las features 001 (T11) y 007 (T7)")
 class OpenApiContractTest {
 
   private static final Path CONTRACTS = Path.of("contracts", "openapi");
@@ -27,6 +30,8 @@ class OpenApiContractTest {
   private static final String YEARS = "/api/v1/fiscal-years";
   private static final String PROBLEM_REF = "#/components/schemas/Problem";
   private static final String FISCAL_YEAR_REF = "#/components/schemas/FiscalYear";
+  private static final String YEAR_REF = "#/components/schemas/Year";
+  private static final String BUSINESS_DATE_REF = "#/components/schemas/BusinessDate";
   private static final String PROBLEM_JSON = "application/problem+json";
 
   /** Length of core.user_session.sid (migration V202611010905). */
@@ -171,6 +176,7 @@ class OpenApiContractTest {
         .containsEntry("$ref", "#/components/schemas/CreatableYear");
     assertThat(strings(schema(contract, "FiscalYear").get("required")))
         .containsExactlyInAnyOrder("year", "startsOn", "endsOn", "status", "assessmentsEnabled");
+    assertFiscalYearFields(schema(contract, "FiscalYear"));
     assertErrorsAreProblems(contract, get);
   }
 
@@ -198,7 +204,7 @@ class OpenApiContractTest {
 
   @Test
   @DisplayName(
-      "V-01 · El año de una vigencia es un entero de 1999 a 2100, en el cuerpo y en la ruta")
+      "H2-2 · El año de una vigencia es un entero de 1999 a 2100, en el cuerpo y en la ruta")
   void yearIsBounded() {
     Map<String, Object> contract = load("tax.yaml");
     assertYearRange(schema(contract, "Year"));
@@ -232,6 +238,7 @@ class OpenApiContractTest {
     assertThat(successSchema(get, "200")).isEqualTo("#/components/schemas/FiscalYearDetail");
     assertSysNotFound(contract, get);
     Map<String, Object> detail = schema(contract, "FiscalYearDetail");
+    assertFiscalYearFields(detail);
     assertThat(strings(detail.get("required")))
         .containsExactlyInAnyOrder(
             "year",
@@ -249,7 +256,9 @@ class OpenApiContractTest {
         .containsExactlyInAnyOrder("items", "canEnable", "missing");
     assertThat(map(property(preparation, "items").get("items")))
         .containsEntry("$ref", "#/components/schemas/PreparationItem");
-    assertThat(map(property(preparation, "missing").get("items"))).containsEntry("type", "integer");
+    assertThat(map(property(preparation, "missing").get("items")))
+        .containsEntry("type", "integer")
+        .containsEntry("minimum", 1);
     assertErrorsAreProblems(contract, get);
   }
 
@@ -261,6 +270,12 @@ class OpenApiContractTest {
     assertThat(strings(item.get("required")))
         .containsExactlyInAnyOrder("number", "code", "required", "option", "status", "reason");
     assertThat(property(item, "required")).containsEntry("type", "boolean");
+    assertThat(property(item, "number"))
+        .containsEntry("type", "integer")
+        .containsEntry("minimum", 1);
+    assertThat(property(item, "option")).containsEntry("pattern", "^[0-9]+(\\.[0-9]+)*$");
+    assertThat(property(item, "status"))
+        .containsEntry("$ref", "#/components/schemas/PreparationItemStatus");
     assertOpenString(
         property(item, "code"),
         "FISCAL_YEAR_IN_PREPARATION",
@@ -293,19 +308,24 @@ class OpenApiContractTest {
     assertThat(strings(schema(contract, "CreateFiscalYearRequest").get("required")))
         .containsExactly("year");
     assertThat(post).containsKey("requestBody");
-    assertRejection(contract, post, "409", "V-01", "year");
-    assertRejection(
-        contract,
-        post,
-        "422",
-        "V-02",
-        "V-05",
-        "reason",
-        "requiredYear",
-        "oldestYear",
-        "currentYear",
-        "nextYear",
-        "maxYear");
+    // El año de V-01 y el motivo de V-02 y V-05 vienen siempre: la pantalla arma su mensaje con
+    // ellos.
+    assertThat(strings(assertRejection(contract, post, "409", "V-01", "year").get("required")))
+        .containsExactly("year");
+    Map<String, Object> creation =
+        assertRejection(
+            contract,
+            post,
+            "422",
+            "V-02",
+            "V-05",
+            "reason",
+            "requiredYear",
+            "oldestYear",
+            "currentYear",
+            "nextYear",
+            "maxYear");
+    assertThat(strings(creation.get("required"))).containsExactly("reason");
     assertOpenString(
         property(schema(contract, "CreationRejectionExtensions"), "reason"),
         "GAP",
@@ -327,7 +347,11 @@ class OpenApiContractTest {
         .containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409");
     assertThat(successSchema(post, "200")).isEqualTo(FISCAL_YEAR_REF);
     assertSysNotFound(contract, post);
-    assertRejection(contract, post, "409", "V-06", "year", "status");
+    assertRejection(contract, post, "409", "V-06", "year", "currentStatus");
+    assertThat(strings(schema(contract, "TransitionRejectionExtensions").get("required")))
+        .containsExactlyInAnyOrder("year", "currentStatus");
+    assertThat(property(schema(contract, "TransitionRejectionExtensions"), "currentStatus"))
+        .containsEntry("$ref", "#/components/schemas/FiscalYearStatus");
     assertErrorsAreProblems(contract, post);
   }
 
@@ -345,9 +369,37 @@ class OpenApiContractTest {
     assertThat(operationIds)
         .containsExactlyInAnyOrder(
             "listFiscalYears", "getFiscalYear", "createFiscalYear", "openFiscalYearPreparation");
+    // CA-12: ningún esquema expone el identificador de la fila ni el de la administración.
+    map(map(contract.get("components")).get("schemas"))
+        .forEach((name, schema) ->
+            assertThat(map(map(schema).get("properties")))
+                .as("esquema %s", name)
+                .satisfies(properties -> {
+                  if (properties != null) {
+                    assertThat(properties.keySet()).doesNotContain("id", "administrationId");
+                  }
+                }));
     // assessmentsEnabled solo se lee: ningún cuerpo de petición lo recibe.
     assertThat(map(schema(contract, "CreateFiscalYearRequest").get("properties")).keySet())
         .containsExactly("year");
+  }
+
+  @Test
+  @DisplayName("01 §10 · Los errores de tax se sirven solo como application/problem+json")
+  void taxErrorsAreOnlyProblemJson() {
+    Map<String, Object> contract = load("tax.yaml");
+    map(map(contract.get("components")).get("responses"))
+        .forEach((name, response) ->
+            assertThat(map(map(response).get("content")))
+                .as("respuesta %s", name)
+                .containsOnlyKeys(PROBLEM_JSON));
+  }
+
+  @Test
+  @DisplayName("ADR 0005 · El build genera la interfaz del contrato tax")
+  void taxInterfaceIsGenerated() throws ClassNotFoundException {
+    assertThat(Class.forName("co.com.sapenlinea.liv.tax.api.contract.FiscalYearsApi"))
+        .isInterface();
   }
 
   @Test
@@ -389,7 +441,7 @@ class OpenApiContractTest {
 
   @Test
   @DisplayName("001-14 · Un usuario sin sesión o no registrado recibe 401 con el código 001-14")
-  void unregisteredUserIsNotASessionlessCodeOf00105() {
+  void unregisteredUserGets001_14() {
     for (String file : List.of("core.yaml", "platform.yaml")) {
       String description = (String) response(load(file), "Unauthorized").get("description");
       assertThat(description).as(file).contains("001-14").contains("no registrado");
@@ -401,15 +453,23 @@ class OpenApiContractTest {
 
   /**
    * A string that may grow without breaking the contract (openapi-diff, Q08, flags a new value of
-   * an enum): no enum, and the documented values are in its description.
+   * an enum): no enum, a maxLength that fits the longest documented value, and every documented
+   * value in its description as a whole word.
    */
   private static void assertOpenString(Map<String, Object> schema, String... documented) {
     Map<String, Object> value =
         "array".equals(schema.get("type")) ? map(schema.get("items")) : schema;
-    String description = (String) schema.get("description") + value.get("description");
+    String description =
+        Objects.toString(schema.get("description"), "")
+            + " "
+            + Objects.toString(value.get("description"), "");
     assertThat(value).containsEntry("type", "string").doesNotContainKey("enum");
-    assertThat(value).containsKey("maxLength");
-    assertThat(description).contains(documented);
+    assertThat((Integer) value.get("maxLength"))
+        .as("maxLength de %s", List.of(documented))
+        .isGreaterThanOrEqualTo(Arrays.stream(documented).mapToInt(String::length).max().orElse(0));
+    for (String name : documented) {
+      assertThat(description).containsPattern("(?<![A-Z_])" + name + "(?![A-Z_])");
+    }
   }
 
   private static void assertYearRange(Map<String, Object> year) {
@@ -419,18 +479,34 @@ class OpenApiContractTest {
         .containsEntry("maximum", 2100);
   }
 
-  private static void assertSysNotFound(
-      Map<String, Object> contract, Map<String, Object> operation) {
-    Map<String, Object> notFound =
-        resolve(contract, map(map(operation.get("responses")).get("404")));
-    assertThat((String) notFound.get("description")).contains("SYS-404");
+  /** The fields that FiscalYear and FiscalYearDetail share: dates without zone, state, flag. */
+  private static void assertFiscalYearFields(Map<String, Object> schema) {
+    assertThat(property(schema, "year")).containsEntry("$ref", YEAR_REF);
+    for (String date : List.of("startsOn", "endsOn")) {
+      assertThat(property(schema, date)).containsEntry("$ref", BUSINESS_DATE_REF);
+    }
+    assertThat(property(schema, "status"))
+        .containsEntry("$ref", "#/components/schemas/FiscalYearStatus");
+    assertThat(property(schema, "assessmentsEnabled")).containsEntry("type", "boolean");
   }
 
   /**
-   * A rejection of a business rule: its response names the rule codes and extends the Problem with
-   * the given members (the years the screen quotes). Codes start with "V-"; the rest are members.
+   * CA-12: a year nobody created and a fiscal year of another administration are the same answer,
+   * so both operations use the one shared response, with its code.
    */
-  private static void assertRejection(
+  private static void assertSysNotFound(
+      Map<String, Object> contract, Map<String, Object> operation) {
+    Map<String, Object> notFound = map(map(operation.get("responses")).get("404"));
+    assertThat(notFound).containsExactly(Map.entry("$ref", "#/components/responses/NotFound"));
+    assertThat((String) response(contract, "NotFound").get("description")).contains("SYS-404");
+  }
+
+  /**
+   * A rejection of a business rule: its response names the rule codes (the items that start with
+   * "V-") and extends the Problem with an extension whose members are the given ones. A year member
+   * is a Year, and no member redefines a member of the Problem. Returns the extension schema.
+   */
+  private static Map<String, Object> assertRejection(
       Map<String, Object> contract, Map<String, Object> operation, String status, String... items) {
     Map<String, Object> resolved =
         resolve(contract, map(map(operation.get("responses")).get(status)));
@@ -440,14 +516,22 @@ class OpenApiContractTest {
     assertThat(parts.get(0)).containsEntry("$ref", PROBLEM_REF);
     String extensionName =
         ((String) parts.get(1).get("$ref")).substring("#/components/schemas/".length());
-    Map<String, Object> members = map(schema(contract, extensionName).get("properties"));
+    Map<String, Object> extension = schema(contract, extensionName);
+    Map<String, Object> members = map(extension.get("properties"));
+    assertThat(members.keySet())
+        .as("la extensión %s no redefine el Problem", extensionName)
+        .doesNotContainAnyElementsOf(map(schema(contract, "Problem").get("properties")).keySet());
     for (String item : items) {
       if (item.startsWith("V-")) {
         assertThat((String) resolved.get("description")).as("respuesta %s", status).contains(item);
       } else {
         assertThat(members).as("extensión %s", extensionName).containsKey(item);
+        if (item.toLowerCase(Locale.ROOT).endsWith("year")) {
+          assertThat(map(members.get(item))).as(item).containsEntry("$ref", YEAR_REF);
+        }
       }
     }
+    return extension;
   }
 
   private static void assertSid(Map<String, Object> sid) {
@@ -486,6 +570,7 @@ class OpenApiContractTest {
       Map<String, Object> problem = map(media.get("schema"));
       // A rejection extends the Problem with its members: allOf [Problem, extension].
       if (problem.containsKey("allOf")) {
+        assertThat(list(problem.get("allOf"))).as("respuesta %s", code).hasSize(2);
         problem = list(problem.get("allOf")).get(0);
       }
       assertThat(problem).containsEntry("$ref", PROBLEM_REF);

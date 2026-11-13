@@ -12,6 +12,9 @@ info:
     Los valores de relation, de los motivos, de availableActions y de los puntos de la lista de
     preparación son cadenas con sus valores documentados y no enumeraciones, para que una feature
     posterior agregue los suyos sin romper el contrato (Q08); el frontend ignora los que no conoce.
+    Su maxLength es un límite fijo: subirlo también es un cambio incompatible. Los códigos de
+    regla (V-01, V-02, V-05 y V-06) se escriben con el guion ASCII, no con el de no separación del
+    Doc. 01.
 tags:
   - name: FiscalYears
     description: Vigencias fiscales de la administración y su preparación.
@@ -104,7 +107,9 @@ paths:
       operationId: openFiscalYearPreparation
       summary: Abre la preparación de la vigencia, de PLANEADA a EN_PREPARACION (007-10).
       description: >-
-        Requiere tax.fiscal-year.prepare. Desde cualquier otro estado, también cuando otra persona
+        Requiere tax.fiscal-year.prepare. Primero se comprueba el permiso (403), luego que la
+        vigencia exista en la administración (404) y solo después el estado: así V-06 nunca revela
+        el estado de una vigencia ajena. Desde cualquier otro estado, también cuando otra persona
         la abrió un instante antes, responde V-06 con el estado actual y no cambia nada. No hay
         ninguna operación que habilite la liquidación: assessmentsEnabled no se puede cambiar por
         esta API.
@@ -163,14 +168,15 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
     Forbidden:
-      description: El usuario no tiene el permiso de la operación (007-02, 007-09). code 001-16.
+      description: >-
+        El usuario no tiene el permiso de la operación. code: 001-16.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     NotFound:
       description: >-
-        No hay una vigencia de ese año en la administración del usuario. code SYS-404, con un
+        No hay una vigencia de ese año en la administración del usuario. code: SYS-404, con un
         cuerpo idéntico sea cual sea el motivo: un año que nadie creó o una vigencia de otra
         administración (CA-12).
       content:
@@ -203,7 +209,8 @@ components:
     TransitionNotAllowed:
       description: >-
         V-06: la vigencia no está PLANEADA, así que la transición no es posible desde su estado
-        actual. Extensiones: year y status, el estado actual.
+        actual. Extensiones: year y currentStatus, el estado actual (no se llama status porque
+        las extensiones no pueden usar las claves del Problem, ADR 0035).
       content:
         application/problem+json:
           schema:
@@ -225,7 +232,8 @@ components:
       type: string
       description: >-
         Estado de la vigencia en la administración (Doc. 01 §5). La 007 solo llega a
-        EN_PREPARACION; los demás los usan las features siguientes.
+        EN_PREPARACION; los demás los usan las features siguientes. Es una enumeración cerrada a
+        propósito: agregar un estado es un cambio incompatible (Q08) y sube la versión mayor.
       enum: [PLANEADA, EN_PREPARACION, LISTA, HABILITADA, CERRADA]
     FiscalYear:
       type: object
@@ -259,7 +267,7 @@ components:
         creatableYears:
           type: array
           description: >-
-            Años que la creación aceptaría ahora, de uno a dos y siempre dentro de la tabla
+            Años que la creación aceptaría ahora, de cero a dos y siempre dentro de la tabla
             nacional. Vacío sin canCreate y cuando createBlocked viene.
           items:
             $ref: '#/components/schemas/CreatableYear'
@@ -277,7 +285,7 @@ components:
           $ref: '#/components/schemas/BusinessDate'
         relation:
           type: string
-          maxLength: 16
+          maxLength: 32
           description: >-
             Relación del año con el año en curso de la hora oficial de Colombia. Valores
             documentados: PAST (un año pasado que sigue pendiente, por ejemplo 2027 cuando la más
@@ -392,7 +400,8 @@ components:
       type: string
       description: >-
         MET (cumplido), PENDING (pendiente) u OBSERVED (con observación). Nadie usa OBSERVED
-        todavía. Opcional no es un estado: es required en falso.
+        todavía. Opcional no es un estado: es required en falso. Enumeración cerrada, como
+        FiscalYearStatus.
       enum: [MET, PENDING, OBSERVED]
     CreateFiscalYearRequest:
       type: object
@@ -403,6 +412,7 @@ components:
     YearExtensions:
       type: object
       description: Extensión del Problem de V-01.
+      required: [year]
       properties:
         year:
           $ref: '#/components/schemas/Year'
@@ -411,6 +421,7 @@ components:
       description: >-
         Extensiones del Problem de V-02 y V-05; viene solo la que corresponde al motivo, y reason
         siempre.
+      required: [reason]
       properties:
         reason:
           type: string
@@ -430,10 +441,11 @@ components:
     TransitionRejectionExtensions:
       type: object
       description: Extensiones del Problem de V-06.
+      required: [year, currentStatus]
       properties:
         year:
           $ref: '#/components/schemas/Year'
-        status:
+        currentStatus:
           $ref: '#/components/schemas/FiscalYearStatus'
     Problem:
       type: object
