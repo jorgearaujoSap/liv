@@ -1,9 +1,9 @@
 # Módulo 1 — Menú del sistema y cargue anual de tablas base de liquidación
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
-> **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (79 tablas desde su versión 2.2, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
+> **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (80 tablas desde su versión 2.3, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
 > **Alcance de esta entrega:** (1) lógica de negocio general y mapa de menú, (2) detalle de **Administración → Cargue de tablas base por vigencia**, (3) consultas con filtros y exportación a Excel del proceso de cargue.
-> **Versión:** 0.4 — el menú 5 (§3) remite al Doc. 05 y agrega su opción 5.6, y el documento base pasa a las 79 tablas del ERD 2.2 (feature 005). La versión 0.3 agregó la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
+> **Versión:** 0.5 — la vigencia fiscal pasa a ser **por administración** (feature 007, opción 1.4; decisión 3 de su H1 y enmiendas 1 a 3 de su H2): el año sigue nacional en `tax.fiscal_year` y el estado y `assessments_enabled` pasan a `tax.administration_fiscal_year`. Cambian el encabezado (80 tablas del ERD 2.3), §1, §3, §5 (modelo, reglas V‑01, V‑02 y V‑04, reglas nuevas V‑05 y V‑06, orden de evaluación al crear y permisos de acción), §6.1, §8 y §11, y se agrega el §13 con los cambios que esto aplica a otros documentos. La versión 0.4 hizo que el menú 5 (§3) remitiera al Doc. 05 con su opción 5.6, y que el documento base pasara a las 79 tablas del ERD 2.2 (feature 005). La versión 0.3 agregó la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
 
 ---
 
@@ -18,7 +18,7 @@ Disponer de un proceso controlado, auditable e idempotente para incorporar **añ
 | Calendario de vencimientos y descuentos | Acto de la administración territorial | `tax.tax_calendar` |
 | Beneficios / descuentos autorizados | Acto de la administración territorial | `tax.tax_benefit` |
 
-La liquidación (`tax.tax_assessment`) **solo puede ejecutarse** sobre una vigencia cuyas tablas base estén **publicadas** y cuya vigencia tenga `assessments_enabled = true`.
+La liquidación (`tax.tax_assessment`) **solo puede ejecutarse** sobre una vigencia cuyas tablas base estén **publicadas** y que, en la administración que liquida, tenga `assessments_enabled = true` y estado `HABILITADA` en `tax.administration_fiscal_year` (§5; LQ‑P01, Doc. 02 §B.3). La habilitación es de cada administración: habilitarla en una no la habilita en otra.
 
 ---
 
@@ -45,7 +45,7 @@ SISTEMA DE LIQUIDACIÓN DE IMPUESTO VEHICULAR
 │   ├── 1.1 Entidades y administraciones tributarias   core.territorial_entity / core.tax_administration
 │   ├── 1.2 Usuarios, roles y permisos                 core.admin_user
 │   ├── 1.3 Normas y soportes                          documents.legal_instrument / documents.document
-│   ├── 1.4 Vigencias fiscales                         tax.fiscal_year
+│   ├── 1.4 Vigencias fiscales                         tax.fiscal_year / tax.administration_fiscal_year
 │   ├── 1.5 Cargue de tablas base por vigencia  ★
 │   │   ├── 1.5.1 Asistente de preparación de vigencia (checklist)
 │   │   ├── 1.5.2 Catálogos de avalúos (versiones)
@@ -154,9 +154,12 @@ Qué opciones del menú ve cada rol. La aprobó el responsable en H2 de la featu
 
 ## 5. Opción 1.4 — Vigencias fiscales (prerrequisito)
 
-**Tabla:** `tax.fiscal_year (year PK, starts_on, ends_on, status, assessments_enabled)`
+**Modelo** (feature 007; ERD 2.3): el año es nacional y la vigencia es de cada administración.
 
-**Estados de la vigencia**
+- `tax.fiscal_year (year PK, starts_on, ends_on)`: el año fiscal y sus fechas, un dato nacional de referencia que carga la migración. La administración no lo escribe.
+- `tax.administration_fiscal_year (id PK, administration_id, fiscal_year, status, assessments_enabled, created_by, created_at, updated_by, updated_at)`: la **vigencia de la administración**, una fila por administración y año. Su estado y su `assessments_enabled` son los que dicen si esa administración puede liquidar el año (LQ‑P01, Doc. 02 §B.3) y los que lee el checklist 1.5.1 (§6.1). Toda consulta y toda operación de la opción 1.4 se filtran por la administración del usuario (principio 7).
+
+**Estados de la vigencia de la administración**
 
 ```mermaid
 stateDiagram-v2
@@ -171,10 +174,37 @@ stateDiagram-v2
 
 **Reglas**
 
-- V‑01: `year` único; `starts_on` = 1 de enero y `ends_on` = 31 de diciembre del año (parametrizable si la norma lo exige).
-- V‑02: no se puede crear la vigencia N+1 si la N no existe (salvo carga histórica autorizada).
+- V‑01: una administración tiene una sola vigencia por año (`UNIQUE (administration_id, fiscal_year)`; si dos personas crean el mismo año a la vez, se crea una sola y la otra se rechaza con V‑01). La vigencia se crea en `PLANEADA`, con `assessments_enabled = false`, y sus fechas son el 1 de enero y el 31 de diciembre del año (`starts_on` y `ends_on` del año nacional, fijadas por `CHECK`; no se escriben a mano). Si una norma exigiera otras fechas, se cambia con una migración y una versión de este documento; hoy no se conoce ninguna.
+- V‑02: dentro de una administración no se puede saltar un año.
+  - Si la vigencia más reciente es N, solo se puede crear la N+1; un año posterior se rechaza con el motivo `GAP` y dice cuál debe crearse primero.
+  - Un año anterior a la vigencia más antigua es una vigencia histórica: se rechaza con el motivo `HISTORICAL` mientras la carga de vigencias históricas no esté autorizada (§11, pendiente 5).
+  - Estos dos motivos suponen que la administración ya tiene vigencias; si no tiene ninguna, solo rige V‑05 `FIRST_YEAR`.
 - V‑03: `assessments_enabled = true` solo si el checklist 1.5.1 está completo.
-- V‑04: una vigencia `CERRADA` no admite nuevos catálogos; correcciones posteriores requieren reapertura justificada y auditada.
+- V‑04: una vigencia `CERRADA` no admite nuevos catálogos; correcciones posteriores requieren reapertura justificada y auditada. Quién cierra, cuándo y a qué estado vuelve una reapertura está pendiente (§11, pendiente 7).
+- V‑05 (nueva, v0.5): límites del año que se puede crear.
+  - La **primera** vigencia de una administración solo puede ser el año en curso o el siguiente: otro año se rechaza con el motivo `FIRST_YEAR` y dice cuáles se admiten. Quien crea como primera vigencia el año siguiente ya no podrá crear después el año en curso, porque sería anterior a la más antigua (V‑02 `HISTORICAL`).
+  - Nunca se puede crear un año posterior al **siguiente al año en curso**: se rechaza con el motivo `FUTURE_LIMIT` y dice cuál es el último año que se puede crear. El límite existe porque una vigencia no se borra: sin él se encadenarían años futuros sin forma de corregirlos.
+  - Las dos son reglas de este documento y no de la configuración de jurisdicción, porque no cambian entre jurisdicciones.
+  - El año en curso es el de la hora oficial de Colombia (zona `America/Bogota`, que la aplicación toma de su configuración): cerca del 31 de diciembre, el reloj de otra zona daría otro año.
+- V‑06 (nueva, v0.5): una transición que el diagrama no permite desde el estado actual se rechaza con V‑06 y el estado actual, sin cambiar nada. La opción 1.4 implementa una sola transición, `PLANEADA` → `EN_PREPARACION`, la de «Abrir preparación»; esa acción desde cualquier otro estado da V‑06 (la flecha `LISTA` → `EN_PREPARACION` es de «Nueva versión de tabla», no de esa acción), también cuando otra persona la abrió un instante antes. La reapertura de V‑04 no está en el diagrama: la define la feature de la opción 1.5.1 (pendiente 7).
+- **Orden de evaluación al crear**, de modo que cada caso da un solo motivo: el primero que falla es el que se responde.
+  1. V‑01 (el año ya existe).
+  2. V‑02 `HISTORICAL`.
+  3. V‑05 `FIRST_YEAR`.
+  4. V‑02 `GAP`.
+  5. V‑05 `FUTURE_LIMIT`.
+
+  Por ejemplo, 2029 en una administración cuya vigencia más reciente es 2026 da `GAP`, que dice qué crear primero.
+
+**Permisos de acción de la opción 1.4** (aprobados en H2 de la feature 007, decisión H2‑3). Como los de §4.1, viven en `platform.role_permission`, y la prueba que compara esa tabla con la esperada los incluirá (migración de la feature 007): documento y prueba deben mantenerse iguales.
+
+| Permiso | Roles | Acción |
+|---|---|---|
+| `tax.fiscal-year.read` | ADMIN_SISTEMA, CARGADOR_TABLAS, APROBADOR_TABLAS, CONSULTA, AUDITOR | Consultar las vigencias y su preparación (ya está en §4.1) |
+| `tax.fiscal-year.create` | ADMIN_SISTEMA | Crear una vigencia |
+| `tax.fiscal-year.prepare` | ADMIN_SISTEMA | Abrir la preparación de una vigencia (`PLANEADA` → `EN_PREPARACION`) |
+
+Es la fila «Crear / abrir vigencia fiscal» de la matriz de acciones de §4. La opción 1.4 llega hasta *En preparación*, con la lista de preparación de solo lectura y «Habilitar liquidación» inhabilitado con los puntos que faltan (V‑03, CA‑14). **Habilitar la liquidación con doble firma, el estado `LISTA` y el cierre de la vigencia van en la feature de la opción 1.5.1**, que se hará cuando existan los puntos 2 a 9 de §6.1; hasta entonces `assessments_enabled` no puede ser verdadero.
 
 ---
 
@@ -186,7 +216,7 @@ Pantalla tipo checklist por `fiscal_year` + `administration_id`. Cada ítem mues
 
 | # | Requisito | Verificación automática |
 |---|---|---|
-| 1 | Vigencia creada en estado `EN_PREPARACION` | `tax.fiscal_year.status` |
+| 1 | Vigencia creada en estado `EN_PREPARACION` | `tax.administration_fiscal_year.status` |
 | 2 | Resolución de avalúos registrada con PDF | `documents.legal_instrument` + `documents.document` con SHA‑256 |
 | 3 | Catálogo de avalúos **publicado** para la vigencia | Existe `valuation_catalog` con `import_status = PUBLISHED` y `fiscal_year = N` |
 | 4 | Tarifas por rango registradas y sin solapamientos | `tax.tax_rate` cubre de 0 a ∞ sin huecos ni traslapes por `vehicle_category` |
@@ -477,7 +507,7 @@ Filtros: vigencia, administración, categoría de vehículo, grupo de contribuye
 
 | Evento | `entity_name` | Datos registrados |
 |---|---|---|
-| Crear vigencia / cambiar estado | `tax.fiscal_year` | estado anterior/nuevo |
+| Crear vigencia / cambiar estado | `tax.administration_fiscal_year` (`entity_id`: el `id` de su fila) | año, estado anterior/nuevo |
 | Crear catálogo | `valuation.valuation_catalog` | vigencia, versión, norma |
 | Cargar archivo | `valuation.valuation_import_batch` | nombre, SHA‑256, parámetros |
 | Validar | idem | totales, errores por código |
@@ -534,8 +564,13 @@ Detectados al diseñar este módulo (no rompen el ERD, lo complementan):
 2. Fuente normativa y forma de carga de **rangos y tarifas** por vigencia en la jurisdicción (nacional vs. departamental/distrital).
 3. Tratamiento de **vehículos sin referencia en la tabla** (homologación por similar, `similar_valuation_id`): se diseñará en el módulo 2.6.
 4. Umbrales de las advertencias `R009`, `R012` (valores por defecto propuestos; parametrizables en 1.8).
-5. Si se admite carga de **vigencias históricas** (años anteriores) para cartera, y quién la autoriza.
+5. Si se admite carga de **vigencias históricas** (años anteriores) para cartera, y quién la autoriza. La feature de la opción 5.1 (apertura de cartera histórica, Fase 5) decide si se admiten y lo resuelve antes de cargarlas (la primera vigencia de cartera, `cartera_historica.vigencias_desde`, está en `PENDIENTE` en la configuración de Ipiales). Mientras tanto, V‑02 rechaza un año anterior a la vigencia más antigua (`HISTORICAL`, §5).
 6. Tecnología de exportación (generación servidor con librería xlsx en streaming) y política de retención de los archivos exportados.
+7. **Cierre y reapertura de la vigencia (V‑04):** quién cierra una vigencia y cuándo, a qué estado vuelve una reapertura y quién la autoriza. Se le pregunta al responsable funcional y lo necesita la feature de la opción 1.5.1, que implementa el cierre.
+8. **Estado de la vigencia y catálogos nacionales:** con el estado por administración, lo decide la feature de cada opción 1.5.x:
+   - qué estados admiten cargar cada tabla (V‑04, §6.2);
+   - cómo se lee «vigencia no cerrada» para un catálogo o una tabla nacional (`administration_id` nulo);
+   - si publicar una versión nacional devuelve a *En preparación* la vigencia *Lista* de cada administración.
 
 ---
 
@@ -543,3 +578,17 @@ Detectados al diseñar este módulo (no rompen el ERD, lo complementan):
 
 - Módulo 2.6 — Homologación vehículo ↔ avalúo por vigencia.
 - Módulo 3 — Reglas de cálculo de la liquidación (base gravable, tarifa, proporcionalidad de meses, descuentos, redondeo) y liquidación masiva.
+
+---
+
+## 13. Cambios aplicados a otros documentos
+
+**Versión 0.5** (feature 007, que lleva al repositorio las vigencias fiscales por administración):
+
+| Documento | Sección | Cambio |
+|---|---|---|
+| ERD | Encabezado, esquema `tax` y checklist previo a Flyway (versión 2.3) | `tax.fiscal_year` queda con `year`, `starts_on` y `ends_on` (con `CHECK` y un rango técnico de años, 1999 a 2100) y pierde `status` y `assessments_enabled`; nueva `tax.administration_fiscal_year` con su RLS y sus permisos de `liv_app`; excepción H2‑2 a CC‑01 (fechas y rango de años en la base de datos); nota de las FK futuras hacia el año y hacia la vigencia; autorización de migrar las dos tablas con el checklist abierto (H2‑1); de 79 a 80 tablas |
+| 02 | Encabezado (versión 0.3), LQ‑P01 y diagrama de §B.2 | La liquidación exige la vigencia de la **administración** (`tax.administration_fiscal_year`: `assessments_enabled` y estado `HABILITADA`), no la del año nacional |
+| `AGENTS.md` | §3.1 | ERD con 80 tablas, versión 2.3 |
+
+No cambian el Doc. 03 (el ajuste de su §5.2, la sección `vigencia` de la configuración de jurisdicción, es de la feature de la opción 1.5.9), el Doc. 05 (la feature de su opción 5.1 hereda el pendiente 5 de §11 de este documento) ni la matriz de consulta de §4.1: los permisos nuevos de la opción 1.4 están en §5.

@@ -1,8 +1,15 @@
 # ERD definitivo propuesto — Impuesto vehicular
 
-> Basado en el catálogo lógico inicial de 63 tablas y 563 campos (65 tablas desde la versión 2.1 y 79 desde la 2.2). Validación estructural; no supone aprobación jurídica ni despliegue de PostgreSQL.
+> Basado en el catálogo lógico inicial de 63 tablas y 563 campos (65 tablas desde la versión 2.1, 79 desde la 2.2 y 80 desde la 2.3). Validación estructural; no supone aprobación jurídica ni despliegue de PostgreSQL.
 >
-> **Versión:** 2.2 — registra los ajustes al modelo de la feature 005 · Cartera y recaudo, que el responsable funcional aprobó en la H1 (2026-11-08) y en la H2 (2026-11-09), y las decisiones de la H3 (2026-11-10), reglas 7 y 8 de `ledger`: los nueve de `docs/funcional/04_Cuenta_Corriente_y_Recaudo.md` §11 y los de `05_Cartera_Intereses_Sanciones_Prescripcion.md` §10. Es modelo lógico: las tablas se crean con las features de las Fases 4 y 5.
+> **Versión:** 2.3 — registra los ajustes al modelo de la feature 007 · Vigencias fiscales (menú 1.4): el responsable funcional los aprobó como alcance en la H1 (decisión 3, 2026-11-12) y aprobó el detalle en la H2 (decisiones resueltas el 2026-11-12 y plan aprobado el 2026-11-13; H2‑1, H2‑2 y H2‑4, en «Decisiones de la H2» de `spec/features/007-vigencias-fiscales/plan.md`). El año fiscal sigue siendo nacional, y el estado de la vigencia y la habilitación de la liquidación pasan a una tabla nueva por administración. Es el primer cambio del modelo que se migra con una feature de negocio: las dos tablas de `tax` las crea la migración de la feature 007.
+>
+> - **Tablas:** `tax` pasa de 8 a 9 (`tax.administration_fiscal_year`): 79 + 1 = **80 tablas**.
+> - **Columnas:** `tax.fiscal_year` pierde `status` y `assessments_enabled`, que pasan a la tabla nueva, y gana `CHECK` sobre sus fechas. Como la tabla todavía no existe en ninguna migración, no hace falta *expand/contract*.
+> - **Aislamiento:** la tabla nueva lleva `administration_id` y su RLS. `tax.fiscal_year` es un dato nacional de referencia, sin `administration_id` ni RLS, y `liv_app` solo la lee (`docs/arquitectura/02` §5.1).
+> - **Autorizaciones:** migrar las dos tablas con la lista previa a Flyway abierta (H2‑1) y dejar las fechas del año calendario y el rango técnico de años en la base de datos (H2‑2, excepción a CC‑01 de `docs/arquitectura/04` §1). Véanse «Reglas del esquema (ERD 2.3)» en `tax` y «Checklist de aceptación previo a Flyway».
+>
+> **Versión 2.2:** registra los ajustes al modelo de la feature 005 · Cartera y recaudo, que el responsable funcional aprobó en la H1 (2026-11-08) y en la H2 (2026-11-09), y las decisiones de la H3 (2026-11-10), reglas 7 y 8 de `ledger`: los nueve de `docs/funcional/04_Cuenta_Corriente_y_Recaudo.md` §11 y los de `05_Cartera_Intereses_Sanciones_Prescripcion.md` §10. Es modelo lógico: las tablas se crean con las features de las Fases 4 y 5.
 >
 > - **Tablas:** `ledger` pasa de 7 a 19 (12 nuevas: recibos, archivos y conciliación bancaria, planillas de distribución, control del 20 %, usos de saldos a favor y el catálogo `movement_type`) y `portfolio`, de 11 a 13 (`portfolio_cutoff` y `opening_balance_event`): 65 + 12 + 2 = **79 tablas**.
 > - **Columnas:** cambian las de `ledger.tax_obligation`, `payment`, `credit_balance` y `revenue_distribution`, las de varias tablas de `portfolio` y las de `tax.penalty_rule`. Además, `ledger.obligation_component`, `tax_account_movement` y `payment_allocation` reciben `administration_id`.
@@ -428,7 +435,7 @@ erDiagram
 - `valuation.valuation_import_batch.uploaded_by` → `core.admin_user`
 - `valuation.valuation_import_batch.approved_by` → `core.admin_user`
 
-## TAX — Determinación tributaria (8 tablas)
+## TAX — Determinación tributaria (9 tablas)
 
 ```mermaid
 erDiagram
@@ -436,8 +443,17 @@ erDiagram
         SMALLINT year PK
         DATE starts_on
         DATE ends_on
+    }
+    tax_administration_fiscal_year {
+        UUID id PK
+        UUID administration_id FK
+        SMALLINT fiscal_year FK
         VARCHAR_20 status
         BOOLEAN assessments_enabled
+        UUID created_by FK
+        TIMESTAMPTZ created_at
+        UUID updated_by FK
+        TIMESTAMPTZ updated_at
     }
     tax_tax_rate {
         UUID id PK
@@ -527,6 +543,7 @@ erDiagram
         DATE enforceable_date
         VARCHAR_30 status
     }
+    tax_fiscal_year ||--o{ tax_administration_fiscal_year : fiscal_year
     tax_fiscal_year ||--o{ tax_tax_rate : fiscal_year
     tax_fiscal_year ||--o{ tax_tax_calendar : fiscal_year
     tax_fiscal_year ||--o{ tax_tax_benefit : fiscal_year
@@ -540,7 +557,13 @@ erDiagram
 
 **Tablas y funciones:**
 
-- `tax.fiscal_year` — Apertura y cierre de vigencias fiscales.
+- `tax.fiscal_year` — El año fiscal, un dato **nacional** de referencia. En la 2.3 solo guarda `year` (`SMALLINT`, clave), `starts_on` y `ends_on` (los dos `DATE NOT NULL`), con `CHECK (starts_on = make_date(year, 1, 1))` y `CHECK (ends_on = make_date(year, 12, 31))` (V‑01 del Doc. 01 §5; H2‑2). No lleva `administration_id` ni RLS, y `liv_app` solo la lee: la llena la migración con un **rango técnico y provisional de años, de 1999 a 2100**. Ese rango alcanza mientras el año en curso sea 2099 o anterior, porque V‑05 permite crear hasta el año siguiente; no decide qué vigencias históricas se cargarán (pendiente 5 del Doc. 01 §11). Ampliarlo es una migración nueva. Como el contrato de la API (`minimum` y `maximum` de `year`) y la validación de la pantalla repiten el rango, hay que cambiar los tres, primero el *backend* (migración y contrato) y luego la pantalla, antes de que empiece el año 2100.
+- `tax.administration_fiscal_year` — La **vigencia de una administración** (nueva en la 2.3): una fila por administración y año, con el estado de la vigencia y si la liquidación está habilitada (Doc. 01 §5). Recibe `status` y `assessments_enabled`, que antes estaban en `tax.fiscal_year`. Columnas:
+  - `id` (`UUID`, clave, `DEFAULT uuidv7()`), `administration_id` (`UUID NOT NULL`, FK a `core.tax_administration`) y `fiscal_year` (`SMALLINT NOT NULL`, FK a `tax.fiscal_year (year)`);
+  - `status` (`VARCHAR(20) NOT NULL DEFAULT 'PLANEADA'`) con `CHECK (status IN ('PLANEADA', 'EN_PREPARACION', 'LISTA', 'HABILITADA', 'CERRADA'))`, los códigos del Doc. 01 §5;
+  - `assessments_enabled` (`BOOLEAN NOT NULL DEFAULT false`) con `CHECK (NOT assessments_enabled)`: en la feature 007 la liquidación nunca se habilita. La regla definitiva (con *Habilitada* y quizá *Cerrada*) la pone la feature de la opción 1.5.1 con su migración, cuando se responda el cierre y la reapertura (Doc. 01 §11, pendiente 7);
+  - `created_by` (`UUID NOT NULL`) y `updated_by` (`UUID`), con FK compuestas (`created_by`, `administration_id`) y (`updated_by`, `administration_id`) a `core.admin_user (id, administration_id)`;
+  - `created_at` (`TIMESTAMPTZ NOT NULL DEFAULT now()`) y `updated_at` (`TIMESTAMPTZ`).
 - `tax.tax_rate` — Tarifas y umbrales por vigencia, jurisdicción y clase.
 - `tax.tax_calendar` — Vencimientos y fechas de descuentos por administración y año.
 - `tax.tax_benefit` — Descuentos, exenciones y alivios tributarios autorizados.
@@ -554,6 +577,9 @@ erDiagram
 
 **Relaciones externas:**
 
+- `tax.administration_fiscal_year.administration_id` → `core.tax_administration`
+- `tax.administration_fiscal_year.created_by` → `core.admin_user`, con `administration_id` en una FK compuesta
+- `tax.administration_fiscal_year.updated_by` → `core.admin_user`, con `administration_id` en una FK compuesta
 - `tax.tax_rate.legal_instrument_id` → `documents.legal_instrument`
 - `tax.tax_rate.administration_id` → `core.tax_administration`
 - `tax.tax_calendar.administration_id` → `core.tax_administration`
@@ -568,6 +594,26 @@ erDiagram
 - `tax.tax_assessment.valuation_id` → `valuation.vehicle_valuation`
 - `tax.tax_declaration.supporting_document_id` → `documents.document`
 - `tax.official_determination.legal_act_id` → `documents.legal_act`
+
+**Reglas del esquema (ERD 2.3):**
+
+1. **Año nacional, vigencia por administración.** El año y sus fechas son de todos; el estado y la habilitación de la liquidación son de cada administración. Habilitar la liquidación en Ipiales no la habilita en otra administración, y el `ADMIN_SISTEMA` de una administración no escribe un dato compartido (`docs/arquitectura/02` §5.1).
+2. **Restricciones únicas de `tax.administration_fiscal_year`.** `UNIQUE (administration_id, fiscal_year)`: una vigencia por administración y año (V‑01), que puede ser el destino de las FK futuras de una administración (regla 6). `UNIQUE (id, administration_id)`: para las FK compuestas de las tablas que vendrán (catálogos, configuración, calendario), si apuntan a la fila por su `id` (regla 6).
+3. **RLS de `tax.administration_fiscal_year`.** Con `ENABLE ROW LEVEL SECURITY`, una política por operación, todas `TO liv_app` y apoyadas en `NULLIF(current_setting('app.administration_id', true), '')::uuid`, como `core.user_session`:
+   - `SELECT`: las filas de la administración;
+   - `INSERT`: de la administración y solo con `status = 'PLANEADA'`;
+   - `UPDATE`: `USING` sobre la administración y `status = 'PLANEADA'`, y `WITH CHECK` sobre la administración y `status = 'EN_PREPARACION'`;
+   - no hay política de `DELETE`: la RLS lo niega.
+
+   Así la base de datos solo admite la transición *Planeada* → *En preparación* de la feature 007: ni un defecto del dominio puede saltar a otro estado o volver atrás. Un `UPDATE` sobre una fila que ya no está en *Planeada* no da error: afecta 0 filas. Por eso quien cambia el estado cuenta las filas afectadas y, con 0, relee la vigencia y responde V‑06 (Doc. 01 §5) sin registrar ningún cambio. La feature de la opción 1.5.1 amplía la política de `UPDATE` con su migración.
+4. **Permisos de `liv_app` sobre `tax.administration_fiscal_year`.** `SELECT` e `INSERT` sobre la tabla; `UPDATE` solo sobre `status`, `updated_by` y `updated_at`; ningún `UPDATE` de `assessments_enabled` y ningún `DELETE`. Una vigencia creada no se borra.
+5. **Esquema y versión de PostgreSQL.** La migración crea el esquema `tax` con `GRANT USAGE` a `liv_app` y comprueba que exista `uuidv7()` (PostgreSQL 18), porque la primera migración del repositorio solo exige la versión 16.
+6. **FK futuras hacia la vigencia.** La feature 007 migra solo las dos tablas de arriba; las FK de las demás hacia el año o la vigencia las decide la feature de cada tabla:
+   - **Tablas con FK a `fiscal_year`:** `tax.tax_rate`, `tax.tax_calendar`, `tax.tax_benefit`, `tax.penalty_rule`, `tax.tax_assessment`, `valuation.valuation_catalog`, `valuation.vehicle_reference_match` y `ledger.tax_obligation` (relaciones externas de `valuation` y `ledger`), y `core.jurisdiction_config` (Doc. 03 §5.6: tiene la columna `fiscal_year`; su FK la decide la feature de la opción 1.5.9; queda fuera de las 80 tablas).
+   - **Datos nacionales:** apuntarán a `tax.fiscal_year (year)`.
+   - **Datos de una administración:** apuntarán a la fila de `tax.administration_fiscal_year`, ya sea por (`administration_id`, `fiscal_year`) o por (`id`, `administration_id`): lo decide cada feature.
+   - **Tablas mixtas** (por ejemplo, con `administration_id` nulo en una regla nacional): una FK compuesta con una columna nula no se comprueba, así que llevarán además la FK simple a `tax.fiscal_year (year)`.
+   - Hasta entonces, las flechas del diagrama y las relaciones externas de las demás tablas hacia `tax.fiscal_year` son lógicas; la de `tax.administration_fiscal_year` la crea la migración de la feature 007.
 
 ## LEDGER — Cuenta corriente y recaudo (19 tablas)
 
@@ -1488,6 +1534,19 @@ erDiagram
 ## Checklist de aceptación previo a Flyway
 
 _Feature 001: en H2 (2026-11-01) el responsable autorizó migrar, antes de cerrar esta lista, las tablas de `platform`, `bff`, `core.territorial_entity`, `core.tax_administration`, `core.admin_user`, `core.user_session` y `audit`. Ninguna es tributaria. La lista sigue abierta para el resto del modelo._
+
+_Feature 007: en H2 (decisión H2‑1, resuelta el 2026-11-12 y plan aprobado el 2026-11-13) el responsable funcional autorizó migrar **solo** `tax.fiscal_year` y `tax.administration_fiscal_year` con la lista abierta, sin la validación del ERD con expertos tributarios que la lista pide «antes de migraciones». Como en la 001, la razón es que las dos tablas no tienen tarifas, montos ni reglas de cálculo. La autorización no se extiende a otras tablas: la lista sigue abierta para el resto del modelo. Para lo que toca esta feature, los demás puntos quedan así:_
+
+| Punto de la lista | En la feature 007 |
+|---|---|
+| FK de la misma entidad territorial | Se cumplirá con la migración: FK compuestas con `administration_id` y RLS |
+| Catálogos publicados congelados | No aplica: no hay catálogos |
+| CSV, *staging*, aprobación por otro usuario, publicación transaccional, `UNIQUE` de catálogo y de lote | No aplica |
+| Índices únicos e intervalos sin solapamientos | Se cumplirá para lo suyo: `UNIQUE (administration_id, fiscal_year)` |
+| Reglas de redondeo, facturación y sanciones | No aplica |
+| Controles de auditoría y permisos de funcionarios | Se cumplirá para lo suyo: auditoría por evento (entidad `tax.administration_fiscal_year`) y permisos de acción con su prueba de matriz |
+| Validar el ERD con expertos tributarios antes de migrar | Resuelto en H2‑1: autorizado sin esa validación, como en la 001 |
+| Cartera histórica, prescripción y cobro coactivo | No aplica |
 
 - [ ] Confirmar que cada FK referencia registros de la misma entidad territorial donde corresponda.
 - [ ] Congelar catálogos de avalúos publicados y registrar correcciones con versión distinta.
