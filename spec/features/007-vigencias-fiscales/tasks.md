@@ -32,7 +32,7 @@ Los pasos y los números de PR son los del plan: 1 y 2 (raíz), 3 a 7 y 10 (`bac
 | UI 8d · Iconos `plus` y `circle` | `feat/007-ui-icon` | `ui/` | T22 | nada | nada |
 | UI 8e · `Button` con `disabledReason` | `feat/007-ui-button` | `ui/` | T23 | nada | nada |
 | UI 8f · `Dialog` con cuerpo, tamaño y tono, y versión 0.4.0 | `feat/007-ui-dialog` | `ui/` | T24 | 8c integrado | 8a a 8e integrados (sube la versión y mueve las entradas) |
-| F9a · Lista y creación | `feat/007-front-lista` | `frontend/` | T25 a T28 | B4 integrado (*release* `contract-tax-v1.0.0`), 8f integrado y **0.4.0 publicada en npm** por la persona, y **aprobación del *frame* 75:4479** | las mismas, y B6 integrado (T25 lo declara) |
+| F9a · Lista y creación | `feat/007-front-lista` | `frontend/` | T25 a T28 | B4 integrado (*release* `contract-tax-v1.0.0`), 8f integrado y **0.4.0 publicada en npm** por la persona (el *frame* 75:4479 ya está aprobado, el 2026-11-13) | las mismas, y B6 integrado (T25 lo declara) |
 | F9b · Detalle y preparación | `feat/007-front-detalle` | `frontend/` | T29, T30 | F9a integrado | F9a |
 | E11 · Pruebas de navegador | `feat/007-e2e` | `e2e/` | T33 a T35 | nada (se escriben en rojo mientras se hace F9a y F9b; se **corren** con B10 aplicado en local) | B10, F9a y F9b integrados |
 
@@ -75,7 +75,7 @@ Los pasos y los números de PR son los del plan: 1 y 2 (raíz), 3 a 7 y 10 (`bac
 | Versión de `liv-components` y su publicación en npm | 8f (sube la versión), la persona (publica) | Hasta la publicación, F9a no empieza |
 | `frontend/api-spec/` y `frontend/package.json` | F9a (T25) | F9b no los toca |
 | Entorno local, usuarios de Keycloak y capturas de `e2e/` | E11, y las validaciones de F9a y F9b | Exclusivo, de una sesión a la vez |
-| Figma | — | Todo aprobado, salvo el *frame* 75:4479 (requisito de F9a) |
+| Figma | — | Todo aprobado; el *frame* 75:4479 (etiqueta de año pasado) lo aprobó la persona el 2026-11-13 |
 
 ## PR D1 · Documentos (raíz, rama `feat/007-documentos`) — plan, paso 1
 
@@ -310,7 +310,7 @@ Con B6 integrado.
 
 ## PR F9a · Lista y creación (`frontend/`, rama `feat/007-front-lista`) — plan, paso 9
 
-*Skill* `liv-pantalla`. **Requiere** el contrato `tax` publicado como *release* `contract-tax-v1.0.0` (B4 integrado), `liv-components` 0.4.0 publicada en npm (8f integrado y publicada por la persona) y la **aprobación del *frame* 75:4479** (la etiqueta de un año pasado, `relation: PAST`): sin ella, este PR no se abre. El *frontend* no calcula reglas: todo lo que muestra sobre años, fechas y motivos viene del contrato, y ninguna pantalla usa `new Date()` para decidir.
+*Skill* `liv-pantalla`. **Requiere** el contrato `tax` publicado como *release* `contract-tax-v1.0.0` (B4 integrado), `liv-components` 0.4.0 publicada en npm (8f integrado y publicada por la persona) y el *frame* 75:4479 (la etiqueta de un año pasado, `relation: PAST`), **aprobado el 2026-11-13**. El *frontend* no calcula reglas: todo lo que muestra sobre años, fechas y motivos viene del contrato, y ninguna pantalla usa `new Date()` para decidir.
 
 - [ ] **T25** · Contrato adoptado, versión nueva de la librería y `FiscalYearsService`.
   - **Proyecto:** `frontend/` · **PR:** F9a
@@ -327,9 +327,9 @@ Con B6 integrado.
 - [ ] **T27** · El diálogo de creación y los rechazos.
   - **Proyecto:** `frontend/` · **PR:** F9a
   - **Archivos:** `frontend/src/app/features/fiscal-years/create-fiscal-year-dialog.ts`, `.html`, `.css` y `.spec.ts` (nombres a decidir por la sesión dentro de `features/fiscal-years/`), `fiscal-years.ts` y `fiscal-years.spec.ts` (para abrir el diálogo y releer la lista), `frontend/src/app/features/accessibility.spec.ts` y `frontend/CHANGELOG.md`.
-  - **Depende de:** T26 y la aprobación del *frame* 75:4479.
+  - **Depende de:** T26 (el *frame* 75:4479 ya está aprobado, el 2026-11-13).
   - **Recursos:** `accessibility.spec.ts`.
-  - **Prueba primero:** las pruebas del diálogo (rojo): las opciones salen de `creatableYears` con su etiqueta (incluida la de un año `PAST`) y sus fechas; lleva la advertencia de H2‑6 (**007-04**); el grupo de años siempre tiene una opción marcada mientras está abierto; mientras se envía, el botón está en `loading` y Escape no cierra; cada rechazo con su código y sus extensiones del Problem Details (**V‑01 · 007-05**, **V‑02 · 007-06 y 007-07**, **V‑05 · 007-08** y `V‑06`), con la alerta creada de nuevo en cada intento para que se anuncie aunque el texto se repita; tras un `V‑01`, la lista se vuelve a leer y queda marcado el primer año que siga disponible, y si no queda ninguno (`createBlocked`) el diálogo se cierra y la lista muestra el botón inhabilitado con su motivo; un 403 lleva a «Sin permiso» (H2‑14, 001-16); axe con el diálogo abierto y con un rechazo (**007-21**). Diseño: *frames* 67:3040, 67:3163 y 67:3284, y el 75:4479 (aprobación pendiente).
+  - **Prueba primero:** las pruebas del diálogo (rojo): las opciones salen de `creatableYears` con su etiqueta (incluida la de un año `PAST`) y sus fechas; lleva la advertencia de H2‑6 (**007-04**); el grupo de años siempre tiene una opción marcada mientras está abierto; mientras se envía, el botón está en `loading` y Escape no cierra; cada rechazo con su código y sus extensiones del Problem Details (**V‑01 · 007-05**, **V‑02 · 007-06 y 007-07**, **V‑05 · 007-08** y `V‑06`), con la alerta creada de nuevo en cada intento para que se anuncie aunque el texto se repita; tras un `V‑01`, la lista se vuelve a leer y queda marcado el primer año que siga disponible, y si no queda ninguno (`createBlocked`) el diálogo se cierra y la lista muestra el botón inhabilitado con su motivo; un 403 lleva a «Sin permiso» (H2‑14, 001-16); axe con el diálogo abierto y con un rechazo (**007-21**). Diseño: *frames* 67:3040, 67:3163 y 67:3284, y el 75:4479 (aprobado el 2026-11-13).
 - [ ] **T28** · Fecha larga para fechas sueltas (H2‑13).
   - **Proyecto:** `frontend/` · **PR:** F9a
   - **Archivos:** `frontend/AGENTS.md` (solo la fila «Localización») y `frontend/.claude/skills/liv-pantalla/SKILL.md` (solo el paso 5) y `frontend/CHANGELOG.md`.
