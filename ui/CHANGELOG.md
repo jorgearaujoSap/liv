@@ -31,6 +31,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
     - Es la fecha larga de la decisión H2‑13; `new Date('2026-01-01')` mostraría el 31 de diciembre de 2025 en Bogotá.
     - Escribe los meses en español, sin depender de `Intl` ni de los datos de idioma del equipo.
     - Devuelve `null` si el valor está ausente, no es un texto o no es una fecha que exista.
+- `Table`, `TableRow` y `TableCell` (feature 007, PR 8a; Figma 64:446, 63:352 y 63:283): tabla de datos de solo lectura, una tabla HTML real. Se versionarán con 0.4.0 (PR 8f).
+  - `<table livTable>`: `caption` obligatorio (el nombre accesible, dibujado como `<caption>` oculto a la vista; la plantilla no compila sin él y uno vacío falla) y `loading`, que declara `aria-busy="true"`. Superficie `bg/surface`, borde `border/default` de 1 px y `radius/xl`, con las columnas repartidas por igual (layout fijo).
+  - `tr[livTableRow]` (`type` `header` o `body`): Hover pinta `bg/subtle` y Focus dibuja un contorno `border/focus` de 2 px dentro de la fila mientras su enlace tiene el foco (`:focus-within`); un contorno, no una sombra, para que siga visible en alto contraste.
+  - `th[livTableCell]` (siempre un encabezado de columna con `scope="col"`) y `td[livTableCell]` con `type` `text` (por omisión), `link`, `badge` o `action`. El `link` dibuja su propio `<a href>` y emite `navigate` con el destino, como `NavItem`: la pantalla navega con su enrutador. Es el único elemento de la fila que recibe el foco. `action` dibuja un chevron decorativo (`aria-hidden`) de 56 px; su encabezado es un `th` con `type="action"`, cuyo texto solo leen los lectores de pantalla.
+  - Sin estado vacío, barra de herramientas ni paginación (la 1.4 usa `ResultState`; entran con la primera consulta 1.6). Las filas de «cargando» las compone la pantalla con `liv-skeleton` dentro de sus celdas.
 - *Skill* `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
 
 ### Cambiado

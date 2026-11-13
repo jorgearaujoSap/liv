@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { declaredStyle, usesToken } from '../../testing/css';
@@ -22,7 +22,7 @@ import rowCss from './table-row.component.css' with { loader: 'text' };
     SkeletonComponent,
   ],
   template: `
-    <table livTable caption="Vigencias fiscales" [loading]="loading">
+    <table livTable caption="Vigencias fiscales" [loading]="loading()">
       <thead>
         <tr livTableRow type="header">
           <th livTableCell>Año</th>
@@ -34,7 +34,7 @@ import rowCss from './table-row.component.css' with { loader: 'text' };
         </tr>
       </thead>
       <tbody>
-        @if (loading) {
+        @if (loading()) {
           @for (row of [1, 2, 3]; track row) {
             <tr livTableRow>
               <td livTableCell><liv-skeleton width="120px" height="14px" /></td>
@@ -42,7 +42,7 @@ import rowCss from './table-row.component.css' with { loader: 'text' };
               <td livTableCell><liv-skeleton width="120px" height="14px" /></td>
               <td livTableCell><liv-skeleton width="88px" height="20px" /></td>
               <td livTableCell><liv-skeleton width="120px" height="14px" /></td>
-              <td livTableCell type="action"></td>
+              <td livTableCell></td>
             </tr>
           }
         } @else {
@@ -66,7 +66,7 @@ import rowCss from './table-row.component.css' with { loader: 'text' };
   `,
 })
 class HostComponent {
-  loading = false;
+  loading = signal(false);
   navigated: string[] = [];
   rows: {
     year: number;
@@ -103,9 +103,15 @@ class HostComponent {
   ];
 }
 
-function render(inputs: Partial<HostComponent> = {}) {
+interface RenderInputs extends Partial<Omit<HostComponent, 'loading'>> {
+  loading?: boolean;
+}
+
+function render(inputs: RenderInputs = {}) {
   const fixture = TestBed.createComponent(HostComponent);
-  Object.assign(fixture.componentInstance, inputs);
+  const { loading, ...rest } = inputs;
+  Object.assign(fixture.componentInstance, rest);
+  if (loading !== undefined) fixture.componentInstance.loading.set(loading);
   fixture.detectChanges();
   const root = fixture.nativeElement as HTMLElement;
   const table = root.querySelector('table') as HTMLTableElement;
@@ -155,17 +161,7 @@ describe('Table', () => {
     expect(declaredStyle(caption, 'height')).toBe('1px');
   });
 
-  it('exige el caption: sin él no hay nombre accesible', () => {
-    @Component({
-      imports: [TableComponent],
-      template: `<table livTable>
-        <tbody></tbody>
-      </table>`,
-    })
-    class NoCaption {}
-    expect(() => TestBed.createComponent(NoCaption).detectChanges()).toThrow(/caption/i);
-  });
-
+  // Sin `caption` la plantilla no compila (NG8008: es una entrada requerida), así que no hay prueba.
   it('un caption vacío o de espacios tampoco cuenta como nombre', () => {
     @Component({
       imports: [TableComponent],
@@ -187,7 +183,7 @@ describe('Table', () => {
     expect(links).toHaveLength(0);
     expect(table.querySelectorAll('liv-skeleton')).toHaveLength(15);
 
-    page.loading = false;
+    page.loading.set(false);
     fixture.detectChanges();
     expect(table.hasAttribute('aria-busy')).toBe(false);
     expect(table.querySelectorAll('liv-skeleton')).toHaveLength(0);
@@ -210,7 +206,7 @@ describe('Table', () => {
   });
 
   describe('axe (007-21)', () => {
-    it.each<[string, Partial<HostComponent>]>([
+    it.each<[string, RenderInputs]>([
       ['con datos', {}],
       ['cargando', { loading: true }],
       ['sin filas', { rows: [] }],
@@ -338,7 +334,7 @@ describe('TableCell', () => {
     it('lleva el borde inferior border/default del diseño', () => {
       const { rows } = render();
       expect(declaredStyle(rows[0].cells[1], 'border-bottom-width')).toBe('1px');
-      expect(declaredStyle(rows[0].cells[1], 'border-bottom-color')).toContain(
+      expect(declaredStyle(rows[0].cells[1], 'border-color')).toContain(
         'var(--color-border-default,',
       );
     });
@@ -458,8 +454,11 @@ describe('TableCell', () => {
       const cell = rows[0].cells[5];
       expect(declaredStyle(cell, 'width')).toBe('56px');
       expect(declaredStyle(cell, 'text-align')).toBe('right');
-      const icon = cell.querySelector('liv-icon') as HTMLElement;
-      expect(usesToken(getComputedStyle(icon).color, '--color-text-muted')).toBe(true);
+      const chevron = cell.querySelector('.table-cell__chevron') as HTMLElement;
+      expect(usesToken(getComputedStyle(chevron).color, '--color-text-muted')).toBe(true);
+      // Una caja flex a la derecha: el chevron queda centrado en la fila, no sobre la línea base del texto.
+      expect(declaredStyle(chevron, 'display')).toBe('flex');
+      expect(declaredStyle(chevron, 'justify-content')).toBe('flex-end');
     });
 
     it('el encabezado de la columna de acción (th) fija el mismo ancho y no dibuja chevron', () => {

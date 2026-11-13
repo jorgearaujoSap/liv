@@ -1,0 +1,34 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply h-[52px] border-b border-border-default px-4 text-left align-middle font-sans text-body-md text-text-primary;
+}
+
+/* Header: 40 px de alto, label/sm en text/secondary. */
+
+:host([data-header]) {
+  @apply h-[40px] text-label-sm text-text-secondary;
+}
+
+/* Action: la columna del chevron mide 56 px y alinea a la derecha; su encabezado fija el mismo ancho. */
+
+:host([data-type='action']) {
+  @apply w-[56px] text-right;
+}
+
+.table-cell__label {
+  @apply sr-only;
+}
+
+/* Caja flex a la derecha: el icono en línea quedaría sobre la línea base del texto, no centrado. */
+.table-cell__chevron {
+  @apply flex justify-end text-text-muted;
+}
+
+/*
+ * Link: body/md-strong en text/link. El foco lo pinta la fila (borde border/focus de 2 px), así que el
+ * enlace no dibuja otro anillo.
+ */
+.table-cell__link {
+  @apply text-body-md-strong text-text-link no-underline outline-none;
+}

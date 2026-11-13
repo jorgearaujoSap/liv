@@ -1,0 +1,24 @@
+@reference '../tailwind-reference.css';
+
+:host([data-type='header']) {
+  @apply bg-bg-subtle;
+}
+
+:host([data-type='body']) {
+  @apply bg-bg-surface;
+}
+
+/* Hover: la fila lleva al detalle. */
+
+:host([data-type='body']:hover) {
+  @apply bg-bg-subtle;
+}
+
+/*
+ * Focus: contorno de 2 px hacia dentro, no una sombra: sigue visible en alto contraste (forced-colors), donde
+ * las sombras desaparecen.
+ */
+
+:host([data-type='body']:focus-within) {
+  @apply outline-2 -outline-offset-2 outline-border-focus;
+}

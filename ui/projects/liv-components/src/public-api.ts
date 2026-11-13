@@ -51,5 +51,8 @@ export {
   type SpinnerSize,
   type SpinnerTone,
 } from './lib/spinner/spinner.component';
+export { TableCellComponent, type TableCellType } from './lib/table/table-cell.component';
+export { TableRowComponent, type TableRowType } from './lib/table/table-row.component';
+export { TableComponent } from './lib/table/table.component';
 export { TextFieldComponent, type TextFieldType } from './lib/text-field/text-field.component';
 export { formatBusinessDate, type BusinessDateFormat } from './lib/shared/business-date';
