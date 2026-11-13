@@ -3,15 +3,20 @@ package co.com.sapenlinea.liv.tax.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.assertj.core.api.Assertions.tuple;
 
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * The rules for creating a fiscal year, in the order of the plan (Doc. 01 §5): the first one that
@@ -31,8 +36,9 @@ class FiscalYearOpeningPolicyTest {
   }
 
   private static RuleViolation refusal(FiscalYearOpeningPolicy policy, int year) {
-    return (RuleViolation)
-        assertThatThrownBy(() -> policy.check(year)).isInstanceOf(RuleViolation.class).actual();
+    RuleViolation violation = catchThrowableOfType(RuleViolation.class, () -> policy.check(year));
+    assertThat(violation).as("el año %d debe rechazarse", year).isNotNull();
+    return violation;
   }
 
   private static void assertRefusal(
@@ -87,31 +93,65 @@ class FiscalYearOpeningPolicyTest {
   @Test
   @Tag("V-02")
   @Tag("007-07")
-  @DisplayName("V-02 · 007-07 · HISTORICAL va antes que V-05 FIRST_YEAR y V-02 GAP")
-  void historicalComesBeforeTheLaterRules() {
+  @DisplayName(
+      "V-02 · 007-07 · Con vigencias, un año anterior a la más antigua es HISTORICAL aunque no sea el en curso")
+  void historicalDoesNotDependOnTheCurrentYear() {
     // 2020 no es el año en curso ni el siguiente, pero la administración ya tiene vigencias.
     RuleViolation violation = refusal(policy(2026, 2026), 2020);
 
     assertThat(violation.details()).containsEntry("reason", "HISTORICAL");
   }
 
-  // ---- V-05 FIRST_YEAR
+  @Test
+  @Tag("V-02")
+  @Tag("V-05")
+  @Tag("007-07")
+  @DisplayName("V-02 · V-05 · 007-07 · Si fallan HISTORICAL y FUTURE_LIMIT, gana HISTORICAL")
+  void historicalComesBeforeFutureLimit() {
+    // 2028 es anterior a la más antigua (2029) y 2029 ya pasa del límite (2027).
+    RuleViolation violation = refusal(policy(2026, 2029), 2028);
+
+    assertRefusal(
+        violation,
+        "V-02",
+        RuleViolation.Type.UNPROCESSABLE,
+        Map.of("reason", "HISTORICAL", "oldestYear", 2029));
+  }
 
   @Test
+  @Tag("V-02")
   @Tag("V-05")
+  @Tag("007-07")
   @Tag("007-08")
   @DisplayName(
-      "V-05 · 007-08 · Sin vigencias, un año que no es el en curso ni el siguiente es FIRST_YEAR")
-  void firstYearMustBeCurrentOrNext() {
-    FiscalYearOpeningPolicy policy = policy(2026);
+      "V-02 · V-05 · 007-07 · 007-08 · Quien crea como primera vigencia el año siguiente ya no puede crear el en curso")
+  void firstYearNextBlocksTheCurrentOne() {
+    FiscalYearOpeningPolicy policy = policy(2026, 2027);
 
-    for (int year : new int[] {2025, 2028}) {
-      assertRefusal(
-          refusal(policy, year),
-          "V-05",
-          RuleViolation.Type.UNPROCESSABLE,
-          Map.of("reason", "FIRST_YEAR", "currentYear", 2026, "nextYear", 2027));
-    }
+    assertRefusal(
+        refusal(policy, 2026),
+        "V-02",
+        RuleViolation.Type.UNPROCESSABLE,
+        Map.of("reason", "HISTORICAL", "oldestYear", 2027));
+    assertThat(policy.creatableYears()).isEmpty();
+    assertThat(policy.createBlocked())
+        .contains(new CreateBlocked(CreateBlocked.Reason.FUTURE_LIMIT, 2027));
+  }
+
+  // ---- V-05 FIRST_YEAR
+
+  @ParameterizedTest(name = "año {0}")
+  @Tag("V-05")
+  @Tag("007-08")
+  @ValueSource(ints = {2025, 2028})
+  @DisplayName(
+      "V-05 · 007-08 · Sin vigencias, un año que no es el en curso ni el siguiente es FIRST_YEAR")
+  void firstYearMustBeCurrentOrNext(int year) {
+    assertRefusal(
+        refusal(policy(2026), year),
+        "V-05",
+        RuleViolation.Type.UNPROCESSABLE,
+        Map.of("reason", "FIRST_YEAR", "currentYear", 2026, "nextYear", 2027));
   }
 
   @Test
@@ -217,9 +257,7 @@ class FiscalYearOpeningPolicyTest {
   }
 
   @Test
-  @Tag("V-01")
-  @DisplayName(
-      "V-01 · Un año fuera de la tabla nacional no es una regla: es una invariante técnica")
+  @DisplayName("Un año fuera de la tabla nacional no es una regla: es una invariante técnica")
   void yearOutsideTheNationalTableIsATechnicalError() {
     FiscalYearOpeningPolicy policy = policy(2026);
 
@@ -253,7 +291,7 @@ class FiscalYearOpeningPolicyTest {
   void onlyTheNextYearAfterTheCurrentOne() {
     assertThat(policy(2026, 2026).creatableYears())
         .extracting(CreatableYear::year, CreatableYear::relation)
-        .containsExactly(org.assertj.core.api.Assertions.tuple(2027, YearRelation.NEXT));
+        .containsExactly(tuple(2027, YearRelation.NEXT));
   }
 
   @Test
@@ -285,41 +323,63 @@ class FiscalYearOpeningPolicyTest {
   }
 
   @Test
+  @Tag("V-02")
   @Tag("V-05")
   @Tag("007-06")
-  @DisplayName("V-05 · 007-06 · Nada de lo que se ofrece falla en check y nada de lo demás pasa")
-  void creatableYearsAreExactlyTheYearsThatCheckAccepts() {
-    List<FiscalYearOpeningPolicy> policies =
-        List.of(
-            policy(2026),
-            policy(2026, 2026),
-            policy(2026, 2027),
-            policy(2028, 2026),
-            policy(2027, 2026, 2027, 2028),
-            policy(2026, 2026, 2027));
-    for (FiscalYearOpeningPolicy policy : policies) {
-      List<Integer> accepted =
-          NATIONAL_TABLE.stream()
-              .map(NationalFiscalYear::year)
-              .filter(year -> accepts(policy, year))
-              .toList();
-
-      assertThat(policy.creatableYears()).extracting(CreatableYear::year).isEqualTo(accepted);
-    }
+  @Tag("007-08")
+  @DisplayName("V-02 · V-05 · 007-06 · 007-08 · Los años que se ofrecen en cada situación")
+  void creatableYearsInEachSituation() {
+    assertThat(years(policy(2026))).as("sin vigencias").containsExactly(2026, 2027);
+    assertThat(years(policy(2027))).as("sin vigencias, en 2027").containsExactly(2027, 2028);
+    assertThat(years(policy(2026, 2026)))
+        .as("la más reciente es la en curso")
+        .containsExactly(2027);
+    assertThat(years(policy(2026, 2027)))
+        .as("la más antigua es la siguiente: 2026 es histórico y 2028 pasa del límite")
+        .isEmpty();
+    assertThat(years(policy(2028, 2026))).as("2027 sigue pendiente").containsExactly(2027);
+    assertThat(years(policy(2027, 2026, 2027)))
+        .as("en 2027, el siguiente es 2028")
+        .containsExactly(2028);
+    assertThat(years(policy(2026, 2026, 2027))).as("ya existe el límite").isEmpty();
+    assertThat(years(policy(2026, 2025, 2026, 2027))).as("ya existe el límite").isEmpty();
   }
 
-  private static boolean accepts(FiscalYearOpeningPolicy policy, int year) {
-    try {
-      policy.check(year);
-      return true;
-    } catch (RuleViolation violation) {
-      return false;
-    }
+  private static List<Integer> years(FiscalYearOpeningPolicy policy) {
+    return policy.creatableYears().stream().map(CreatableYear::year).toList();
+  }
+
+  @Test
+  @Tag("V-02")
+  @Tag("007-06")
+  @DisplayName(
+      "V-02 · 007-06 · Un año dentro de un hueco entre vigencias existentes se admite (no salta ninguno)")
+  void yearInsideAnInteriorGapIsAccepted() {
+    FiscalYearOpeningPolicy policy = policy(2028, 2026, 2028);
+
+    assertThatCode(() -> policy.check(2027)).doesNotThrowAnyException();
+    assertThat(years(policy)).containsExactly(2027);
+  }
+
+  @Test
+  @Tag("V-01")
+  @Tag("007-04")
+  @DisplayName("V-01 · 007-04 · Las fechas de cada año salen de la tabla nacional, no del código")
+  void datesComeFromTheNationalTable() {
+    LocalDate startsOn = LocalDate.of(2026, 4, 1);
+    LocalDate endsOn = LocalDate.of(2027, 3, 31);
+    FiscalYearOpeningPolicy policy =
+        new FiscalYearOpeningPolicy(
+            2026, List.of(), List.of(new NationalFiscalYear(2026, startsOn, endsOn)));
+
+    assertThat(policy.creatableYears())
+        .containsExactly(new CreatableYear(2026, startsOn, endsOn, YearRelation.CURRENT));
   }
 
   @Test
   @Tag("V-05")
-  @DisplayName("V-05 · creatableYears se queda dentro de la tabla nacional")
+  @Tag("007-08")
+  @DisplayName("V-05 · 007-08 · creatableYears se queda dentro de la tabla nacional")
   void creatableYearsStayInsideTheNationalTable() {
     FiscalYearOpeningPolicy policy =
         new FiscalYearOpeningPolicy(
@@ -334,7 +394,9 @@ class FiscalYearOpeningPolicyTest {
 
   @Test
   @Tag("V-05")
-  @DisplayName("V-05 · createBlocked no sale si faltar el año en la tabla es la única razón")
+  @Tag("007-06")
+  @DisplayName(
+      "V-05 · 007-06 · createBlocked no sale si lo único que falta es el año en la tabla nacional")
   void notBlockedWhenOnlyTheTableIsShort() {
     FiscalYearOpeningPolicy policy =
         new FiscalYearOpeningPolicy(
@@ -349,14 +411,42 @@ class FiscalYearOpeningPolicyTest {
   }
 
   @Test
-  @Tag("V-01")
-  @DisplayName("V-01 · La política no cambia si cambian las listas con las que se creó")
+  @DisplayName("La política no cambia si cambian las listas con las que se creó")
   void policyCopiesItsInputs() {
-    List<Integer> years = new java.util.ArrayList<>(List.of(2026));
+    List<Integer> years = new ArrayList<>(List.of(2026));
     FiscalYearOpeningPolicy policy = new FiscalYearOpeningPolicy(2026, years, NATIONAL_TABLE);
 
     years.add(2027);
 
     assertThat(policy.creatableYears()).extracting(CreatableYear::year).containsExactly(2027);
+  }
+
+  @Test
+  @DisplayName("Una tabla nacional con el mismo año dos veces o con fechas invertidas se rechaza")
+  void rejectsAnInconsistentNationalTable() {
+    NationalFiscalYear first =
+        new NationalFiscalYear(2026, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31));
+    NationalFiscalYear again =
+        new NationalFiscalYear(2026, LocalDate.of(2026, 1, 2), LocalDate.of(2026, 12, 31));
+
+    assertThatThrownBy(() -> new FiscalYearOpeningPolicy(2026, List.of(), List.of(first, again)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("2026");
+    assertThatThrownBy(() ->
+            new NationalFiscalYear(2026, LocalDate.of(2026, 12, 31), LocalDate.of(2026, 1, 1)))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Sin años de la administración o sin tabla nacional no hay política")
+  void rejectsMissingInputs() {
+    assertThatThrownBy(() -> new FiscalYearOpeningPolicy(2026, null, NATIONAL_TABLE))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> new FiscalYearOpeningPolicy(2026, List.of(), null))
+        .isInstanceOf(NullPointerException.class);
+    List<Integer> withNull = new ArrayList<>();
+    withNull.add(null);
+    assertThatThrownBy(() -> new FiscalYearOpeningPolicy(2026, withNull, NATIONAL_TABLE))
+        .isInstanceOf(NullPointerException.class);
   }
 }

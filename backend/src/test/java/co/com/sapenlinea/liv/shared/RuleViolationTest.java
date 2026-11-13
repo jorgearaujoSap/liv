@@ -3,9 +3,16 @@ package co.com.sapenlinea.liv.shared;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -116,7 +123,8 @@ class RuleViolationTest {
 
   @ParameterizedTest
   @Tag("ADR-0035")
-  @ValueSource(strings = {"", " ", "V‑01", "V 01"})
+  @ValueSource(
+      strings = {"", " ", "V‑01", "V 01", "V-", "-01", "V-0123456789012345678901234567890"})
   @DisplayName("ADR 0035 · El código de la regla lleva el guion ASCII y no puede estar vacío")
   void rejectsMalformedCodes(String code) {
     assertThatThrownBy(() -> new RuleViolation(code, RuleViolation.Type.CONFLICT, Map.of()))
@@ -143,5 +151,76 @@ class RuleViolationTest {
         new RuleViolation("V-01", RuleViolation.Type.CONFLICT, Map.of("year", 2026));
 
     assertThat(violation.getMessage()).contains("V-01").contains("CONFLICT");
+  }
+
+  @Test
+  @Tag("ADR-0035")
+  @DisplayName("ADR 0035 · Los detalles admiten texto, enteros, decimales exactos y booleanos")
+  void acceptsTheFiveScalarTypes() {
+    RuleViolation violation =
+        new RuleViolation(
+            "V-05",
+            RuleViolation.Type.UNPROCESSABLE,
+            Map.of("a", "text", "b", 1, "c", 2L, "d", new BigDecimal("1.50"), "e", false));
+
+    assertThat(violation.details()).hasSize(5);
+  }
+
+  @Test
+  @Tag("ADR-0035")
+  @DisplayName("ADR 0035 · No se admiten tipos mutables ni decimales binarios (NaN no es JSON)")
+  void rejectsMutableAndFloatingPointValues() {
+    for (Object value :
+        new Object[] {new StringBuilder("x"), new AtomicInteger(1), Double.NaN, 1.5d, 1.5f}) {
+      assertThatThrownBy(
+              () -> new RuleViolation("V-01", RuleViolation.Type.CONFLICT, Map.of("year", value)))
+          .as(value.getClass().getSimpleName())
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Test
+  @Tag("ADR-0035")
+  @DisplayName("ADR 0035 · Una clave nula se rechaza con un mensaje claro")
+  void rejectsANullKey() {
+    Map<String, Object> withNullKey = new LinkedHashMap<>();
+    withNullKey.put(null, "x");
+    Map<String, Object> withEmptyKey = Map.of("", "x");
+
+    assertThatThrownBy(() -> new RuleViolation("V-01", RuleViolation.Type.CONFLICT, withNullKey))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("null");
+    assertThatThrownBy(() -> new RuleViolation("V-01", RuleViolation.Type.CONFLICT, withEmptyKey))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @Tag("ADR-0035")
+  @DisplayName("ADR 0035 · Los detalles sobreviven a la serialización de la excepción")
+  void detailsSurviveSerialization() throws IOException, ClassNotFoundException {
+    RuleViolation violation =
+        new RuleViolation(
+            "V-06", RuleViolation.Type.CONFLICT, Map.of("year", 2026, "currentStatus", "LISTA"));
+
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
+      out.writeObject(violation);
+    }
+    try (ObjectInputStream in =
+        new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+      RuleViolation copy = (RuleViolation) in.readObject();
+
+      assertThat(copy.code()).isEqualTo("V-06");
+      assertThat(copy.type()).isEqualTo(RuleViolation.Type.CONFLICT);
+      assertThat(copy.details()).isEqualTo(violation.details());
+    }
+  }
+
+  @Test
+  @Tag("ADR-0035")
+  @DisplayName("ADR 0035 · NotFound lleva solo el tipo y el identificador técnico que se le dan")
+  void notFoundMessageHasOnlyWhatItIsGiven() {
+    assertThat(new NotFound("fiscal year 2026").getMessage())
+        .isEqualTo("Not found: fiscal year 2026");
   }
 }

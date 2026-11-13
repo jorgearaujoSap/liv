@@ -19,7 +19,6 @@ class AdministrationFiscalYearTest {
       UUID.fromString("00000000-0000-7000-8000-000000000001");
 
   @Test
-  @Tag("V-01")
   @DisplayName("Doc. 01 §5 · Los cinco estados y sus códigos son los del documento")
   void fiveStatesWithTheCodesOfTheDocument() {
     assertThat(Arrays.stream(FiscalYearStatus.values()).map(Enum::name))
@@ -89,21 +88,21 @@ class AdministrationFiscalYearTest {
     assertThat(opened.assessmentsEnabled()).isFalse();
   }
 
-  @Test
+  @ParameterizedTest
   @Tag("V-03")
   @Tag("007-12")
-  @DisplayName("V-03 · 007-12 · restore conserva el valor que trae y ninguna operación lo cambia")
-  void restoreKeepsAssessmentsEnabled() {
-    AdministrationFiscalYear restored =
-        AdministrationFiscalYear.restore(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA, true);
-
-    assertThat(restored.assessmentsEnabled()).isTrue();
-    assertThat(restored.openPreparation().assessmentsEnabled()).isTrue();
+  @EnumSource(FiscalYearStatus.class)
+  @DisplayName("V-03 · 007-12 · Una vigencia con la liquidación habilitada no existe en la 007")
+  void assessmentsEnabledIsRejectedInAnyState(FiscalYearStatus status) {
+    assertThatThrownBy(() -> AdministrationFiscalYear.restore(ADMINISTRATION, 2026, status, true))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("assessmentsEnabled");
+    assertThatThrownBy(() -> new AdministrationFiscalYear(ADMINISTRATION, 2026, status, true))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  @Tag("V-01")
-  @DisplayName("V-01 · Sin administración o sin estado no hay vigencia")
+  @DisplayName("Sin administración o sin estado no hay vigencia")
   void requiresAdministrationAndStatus() {
     assertThatThrownBy(() -> AdministrationFiscalYear.plan(null, 2026))
         .isInstanceOf(NullPointerException.class);
