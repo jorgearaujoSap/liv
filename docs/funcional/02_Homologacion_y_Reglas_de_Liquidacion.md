@@ -3,7 +3,7 @@
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Documentos base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` · `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md`
 > **Alcance:** (A) Homologación de cada vehículo real con su avalúo oficial por vigencia (menú 2.6). (B) Reglas de cálculo de la liquidación individual, simulador y liquidación masiva (menú 3.1–3.3), con consultas y exportación a Excel.
-> **Versión:** 0.2 — ajustada con la Resolución 2026 y la configuración por jurisdicción (Doc. 03)
+> **Versión:** 0.3 — LQ‑P01 y el diagrama de §B.2 leen el estado y `assessments_enabled` de la vigencia **de la administración** (`tax.administration_fiscal_year`, Doc. 01 v0.5 §5), no los del año nacional (feature 007). La versión 0.2 la ajustó con la Resolución 2026 y la configuración por jurisdicción (Doc. 03)
 > **Actualización:** todos los parámetros de este documento se leen del archivo de configuración de jurisdicción (`config_jurisdiccion_<DANE>_<AÑO>.yaml`, Doc. 03 §5).
 > **Advertencia:** el marco normativo se resume para fines de diseño. Todos los porcentajes, rangos y reglas se **parametrizan por vigencia y administración**; ninguno se codifica en duro. Requiere validación del área jurídica antes de producción.
 
@@ -116,7 +116,7 @@ Se ejecuta por vigencia sobre todos los vehículos gravados sin homologación ap
 
 ```mermaid
 flowchart TD
-    A[Vehículo + vigencia] --> B{¿Vigencia habilitada?<br/>assessments_enabled}
+    A[Vehículo + vigencia] --> B{¿Vigencia de la administración habilitada?<br/>assessments_enabled y estado HABILITADA}
     B -- No --> X1[LQ001 Bloqueo]
     B -- Sí --> C{¿Sujeto al impuesto?<br/>vehicle_tax_status}
     C -- No --> X2[No liquida · registrar motivo]
@@ -138,7 +138,7 @@ flowchart TD
 
 | Código | Regla |
 |---|---|
-| LQ‑P01 | `tax.fiscal_year.assessments_enabled = true` y estado `HABILITADA`. |
+| LQ‑P01 | La vigencia de la administración que liquida (`tax.administration_fiscal_year`, de su `administration_id` y del año de la liquidación) tiene `assessments_enabled = true` y estado `HABILITADA`. Si la administración no tiene esa vigencia, tampoco se liquida. |
 | LQ‑P02 | El vehículo tiene estado tributario vigente a la fecha de causación. Si es **no sujeto/excluido** (según lista parametrizada por la norma: p. ej. ciertas motocicletas por cilindraje, maquinaria agrícola, transporte público según jurisdicción), no se liquida y se registra el motivo. |
 | LQ‑P03 | Si tiene **beneficio** (exención parcial, descuento por tecnología), se liquida y el beneficio se aplica en B.8. |
 | LQ‑P04 | No existe otra liquidación `EMITIDA` activa para el mismo vehículo + vigencia + administración (hallazgo 3 del ERD). Si existe, solo se permite **corrección** (nueva versión). |
