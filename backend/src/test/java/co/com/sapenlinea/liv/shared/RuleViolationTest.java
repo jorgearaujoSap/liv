@@ -123,11 +123,32 @@ class RuleViolationTest {
 
   @ParameterizedTest
   @Tag("ADR-0035")
-  @ValueSource(
-      strings = {"", " ", "V‑01", "V 01", "V-", "-01", "V-0123456789012345678901234567890"})
+  @ValueSource(strings = {"", " ", "V‑01", "V 01", "V-", "-01", "v-01", "V--01", "V-01-"})
   @DisplayName("ADR 0035 · El código de la regla lleva el guion ASCII y no puede estar vacío")
   void rejectsMalformedCodes(String code) {
     assertThatThrownBy(() -> new RuleViolation(code, RuleViolation.Type.CONFLICT, Map.of()))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @ParameterizedTest
+  @Tag("ADR-0035")
+  @ValueSource(strings = {"V-01", "CJ02", "R001", "CA-1.01", "007-12", "LQ-P01", "SYS-404"})
+  @DisplayName("ADR 0035 · Los códigos de regla y de criterio del proyecto se admiten")
+  void acceptsTheCodesOfTheProject(String code) {
+    assertThat(new RuleViolation(code, RuleViolation.Type.CONFLICT, Map.of()).code())
+        .isEqualTo(code);
+  }
+
+  @Test
+  @Tag("ADR-0035")
+  @DisplayName("ADR 0035 · El código admite 32 caracteres, el máximo del contrato, y no 33")
+  void codeLengthLimitIsThe32OfTheContract() {
+    String longest = "V-" + "0".repeat(30);
+    String tooLong = "V-" + "0".repeat(31);
+
+    assertThat(new RuleViolation(longest, RuleViolation.Type.CONFLICT, Map.of()).code())
+        .hasSize(32);
+    assertThatThrownBy(() -> new RuleViolation(tooLong, RuleViolation.Type.CONFLICT, Map.of()))
         .isInstanceOf(IllegalArgumentException.class);
   }
 

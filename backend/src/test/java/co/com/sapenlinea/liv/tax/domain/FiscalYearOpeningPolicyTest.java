@@ -172,7 +172,8 @@ class FiscalYearOpeningPolicyTest {
   @Tag("007-06")
   @DisplayName("V-02 · 007-06 · Saltar un año es GAP y dice cuál se debe crear primero")
   void skippingAYearIsAGap() {
-    RuleViolation violation = refusal(policy(2026, 2026), 2029);
+    // Estamos en 2028 y la más reciente es 2026: 2028 solo falla por el hueco (2027).
+    RuleViolation violation = refusal(policy(2028, 2026), 2028);
 
     assertRefusal(
         violation,
@@ -447,6 +448,10 @@ class FiscalYearOpeningPolicyTest {
     List<Integer> withNull = new ArrayList<>();
     withNull.add(null);
     assertThatThrownBy(() -> new FiscalYearOpeningPolicy(2026, withNull, NATIONAL_TABLE))
+        .isInstanceOf(NullPointerException.class);
+    List<NationalFiscalYear> nullYear = new ArrayList<>();
+    nullYear.add(null);
+    assertThatThrownBy(() -> new FiscalYearOpeningPolicy(2026, List.of(), nullYear))
         .isInstanceOf(NullPointerException.class);
   }
 }
