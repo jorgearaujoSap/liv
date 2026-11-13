@@ -183,8 +183,14 @@ class OpenApiContractTest {
     assertThat(strings(creatable.get("required")))
         .containsExactlyInAnyOrder("year", "startsOn", "endsOn", "relation");
     assertOpenString(property(creatable, "relation"), "PAST", "CURRENT", "NEXT");
-    assertThat(property(creatable, "startsOn")).containsEntry("format", "date");
-    assertThat(property(creatable, "endsOn")).containsEntry("format", "date");
+    for (String date : List.of("startsOn", "endsOn")) {
+      assertThat(property(creatable, date))
+          .containsEntry("$ref", "#/components/schemas/BusinessDate");
+    }
+    // Una fecha de negocio no lleva zona: format date, nunca date-time.
+    assertThat(schema(contract, "BusinessDate"))
+        .containsEntry("type", "string")
+        .containsEntry("format", "date");
     Map<String, Object> blocked = schema(contract, "CreateBlocked");
     assertThat(strings(blocked.get("required"))).containsExactlyInAnyOrder("reason", "maxYear");
     assertOpenString(property(blocked, "reason"), "FUTURE_LIMIT");
@@ -195,20 +201,24 @@ class OpenApiContractTest {
       "V-01 · El año de una vigencia es un entero de 1999 a 2100, en el cuerpo y en la ruta")
   void yearIsBounded() {
     Map<String, Object> contract = load("tax.yaml");
-    assertYearRange(property(schema(contract, "FiscalYear"), "year"));
-    assertYearRange(property(schema(contract, "CreatableYear"), "year"));
-    assertYearRange(property(schema(contract, "CreateFiscalYearRequest"), "year"));
-    List<Map<String, Object>> byYear =
+    assertYearRange(schema(contract, "Year"));
+    for (String name :
+        List.of("FiscalYear", "CreatableYear", "CreateFiscalYearRequest", "FiscalYearDetail")) {
+      assertThat(property(schema(contract, name), "year"))
+          .as(name)
+          .containsEntry("$ref", "#/components/schemas/Year");
+    }
+    Map<String, Object> parameter =
+        map(map(map(contract.get("components")).get("parameters")).get("Year"));
+    assertThat(parameter).containsEntry("name", "year").containsEntry("in", "path");
+    assertYearRange(map(parameter.get("schema")));
+    for (Map<String, Object> operation :
         List.of(
             operation(contract, YEARS + "/{year}", "get"),
-            operation(contract, YEARS + "/{year}/preparation", "post"));
-    for (Map<String, Object> operation : byYear) {
+            operation(contract, YEARS + "/{year}/preparation", "post"))) {
       assertThat(list(operation.get("parameters")))
           .singleElement()
-          .satisfies(p -> {
-            assertThat(p).containsEntry("name", "year").containsEntry("in", "path");
-            assertYearRange(map(p.get("schema")));
-          });
+          .isEqualTo(Map.of("$ref", "#/components/parameters/Year"));
     }
   }
 
