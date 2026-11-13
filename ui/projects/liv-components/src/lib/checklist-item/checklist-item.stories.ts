@@ -105,8 +105,13 @@ export const ListaDePreparacion: Story = {
       <ol role="list" class="m-0 w-[960px] list-none p-0">
         <li livChecklistItem status="pending" number="1." heading="Vigencia en preparación" reason="La vigencia está Planeada: abre su preparación para empezar a cargar sus tablas."></li>
         <li livChecklistItem status="pending" number="2." heading="Resolución de avalúos registrada con su PDF" reason="Opción aún no disponible"></li>
+        <li livChecklistItem status="pending" number="3." heading="Catálogo de avalúos publicado para la vigencia" reason="Opción aún no disponible"></li>
+        <li livChecklistItem status="pending" number="4." heading="Tarifas por rango registradas y sin solapamientos" reason="Opción aún no disponible"></li>
+        <li livChecklistItem status="pending" number="5." heading="Calendario tributario registrado" reason="Opción aún no disponible"></li>
         <li livChecklistItem status="pending" number="6." heading="Beneficios configurados" reason="Opción aún no disponible" optional></li>
         <li livChecklistItem status="pending" number="7." heading="Reglas de sanción registradas" reason="Opción aún no disponible" optional></li>
+        <li livChecklistItem status="pending" number="8." heading="Prueba de liquidación de muestra sin errores" reason="Opción aún no disponible"></li>
+        <li livChecklistItem status="pending" number="9." heading="Configuración de jurisdicción publicada" reason="Opción aún no disponible"></li>
       </ol>
     `,
   }),

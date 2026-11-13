@@ -83,6 +83,17 @@ describe('Panel', () => {
     });
   });
 
+  it('enlaza la descripción con aria-describedby; sin descripción no hay enlace', () => {
+    const { part } = render();
+    const section = part('section') as HTMLElement;
+    const description = part('.panel__description') as HTMLElement;
+    expect(description.id).not.toBe('');
+    expect(section.getAttribute('aria-describedby')).toBe(description.id);
+    expect(
+      render({ description: undefined }).part('section')?.hasAttribute('aria-describedby'),
+    ).toBe(false);
+  });
+
   it('proyecta su contenido después del encabezado, dentro de la región', () => {
     const { part } = render();
     const content = part('.panel__content') as HTMLElement;
@@ -104,15 +115,15 @@ describe('Panel', () => {
       expect(usesToken(declaredStyle(surface, 'border-color'), '--color-border-default')).toBe(
         true,
       );
-      expect(declaredStyle(surface, 'border-radius')).toContain('var(--radius-xl');
+      expect(declaredStyle(surface, 'border-radius')).toMatch(/var\(--radius-xl[,)]/);
     });
 
     it('tiene 24 px de relleno y 16 px entre el encabezado y el contenido', () => {
       const surface = render().part('section') as HTMLElement;
-      expect(declaredStyle(surface, 'padding')).toContain('var(--spacing-6');
+      expect(declaredStyle(surface, 'padding')).toMatch(/var\(--spacing-6[,)]/);
       expect(declaredStyle(surface, 'display')).toBe('flex');
       expect(declaredStyle(surface, 'flex-direction')).toBe('column');
-      expect(declaredStyle(surface, 'gap')).toContain('var(--spacing-4');
+      expect(declaredStyle(surface, 'gap')).toMatch(/var\(--spacing-4[,)]/);
     });
 
     it('el título es heading/h3 en text/primary y la descripción body/md en text/secondary', () => {
@@ -120,9 +131,9 @@ describe('Panel', () => {
       const heading = part('.panel__heading') as Element;
       const description = part('.panel__description') as Element;
       expect(usesToken(declaredStyle(heading, 'color'), '--color-text-primary')).toBe(true);
-      expect(declaredStyle(heading, 'font-size')).toContain('var(--text-heading-h3');
+      expect(declaredStyle(heading, 'font-size')).toMatch(/var\(--text-heading-h3[,)]/);
       expect(usesToken(declaredStyle(description, 'color'), '--color-text-secondary')).toBe(true);
-      expect(declaredStyle(description, 'font-size')).toContain('var(--text-body-md');
+      expect(declaredStyle(description, 'font-size')).toMatch(/var\(--text-body-md[,)]/);
     });
 
     it('el título es h3 en el diseño aunque sea un h2: el nivel no cambia su aspecto', () => {
@@ -134,7 +145,7 @@ describe('Panel', () => {
 
     it('los títulos del navegador no dejan márgenes propios', () => {
       const heading = render().part('.panel__heading') as Element;
-      expect(declaredStyle(heading, 'margin')).toContain('var(--spacing-0');
+      expect(declaredStyle(heading, 'margin')).toMatch(/var\(--spacing-0[,)]/);
     });
 
     it('en alto contraste (forced-colors) el borde delimita la superficie', () => {

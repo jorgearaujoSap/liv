@@ -136,6 +136,13 @@ describe('ChecklistItem', () => {
       expect(svg.querySelectorAll('path')).toHaveLength(0);
     });
 
+    it('un estado que no es uno de los tres se muestra como pendiente, sin romper la lista', () => {
+      const { item, part } = render({ status: 'desconocido' as unknown as ChecklistItemStatus });
+      expect(part('.checklist-item__status')?.textContent?.trim()).toBe('Pendiente');
+      expect(part('.checklist-item__status')?.dataset['tone']).toBe('neutral');
+      expect(item.querySelector('.checklist-item__icon svg circle')).not.toBeNull();
+    });
+
     it('cambia de estado al reasignarlo', () => {
       const { fixture, page, item, part } = render({ status: 'pending' });
       page.status = 'met';
@@ -144,6 +151,22 @@ describe('ChecklistItem', () => {
       expect(item.dataset['status']).toBe('met');
       expect(part('.checklist-item__status')?.textContent?.trim()).toBe('Cumplido');
     });
+  });
+
+  it('actualiza el motivo, el enlace y el destino al reasignarlos', () => {
+    const { fixture, page, part } = render({ link: 'Ir a', linkHref: '/uno' });
+    page.reason = 'Otro motivo';
+    page.linkHref = '/dos';
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    expect(part('.checklist-item__reason')?.textContent?.trim()).toBe('Otro motivo');
+    expect(part('.checklist-item__link')?.getAttribute('href')).toBe('/dos');
+    page.reason = undefined;
+    page.link = undefined;
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    expect(part('.checklist-item__reason')).toBeNull();
+    expect(part('.checklist-item__link')).toBeNull();
   });
 
   describe('Reason', () => {
@@ -229,6 +252,10 @@ describe('ChecklistItem', () => {
     it('el fondo es transparente y cada punto lleva una línea inferior border/default', () => {
       const { item } = render();
       expect(declaredStyle(item, 'border-bottom-width')).toBe('1px');
+      // Solo abajo: sin el reinicio del navegador (preflight), `border-solid` pintaría los cuatro lados.
+      expect(declaredStyle(item, 'border-top-width')).toBe('0px');
+      expect(declaredStyle(item, 'border-left-width')).toBe('0px');
+      expect(declaredStyle(item, 'border-right-width')).toBe('0px');
       expect(usesToken(declaredStyle(item, 'border-color'), '--color-border-default')).toBe(true);
     });
 
@@ -257,7 +284,9 @@ describe('ChecklistItem', () => {
       const { part } = render();
       const style = (selector: string, property: string) =>
         declaredStyle(part(selector) as Element, property);
-      expect(style('.checklist-item__title', 'font-size')).toContain('var(--text-body-md-strong');
+      expect(style('.checklist-item__title', 'font-size')).toMatch(
+        /var\(--text-body-md-strong[,)]/,
+      );
       expect(style('.checklist-item__title', 'font-weight')).toContain(
         'var(--text-body-md-strong--font-weight',
       );
@@ -317,9 +346,41 @@ describe('ChecklistItem', () => {
       await expectNoAxeViolations(render({ ...inputs, status }).list);
     });
 
-    it('cumple axe con varios puntos en la misma lista y con el enlace enfocado', async () => {
+    it('cumple axe con el enlace enfocado', async () => {
       const { list, part } = render({ link: 'Ir a', linkHref: '/x', optional: true });
       focusWithKeyboard(part('.checklist-item__link') as HTMLElement);
+      await expectNoAxeViolations(list);
+    });
+
+    it('cumple axe con varios puntos, de estados distintos, en la misma lista', async () => {
+      @Component({
+        imports: [ChecklistItemComponent],
+        template: `
+          <ol role="list">
+            @for (point of points; track point.number) {
+              <li
+                livChecklistItem
+                [status]="point.status"
+                [number]="point.number"
+                [heading]="point.heading"
+                [reason]="point.reason"
+                [optional]="point.optional"
+              ></li>
+            }
+          </ol>
+        `,
+      })
+      class ManyPoints {
+        points = [
+          { number: '1.', status: 'met', heading: 'Uno', reason: 'Listo', optional: false },
+          { number: '2.', status: 'pending', heading: 'Dos', reason: 'Falta', optional: false },
+          { number: '3.', status: 'observed', heading: 'Tres', reason: 'Revisar', optional: true },
+        ] as const;
+      }
+      const fixture = TestBed.createComponent(ManyPoints);
+      fixture.detectChanges();
+      const list = fixture.nativeElement.querySelector('ol') as HTMLOListElement;
+      expect(list.querySelectorAll(':scope > li')).toHaveLength(3);
       await expectNoAxeViolations(list);
     });
 

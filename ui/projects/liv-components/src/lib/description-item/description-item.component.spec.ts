@@ -132,7 +132,7 @@ describe('DescriptionItem', () => {
       const { item } = render();
       expect(declaredStyle(item, 'display')).toBe('flex');
       expect(declaredStyle(item, 'flex-direction')).toBe('column');
-      expect(declaredStyle(item, 'gap')).toContain('var(--spacing-1');
+      expect(declaredStyle(item, 'gap')).toMatch(/var\(--spacing-1[,)]/);
     });
 
     it('la etiqueta es label/sm en text/secondary y el valor body/md en text/primary', () => {
@@ -140,14 +140,14 @@ describe('DescriptionItem', () => {
       const dt = part('dt') as Element;
       const dd = part('dd') as Element;
       expect(usesToken(declaredStyle(dt, 'color'), '--color-text-secondary')).toBe(true);
-      expect(declaredStyle(dt, 'font-size')).toContain('var(--text-label-sm');
+      expect(declaredStyle(dt, 'font-size')).toMatch(/var\(--text-label-sm[,)]/);
       expect(usesToken(declaredStyle(dd, 'color'), '--color-text-primary')).toBe(true);
-      expect(declaredStyle(dd, 'font-size')).toContain('var(--text-body-md');
+      expect(declaredStyle(dd, 'font-size')).toMatch(/var\(--text-body-md[,)]/);
     });
 
     it('los navegadores dan un margen a dd: se quita', () => {
       const dd = render().part('dd') as Element;
-      expect(declaredStyle(dd, 'margin')).toContain('var(--spacing-0');
+      expect(declaredStyle(dd, 'margin')).toMatch(/var\(--spacing-0[,)]/);
     });
 
     it('un valor largo se parte en lugar de desbordar', () => {

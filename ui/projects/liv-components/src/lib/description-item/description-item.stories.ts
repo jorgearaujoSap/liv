@@ -19,7 +19,7 @@ const meta: Meta<DescriptionItemArgs> = {
   parameters: {
     docs: {
       description: {
-        component: `Par etiqueta–valor de solo lectura. Es un \`<div livDescriptionItem>\` dentro de una lista de descripción (\`<dl>\`): la etiqueta es el \`dt\` y el valor, el \`dd\`. \`Type=Badge\` muestra el valor como estado; su \`tone\` es del estado, no del diseño. [Diseño en Figma](${figma})`,
+        component: `Par etiqueta–valor de solo lectura. Es un \`<div livDescriptionItem>\` dentro de una lista de descripción (\`<dl>\`): la etiqueta es el \`dt\` y el valor, el \`dd\`. \`Type=Badge\` muestra el valor como estado; su \`tone\` (\`primary\` por omisión, el del diseño) lo elige la pantalla según el estado. [Diseño en Figma](${figma})`,
       },
     },
   },

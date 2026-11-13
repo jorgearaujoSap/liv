@@ -18,8 +18,8 @@
 </span>
 <div class="checklist-item__content">
   <div class="checklist-item__heading">
-    @if (numberText(); as number) {
-      <span class="checklist-item__number">{{ number }}</span>
+    @if (numberText(); as numberLabel) {
+      <span class="checklist-item__number">{{ numberLabel }}</span>
     }
     <span class="checklist-item__title">{{ heading() }}</span>
     @if (optional()) {
@@ -29,12 +29,10 @@
   @if (reasonText(); as reason) {
     <p class="checklist-item__reason">{{ reason }}</p>
   }
-  @if (linkText(); as text) {
-    @if (target(); as href) {
-      <a class="checklist-item__link" [attr.href]="href" (click)="onLinkClick($event)">{{
-        text
-      }}</a>
-    }
+  @if (anchor(); as link) {
+    <a class="checklist-item__link" [attr.href]="link.href" (click)="onLinkClick($event)">{{
+      link.text
+    }}</a>
   }
 </div>
 <liv-badge class="checklist-item__status" [tone]="presentation().tone">{{

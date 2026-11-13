@@ -2,7 +2,7 @@
 
 /* Cada punto lleva su propia línea inferior, como en Figma. */
 :host {
-  @apply box-border flex items-start gap-3 border-b border-solid border-border-default py-4;
+  @apply box-border flex items-start gap-3 border-0 border-b border-solid border-border-default py-4;
 }
 
 .checklist-item__icon {

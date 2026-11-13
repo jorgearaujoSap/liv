@@ -22,7 +22,11 @@ afterAll(() => {
 });
 
 describe('formatBusinessDate', () => {
-  beforeEach(() => useZone('America/Bogota'));
+  beforeEach(() => {
+    useZone('America/Bogota');
+    // Cada prueba vigila el defecto solo si la zona quedó activa: si no, falla aquí, no pasa en silencio.
+    expect(new Date(2026, 0, 1).getTimezoneOffset()).toBe(BOGOTA_OFFSET_MINUTES);
+  });
 
   it('la prueba corre en la zona de Bogotá; si no, no vería el defecto que vigila', () => {
     expect(new Date(2026, 0, 1).getTimezoneOffset()).toBe(BOGOTA_OFFSET_MINUTES);
@@ -84,6 +88,8 @@ describe('formatBusinessDate', () => {
       ['UTC', 'UTC', 0],
       ['Pago Pago (UTC−11)', 'Pacific/Pago_Pago', 660],
       ['Kiritimati (UTC+14)', 'Pacific/Kiritimati', -840],
+      ['Madrid (UTC+1 en enero, con horario de verano)', 'Europe/Madrid', -60],
+      ['Santiago (UTC−3 en enero, con horario de verano)', 'America/Santiago', 180],
     ])('el día no se corre en %s', (_name, zone, offset) => {
       useZone(zone);
       expect(new Date(2026, 0, 1).getTimezoneOffset()).toBe(offset);
@@ -91,6 +97,9 @@ describe('formatBusinessDate', () => {
       expect(formatBusinessDate('2026-12-31', 'long')).toBe('31 de diciembre de 2026');
       expect(formatBusinessDate('2026-01-01', 'short')).toBe('01/01/2026');
       expect(formatBusinessDate('2026-12-31', 'short')).toBe('31/12/2026');
+      // Los días del cambio de hora (marzo y octubre) no se corren ni se repiten.
+      expect(formatBusinessDate('2026-03-29', 'long')).toBe('29 de marzo de 2026');
+      expect(formatBusinessDate('2026-10-25', 'short')).toBe('25/10/2026');
     });
   });
 
@@ -98,6 +107,7 @@ describe('formatBusinessDate', () => {
     it.each([
       ['vacío', ''],
       ['con espacios', ' 2026-01-01 '],
+      ['con un salto de línea al final', '2026-01-01\n'],
       ['sin ceros', '2026-1-1'],
       ['día y mes al revés', '01/01/2026'],
       ['con hora', '2026-01-01T00:00:00Z'],
@@ -120,6 +130,11 @@ describe('formatBusinessDate', () => {
     it('un valor ausente (null o undefined) da null', () => {
       expect(formatBusinessDate(null)).toBeNull();
       expect(formatBusinessDate(undefined)).toBeNull();
+    });
+
+    it('un valor que no es un texto (un número o un objeto, por un cast mal hecho) da null', () => {
+      expect(formatBusinessDate(20260101 as unknown as string)).toBeNull();
+      expect(formatBusinessDate(new Date(2026, 0, 1) as unknown as string)).toBeNull();
     });
   });
 });

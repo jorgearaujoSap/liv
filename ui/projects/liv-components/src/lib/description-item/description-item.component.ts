@@ -12,6 +12,9 @@ export type DescriptionItemType = 'text' | 'badge';
  * `Type=Badge` muestra el valor como estado dentro de un `Badge`; su `tone` (por omisión `primary`, el del
  * diseño) lo elige la pantalla según el estado. El texto siempre dice el estado: el color no es la única
  * señal. `tone` no afecta a `Type=Text`.
+ *
+ * El diseño no trae `tone`: el `Badge` de la instancia de Figma es `primary` y la pantalla lo cambia según
+ * el estado (en el detalle, «Planeada» es neutra). La pantalla quita al `dl` el margen del navegador.
  */
 @Component({
   // Selector de atributo a propósito: el anfitrión es el `div` que agrupa `dt` y `dd` dentro de un `dl`; un

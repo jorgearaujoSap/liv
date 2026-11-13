@@ -10,6 +10,9 @@ let nextId = 0;
  * El título es un `h2` por omisión; `headingLevel` lo pasa a `h3` cuando el panel está dentro de otro
  * bloque con su propio `h2`. El nivel no cambia el aspecto (en el diseño es `heading/h3`). Figma no tiene
  * espacios de contenido: allí se compone desacoplando la instancia.
+ *
+ * Cada panel es un punto de referencia (`region`) de la página: dos paneles con el mismo título no se
+ * distinguen para un lector de pantalla, así que los títulos de una página deben ser distintos.
  */
 @Component({
   selector: 'liv-panel',
@@ -25,6 +28,8 @@ export class PanelComponent {
   /** Nivel del título en el documento: `h2` o `h3`. */
   readonly headingLevel = input<2 | 3>(2);
 
-  protected readonly headingId = `liv-panel-heading-${nextId++}`;
+  private readonly uid = nextId++;
+  protected readonly headingId = `liv-panel-heading-${this.uid}`;
+  protected readonly descriptionId = `liv-panel-description-${this.uid}`;
   protected readonly descriptionText = computed(() => this.description()?.trim() || null);
 }

@@ -35,13 +35,19 @@ const STATUSES: Record<ChecklistItemStatus, StatusPresentation> = {
  * navegador.
  *
  * El estado nunca va solo en el icono (decorativo): el `Badge` de la derecha lo dice con texto. `Pending`
- * dibuja un círculo vacío propio porque `Icon` todavía no tiene `circle` (PR 8d); cuando lo tenga, este
- * componente lo usa y el dibujo desaparece.
+ * dibuja un círculo vacío propio porque `Icon` todavía no tiene `circle` (PR 8d); pasarlo a `Icon` es un
+ * cambio aparte. Un estado que no sea uno de los tres se muestra como `pending`, para que un valor nuevo
+ * del contrato no rompa toda la lista.
  *
  * El enlace (`link` y `linkHref`) lleva a la opción donde se resuelve el punto. Como en `NavItem`, un clic
  * normal emite `navigate` con el destino y cancela la navegación del navegador, para que la aplicación
  * navegue con su enrutador; con Ctrl, Cmd, Mayús, Alt o el botón central el navegador lo abre como
- * siempre. Sin texto o sin destino no hay enlace: un enlace sin destino no lleva a ninguna parte.
+ * siempre. Sin texto o sin destino no hay enlace: un enlace sin destino no lleva a ninguna parte. El
+ * destino no se sanea (como en `NavItem`): debe ser una ruta propia de la aplicación, nunca un dato del
+ * usuario.
+ *
+ * El `li` no trae estilo de lista: la pantalla quita al `ol` el relleno y el margen del navegador
+ * (`m-0 list-none p-0`) para que los puntos queden alineados con el panel.
  */
 @Component({
   // Selector de atributo a propósito: el anfitrión es el propio `li` y un elemento `liv-*` entre el `ol` y
@@ -73,14 +79,18 @@ export class ChecklistItemComponent {
   /** Clic normal sobre el enlace: la aplicación navega a este destino. */
   readonly navigate = output<string>();
 
-  protected readonly presentation = computed(() => STATUSES[this.status()]);
+  protected readonly presentation = computed(() => STATUSES[this.status()] ?? STATUSES.pending);
   protected readonly numberText = computed(() => this.number()?.trim() || null);
   protected readonly reasonText = computed(() => this.reason()?.trim() || null);
-  protected readonly linkText = computed(() => this.link()?.trim() || null);
-  protected readonly target = computed(() => linkTarget(this.linkHref()));
+  /** El enlace que se dibuja: solo con texto y con destino. */
+  protected readonly anchor = computed(() => {
+    const text = this.link()?.trim();
+    const href = linkTarget(this.linkHref());
+    return text && href ? { text, href } : null;
+  });
 
   protected onLinkClick(event: MouseEvent): void {
-    const href = this.target();
+    const href = this.anchor()?.href;
     if (href && isPlainClick(event)) {
       event.preventDefault();
       this.navigate.emit(href);
