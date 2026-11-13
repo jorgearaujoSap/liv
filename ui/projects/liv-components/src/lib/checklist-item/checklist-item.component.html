@@ -26,12 +26,12 @@
       <liv-badge class="checklist-item__optional">Opcional</liv-badge>
     }
   </div>
-  @if (reasonText(); as reason) {
-    <p class="checklist-item__reason">{{ reason }}</p>
+  @if (reasonText(); as reasonLabel) {
+    <p class="checklist-item__reason">{{ reasonLabel }}</p>
   }
-  @if (anchor(); as link) {
-    <a class="checklist-item__link" [attr.href]="link.href" (click)="onLinkClick($event)">{{
-      link.text
+  @if (anchor(); as target) {
+    <a class="checklist-item__link" [attr.href]="target.href" (click)="onLinkClick($event)">{{
+      target.text
     }}</a>
   }
 </div>

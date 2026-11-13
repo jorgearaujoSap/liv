@@ -97,7 +97,7 @@ describe('formatBusinessDate', () => {
       expect(formatBusinessDate('2026-12-31', 'long')).toBe('31 de diciembre de 2026');
       expect(formatBusinessDate('2026-01-01', 'short')).toBe('01/01/2026');
       expect(formatBusinessDate('2026-12-31', 'short')).toBe('31/12/2026');
-      // Los días del cambio de hora (marzo y octubre) no se corren ni se repiten.
+      // Los días del cambio de hora de Madrid (marzo y octubre) no se corren ni se repiten.
       expect(formatBusinessDate('2026-03-29', 'long')).toBe('29 de marzo de 2026');
       expect(formatBusinessDate('2026-10-25', 'short')).toBe('25/10/2026');
     });

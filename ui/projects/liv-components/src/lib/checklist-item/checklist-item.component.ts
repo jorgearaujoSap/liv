@@ -79,7 +79,11 @@ export class ChecklistItemComponent {
   /** Clic normal sobre el enlace: la aplicación navega a este destino. */
   readonly navigate = output<string>();
 
-  protected readonly presentation = computed(() => STATUSES[this.status()] ?? STATUSES.pending);
+  protected readonly presentation = computed(() => {
+    const status = this.status();
+    // `hasOwn`: un valor como «constructor» no debe salir del prototipo del objeto.
+    return Object.hasOwn(STATUSES, status) ? STATUSES[status] : STATUSES.pending;
+  });
   protected readonly numberText = computed(() => this.number()?.trim() || null);
   protected readonly reasonText = computed(() => this.reason()?.trim() || null);
   /** El enlace que se dibuja: solo con texto y con destino. */

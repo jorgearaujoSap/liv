@@ -136,12 +136,15 @@ describe('ChecklistItem', () => {
       expect(svg.querySelectorAll('path')).toHaveLength(0);
     });
 
-    it('un estado que no es uno de los tres se muestra como pendiente, sin romper la lista', () => {
-      const { item, part } = render({ status: 'desconocido' as unknown as ChecklistItemStatus });
-      expect(part('.checklist-item__status')?.textContent?.trim()).toBe('Pendiente');
-      expect(part('.checklist-item__status')?.dataset['tone']).toBe('neutral');
-      expect(item.querySelector('.checklist-item__icon svg circle')).not.toBeNull();
-    });
+    it.each(['desconocido', 'constructor', 'toString', '__proto__'])(
+      'el estado «%s», que no es uno de los tres, se muestra como pendiente sin romper la lista',
+      (unknown) => {
+        const { item, part } = render({ status: unknown as ChecklistItemStatus });
+        expect(part('.checklist-item__status')?.textContent?.trim()).toBe('Pendiente');
+        expect(part('.checklist-item__status')?.dataset['tone']).toBe('neutral');
+        expect(item.querySelector('.checklist-item__icon svg circle')).not.toBeNull();
+      },
+    );
 
     it('cambia de estado al reasignarlo', () => {
       const { fixture, page, item, part } = render({ status: 'pending' });
