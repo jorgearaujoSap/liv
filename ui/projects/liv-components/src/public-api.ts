@@ -29,6 +29,8 @@ export { ModuleCardComponent } from './lib/module-card/module-card.component';
 export { NavItemComponent, type NavItemType } from './lib/nav-item/nav-item.component';
 export { NavSectionComponent } from './lib/side-nav/nav-section.component';
 export { PageHeaderComponent } from './lib/page-header/page-header.component';
+export { RadioGroupComponent } from './lib/radio-group/radio-group.component';
+export { RadioOptionComponent } from './lib/radio-group/radio-option.component';
 export {
   ResultStateComponent,
   type ResultStateTone,

@@ -1,0 +1,110 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply block;
+}
+
+/*
+ * La tarjeta elegida engrosa su borde de 1 px a 2 px, como en Figma. El relleno baja 1 px para que el
+ * contenido no se mueva al cambiar de estado. Un borde, a diferencia de una sombra o un fondo, no lo
+ * descarta el alto contraste (forced-colors).
+ */
+.radio-option {
+  @apply relative box-border flex w-full cursor-pointer items-start gap-3;
+  @apply rounded-lg border border-solid border-border-default bg-bg-surface;
+  @apply px-4 py-[11px];
+}
+
+/* El radio nativo no se ve, pero sigue en el orden de tabulación y recibe el foco. */
+.radio-option__input {
+  @apply sr-only;
+}
+
+.radio-option__circle {
+  @apply relative box-border size-5 shrink-0 rounded-full border-2 border-solid border-border-strong;
+}
+
+.radio-option__text {
+  @apply flex min-w-0 flex-1 flex-col gap-[2px] break-words;
+}
+
+.radio-option__label {
+  @apply text-body-md-strong text-text-primary;
+}
+
+.radio-option__description {
+  @apply text-body-sm text-text-secondary;
+}
+
+/* Hover: solo la opción sin elegir y habilitada cambia de fondo, como en Figma. */
+
+:host([data-state='default'][data-selected='false']) .radio-option:hover {
+  @apply bg-bg-subtle;
+}
+
+/* Selected */
+
+:host([data-selected='true']) .radio-option {
+  @apply border-2 border-action-primary bg-action-primary-subtle px-[15px] py-[10px];
+}
+
+:host([data-selected='true']) .radio-option__circle {
+  @apply border-action-primary;
+}
+
+/* El punto es un círculo de 10 px hecho con un borde de 5 px: un fondo no sobrevive al alto contraste. */
+:host([data-selected='true']) .radio-option__circle::after {
+  content: '';
+  @apply absolute inset-0 m-auto box-border size-[10px] rounded-full border-[5px] border-solid border-action-primary;
+}
+
+/*
+ * Focus: el anillo de foco rodea la tarjeta solo con el teclado. En alto contraste (forced-colors) las
+ * sombras desaparecen y `outline-hidden` deja un contorno.
+ */
+.radio-option:has(.radio-option__input:focus-visible) {
+  @apply shadow-focus-ring outline-hidden;
+}
+
+/*
+ * Disabled. Va después de Selected, con igual o mayor especificidad: la elegida pierde el azul y vuelve
+ * al borde y al relleno de una tarjeta sin elegir.
+ */
+
+:host([data-state='disabled']) .radio-option {
+  @apply cursor-not-allowed border border-border-default bg-bg-subtle px-4 py-[11px];
+}
+
+:host([data-state='disabled']) .radio-option__circle {
+  @apply border-border-default;
+}
+
+:host([data-state='disabled'][data-selected='true']) .radio-option__circle::after {
+  @apply border-text-disabled;
+}
+
+:host([data-state='disabled']) .radio-option__label,
+:host([data-state='disabled']) .radio-option__description {
+  @apply text-text-disabled;
+}
+
+/*
+ * Alto contraste: el navegador reemplaza los colores por los del sistema y los de «deshabilitado»
+ * (text/disabled y border/default) dejarían de distinguirse. Se usa `GrayText`, el color del sistema
+ * para lo inhabilitado; son los únicos colores que no salen de un token de theme.css.
+ */
+@media (forced-colors: active) {
+  :host([data-state='disabled']) .radio-option,
+  :host([data-state='disabled']) .radio-option__circle {
+    border-color: GrayText;
+  }
+
+  :host([data-state='disabled'][data-selected='true']) .radio-option__circle::after {
+    border-color: GrayText;
+  }
+
+  :host([data-state='disabled']) .radio-option__label,
+  :host([data-state='disabled']) .radio-option__description {
+    color: GrayText;
+  }
+}
