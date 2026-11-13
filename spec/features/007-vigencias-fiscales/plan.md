@@ -2,36 +2,22 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador para la H2, con el diseño aprobado (2026-11-12), las dos rondas de la revisión adversarial y la revisión de los pasos 8 y 9, ronda 1 (véase «Para la H2» y «Revisión»)
+**Estado:** decidido en la H2 (2026-11-12); la aprobación queda escrita en «Revisión» cuando la verificación acotada sale sin altos
 _(borrador → aprobado (H2))_
 
-## Para la H2
+## H2
 
-_Resumen de lo que la persona decide. El detalle de cada decisión está en «Decisiones que pide la H2»._
+La persona que dirige el trabajo resolvió la H2 el 2026-11-12 con las quince recomendaciones («Aceptar todas (Recomendado)»):
+- H2‑1, autorizado;
+- H2‑13, con la fecha larga para fechas sueltas;
+- antes de cerrar la H2, la verificación acotada del alto de la ronda 2.
 
-1. **El diseño**, aprobado el 2026-11-12, ya está registrado («Diseño de interfaz»). Su revisión de los pasos 8 y 9 (H2‑10) deja cinco decisiones, H2‑11 a H2‑15. Las cuatro primeras cambian el diseño o una regla escrita (H2‑15 va en el punto 3):
-   - **H2‑11:** el tono del mosaico de `Dialog`;
-   - **H2‑12:** el componente `RadioGroup`;
-   - **H2‑13:** el formato de las fechas;
-   - **H2‑14:** quitar el mensaje del 403 en el diálogo.
-
-   H2‑11 y H2‑12 se resuelven en Figma, antes de los PR 8f y 8c.
-2. **Las enmiendas a la spec**, que la persona decide como responsable funcional, con la H1 firmada de nuevo:
-   - **H2‑6, el límite de años futuros.** De ella dependen dos pantallas: la lista con «Crear vigencia» inhabilitado y su motivo (66:2513) y la advertencia del diálogo de creación (67:3040), además del mensaje `V‑05` `FUTURE_LIMIT` (67:3284). Sin el límite, las dos pantallas perderían el bloqueo y su advertencia, y se podrían encadenar años futuros sin forma de borrarlos;
-   - **H2‑7, la entidad auditada;**
-   - **H2‑8, los códigos `V‑05` y `V‑06`.**
-3. **Las autorizaciones de `AGENTS.md` §4.5:**
-   - **H2‑1:** migrar con la lista previa a Flyway abierta;
-   - **H2‑2:** las fechas y el rango de años en la base de datos;
-   - **H2‑3:** los permisos nuevos;
-   - **H2‑4:** la RLS;
-   - **H2‑5:** las flechas entre módulos y el ADR 0035;
-   - **H2‑15:** la versión de `liv-components` en una serie de PR.
-4. **H2‑9:** cómo se repiten las pruebas de `e2e/`.
-5. **El alto de la ronda 2 sin verificar** (la persistencia JPA del paso 6). Recomendación: **una verificación acotada, no una tercera ronda completa.** La corrección es concreta y los dos revisores llegaron al mismo hallazgo con la misma solución. Repetir todo el plan gastaría sin necesidad.
-   - La verificación la hacen dos revisores ciegos de nivel alto, solo sobre el paso 6 (persistencia, carreras y sus pruebas) y las correcciones de los pasos 8 y 9.
-   - Se hace después de que la persona decida H2‑11 a H2‑15, porque esas decisiones cambian el paso 8.
-   - Si vuelve a aparecer un alto, se corrige antes de empezar el paso 6, no antes de la H2.
+El detalle de cada decisión está en «Decisiones de la H2». Lo que queda después de la H2:
+- **En Figma**, antes de los PR que lo usan:
+  - la propiedad `Tone` de `Dialog`, antes del 8f (H2‑11);
+  - el componente `RadioGroup`, antes del 8c (H2‑12);
+  - quitar del diseño el mensaje «Sin permiso» del diálogo (H2‑14).
+- **La verificación acotada** (véase «Revisión»).
 
 ## Enfoque
 
@@ -126,27 +112,27 @@ La lista sigue abierta. La 001 pidió autorización para migrar sus tablas antes
 | Validar el ERD con expertos tributarios antes de migrar | **Abierto.** Lo decide la persona en la decisión H2‑1 |
 | Cartera histórica, prescripción y cobro coactivo | No aplica |
 
-## Decisiones que pide la H2
+## Decisiones de la H2
 
-_Lo que la persona aprueba con este plan, además del plan en sí (`AGENTS.md` §4.5)._
+_Lo que la persona aprobó con este plan, además del plan en sí (`AGENTS.md` §4.5). Todas se resolvieron el 2026-11-12 como se recomendaban; la columna «Resultado» dice cómo._
 
-| # | Decisión | Recomendación |
+| # | Decisión | Resultado |
 |---|---|---|
-| H2‑1 | Migrar `tax.fiscal_year` y `tax.administration_fiscal_year` con la lista previa a Flyway abierta, sin la validación del ERD por expertos tributarios que la lista pide «antes de migraciones», sin distinguir tablas | Lo decide la persona. A favor de autorizar, como en la 001: las dos tablas no tienen tarifas, montos ni reglas de cálculo. Si se autoriza, se anota en el ERD 2.3 |
-| H2‑2 | Excepción a CC‑01 (`docs/arquitectura/04` y `AGENTS.md` §4.5, «ningún valor tributario en el código»): las fechas del año calendario quedan en un `CHECK` de la base de datos, y el rango técnico 1999–2100 queda en la migración | Aprobar. La decisión 6 de la H1 fijó el año calendario; con el `CHECK`, ni la aplicación puede escribir otra cosa. Si una norma exige otras fechas, se cambia con una migración y una versión del Doc. 01. *Alternativa:* fechas derivadas solo en el dominio, sin `CHECK` |
-| H2‑3 | Permisos nuevos `tax.fiscal-year.create` y `tax.fiscal-year.prepare`, solo para `ADMIN_SISTEMA` | Aprobar: es la fila «Crear / abrir vigencia fiscal» del Doc. 01 §4 |
-| H2‑4 | Políticas RLS de la tabla nueva y permisos de `liv_app` («Ajustes al modelo de datos») | Aprobar |
-| H2‑5 | Dependencias entre módulos `audit → tax` y `tax → platform`, y el error de negocio en `shared` (ADR 0035). `platform → shared` ya está en la figura de `docs/arquitectura/01` §3.2; lo nuevo es que `ModularityTest` la admita | Aprobar con el ADR 0035 |
-| H2‑6 | **Enmienda 1 a la spec (cambia una regla: decide la persona como responsable funcional).** Además de V‑02, solo se puede crear un año que no pase del siguiente al año en curso: `V‑05` con motivo `FUTURE_LIMIT`, que cambia 007-06 («crear N + 1 sí se permite» pasa a «si no pasa del año siguiente al en curso»). El diálogo de creación advierte que una vigencia no se puede borrar y que, una vez creada, los años anteriores a la más antigua quedan como históricos | Aprobar. Sin el límite, se pueden encadenar años futuros (2027, 2028…) sin forma de corregirlos, porque no hay borrado. Es una regla nueva del Doc. 01 v0.5, como V‑01: va en el dominio y en el documento, no en la configuración de jurisdicción, porque no cambia entre jurisdicciones. Si la persona prefiere que el «+1» se configure, se dice en la H2 |
-| H2‑7 | **Enmienda 2 a la spec:** en 007-20, la entidad auditada es `tax.administration_fiscal_year` (no `tax.fiscal_year`), con el `id` de su fila como `entity_id`. El Doc. 01 §8 se ajusta igual | Aprobar: `entity_id` es un `UUID` y la fila que cambia es la de la administración |
-| H2‑8 | **Enmienda 3 a la spec (cambia los códigos de una regla: decide la persona como responsable funcional).** Los rechazos usan códigos de regla del Doc. 01 v0.5: `V‑05` para la primera vigencia (`FIRST_YEAR`, hoy 007-08) y el límite de años futuros (`FUTURE_LIMIT`, H2‑6); `V‑06` para una transición no permitida desde el estado actual (hoy 007-10) | Aprobar: un contrato no debe publicar números de criterios de una feature como códigos de error |
-| H2‑9 | Cómo se repiten las pruebas de `e2e/`, si la vigencia no se puede borrar | Un comando de desarrollo del *backend*, `backend/dev/limpiar-vigencias.sh` (paso 10), que vacía `tax.administration_fiscal_year` de la base **local** por `docker compose exec` y se niega fuera del contenedor de desarrollo. La persona lo corre antes de `npm test` en `e2e/`, como ya hace con `iniciar.sh`; `e2e/` no lo llama y sigue usando solo HTTP (ADR 0030). Si la administración de prueba tiene vigencias, la preparación de `e2e/` lo detecta por la API y se detiene con un mensaje claro |
+| H2‑1 | Migrar `tax.fiscal_year` y `tax.administration_fiscal_year` con la lista previa a Flyway abierta, sin la validación del ERD por expertos tributarios que la lista pide «antes de migraciones», sin distinguir tablas | ✅ **Autorizado.** Como en la 001: las dos tablas no tienen tarifas, montos ni reglas de cálculo. Se anota en el ERD 2.3 (paso 1) |
+| H2‑2 | Excepción a CC‑01 (`docs/arquitectura/04` y `AGENTS.md` §4.5, «ningún valor tributario en el código»): las fechas del año calendario quedan en un `CHECK` de la base de datos, y el rango técnico 1999–2100 queda en la migración | ✅ **Aprobado.** La decisión 6 de la H1 fijó el año calendario; con el `CHECK`, ni la aplicación puede escribir otra cosa. Si una norma exige otras fechas, se cambia con una migración y una versión del Doc. 01. *Alternativa:* fechas derivadas solo en el dominio, sin `CHECK` |
+| H2‑3 | Permisos nuevos `tax.fiscal-year.create` y `tax.fiscal-year.prepare`, solo para `ADMIN_SISTEMA` | ✅ **Aprobado.** Es la fila «Crear / abrir vigencia fiscal» del Doc. 01 §4 |
+| H2‑4 | Políticas RLS de la tabla nueva y permisos de `liv_app` («Ajustes al modelo de datos») | ✅ **Aprobado.** |
+| H2‑5 | Dependencias entre módulos `audit → tax` y `tax → platform`, y el error de negocio en `shared` (ADR 0035). `platform → shared` ya está en la figura de `docs/arquitectura/01` §3.2; lo nuevo es que `ModularityTest` la admita | ✅ **Aprobado.** |
+| H2‑6 | **Enmienda 1 a la spec (cambia una regla: decide la persona como responsable funcional).** Además de V‑02, solo se puede crear un año que no pase del siguiente al año en curso: `V‑05` con motivo `FUTURE_LIMIT`, que cambia 007-06 («crear N + 1 sí se permite» pasa a «si no pasa del año siguiente al en curso»). El diálogo de creación advierte que una vigencia no se puede borrar y que, una vez creada, los años anteriores a la más antigua quedan como históricos | ✅ **Aprobado.** Sin el límite, se pueden encadenar años futuros (2027, 2028…) sin forma de corregirlos, porque no hay borrado. Es una regla nueva del Doc. 01 v0.5, como V‑01: va en el dominio y en el documento, no en la configuración de jurisdicción, porque no cambia entre jurisdicciones. El «+1» queda en el dominio y en el Doc. 01, no en la configuración |
+| H2‑7 | **Enmienda 2 a la spec:** en 007-20, la entidad auditada es `tax.administration_fiscal_year` (no `tax.fiscal_year`), con el `id` de su fila como `entity_id`. El Doc. 01 §8 se ajusta igual | ✅ **Aprobado.** `entity_id` es un `UUID` y la fila que cambia es la de la administración |
+| H2‑8 | **Enmienda 3 a la spec (cambia los códigos de una regla: decide la persona como responsable funcional).** Los rechazos usan códigos de regla del Doc. 01 v0.5: `V‑05` para la primera vigencia (`FIRST_YEAR`, hoy 007-08) y el límite de años futuros (`FUTURE_LIMIT`, H2‑6); `V‑06` para una transición no permitida desde el estado actual (hoy 007-10) | ✅ **Aprobado.** Un contrato no debe publicar números de criterios de una feature como códigos de error |
+| H2‑9 | Cómo se repiten las pruebas de `e2e/`, si la vigencia no se puede borrar | ✅ **Aprobado.** Un comando de desarrollo del *backend*, `backend/dev/limpiar-vigencias.sh` (paso 10), que vacía `tax.administration_fiscal_year` de la base **local** por `docker compose exec` y se niega fuera del contenedor de desarrollo. La persona lo corre antes de `npm test` en `e2e/`, como ya hace con `iniciar.sh`; `e2e/` no lo llama y sigue usando solo HTTP (ADR 0030). Si la administración de prueba tiene vigencias, la preparación de `e2e/` lo detecta por la API y se detiene con un mensaje claro |
 | H2‑10 | El diseño de Figma (paso 0) antes de aprobar la H2, y una revisión de los pasos 8 y 9 cuando esté | ✅ Hecho: el diseño se aprobó el 2026-11-12 y la revisión de los pasos 8 y 9 (ronda 1) se hizo ese día (véase «Revisión»). Dejó las decisiones H2‑11 a H2‑15 |
-| H2‑11 | **`Dialog` (cambia el diseño aprobado).** El mosaico del icono de `Dialog` es siempre de advertencia, y el diálogo de creación lo pinta en el color de la acción principal (`action/primary-subtle`). La propuesta aprobada (65:472) dice que lo demás queda igual, así que ese tono no está diseñado como propiedad | Agregar a la propuesta de `Dialog` en Figma una propiedad `Tone` (`Warning` por omisión, `Primary`) y aprobarla antes del PR 8f. *Alternativa:* el diálogo de creación usa el mosaico de advertencia y no se agrega nada. En los dos casos, el cuerpo es una ranura con nombre y el ancho de 520 px es un tamaño `lg`, con 440 por omisión, para no cambiar el aviso de sesión de la 001 |
-| H2‑12 | **El grupo de opciones del año (agrega un componente al diseño).** En Figma es un marco de la pantalla, pero su comportamiento (nombre accesible, teclado, un solo Tab) no puede vivir en la pantalla (`AGENTS.md` §6.1) | Un componente `RadioGroup` en `liv-components` (`fieldset`, `legend` y radios nativos), diseñado en `02 Componentes` junto a `RadioOption` y aprobado antes del PR 8c. Visualmente es el marco que ya está en las pantallas |
-| H2‑13 | **El formato de las fechas.** El diseño muestra «1 de enero de 2026»; `frontend/AGENTS.md` («Localización») y la *skill* `liv-pantalla` piden `dd/mm/aaaa` | Lo decide la persona. A favor del diseño: en una vigencia, la fecha larga se lee mejor y no hay columnas de montos que alinear. Si se queda, `frontend/AGENTS.md` y `liv-pantalla` admiten el formato largo para fechas sueltas, y el formateador de la librería (8b) ofrece los dos. Si no, el diseño pasa a `dd/mm/aaaa` |
-| H2‑14 | **El 403 dentro del diálogo.** El interceptor del *frontend* lleva a «Sin permiso» ante cualquier 403 de la API (001-16), así que el mensaje «Sin permiso» del diseño (67:3284) nunca se vería | Dejar el comportamiento de 001-16 y quitar ese mensaje del diseño. La acción solo aparece con `canCreate`, así que el 403 dentro del diálogo solo pasa si el permiso cambia a mitad de la sesión, y entonces llevar a «Sin permiso» es correcto |
-| H2‑15 | **La versión de `liv-components` en una serie de PR.** `ui/AGENTS.md` pide subirla en el mismo PR | Una excepción para la serie 8a a 8f: los cinco primeros van a «Sin publicar» y el último sube a 0.4.0. Nada se publica hasta que la persona lo haga después de integrar el 8f |
+| H2‑11 | **`Dialog` (cambia el diseño aprobado).** El mosaico del icono de `Dialog` es siempre de advertencia, y el diálogo de creación lo pinta en el color de la acción principal (`action/primary-subtle`). La propuesta aprobada (65:472) dice que lo demás queda igual, así que ese tono no está diseñado como propiedad | ✅ **Aprobado.** Agregar a la propuesta de `Dialog` en Figma una propiedad `Tone` (`Warning` por omisión, `Primary`) y aprobarla antes del PR 8f. En los dos casos, el cuerpo es una ranura con nombre y el ancho de 520 px es un tamaño `lg`, con 440 por omisión, para no cambiar el aviso de sesión de la 001 |
+| H2‑12 | **El grupo de opciones del año (agrega un componente al diseño).** En Figma es un marco de la pantalla, pero su comportamiento (nombre accesible, teclado, un solo Tab) no puede vivir en la pantalla (`AGENTS.md` §6.1) | ✅ **Aprobado.** Un componente `RadioGroup` en `liv-components` (`fieldset`, `legend` y radios nativos), diseñado en `02 Componentes` junto a `RadioOption` y aprobado antes del PR 8c. Visualmente es el marco que ya está en las pantallas |
+| H2‑13 | **El formato de las fechas.** El diseño muestra «1 de enero de 2026»; `frontend/AGENTS.md` («Localización») y la *skill* `liv-pantalla` piden `dd/mm/aaaa` | ✅ **Fecha larga para fechas sueltas.** En una vigencia, la fecha larga se lee mejor y no hay columnas de montos que alinear. `frontend/AGENTS.md` y `liv-pantalla` admiten el formato largo para fechas sueltas (los ajusta el PR 9a), y el formateador de la librería (8b) ofrece los dos. Si no, el diseño pasa a `dd/mm/aaaa` |
+| H2‑14 | **El 403 dentro del diálogo.** El interceptor del *frontend* lleva a «Sin permiso» ante cualquier 403 de la API (001-16), así que el mensaje «Sin permiso» del diseño (67:3284) nunca se vería | ✅ **Aprobado.** Dejar el comportamiento de 001-16 y quitar ese mensaje del diseño. La acción solo aparece con `canCreate`, así que el 403 dentro del diálogo solo pasa si el permiso cambia a mitad de la sesión, y entonces llevar a «Sin permiso» es correcto |
+| H2‑15 | **La versión de `liv-components` en una serie de PR.** `ui/AGENTS.md` pide subirla en el mismo PR | ✅ **Aprobado.** Una excepción para la serie 8a a 8f: los cinco primeros van a «Sin publicar» y el último sube a 0.4.0. Nada se publica hasta que la persona lo haga después de integrar el 8f |
 
 ## Implementación
 
@@ -332,7 +318,7 @@ Después del paso 0. Los componentes son los de «Diseño de interfaz». Cada un
   - solo el enlace del año recibe el foco: la fila pinta *Hover* y *Focus* con `:focus-within`, y el chevron de la celda *Action* es decorativo (`aria-hidden`);
   - el estado *Empty* no entra: la 007 usa `ResultState` para el vacío (*frames* 66:2793 y 66:3041). Entra, como la barra y la paginación (64:450), con la primera feature 1.6.
 - **`ChecklistItem` (8b):** el estado `Observed` se implementa aunque la 007 no lo use, porque el contrato ya lo declara (paso 6) y el diseño lo aprobó.
-- **Formateador de fechas (8b):** `docs/arquitectura/01` §11 pone los formateadores en la librería. Formatea una fecha de negocio (`AAAA-MM-DD`) **sin convertir de zona**, porque `new Date('2026-01-01')` en Bogotá muestra el 31 de diciembre de 2025. Su formato depende de la decisión H2‑13; la prueba corre con `TZ=America/Bogota`.
+- **Formateador de fechas (8b):** `docs/arquitectura/01` §11 pone los formateadores en la librería. Formatea una fecha de negocio (`AAAA-MM-DD`) **sin convertir de zona**, porque `new Date('2026-01-01')` en Bogotá muestra el 31 de diciembre de 2025. Da la fecha larga («1 de enero de 2026», H2‑13) y la corta (`dd/mm/aaaa`); la prueba corre con `TZ=America/Bogota`.
 - **`RadioGroup` y `RadioOption` (8c, H2‑12):** un `<fieldset>` con su `<legend>` y radios nativos con un `name` común. Las flechas y el Tab que solo entra a la opción marcada vienen del navegador. Lleva pruebas de teclado dentro de un `Dialog`, con uno y con dos años, porque la trampa de foco del diálogo cuenta los radios: solo debe contar el marcado (lo corrige el 8f). La variante `Disabled` se implementa porque está diseñada.
 - **Iconos (8d):** `plus` y `circle`. `chevron-left` solo lo usa la paginación, así que entra con la 1.6. La prueba de `icon.component.spec.ts` que cuenta los iconos y la descripción en Figma se actualizan. Los iconos toman el color de su contenedor (`currentColor`), como ya hacen `Button` y `ResultState`.
 - **`Button` (8e):**
@@ -366,7 +352,8 @@ Después del paso 4, publicado como *release* `contract-tax-v1.0.0`, y del paso 
   - lleva la advertencia de H2‑6;
   - mientras se envía, el botón está en `loading` y Escape no cierra.
 - Los rechazos (67:3284) se arman con el código y las extensiones del Problem Details. La alerta se crea de nuevo en cada intento, para que se anuncie aunque el texto se repita. Después de un `V‑01`, la lista se vuelve a leer y queda marcado el primer año que siga disponible.
-- **El 403 dentro del diálogo (H2‑14):** el interceptor lleva hoy a «Sin permiso» ante cualquier 403 de la API (001-16). Con la recomendación de H2‑14 eso no cambia, y el mensaje «Sin permiso» del diseño (67:3284) no se usa.
+- **El 403 dentro del diálogo (H2‑14):** el interceptor sigue llevando a «Sin permiso» ante cualquier 403 de la API (001-16), y el mensaje «Sin permiso» sale del diseño (67:3284).
+- **Fechas (H2‑13):** el mismo PR ajusta `frontend/AGENTS.md` («Localización») y la *skill* `liv-pantalla` (paso 5) para admitir la fecha larga en fechas sueltas, con `dd/mm/aaaa` en tablas de consulta y exportaciones. Son reglas del proyecto `frontend/`, así que van en su PR y no en el de documentos de la raíz.
 
 **9b · Detalle y preparación**
 - El detalle, en la ruta `${OPTION_ROUTE}/1.4/:year`, con sus estados (68:3460 a 68:4474):
@@ -681,7 +668,7 @@ flowchart LR
   - las pruebas de navegador de la 001 que usaban 1.4 como «Próximamente»;
   - la alerta repetida que no se anunciaba y la opción marcada después de un `V‑01`.
 - **Descartados:** ninguno.
-- **Resultado:** es la primera ronda de los pasos 8 y 9. Sus correcciones no se volvieron a revisar (véase la recomendación de «Para la H2»).
+- **Resultado:** es la primera ronda de los pasos 8 y 9. Sus correcciones no se volvieron a revisar (la verificación acotada que pidió la H2 las revisa).
 
 - [ ] Revisión adversarial independiente del plan ejecutada; hallazgos resueltos o justificados (falta la decisión de la persona sobre el alto de la ronda 2 y la verificación de las correcciones).
 - [ ] Aprobación H2: <quién, fecha>.

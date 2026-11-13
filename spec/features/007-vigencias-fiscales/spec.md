@@ -1,6 +1,6 @@
 # 007 · Vigencias fiscales
 
-**Estado:** aprobada (H1) — 2026-11-12, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las siete recomendaciones de la spec (véase «Decisiones de la H1»)
+**Estado:** aprobada (H1) — 2026-11-12, por la persona que dirige el trabajo (`AGENTS.md` §4.3), con las siete recomendaciones de la spec (véase «Decisiones de la H1») · enmiendas 1, 2 y 3 (007-04, 007-06, 007-08, 007-10 y 007-20) aprobadas por la misma persona como responsable funcional en la H2 del 2026-11-12, que firmó de nuevo la H1 (véase «Enmiendas de la H2»)
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
 **Módulo:** `tax` (vigencias), con la matriz de permisos de `platform`, la auditoría de `audit`, el frontend y, si el diseño lo pide, la librería `liv-components` · **Menú:** 1.4 · **Tipo de cambio:** crítico (`AGENTS.md` §4.3; decisión 4 de la H1)
@@ -36,16 +36,16 @@ _Cada criterio se comprueba con sí/no y tiene su número propio `007-xx`. Si ve
 
 **B. Creación de la vigencia**
 
-- [ ] **V‑01 · 007-04** — Dado un `ADMIN_SISTEMA`, cuando crea la vigencia de un año, entonces la vigencia queda en estado *Planeada*, sin la liquidación habilitada, con inicio el 1 de enero y fin el 31 de diciembre de ese año. Las fechas no se escriben a mano (decisión 6). _Prueba:_ pendiente
+- [ ] **V‑01 · 007-04** — Dado un `ADMIN_SISTEMA`, cuando crea la vigencia de un año, entonces la vigencia queda en estado *Planeada*, sin la liquidación habilitada, con inicio el 1 de enero y fin el 31 de diciembre de ese año. Las fechas no se escriben a mano (decisión 6). Antes de crearla, la pantalla advierte que una vigencia no se puede borrar y que, una vez creada, los años anteriores a la más antigua quedan como históricos (enmienda 1). _Prueba:_ pendiente
 - [ ] **V‑01 · 007-05** — Dada una vigencia que ya existe en la administración, cuando un `ADMIN_SISTEMA` intenta crear otra del mismo año, entonces se rechaza con un mensaje que cita V‑01 y no cambia nada. Si dos personas crean el mismo año al mismo tiempo, se crea una sola vigencia y la otra recibe ese rechazo. _Prueba:_ pendiente
-- [ ] **V‑02 · 007-06** — Dada una administración cuya vigencia más reciente es N, cuando un `ADMIN_SISTEMA` intenta crear un año posterior a N + 1, entonces se rechaza con un mensaje que cita V‑02 y dice que primero debe existir la vigencia N + 1. Crear N + 1 sí se permite. _Enmienda pendiente de la H2 (H2‑6 del `plan.md`): el límite de años futuros._ _Prueba:_ pendiente
+- [ ] **V‑02 · 007-06** — Dada una administración cuya vigencia más reciente es N, cuando un `ADMIN_SISTEMA` intenta crear un año posterior a N + 1, entonces se rechaza con un mensaje que cita V‑02 y dice que primero debe existir la vigencia N + 1. Crear N + 1 se permite si no pasa del año siguiente al año en curso; si pasa, se rechaza con un mensaje que cita V‑05 y dice cuál es el último año que se puede crear (enmienda 1). _Prueba:_ pendiente
 - [ ] **V‑02 · 007-07** — Dada una administración con vigencias, cuando un `ADMIN_SISTEMA` intenta crear un año anterior a su vigencia más antigua (una vigencia histórica), entonces se rechaza con un mensaje que dice que la carga de vigencias históricas aún no está autorizada (pendiente 5 del Doc. 01 §11; decisión 2). _Prueba:_ pendiente
-- [ ] **007-08** — Dada una administración sin vigencias, cuando un `ADMIN_SISTEMA` crea la primera, entonces solo se admite el año en curso o el siguiente, según el reloj del sistema; cualquier otro año se rechaza con un mensaje que lo explica (decisión 2). _Enmienda pendiente de la H2 (H2‑8 del `plan.md`): el código `V‑05`._ _Prueba:_ pendiente
+- [ ] **007-08** — Dada una administración sin vigencias, cuando un `ADMIN_SISTEMA` crea la primera, entonces solo se admite el año en curso o el siguiente, según el reloj del sistema; cualquier otro año se rechaza con un mensaje que cita V‑05 y dice qué años se admiten (decisión 2; enmienda 3). _Prueba:_ pendiente
 - [ ] **007-09** — Dado un usuario sin rol `ADMIN_SISTEMA` (por ejemplo, `APROBADOR_TABLAS` o `CARGADOR_TABLAS`), cuando intenta crear una vigencia o abrir su preparación por la API, entonces recibe «Sin permiso» (403), no cambia nada y la interfaz no le muestra esas acciones (Doc. 01 §4, «Crear / abrir vigencia fiscal»). _Prueba:_ pendiente
 
 **C. Preparación**
 
-- [ ] **007-10** — Dada una vigencia *Planeada*, cuando un `ADMIN_SISTEMA` abre su preparación, entonces pasa a *En preparación*. Desde cualquier otro estado, la acción no se ofrece y la API la rechaza sin cambiar nada (Doc. 01 §5, diagrama de estados). _Enmienda pendiente de la H2 (H2‑8 del `plan.md`): el código `V‑06`._ _Prueba:_ pendiente
+- [ ] **007-10** — Dada una vigencia *Planeada*, cuando un `ADMIN_SISTEMA` abre su preparación, entonces pasa a *En preparación*. Desde cualquier otro estado, la acción no se ofrece y la API la rechaza con un mensaje que cita V‑06, sin cambiar nada (Doc. 01 §5, diagrama de estados; enmienda 3). _Prueba:_ pendiente
 - [ ] **007-11** — Dada una vigencia, cuando un usuario con permiso de consulta abre su preparación, entonces ve los nueve puntos de la lista 1.5.1 (Doc. 01 §6.1), cada uno con su estado (cumplido o pendiente; los puntos 6 y 7 son opcionales) y, si está pendiente, por qué. Los puntos de opciones que todavía no existen (2 a 9) se muestran *pendientes* con el texto «Opción aún no disponible», nunca como cumplidos. El punto 1 se cumple si la vigencia está *En preparación* o en un estado posterior (el Doc. 01 §6.1 dice «en estado `EN_PREPARACION`»; los estados posteriores también lo cumplen, porque solo se llega a ellos desde ese). _Prueba:_ pendiente
 - [ ] **V‑03 · CA‑14 · 007-12** — Dada una vigencia a la que le falta alguno de los puntos obligatorios de la lista (1 a 5, 8 y 9), cuando un usuario la ve, entonces el botón «Habilitar liquidación» está inhabilitado y la pantalla lista los puntos que faltan; ninguna llamada a la API puede poner `assessments_enabled` en verdadero. _Prueba:_ pendiente
 
@@ -56,7 +56,7 @@ _Cada criterio se comprueba con sí/no y tiene su número propio `007-xx`. Si ve
 
 **E. Auditoría**
 
-- [ ] **007-20** — Dada cualquier creación o cambio de estado de una vigencia, entonces queda un evento en `audit.audit_event` con la entidad `tax.fiscal_year`, el año, el usuario, la administración, el estado anterior y el nuevo, el instante y el `correlation_id` de la operación (Doc. 01 §8). _Enmienda pendiente de la H2 (H2‑7 del `plan.md`): la entidad `tax.administration_fiscal_year`._ _Prueba:_ pendiente
+- [ ] **007-20** — Dada cualquier creación o cambio de estado de una vigencia, entonces queda un evento en `audit.audit_event` con la entidad `tax.administration_fiscal_year` y el identificador de su fila, el año, el usuario, la administración, el estado anterior y el nuevo, el instante y el `correlation_id` de la operación (Doc. 01 §8; enmienda 2). _Prueba:_ pendiente
 
 **F. Calidad**
 
@@ -83,6 +83,16 @@ _Por la decisión 1, la habilitación con doble firma y el cierre no son de esta
 - **Habilitar la liquidación, la doble firma, el estado *Lista* y el cierre** (decisión 1): van en la feature 1.5.1 (véase «Trasladado a la feature 1.5.1»).
 - **Liquidar** con la vigencia habilitada: es la Fase 2 (LQ‑P01).
 - **La administración de usuarios y roles** (menú 1.2): los usuarios de prueba se dan de alta en Keycloak, como en la feature 001.
+
+## Enmiendas de la H2
+
+_Aprobadas el 2026-11-12 por la persona que dirige el trabajo, como responsable funcional, al aprobar la H2 del `plan.md` (decisiones H2‑6 a H2‑8). Cambian reglas, así que la H1 se firmó de nuevo para esos criterios. Las reglas nuevas van al Doc. 01 v0.5._
+
+| # | Criterios | Cambio | Motivo |
+|---|---|---|---|
+| 1 (H2‑6) | 007-04, 007-06 | Además de V‑02, no se puede crear un año posterior al siguiente al año en curso (`V‑05`). La pantalla advierte, antes de crear, que una vigencia no se puede borrar y que los años anteriores a la más antigua quedan como históricos | Sin el límite, se podían encadenar años futuros sin forma de corregirlos, porque no hay borrado |
+| 2 (H2‑7) | 007-20 | La entidad auditada es `tax.administration_fiscal_year`, con el identificador de su fila | Por la decisión 3, la fila que cambia es la de la administración, y `entity_id` es un `UUID` |
+| 3 (H2‑8) | 007-08, 007-10 | Los rechazos citan códigos de regla del Doc. 01 v0.5: `V‑05` para la primera vigencia y el límite de años futuros, y `V‑06` para una transición no permitida | Un contrato no debe publicar números de criterios de una feature como códigos de error |
 
 ## Decisiones de la H1 (resueltas)
 
