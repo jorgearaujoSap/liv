@@ -19,7 +19,13 @@ interface ItemInputs {
   template: `
     <dl>
       @for (item of items; track item.label) {
-        <div livDescriptionItem [type]="item.type ?? 'text'" [label]="item.label" [value]="item.value" [tone]="item.tone ?? 'primary'"></div>
+        <div
+          livDescriptionItem
+          [type]="item.type ?? 'text'"
+          [label]="item.label"
+          [value]="item.value"
+          [tone]="item.tone ?? 'primary'"
+        ></div>
       }
     </dl>
   `,
@@ -66,7 +72,9 @@ describe('DescriptionItem', () => {
 
   describe('Type=Text', () => {
     it('el valor es texto simple', () => {
-      const { item, part } = render([{ type: 'text', label: 'Fin', value: '31 de diciembre de 2026' }]);
+      const { item, part } = render([
+        { type: 'text', label: 'Fin', value: '31 de diciembre de 2026' },
+      ]);
       expect(item.dataset['type']).toBe('text');
       expect(part('dd')?.textContent?.trim()).toBe('31 de diciembre de 2026');
       expect(part('liv-badge')).toBeNull();
@@ -85,8 +93,11 @@ describe('DescriptionItem', () => {
     it('el tono por omisión es Primary, el del diseño, y admite los demás', () => {
       const tones: BadgeTone[] = ['neutral', 'primary', 'success', 'warning', 'danger', 'info'];
       expect(
-        (render([{ type: 'badge', label: 'Estado', value: 'En preparación' }]).part('liv-badge') as HTMLElement)
-          .dataset['tone'],
+        (
+          render([{ type: 'badge', label: 'Estado', value: 'En preparación' }]).part(
+            'liv-badge',
+          ) as HTMLElement
+        ).dataset['tone'],
       ).toBe('primary');
       for (const tone of tones) {
         const badge = render([{ type: 'badge', label: 'Estado', value: 'Planeada', tone }]).part(
@@ -97,7 +108,9 @@ describe('DescriptionItem', () => {
     });
 
     it('en Text, el tono no tiene efecto', () => {
-      expect(render([{ label: 'Año', value: '2026', tone: 'danger' }]).part('liv-badge')).toBeNull();
+      expect(
+        render([{ label: 'Año', value: '2026', tone: 'danger' }]).part('liv-badge'),
+      ).toBeNull();
     });
   });
 
@@ -134,7 +147,7 @@ describe('DescriptionItem', () => {
 
     it('los navegadores dan un margen a dd: se quita', () => {
       const dd = render().part('dd') as Element;
-      expect(declaredStyle(dd, 'margin')).toBe('0px');
+      expect(declaredStyle(dd, 'margin')).toContain('var(--spacing-0');
     });
 
     it('un valor largo se parte en lugar de desbordar', () => {

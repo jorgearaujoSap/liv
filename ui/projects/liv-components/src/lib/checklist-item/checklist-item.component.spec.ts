@@ -185,7 +185,9 @@ describe('ChecklistItem', () => {
     it('sin texto o sin destino no hay enlace: un enlace sin destino no lleva a ninguna parte', () => {
       expect(render({}).part('.checklist-item__link')).toBeNull();
       expect(render({ linkHref: '/x' }).part('.checklist-item__link')).toBeNull();
-      expect(render({ link: 'Ir a', linkHref: undefined }).part('.checklist-item__link')).toBeNull();
+      expect(
+        render({ link: 'Ir a', linkHref: undefined }).part('.checklist-item__link'),
+      ).toBeNull();
       expect(render({ link: 'Ir a', linkHref: '  ' }).part('.checklist-item__link')).toBeNull();
       expect(render({ link: '  ', linkHref: '/x' }).part('.checklist-item__link')).toBeNull();
     });
@@ -253,12 +255,16 @@ describe('ChecklistItem', () => {
 
     it('el título es body/md-strong y el número body/md', () => {
       const { part } = render();
-      const size = (selector: string) => declaredStyle(part(selector) as Element, 'font-size');
-      expect(size('.checklist-item__title')).toContain('var(--text-body-md');
-      expect(size('.checklist-item__number')).toContain('var(--text-body-md');
-      expect(
-        declaredStyle(part('.checklist-item__title') as Element, 'font-weight'),
-      ).toContain('var(--text-body-md--font-weight');
+      const style = (selector: string, property: string) =>
+        declaredStyle(part(selector) as Element, property);
+      expect(style('.checklist-item__title', 'font-size')).toContain('var(--text-body-md-strong');
+      expect(style('.checklist-item__title', 'font-weight')).toContain(
+        'var(--text-body-md-strong--font-weight',
+      );
+      expect(style('.checklist-item__number', 'font-size')).toContain('var(--text-body-md,');
+      expect(style('.checklist-item__number', 'font-weight')).toContain(
+        'var(--text-body-md--font-weight',
+      );
     });
 
     it('el enlace pinta el anillo focus/ring de theme.css solo con el foco del teclado', () => {
@@ -291,22 +297,24 @@ describe('ChecklistItem', () => {
   });
 
   describe('accesibilidad (007-21)', () => {
+    const VARIANTS: readonly [string, Partial<HostComponent>][] = [
+      ['sin motivo', { reason: undefined }],
+      ['con motivo', {}],
+      ['opcional', { optional: true }],
+      ['con enlace', { link: 'Ir a 1.5.2 · Catálogos', linkHref: '/avaluos' }],
+      [
+        'opcional, con motivo y enlace',
+        { optional: true, link: 'Ir a 1.5.2', linkHref: '/avaluos' },
+      ],
+      ['sin número', { number: undefined }],
+    ];
+
     it.each(
       STATUSES.flatMap((status) =>
-        [
-          ['sin motivo', { reason: undefined }],
-          ['con motivo', {}],
-          ['opcional', { optional: true }],
-          ['con enlace', { link: 'Ir a 1.5.2 · Catálogos', linkHref: '/avaluos' }],
-          [
-            'opcional, con motivo y enlace',
-            { optional: true, link: 'Ir a 1.5.2', linkHref: '/avaluos' },
-          ],
-          ['sin número', { number: undefined }],
-        ].map(([name, inputs]) => [status, name, inputs] as const),
+        VARIANTS.map(([name, inputs]) => [status, name, inputs] as const),
       ),
     )('cumple axe %s, %s', async (status, _name, inputs) => {
-      await expectNoAxeViolations(render({ status, ...inputs }).list);
+      await expectNoAxeViolations(render({ ...inputs, status }).list);
     });
 
     it('cumple axe con varios puntos en la misma lista y con el enlace enfocado', async () => {

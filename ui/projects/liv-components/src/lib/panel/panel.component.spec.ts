@@ -50,9 +50,12 @@ describe('Panel', () => {
     it.each<[2 | 3, string]>([
       [2, 'H2'],
       [3, 'H3'],
-    ])('con headingLevel %s es un %s, según el nivel que toca en la página', (headingLevel, tag) => {
-      expect(render({ headingLevel }).part('.panel__heading')?.tagName).toBe(tag);
-    });
+    ])(
+      'con headingLevel %s es un %s, según el nivel que toca en la página',
+      (headingLevel, tag) => {
+        expect(render({ headingLevel }).part('.panel__heading')?.tagName).toBe(tag);
+      },
+    );
 
     it('cada panel tiene su propio identificador', () => {
       const ids = [render(), render()].map(({ part }) => part('.panel__heading')?.id);
@@ -131,7 +134,7 @@ describe('Panel', () => {
 
     it('los títulos del navegador no dejan márgenes propios', () => {
       const heading = render().part('.panel__heading') as Element;
-      expect(declaredStyle(heading, 'margin')).toBe('0px');
+      expect(declaredStyle(heading, 'margin')).toContain('var(--spacing-0');
     });
 
     it('en alto contraste (forced-colors) el borde delimita la superficie', () => {
@@ -151,7 +154,10 @@ describe('Panel', () => {
       ['con título y descripción', {}],
       ['sin descripción', { description: undefined }],
       ['con un título h3', { headingLevel: 3 }],
-      ['con un título y una descripción largos', { heading: 'Título '.repeat(30), description: 'x '.repeat(120) }],
+      [
+        'con un título y una descripción largos',
+        { heading: 'Título '.repeat(30), description: 'x '.repeat(120) },
+      ],
     ])('cumple axe %s', async (_name, inputs) => {
       await expectNoAxeViolations(render(inputs).host);
     });
@@ -162,7 +168,10 @@ describe('Panel', () => {
         template: `
           <h1>Vigencia 2027</h1>
           <liv-panel heading="Datos de la vigencia"><p>Uno</p></liv-panel>
-          <liv-panel heading="Lista de preparación" description="Cada punto lo verifica el sistema.">
+          <liv-panel
+            heading="Lista de preparación"
+            description="Cada punto lo verifica el sistema."
+          >
             <p>Dos</p>
           </liv-panel>
         `,
