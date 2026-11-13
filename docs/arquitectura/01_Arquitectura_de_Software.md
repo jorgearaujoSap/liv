@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0002, 0003, 0005, 0006, 0008, 0009, 0012, 0013, 0016, 0017)
-> **Versión:** 1.2 — 2026-11-11, validador CJ01–CJ16, saldos como vista normal y formatos del archivo bancario alineados con los Docs. 03 v0.5 y 04 v0.2 y el ERD 2.2 (feature 005). La 1.1 (2026-11-08) cambió §5.3 por la feature 004 (esquema de la configuración de jurisdicción). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.3 — 2026-11-13, figura del §3.2 con las flechas `audit → tax`, `tax → platform` y `tax → shared` y una nota sobre su lectura (ADR 0035, feature 007). La 1.2 (2026-11-11) incorporó el validador CJ01–CJ16, los saldos como vista normal y los formatos del archivo bancario, alineados con los Docs. 03 v0.5 y 04 v0.2 y el ERD 2.2 (feature 005). La 1.1 (2026-11-08) cambió §5.3 por la feature 004 (esquema de la configuración de jurisdicción). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Alcance:** vistas de contexto y contenedores, módulos, arquitectura interna, motor de reglas, patrones, datos, API, frontend, procesos masivos, integraciones y estructura del repositorio. Sin código.
 
 ---
@@ -103,15 +103,22 @@ flowchart BT
     VAL --> CORE
     TAX[tax] --> VAL
     TAX --> JUR
+    TAX --> PL
+    TAX --> SK
     LED[ledger] --> JUR
     LED --> CORE
     POR[portfolio] --> LED
     AUD[audit] --> CORE
     AUD --> PL
+    AUD --> TAX
     REP[reporting] -. vistas publicadas .-> TAX & LED & VAL
     TAX == "evento LiquidacionEmitida" ==> LED
     LED == "evento PagoImputado" ==> POR
 ```
+
+Las flechas continuas son dependencias. Las flechas `==>` con nombre de evento indican hacia dónde fluye el evento, no una dependencia: quien consume un evento depende del paquete raíz de quien lo publica, y esa flecha se agrega con la feature que lo consume (por ejemplo, `ledger → tax`, con su ADR).
+
+`audit` escucha los eventos de vigencia que `tax` publica en su paquete raíz (ADR 0035), como los de `core` (ADR 0025). Hacia `shared` solo se dibujan las flechas que un ADR aprobó (`platform` y `tax`). `tax → documents`, que traerá la lista de preparación de las vigencias, es una flecha futura con su propio ADR (feature de la opción 1.3) y no está en la figura.
 
 | Regla | Verificación automática |
 |---|---|
