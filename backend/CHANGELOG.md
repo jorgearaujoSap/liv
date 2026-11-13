@@ -6,6 +6,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Lista de preparación de la vigencia, en el dominio de `tax` (feature 007, T10). Java puro, sin Spring ni reloj:
+  - `PreparationChecklist`: los nueve puntos del Doc. 01 §6.1, cada uno con su número, su `code` del contrato, su obligatoriedad y su opción de menú, más `canEnable()` y `missing()`. Es inmutable.
+  - El punto 1 recibe el estado de la vigencia como dato (preparación abierta o no). Los puntos 2 a 9 salen del puerto `PreparationItemCheck`, que en la 007 no tiene implementaciones y da `PENDING` con `OPTION_NOT_AVAILABLE`, nunca cumplido: `canEnable()` es siempre falso (V-03, CA-14, 007-12).
+  - Rechaza dos implementaciones para un mismo punto y una para el punto 1. Un fallo de una implementación hace fallar la lista; nunca queda un punto cumplido por error.
+  - El motivo de cada punto (`PreparationCheckResult`) es un código en mayúsculas de hasta 64 caracteres, no un texto libre. Tipos de apoyo: `PreparationPoint`, `PreparationItem` y `PreparationItemStatus`.
+  - Pruebas: `PreparationChecklistTest` (007-11, V-03).
 - Dominio de las vigencias fiscales (feature 007, T8 y T9), en Java puro y sin pruebas de base de datos:
   - `shared.RuleViolation` (código de la regla en mayúsculas con guion ASCII y hasta 32 caracteres, tipo `CONFLICT` o `UNPROCESSABLE` y detalles de tipo `String`, `Integer`, `Long`, `BigDecimal` o `Boolean` que no usan las claves del Problem Details) y `shared.NotFound`, las dos sin marcar (ADR 0035). Todavía nada las traduce: `ProblemDetailsHandler` lo hace en B6;
   - `tax.domain.FiscalYearStatus` (los cinco estados del Doc. 01 §5) y `AdministrationFiscalYear`, inmutable, que solo permite `PLANEADA` → `EN_PREPARACION` y rechaza cualquier otro estado con `V-06` y `currentStatus`; no admite `assessmentsEnabled` verdadero (V-03);
