@@ -731,4 +731,4 @@ flowchart LR
 - **Resultado:** aparecieron dos altos, corregidos en el plan. El 2026-11-13 la persona aprobó la H2 aceptando esas correcciones. **Los dos altos quedan para comprobarse en la revisión adversarial del código del paso 6:** que las pruebas del adaptador fuercen cada intercalación (el `UNIQUE` real, la apertura que pierde la carrera y el bloqueo, con su variante sin bloqueo) y que `relation` admita `PAST` con su prueba.
 
 - [x] Revisión adversarial independiente del plan ejecutada; hallazgos resueltos o justificados. Los dos altos de la verificación acotada se comprueban en la revisión del código del paso 6.
-- [ ] Aprobación H2: <quién, fecha>.
+- [x] Aprobación H2: la persona que dirige el trabajo, 2026-11-13, sobre el commit 8405c31.
