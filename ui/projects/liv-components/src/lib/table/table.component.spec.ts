@@ -396,7 +396,7 @@ describe('TableRow', () => {
   it('con el ratón no pinta el contorno: el foco de la fila es solo del teclado', () => {
     // Un clic enfoca el enlace, pero `:focus-visible` no se activa: la regla lo exige, no `:focus-within`.
     expect(rowCss).not.toContain(':focus-within');
-    expect(rowCss.match(/:focus-visible/g)).toHaveLength(1);
+    expect(rowCss).toContain(':has(:focus-visible)');
     const { rows, links } = render();
     links[1].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     links[1].focus();

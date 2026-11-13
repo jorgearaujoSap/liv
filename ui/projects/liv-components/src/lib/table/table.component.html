@@ -1,2 +1,4 @@
-<caption class="table__caption" [textContent]="caption()"></caption>
+@if (captionText(); as text) {
+  <caption class="table__caption" [textContent]="text"></caption>
+}
 <ng-content />

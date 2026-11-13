@@ -16,9 +16,10 @@
 
 /*
  * Focus: contorno de 2 px hacia dentro, no una sombra: sigue visible en alto contraste (forced-colors), donde
- * las sombras desaparecen.
+ * las sombras desaparecen. Solo con el foco del teclado (el enlace de la fila tiene `:focus-visible`): un
+ * clic con el ratón enfoca el enlace, pero no pinta el contorno.
  */
 
-:host([data-type='body']:focus-within) {
+:host([data-type='body']:has(:focus-visible)) {
   @apply outline-2 -outline-offset-2 outline-border-focus;
 }

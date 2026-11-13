@@ -39,11 +39,12 @@ const meta: Meta<TableArgs> = {
       description: {
         component:
           'Tabla de datos de solo lectura, una tabla HTML real: `<table livTable>` con ' +
-          '`tr[livTableRow]`, `th[livTableCell]` y `td[livTableCell]`. Su `caption` es obligatorio ' +
-          '(es el nombre accesible, oculto a la vista) y `loading` declara `aria-busy`. La celda ' +
-          '`link` dibuja su propio enlace y emite `navigate` (la pantalla valida el destino); solo ' +
-          'ese enlace recibe el foco, y la fila pinta Hover y Focus (pasa el ratón y usa el Tab ' +
-          'para verlos). Todas las filas tienen las mismas columnas que el encabezado, y en un ancho ' +
+          '`tr[livTableRow]`, `th[livTableCell]` y `td[livTableCell]`. Su nombre accesible es ' +
+          'obligatorio: `caption` (oculto a la vista) o `aria-label`; `loading` declara ' +
+          '`aria-busy`. La celda `link` dibuja su propio enlace y emite `navigate` (la pantalla ' +
+          'valida el destino). **La fila no es clicable**: Hover pinta toda la fila, pero solo ' +
+          'navega el enlace del año, que es el único elemento enfocable. Focus dibuja el contorno ' +
+          'de la fila solo con el teclado (usa el Tab; un clic con el ratón no lo pinta). Todas las filas tienen las mismas columnas que el encabezado, y en un ancho ' +
           'estrecho la pantalla envuelve la tabla en un contenedor con desplazamiento horizontal. ' +
           'El estado vacío, la barra y la paginación no entran: la 1.4 usa `ResultState`. ' +
           `[Table en Figma](${figmaTable}) · [TableRow en Figma](${figmaRow}) · ` +
@@ -123,6 +124,7 @@ type Story = StoryObj<TableArgs>;
  * Con datos, como la lista de vigencias de la 1.4 (Figma 64:446, `State=Default`). Cubre `TableRow`
  * (63:352) con Header y Body y `TableCell` (63:283) con Header, Text, Link, Badge y Action. Hover y Focus
  * no se pueden fijar desde la historia: pasa el ratón por una fila y usa el Tab para enfocar su enlace.
+ * Solo el enlace del año navega: hacer clic en el resto de la fila, o en el chevron, no hace nada.
  */
 export const ConDatos: Story = { name: 'Con datos' };
 

@@ -2,6 +2,7 @@ import {
   booleanAttribute,
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   input,
   isDevMode,
@@ -14,10 +15,11 @@ import {
  * solo valen sobre esas etiquetas nativas, y la pantalla importa los tres componentes: sin uno de ellos,
  * Angular deja la etiqueta sin estilos ni `scope`, sin avisar.
  *
- * `caption` es obligatorio (la plantilla no compila sin él) y es el nombre accesible de la tabla: se
- * dibuja como `<caption>` oculto a la vista (en Figma, el título de la pantalla). Uno vacío es un error
- * del desarrollador y lanza una excepción solo en desarrollo, también si queda vacío después; en
- * producción no rompe la pantalla.
+ * La tabla necesita un nombre accesible: su `caption` (un `<caption>` oculto a la vista; en Figma, el
+ * título de la pantalla) o su `aria-label`, como atributo o como `[aria-label]`. Con los dos manda el
+ * `aria-label` y el `<caption>` se conserva. Si faltan los dos, o quedan vacíos, es un error del
+ * desarrollador y lanza una excepción solo en desarrollo, también si ocurre después; en producción no
+ * rompe la pantalla.
  *
  * `loading` (`State=Loading` de Figma) declara `aria-busy="true"`; la pantalla muestra entonces sus filas
  * de `liv-skeleton` en lugar de los datos, nunca datos viejos.
@@ -37,20 +39,26 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[attr.aria-busy]': 'loading() ? "true" : null',
+    '[attr.aria-label]': 'labelText()',
   },
 })
 export class TableComponent {
-  /** Nombre accesible de la tabla (el `caption`, oculto a la vista). */
-  readonly caption = input.required<string>();
+  /** Nombre accesible por un `<caption>` oculto a la vista (uno vacío o de espacios cuenta como ausente). */
+  readonly caption = input<string>();
+  /** Nombre accesible por `aria-label`; si se da, manda sobre el `caption`. */
+  readonly ariaLabel = input<string>(undefined, { alias: 'aria-label' });
   /** Estado `Loading`: la tabla está ocupada y sus filas son marcadores de contenido. */
   readonly loading = input(false, { transform: booleanAttribute });
+
+  protected readonly captionText = computed(() => this.caption()?.trim() || null);
+  protected readonly labelText = computed(() => this.ariaLabel()?.trim() || null);
 
   constructor() {
     if (isDevMode()) {
       effect(() => {
-        if (!this.caption().trim()) {
+        if (!this.captionText() && !this.labelText()) {
           throw new Error(
-            'La tabla necesita su `caption`: es su nombre accesible y no puede ir vacío.',
+            'La tabla necesita su nombre accesible: `caption` o `aria-label`, y no pueden ir los dos vacíos.',
           );
         }
       });

@@ -16,8 +16,11 @@ export type TableRowType = 'header' | 'body';
  *
  * Sin `type`, la fila de un `<thead>` es el encabezado (`header`) y las demás son de datos (`body`).
  * En una fila de datos, Hover pinta `bg/subtle` y Focus dibuja un contorno `border/focus` de 2 px dentro
- * de la fila mientras el enlace de la primera celda tiene el foco (`:focus-within`): solo ese enlace
- * recibe el foco. Los dos los da el navegador.
+ * de la fila mientras el enlace de la primera celda tiene el foco del teclado (`:has(:focus-visible)`;
+ * un clic con el ratón no lo pinta). Los dos los da el navegador.
+ *
+ * La fila no es clicable: Hover pinta toda la fila, pero solo navega el enlace de la primera celda, que
+ * es el único elemento enfocable.
  */
 @Component({
   // eslint-disable-next-line @angular-eslint/component-selector -- tabla HTML real: se aplica al <tr> nativo
