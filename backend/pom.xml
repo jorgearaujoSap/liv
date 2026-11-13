@@ -247,6 +247,18 @@
               <modelPackage>co.com.sapenlinea.liv.platform.api.contract.model</modelPackage>
             </configuration>
           </execution>
+          <execution>
+            <id>contract-tax</id>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/contracts/openapi/tax.yaml</inputSpec>
+              <output>${project.build.directory}/generated-sources/openapi/tax</output>
+              <apiPackage>co.com.sapenlinea.liv.tax.api.contract</apiPackage>
+              <modelPackage>co.com.sapenlinea.liv.tax.api.contract.model</modelPackage>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <!-- Formato con Google Java Format (2 espacios, convención del equipo). spotless:check corre en verify. -->

@@ -77,6 +77,7 @@ La API es *contract-first* (ADR 0005, doc. 01 §10): primero se escribe el OpenA
 | `core.yaml` | `GET /api/v1/me` | `core.api.contract.CurrentUserApi` |
 | `platform.yaml` | `GET /api/v1/me/capabilities` | `platform.api.contract.CapabilitiesApi` |
 | `core-internal.yaml` | `POST /internal/v1/sessions`, `POST /internal/v1/sessions/{sid}/end` (solo el BFF, ADR 0025) | `core.api.contract.internal.InternalSessionsApi` |
+| `tax.yaml` | `GET` y `POST /api/v1/fiscal-years`, `GET /api/v1/fiscal-years/{year}`, `POST /api/v1/fiscal-years/{year}/preparation` (vigencias fiscales, feature 007) | `tax.api.contract.FiscalYearsApi` |
 
 ## Esquema de la configuración de jurisdicción
 
