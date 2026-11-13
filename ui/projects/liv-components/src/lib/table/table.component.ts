@@ -1,20 +1,36 @@
-import { booleanAttribute, ChangeDetectionStrategy, Component, input, OnInit } from '@angular/core';
+import {
+  booleanAttribute,
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  input,
+  isDevMode,
+} from '@angular/core';
 
 /**
  * Tabla de datos de solo lectura (Figma: `Table`, nodo 64:446). Es una tabla HTML real: el componente
  * vive en un `<table livTable>` y las filas y celdas son `tr[livTableRow]`, `th[livTableCell]` y
- * `td[livTableCell]` que la pantalla compone dentro de su `<thead>` y su `<tbody>`.
+ * `td[livTableCell]` que la pantalla compone dentro de su `<thead>` y su `<tbody>`. Los tres selectores
+ * solo valen sobre esas etiquetas nativas, y la pantalla importa los tres componentes: sin uno de ellos,
+ * Angular deja la etiqueta sin estilos ni `scope`, sin avisar.
  *
- * `caption` es obligatorio y es el nombre accesible de la tabla: se dibuja como `<caption>` oculto a la
- * vista (en Figma, el título de la pantalla). `loading` (`State=Loading` de Figma) declara
- * `aria-busy="true"`; la pantalla muestra entonces sus filas de `liv-skeleton` en lugar de los datos, nunca
- * datos viejos.
+ * `caption` es obligatorio (la plantilla no compila sin él) y es el nombre accesible de la tabla: se
+ * dibuja como `<caption>` oculto a la vista (en Figma, el título de la pantalla). Uno vacío es un error
+ * del desarrollador y lanza una excepción solo en desarrollo, también si queda vacío después; en
+ * producción no rompe la pantalla.
+ *
+ * `loading` (`State=Loading` de Figma) declara `aria-busy="true"`; la pantalla muestra entonces sus filas
+ * de `liv-skeleton` en lugar de los datos, nunca datos viejos.
+ *
+ * Todas las filas deben tener las mismas columnas que la del encabezado: el layout es fijo y toma los
+ * anchos de la primera fila. La tabla no desplaza ni acorta: en un ancho estrecho (zoom, teléfono) la
+ * pantalla la envuelve en un contenedor con desplazamiento horizontal.
  *
  * Sin `State=Empty`, barra de herramientas ni paginación: la 1.4 usa `ResultState` para el vacío, y los
  * tres entran con la primera consulta 1.6 (Figma 64:450).
  */
 @Component({
-  // eslint-disable-next-line @angular-eslint/component-selector -- tabla HTML real: el componente se aplica a <table> nativo para conservar su semántica (plan 007, paso 8).
+  // eslint-disable-next-line @angular-eslint/component-selector -- tabla HTML real: se aplica al <table> nativo (plan 007, paso 8)
   selector: 'table[livTable]',
   templateUrl: './table.component.html',
   styleUrl: './table.component.css',
@@ -23,17 +39,21 @@ import { booleanAttribute, ChangeDetectionStrategy, Component, input, OnInit } f
     '[attr.aria-busy]': 'loading() ? "true" : null',
   },
 })
-export class TableComponent implements OnInit {
+export class TableComponent {
   /** Nombre accesible de la tabla (el `caption`, oculto a la vista). */
   readonly caption = input.required<string>();
   /** Estado `Loading`: la tabla está ocupada y sus filas son marcadores de contenido. */
   readonly loading = input(false, { transform: booleanAttribute });
 
-  ngOnInit(): void {
-    if (!this.caption().trim()) {
-      throw new Error(
-        'La tabla necesita su `caption`: es su nombre accesible y no puede ir vacío.',
-      );
+  constructor() {
+    if (isDevMode()) {
+      effect(() => {
+        if (!this.caption().trim()) {
+          throw new Error(
+            'La tabla necesita su `caption`: es su nombre accesible y no puede ir vacío.',
+          );
+        }
+      });
     }
   }
 }

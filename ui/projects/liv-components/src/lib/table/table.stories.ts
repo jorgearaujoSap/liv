@@ -15,6 +15,8 @@ const figmaCell =
 interface TableArgs {
   caption: string;
   loading: boolean;
+  /** Quita el destino del enlace de 2026, para ver una celda `link` inerte. */
+  withoutHref: boolean;
 }
 
 const meta: Meta<TableArgs> = {
@@ -35,13 +37,24 @@ const meta: Meta<TableArgs> = {
   parameters: {
     docs: {
       description: {
-        component: `Tabla de datos de solo lectura, una tabla HTML real: \`<table livTable>\` con \`tr[livTableRow]\`, \`th[livTableCell]\` y \`td[livTableCell]\`. Su \`caption\` es obligatorio (es el nombre accesible, oculto a la vista) y \`loading\` declara \`aria-busy\`. La celda \`link\` dibuja su propio enlace y emite \`navigate\`; solo ese enlace recibe el foco, y la fila pinta Hover y Focus (pasa el ratón y usa el Tab para verlos). El estado vacío, la barra y la paginación no entran: la 1.4 usa \`ResultState\`. [Table en Figma](${figmaTable}) · [TableRow en Figma](${figmaRow}) · [TableCell en Figma](${figmaCell})`,
+        component:
+          'Tabla de datos de solo lectura, una tabla HTML real: `<table livTable>` con ' +
+          '`tr[livTableRow]`, `th[livTableCell]` y `td[livTableCell]`. Su `caption` es obligatorio ' +
+          '(es el nombre accesible, oculto a la vista) y `loading` declara `aria-busy`. La celda ' +
+          '`link` dibuja su propio enlace y emite `navigate` (la pantalla valida el destino); solo ' +
+          'ese enlace recibe el foco, y la fila pinta Hover y Focus (pasa el ratón y usa el Tab ' +
+          'para verlos). Todas las filas tienen las mismas columnas que el encabezado, y en un ancho ' +
+          'estrecho la pantalla envuelve la tabla en un contenedor con desplazamiento horizontal. ' +
+          'El estado vacío, la barra y la paginación no entran: la 1.4 usa `ResultState`. ' +
+          `[Table en Figma](${figmaTable}) · [TableRow en Figma](${figmaRow}) · ` +
+          `[TableCell en Figma](${figmaCell})`,
       },
     },
   },
   args: {
     caption: 'Vigencias fiscales',
     loading: false,
+    withoutHref: false,
   },
   render: (args) => ({
     props: args,
@@ -80,7 +93,7 @@ const meta: Meta<TableArgs> = {
                 <td livTableCell type="action"></td>
               </tr>
               <tr livTableRow>
-                <td livTableCell type="link" href="/vigencias/2026">2026</td>
+                <td livTableCell type="link" [href]="withoutHref ? undefined : '/vigencias/2026'">2026</td>
                 <td livTableCell>1 de enero de 2026</td>
                 <td livTableCell>31 de diciembre de 2026</td>
                 <td livTableCell type="badge"><liv-badge tone="primary">En preparación</liv-badge></td>
@@ -111,10 +124,19 @@ type Story = StoryObj<TableArgs>;
  * (63:352) con Header y Body y `TableCell` (63:283) con Header, Text, Link, Badge y Action. Hover y Focus
  * no se pueden fijar desde la historia: pasa el ratón por una fila y usa el Tab para enfocar su enlace.
  */
-export const ConDatos: Story = {};
+export const ConDatos: Story = { name: 'Con datos' };
 
 /**
  * `State=Loading`: `aria-busy="true"` y filas de `liv-skeleton` en lugar de los datos. Las filas cargando
  * son de la pantalla: aquí cada marcador va dentro de su celda, alineado con su columna.
  */
-export const Cargando: Story = { args: { loading: true } };
+export const Cargando: Story = { name: 'Cargando', args: { loading: true } };
+
+/**
+ * Un enlace sin destino (`href` ausente o vacío) queda inerte y se pinta como texto, no como enlace: la
+ * fila de 2026 no tiene nada que recibir el foco.
+ */
+export const EnlaceSinDestino: Story = {
+  name: 'Enlace sin destino',
+  args: { withoutHref: true },
+};

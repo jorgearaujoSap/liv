@@ -8,7 +8,7 @@
   @apply bg-bg-surface;
 }
 
-/* Hover: la fila lleva al detalle. */
+/* Hover: fondo bg/subtle solo en las filas de datos; el encabezado no cambia. */
 
 :host([data-type='body']:hover) {
   @apply bg-bg-subtle;

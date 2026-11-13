@@ -22,21 +22,25 @@ import { isPlainClick, linkTarget } from '../shared/link-click';
 export type TableCellType = 'header' | 'text' | 'link' | 'badge' | 'action';
 
 /**
- * Celda de una `liv-table` (Figma: `TableCell`, nodo 63:283), sobre un `<th livTableCell>` o un
- * `<td livTableCell>`. Un `th` es siempre un encabezado de columna (`scope="col"`); con `type="action"`
- * es el de la columna de acción, que fija sus 56 px y cuyo texto solo leen los lectores de pantalla. El
- * contenido se proyecta.
+ * Celda de una `<table livTable>` (Figma: `TableCell`, nodo 63:283), sobre un `<th livTableCell>` o un
+ * `<td livTableCell>`. El contenido se proyecta.
+ *
+ * Un `th` es siempre un encabezado de columna (`scope="col"`): no hay encabezado de fila, y `link` o
+ * `badge` en un `th` no valen. Con `type="action"` es el de la columna de acción, que fija sus 56 px; su
+ * texto es obligatorio (p. ej. «Ver detalle») y solo lo leen los lectores de pantalla, porque sin él el
+ * encabezado queda vacío. Un `td` nunca es un encabezado: `type="header"` cuenta como `text`.
  *
  * `link` dibuja su propio `<a href>`, como `NavItem`: un clic normal emite `navigate` con el destino (sin
  * espacios sobrantes, pero sin sanear) y cancela la navegación del navegador, para que la aplicación
- * navegue con su enrutador y solo a rutas propias; con Ctrl, Cmd, Mayús, Alt o el botón central el
- * navegador abre el enlace como siempre. Sin `href`, o con uno vacío, el texto queda inerte. Es el único
- * elemento de la fila que recibe el foco.
+ * navegue con su enrutador; con Ctrl, Cmd, Mayús, Alt o el botón central el navegador abre el enlace
+ * como siempre. **La pantalla valida el destino**: solo rutas propias, nunca un `href` que venga de
+ * un dato externo (`javascript:`, `https://…`, `//host`). Sin `href`, o con uno vacío, el texto queda
+ * inerte y se pinta como texto. Es el único elemento de la fila que recibe el foco.
  *
  * `action` dibuja el chevron (decorativo, `aria-hidden`) y no proyecta contenido.
  */
 @Component({
-  // eslint-disable-next-line @angular-eslint/component-selector -- tabla HTML real: el componente se aplica a <th> y <td> nativo para conservar su semántica (plan 007, paso 8).
+  // eslint-disable-next-line @angular-eslint/component-selector -- tabla HTML real: se aplica al <th> y al <td> nativos
   selector: 'th[livTableCell], td[livTableCell]',
   imports: [IconComponent, NgTemplateOutlet],
   templateUrl: './table-cell.component.html',
