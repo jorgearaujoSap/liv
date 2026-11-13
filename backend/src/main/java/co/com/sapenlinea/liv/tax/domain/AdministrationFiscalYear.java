@@ -24,9 +24,9 @@ public record AdministrationFiscalYear(
     Objects.requireNonNull(administrationId, "administrationId");
     Objects.requireNonNull(status, "status");
     // V-03: the database also fixes it (CHECK); the domain holds no state that cannot exist.
-    // The feature of option 1.5.1 replaces this guard when it adds the signed enabling.
+    // The feature that adds the signed enabling (spec 007, «Trasladado a la 1.5.1») replaces it.
     if (assessmentsEnabled) {
-      throw new IllegalArgumentException("assessmentsEnabled is always false in feature 007");
+      throw new IllegalArgumentException("assessmentsEnabled must be false in this version");
     }
   }
 

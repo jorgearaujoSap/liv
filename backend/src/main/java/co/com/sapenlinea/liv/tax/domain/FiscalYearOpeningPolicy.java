@@ -37,6 +37,10 @@ public final class FiscalYearOpeningPolicy {
 
   private static final String REASON = "reason";
 
+  private final int currentYear;
+  private final NavigableSet<Integer> administrationYears;
+  private final Map<Integer, NationalFiscalYear> nationalYears;
+
   /** The rule a year breaks, before it becomes an exception: evaluating a year does not throw. */
   private record Refusal(String code, RuleViolation.Type type, Map<String, Object> details) {
 
@@ -44,10 +48,6 @@ public final class FiscalYearOpeningPolicy {
       return new RuleViolation(code, type, details);
     }
   }
-
-  private final int currentYear;
-  private final NavigableSet<Integer> administrationYears;
-  private final Map<Integer, NationalFiscalYear> nationalYears;
 
   /**
    * @param currentYear the current year in the official zone

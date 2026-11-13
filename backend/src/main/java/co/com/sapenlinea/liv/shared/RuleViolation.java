@@ -22,7 +22,11 @@ public final class RuleViolation extends RuntimeException {
   /** Longest code the contracts allow ({@code Problem.code}). */
   private static final int MAX_CODE_LENGTH = 32;
 
-  private static final Pattern CODE = Pattern.compile("[A-Z][A-Z0-9]*(-[A-Z0-9]+)+");
+  /**
+   * Rule and criterion codes of the project ({@code V-01}, {@code CJ02}, {@code CA-1.01}, {@code
+   * 007-12}): capitals and digits joined by an ASCII hyphen or a dot.
+   */
+  private static final Pattern CODE = Pattern.compile("[A-Z0-9]+([.-][A-Z0-9]+)*");
 
   /** Keys of the Problem Details itself: a detail cannot use them (ADR 0035). */
   private static final Set<String> RESERVED_KEYS =
@@ -38,6 +42,8 @@ public final class RuleViolation extends RuntimeException {
 
   private final String code;
   private final Type type;
+
+  /** The map is unmodifiable and holds only serializable values, so the exception serializes. */
   private final Map<String, Object> details;
 
   /**
@@ -72,7 +78,8 @@ public final class RuleViolation extends RuntimeException {
     Objects.requireNonNull(code, "code");
     Objects.requireNonNull(type, "type");
     if (code.length() > MAX_CODE_LENGTH || !CODE.matcher(code).matches()) {
-      throw new IllegalArgumentException("Not a rule code (capitals and ASCII hyphen): " + code);
+      throw new IllegalArgumentException(
+          "Not a rule code (capitals, digits, ASCII hyphen or dot, up to 32): " + code);
     }
     return code + " " + type;
   }
