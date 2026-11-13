@@ -1,13 +1,19 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import theme from '../../styles/theme.css' with { loader: 'text' };
 import { expectNoAxeViolations } from '../../testing/axe';
-import { declaredStyle, usesToken } from '../../testing/css';
+import { contrastRatio, solidColor } from '../../testing/contrast';
+import { cssVariable, declaredStyle, usesToken } from '../../testing/css';
 import { BadgeComponent } from '../badge/badge.component';
 import { SkeletonComponent } from '../skeleton/skeleton.component';
 import { TableCellComponent } from './table-cell.component';
+import rowCss from './table-row.component.css' with { loader: 'text' };
 import { TableRowComponent } from './table-row.component';
 import { TableComponent } from './table.component';
-import rowCss from './table-row.component.css' with { loader: 'text' };
+
+/** Filas de «cargando» y marcadores por fila (Figma 64:446): 3 × 5 = 15. */
+const LOADING_ROWS = 3;
+const SKELETONS_PER_ROW = 5;
 
 /**
  * Las vigencias de la 1.4 (Figma 64:446): Año (enlace), Inicio, Fin, Estado (Badge), Liquidación y la
@@ -103,6 +109,9 @@ class HostComponent {
   ];
 }
 
+/** Una fila de ejemplo, para las pruebas que cambian uno de sus campos. */
+const SAMPLE_ROW = new HostComponent().rows[0];
+
 interface RenderInputs extends Partial<Omit<HostComponent, 'loading'>> {
   loading?: boolean;
 }
@@ -125,6 +134,26 @@ function focusWithKeyboard(element: HTMLElement): void {
   document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
   element.focus();
 }
+
+/**
+ * Despacha un clic sobre el enlace y dice si el componente lo canceló. Después lo cancela este oyente
+ * (se registra último), para que jsdom no intente navegar.
+ */
+function click(link: HTMLAnchorElement, init: MouseEventInit = {}): boolean {
+  let canceledByComponent = false;
+  link.addEventListener(
+    'click',
+    (event) => {
+      canceledByComponent = event.defaultPrevented;
+      event.preventDefault();
+    },
+    { once: true },
+  );
+  link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
+  return canceledByComponent;
+}
+
+const color = (name: string) => solidColor(cssVariable(theme, `--color-${name}`));
 
 /** Los elementos que reciben el foco con el Tab. */
 const TABBABLE = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -161,16 +190,32 @@ describe('Table', () => {
     expect(declaredStyle(caption, 'height')).toBe('1px');
   });
 
-  // Sin `caption` la plantilla no compila (NG8008: es una entrada requerida), así que no hay prueba.
-  it('un caption vacío o de espacios tampoco cuenta como nombre', () => {
+  describe('caption', () => {
+    // Sin `caption` la plantilla no compila (NG8008: es una entrada requerida), así que no hay prueba.
     @Component({
       imports: [TableComponent],
-      template: `<table livTable caption="   ">
+      template: `<table livTable [caption]="caption()">
         <tbody></tbody>
       </table>`,
     })
-    class BlankCaption {}
-    expect(() => TestBed.createComponent(BlankCaption).detectChanges()).toThrow(/caption/i);
+    class CaptionHost {
+      caption = signal('Vigencias fiscales');
+    }
+
+    it('uno vacío o de espacios lanza un error en desarrollo', () => {
+      for (const caption of ['', '   ']) {
+        const fixture = TestBed.createComponent(CaptionHost);
+        fixture.componentInstance.caption.set(caption);
+        expect(() => fixture.detectChanges()).toThrow(/caption/i);
+      }
+    });
+
+    it('también si queda vacío con la tabla ya montada', () => {
+      const fixture = TestBed.createComponent(CaptionHost);
+      fixture.detectChanges();
+      fixture.componentInstance.caption.set('');
+      expect(() => fixture.detectChanges()).toThrow(/caption/i);
+    });
   });
 
   it('Default: sin aria-busy', () => {
@@ -181,7 +226,7 @@ describe('Table', () => {
     const { table, links, page, fixture } = render({ loading: true });
     expect(table.getAttribute('aria-busy')).toBe('true');
     expect(links).toHaveLength(0);
-    expect(table.querySelectorAll('liv-skeleton')).toHaveLength(15);
+    expect(table.querySelectorAll('liv-skeleton')).toHaveLength(LOADING_ROWS * SKELETONS_PER_ROW);
 
     page.loading.set(false);
     fixture.detectChanges();
@@ -210,10 +255,10 @@ describe('Table', () => {
       ['con datos', {}],
       ['cargando', { loading: true }],
       ['sin filas', { rows: [] }],
-      ['con una fila sin destino', { rows: [{ ...new HostComponent().rows[0], href: undefined }] }],
+      ['con una fila sin destino', { rows: [{ ...SAMPLE_ROW, href: undefined }] }],
       [
         'con un texto largo que ocupa varias líneas',
-        { rows: [{ ...new HostComponent().rows[0], status: 'x '.repeat(80) }] },
+        { rows: [{ ...SAMPLE_ROW, status: 'x '.repeat(80) }] },
       ],
     ])('cumple axe %s', async (_name, inputs) => {
       await expectNoAxeViolations(render(inputs).root);
@@ -228,11 +273,39 @@ describe('Table', () => {
 });
 
 describe('TableRow', () => {
-  it('Header: fondo bg/subtle y borde inferior border/default', () => {
+  it('Header: fondo bg/subtle', () => {
     const { table } = render();
     const header = table.tHead?.rows[0] as HTMLElement;
     expect(header.dataset['type']).toBe('header');
     expect(usesToken(getComputedStyle(header).backgroundColor, '--color-bg-subtle')).toBe(true);
+  });
+
+  it('una fila de <thead> sin type es la del encabezado; una de <tbody>, de datos', () => {
+    @Component({
+      imports: [TableComponent, TableRowComponent, TableCellComponent],
+      template: `
+        <table livTable caption="Vigencias fiscales">
+          <thead>
+            <tr livTableRow>
+              <th livTableCell>Año</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr livTableRow>
+              <td livTableCell>2026</td>
+            </tr>
+          </tbody>
+        </table>
+      `,
+    })
+    class Inferred {}
+    const fixture = TestBed.createComponent(Inferred);
+    fixture.detectChanges();
+    const [head, body] = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('tr'),
+    );
+    expect(head.dataset['type']).toBe('header');
+    expect(body.dataset['type']).toBe('body');
   });
 
   it('Body es el tipo por omisión: fondo bg/surface', () => {
@@ -242,7 +315,7 @@ describe('TableRow', () => {
   });
 
   it('Hover (Body): fondo bg/subtle; la fila del encabezado no cambia', () => {
-    // jsdom no evalúa :hover: se comprueba el texto de la regla y se revisa en Storybook.
+    // jsdom no evalúa :hover: se comprueba el texto de la regla (la única que lo usa) y se revisa en Storybook.
     expect(rowCss.match(/:hover/g)).toHaveLength(1);
     expect(ruleBody(":host([data-type='body']:hover)")).toContain('bg-bg-subtle');
   });
@@ -261,10 +334,10 @@ describe('TableRow', () => {
     expect(declaredStyle(rows[1], 'outline-color')).toBe('');
   });
 
-  it('el foco de la fila no se aplica a la fila del encabezado', () => {
-    const { table, links } = render();
-    focusWithKeyboard(links[0]);
-    expect(declaredStyle(table.tHead?.rows[0] as HTMLElement, 'outline-color')).toBe('');
+  it('el foco solo existe en las filas de datos: la regla exige data-type="body"', () => {
+    // La fila del encabezado no tiene nada enfocable, así que se comprueba el texto de la regla.
+    expect(rowCss.match(/:focus-within/g)).toHaveLength(1);
+    expect(ruleBody(":host([data-type='body']:focus-within)")).toContain('outline-border-focus');
   });
 
   it('solo el enlace de cada fila recibe el foco: ni las celdas ni el chevron', () => {
@@ -275,16 +348,20 @@ describe('TableRow', () => {
     }
   });
 
-  it('el foco sigue visible en alto contraste (forced-colors): es un contorno, no una sombra', () => {
+  it('el foco es un contorno de 2 px y no una sombra, así que sigue visible en alto contraste', () => {
     const { rows, links } = render();
     focusWithKeyboard(links[0]);
+    expect(declaredStyle(rows[0], 'outline-width')).toBe('2px');
+    expect(declaredStyle(rows[0], 'outline-style')).not.toMatch(/^(|none)$/);
     expect(declaredStyle(rows[0], 'box-shadow')).toBe('');
-    expect(declaredStyle(rows[0], 'outline-style')).not.toBe('none');
+    // El enlace no dibuja otro anillo: el indicador de foco de la fila es el único.
+    expect(declaredStyle(links[0], 'outline-style')).toBe('none');
   });
 
-  it('una fila sin enlace no pinta el foco', () => {
+  it('las filas cargando no tienen nada enfocable', () => {
     const { rows } = render({ loading: true });
-    expect(rows.every((row) => !row.matches(':focus-within'))).toBe(true);
+    expect(rows).toHaveLength(LOADING_ROWS);
+    expect(rows.every((row) => row.querySelectorAll(TABBABLE).length === 0)).toBe(true);
   });
 });
 
@@ -307,8 +384,15 @@ describe('TableCell', () => {
       const header = table.querySelector('th') as HTMLElement;
       expect(usesToken(getComputedStyle(header).color, '--color-text-secondary')).toBe(true);
       expect(declaredStyle(header, 'font-size')).toContain('var(--text-label-sm');
-      expect(declaredStyle(header, 'height')).toBe('40px');
+      expect(declaredStyle(header, 'height')).toContain('var(--spacing-10');
       expect(declaredStyle(header, 'text-align')).toBe('left');
+    });
+
+    it('lleva el borde inferior border/default del diseño', () => {
+      const { table } = render();
+      const header = table.querySelector('th') as HTMLElement;
+      expect(declaredStyle(header, 'border-bottom-width')).toBe('1px');
+      expect(declaredStyle(header, 'border-color')).toContain('var(--color-border-default,');
     });
 
     it('cada columna tiene su encabezado, también la de acción', () => {
@@ -329,6 +413,11 @@ describe('TableCell', () => {
       expect(declaredStyle(cell, 'height')).toBe('52px');
       expect(declaredStyle(cell, 'padding-inline')).toContain('var(--spacing-4,');
       expect(cell.textContent?.trim()).toBe('1 de enero de 2027');
+    });
+
+    it('un texto largo se parte en varias líneas en vez de salirse de su columna', () => {
+      const { rows } = render();
+      expect(declaredStyle(rows[0].cells[1], 'overflow-wrap')).toBe('break-word');
     });
 
     it('lleva el borde inferior border/default del diseño', () => {
@@ -369,41 +458,31 @@ describe('TableCell', () => {
 
     it('un clic normal emite navigate con el destino y cancela la navegación', () => {
       const { fixture, links, page } = render();
-      const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
-      links[1].dispatchEvent(event);
+      expect(click(links[1], { button: 0 })).toBe(true);
       fixture.detectChanges();
       expect(page.navigated).toEqual(['/vigencias/2026']);
-      expect(event.defaultPrevented).toBe(true);
     });
 
     it.each(['ctrlKey', 'metaKey', 'shiftKey', 'altKey'] as const)(
       'con %s el navegador abre el enlace como siempre',
       (modifier) => {
         const { links, page } = render();
-        const event = new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          [modifier]: true,
-        });
-        links[0].dispatchEvent(event);
+        expect(click(links[0], { [modifier]: true })).toBe(false);
         expect(page.navigated).toEqual([]);
-        expect(event.defaultPrevented).toBe(false);
       },
     );
 
     it('el botón central tampoco lo resuelve la aplicación', () => {
       const { links, page } = render();
-      links[0].dispatchEvent(
-        new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 }),
-      );
+      expect(click(links[0], { button: 1 })).toBe(false);
       expect(page.navigated).toEqual([]);
     });
 
     it('emite el destino sin espacios sobrantes', () => {
       const { links, page, fixture } = render({
-        rows: [{ ...new HostComponent().rows[0], href: '  /vigencias/2027  ' }],
+        rows: [{ ...SAMPLE_ROW, href: '  /vigencias/2027  ' }],
       });
-      links[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      click(links[0]);
       fixture.detectChanges();
       expect(page.navigated).toEqual(['/vigencias/2027']);
       expect(links[0].getAttribute('href')).toBe('/vigencias/2027');
@@ -412,14 +491,19 @@ describe('TableCell', () => {
     it('sin destino (o vacío) queda inerte: sin href, sin foco y sin emitir', () => {
       for (const href of [undefined, '', '   ']) {
         const { rows, page } = render({
-          rows: [{ ...new HostComponent().rows[0], href }],
+          rows: [{ ...SAMPLE_ROW, href }],
         });
         const anchor = rows[0].querySelector('a') as HTMLAnchorElement;
         expect(anchor.hasAttribute('href')).toBe(false);
         expect(rows[0].querySelectorAll(TABBABLE)).toHaveLength(0);
-        anchor.click();
+        expect(click(anchor)).toBe(false);
         expect(page.navigated).toEqual([]);
       }
+    });
+
+    it('sin destino no se pinta como enlace: text/primary en lugar de text/link', () => {
+      const { links } = render({ rows: [{ ...SAMPLE_ROW, href: undefined }] });
+      expect(usesToken(getComputedStyle(links[0]).color, '--color-text-primary')).toBe(true);
     });
   });
 
@@ -478,5 +562,77 @@ describe('TableCell', () => {
       expect(declaredStyle(label, 'position')).toBe('absolute');
       expect(declaredStyle(label, 'width')).toBe('1px');
     });
+  });
+});
+
+describe('TableCell · combinaciones sin sentido', () => {
+  @Component({
+    imports: [TableComponent, TableRowComponent, TableCellComponent],
+    template: `
+      <table livTable caption="Combinaciones">
+        <thead>
+          <tr livTableRow>
+            <th livTableCell type="link" href="/x">Enlace en un th</th>
+            <th livTableCell type="badge">Badge en un th</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr livTableRow>
+            <td livTableCell type="header">Encabezado en un td</td>
+            <td livTableCell type="action">contenido que no se muestra</td>
+          </tr>
+        </tbody>
+      </table>
+    `,
+  })
+  class Odd {}
+
+  function renderOdd() {
+    const fixture = TestBed.createComponent(Odd);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('un th es siempre un encabezado de columna: ignora link y badge, y no dibuja enlace', () => {
+    const root = renderOdd();
+    const headers = Array.from(root.querySelectorAll<HTMLElement>('th'));
+    expect(headers.map((header) => header.dataset['type'])).toEqual(['header', 'header']);
+    expect(root.querySelector('a')).toBeNull();
+  });
+
+  it('un td nunca es un encabezado: type="header" cuenta como texto', () => {
+    const cells = Array.from(renderOdd().querySelectorAll<HTMLElement>('td'));
+    expect(cells[0].dataset['type']).toBe('text');
+    expect(cells[0].hasAttribute('scope')).toBe(false);
+  });
+
+  it('la celda de acción no proyecta contenido: solo dibuja el chevron', () => {
+    const cell = renderOdd().querySelectorAll<HTMLElement>('td')[1];
+    expect(cell.textContent).not.toContain('contenido');
+    expect(cell.querySelector('liv-icon')).not.toBeNull();
+  });
+});
+
+describe('Table · contraste', () => {
+  it('textos a 4,5:1 (WCAG 1.4.3) y chevron y foco a 3:1 (1.4.11), sobre superficie y fondo sutil', () => {
+    const text: [string, string][] = [
+      ['text-primary', 'bg-surface'],
+      ['text-primary', 'bg-subtle'],
+      ['text-link', 'bg-surface'],
+      ['text-link', 'bg-subtle'],
+      ['text-secondary', 'bg-subtle'],
+    ];
+    const nonText: [string, string][] = [
+      ['text-muted', 'bg-surface'],
+      ['text-muted', 'bg-subtle'],
+      ['border-focus', 'bg-surface'],
+      ['border-focus', 'bg-subtle'],
+    ];
+    for (const [foreground, background] of text) {
+      expect(contrastRatio(color(foreground), color(background))).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const [foreground, background] of nonText) {
+      expect(contrastRatio(color(foreground), color(background))).toBeGreaterThanOrEqual(3);
+    }
   });
 });
