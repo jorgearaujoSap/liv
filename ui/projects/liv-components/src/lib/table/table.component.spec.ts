@@ -180,6 +180,7 @@ describe('Table', () => {
     expect(caption.tagName).toBe('CAPTION');
     expect(caption.textContent?.trim()).toBe('Vigencias fiscales');
     expect(table.caption).toBe(caption);
+    expect(table.hasAttribute('aria-label')).toBe(false);
   });
 
   it('el caption se oculta a la vista pero se conserva para los lectores de pantalla', () => {
@@ -190,31 +191,89 @@ describe('Table', () => {
     expect(declaredStyle(caption, 'height')).toBe('1px');
   });
 
-  describe('caption', () => {
-    // Sin `caption` la plantilla no compila (NG8008: es una entrada requerida), así que no hay prueba.
+  describe('nombre accesible: caption o aria-label', () => {
     @Component({
       imports: [TableComponent],
-      template: `<table livTable [caption]="caption()">
+      template: `<table livTable [caption]="caption()" [aria-label]="label()">
         <tbody></tbody>
       </table>`,
     })
-    class CaptionHost {
-      caption = signal('Vigencias fiscales');
+    class NameHost {
+      caption = signal<string | undefined>('Vigencias fiscales');
+      label = signal<string | undefined>(undefined);
     }
 
-    it('uno vacío o de espacios lanza un error en desarrollo', () => {
-      for (const caption of ['', '   ']) {
-        const fixture = TestBed.createComponent(CaptionHost);
-        fixture.componentInstance.caption.set(caption);
-        expect(() => fixture.detectChanges()).toThrow(/caption/i);
+    @Component({
+      imports: [TableComponent],
+      template: `<table livTable aria-label="Vigencias fiscales">
+        <tbody></tbody>
+      </table>`,
+    })
+    class StaticLabelHost {}
+
+    function mount(caption: string | undefined, label: string | undefined) {
+      const fixture = TestBed.createComponent(NameHost);
+      fixture.componentInstance.caption.set(caption);
+      fixture.componentInstance.label.set(label);
+      return fixture;
+    }
+
+    it('con solo aria-label, ese es el nombre y no hay <caption>', () => {
+      const fixture = mount(undefined, 'Vigencias fiscales');
+      fixture.detectChanges();
+      const table = (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLElement;
+      expect(table.getAttribute('aria-label')).toBe('Vigencias fiscales');
+      expect(table.querySelector('caption')).toBeNull();
+    });
+
+    it('el aria-label también puede ir como atributo estático', () => {
+      const fixture = TestBed.createComponent(StaticLabelHost);
+      fixture.detectChanges();
+      const table = (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLElement;
+      expect(table.getAttribute('aria-label')).toBe('Vigencias fiscales');
+    });
+
+    it('con los dos, el aria-label manda y el caption se conserva', () => {
+      const fixture = mount('Vigencias', 'Vigencias fiscales de Ipiales');
+      fixture.detectChanges();
+      const table = (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLElement;
+      expect(table.getAttribute('aria-label')).toBe('Vigencias fiscales de Ipiales');
+      expect(table.querySelector('caption')?.textContent?.trim()).toBe('Vigencias');
+    });
+
+    it('con uno de los dos basta: el otro puede ir vacío', () => {
+      for (const [caption, label] of [
+        ['Vigencias fiscales', ''],
+        ['  ', 'Vigencias fiscales'],
+        [undefined, 'Vigencias fiscales'],
+        ['Vigencias fiscales', undefined],
+      ] as const) {
+        expect(() => mount(caption, label).detectChanges()).not.toThrow();
       }
     });
 
-    it('también si queda vacío con la tabla ya montada', () => {
-      const fixture = TestBed.createComponent(CaptionHost);
+    it('sin ninguno, o con los dos vacíos, lanza un error en desarrollo', () => {
+      for (const [caption, label] of [
+        [undefined, undefined],
+        ['', ''],
+        ['   ', undefined],
+        [undefined, '   '],
+      ] as const) {
+        expect(() => mount(caption, label).detectChanges()).toThrow(/caption|aria-label/i);
+      }
+    });
+
+    it('también si se quedan sin nombre con la tabla ya montada', () => {
+      const fixture = mount('Vigencias fiscales', undefined);
       fixture.detectChanges();
       fixture.componentInstance.caption.set('');
-      expect(() => fixture.detectChanges()).toThrow(/caption/i);
+      expect(() => fixture.detectChanges()).toThrow(/caption|aria-label/i);
+    });
+
+    it('cumple axe (007-21) con aria-label en lugar de caption', async () => {
+      const fixture = mount(undefined, 'Vigencias fiscales');
+      fixture.detectChanges();
+      await expectNoAxeViolations(fixture.nativeElement as HTMLElement);
     });
   });
 
@@ -320,11 +379,11 @@ describe('TableRow', () => {
     expect(ruleBody(":host([data-type='body']:hover)")).toContain('bg-bg-subtle');
   });
 
-  it('Focus: borde border/focus de 2 px dentro de la fila, solo mientras el enlace tiene el foco', () => {
+  it('Focus: borde border/focus de 2 px dentro de la fila, solo mientras el enlace tiene el foco del teclado', () => {
     const { rows, links } = render();
     expect(declaredStyle(rows[1], 'outline-color')).toBe('');
     focusWithKeyboard(links[1]);
-    expect(rows[1].matches(':focus-within')).toBe(true);
+    expect(rows[1].matches(':has(:focus-visible)')).toBe(true);
     expect(declaredStyle(rows[1], 'outline-width')).toBe('2px');
     expect(declaredStyle(rows[1], 'outline-offset')).toContain('-2px');
     expect(declaredStyle(rows[1], 'outline-color')).toContain('var(--color-border-focus');
@@ -334,10 +393,21 @@ describe('TableRow', () => {
     expect(declaredStyle(rows[1], 'outline-color')).toBe('');
   });
 
+  it('con el ratón no pinta el contorno: el foco de la fila es solo del teclado', () => {
+    // Un clic enfoca el enlace, pero `:focus-visible` no se activa: la regla lo exige, no `:focus-within`.
+    expect(rowCss).not.toContain(':focus-within');
+    expect(rowCss.match(/:focus-visible/g)).toHaveLength(1);
+    const { rows, links } = render();
+    links[1].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    links[1].focus();
+    expect(declaredStyle(rows[1], 'outline-color')).toBe('');
+  });
+
   it('el foco solo existe en las filas de datos: la regla exige data-type="body"', () => {
     // La fila del encabezado no tiene nada enfocable, así que se comprueba el texto de la regla.
-    expect(rowCss.match(/:focus-within/g)).toHaveLength(1);
-    expect(ruleBody(":host([data-type='body']:focus-within)")).toContain('outline-border-focus');
+    expect(ruleBody(":host([data-type='body']:has(:focus-visible))")).toContain(
+      'outline-border-focus',
+    );
   });
 
   it('solo el enlace de cada fila recibe el foco: ni las celdas ni el chevron', () => {
