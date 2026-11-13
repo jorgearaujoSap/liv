@@ -165,7 +165,7 @@ Integrado **antes** del paso 3, porque la prueba de la matriz de permisos y el d
 - **Registro entre documentos**, como en el Doc. 03 §7: en el Doc. 01 v0.5, la lista de lo que cambió en el ERD y en el Doc. 02.
 - **`AGENTS.md` §3.1:** 80 tablas y ERD versión 2.3.
 - **Glosario** (`docs/arquitectura/01` §15): «vigencia de la administración» (`administration_fiscal_year`) y «lista de preparación». Como el ADR 0035 cambia la figura del §3.2, `docs/arquitectura/01` sube de versión.
-- **Spec:** las enmiendas 1 a 3 (H2‑6 a H2‑8), si se aprueban, con la H1 firmada de nuevo para los criterios que cambian (007-06, 007-08, 007-10 y 007-20).
+- **Spec:** no cambia en este PR: las enmiendas 1 a 3 (H2‑6 a H2‑8) ya están en `spec.md`, aprobadas en la H2 con la H1 firmada de nuevo para 007-04, 007-06, 007-08, 007-10 y 007-20.
 - No toca el Doc. 03: el ajuste del §5.2 es de la feature 1.5.9 (decisión 6).
 
 ### 2. ADR 0035 (raíz, PR propio) — *skill* `liv-adr`
