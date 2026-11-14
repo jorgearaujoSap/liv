@@ -5,6 +5,7 @@ import { ButtonComponent, ButtonSize, ButtonVariant, ButtonReasonAlign } from '.
 const figma = 'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=20-298';
 const figmaDisabledReason =
   'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=65-456';
+const disabledReasonText = 'Faltan 6 puntos obligatorios de la lista de preparación.';
 
 interface ButtonArgs {
   variant: ButtonVariant;
@@ -91,11 +92,9 @@ export const GhostDisabled: Story = {
   args: { variant: 'ghost', disabled: true, label: 'Olvidé mi contraseña' },
 };
 
-const reason = 'Faltan 6 puntos obligatorios de la lista de preparación.';
-
 /** Figma 65:456: el motivo a la izquierda, como en el detalle de la vigencia (68:3460). */
 export const DisabledConMotivo: Story = {
-  args: { disabled: true, label: 'Habilitar liquidación', disabledReason: reason },
+  args: { disabled: true, label: 'Habilitar liquidación', disabledReason: disabledReasonText },
 };
 
 /** El motivo a la derecha, como en la lista de vigencias (66:2513). */
@@ -110,11 +109,21 @@ export const DisabledConMotivoAlFinal: Story = {
 };
 
 export const SecondaryDisabledConMotivo: Story = {
-  args: { variant: 'secondary', disabled: true, label: 'Cancelar', disabledReason: reason },
+  args: {
+    variant: 'secondary',
+    disabled: true,
+    label: 'Cancelar',
+    disabledReason: disabledReasonText,
+  },
 };
 
 export const GhostDisabledConMotivo: Story = {
-  args: { variant: 'ghost', disabled: true, label: 'Reintentar', disabledReason: reason },
+  args: {
+    variant: 'ghost',
+    disabled: true,
+    label: 'Reintentar',
+    disabledReason: disabledReasonText,
+  },
 };
 
 export const Loading: Story = {

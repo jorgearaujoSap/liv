@@ -12,6 +12,7 @@ import { IconComponent } from '../icon/icon.component';
 import { IconName } from '../icon/icons';
 import { SpinnerComponent } from '../spinner/spinner.component';
 
+// Contador para dar a cada motivo un `id` único en la página (`aria-describedby`).
 let nextId = 0;
 
 /** Énfasis del botón: `primary` es la acción principal (una por vista); `ghost`, la de menor énfasis. */
@@ -40,10 +41,22 @@ export type ButtonType = 'button' | 'submit' | 'reset';
  * `disabledReason` explica por qué está deshabilitado: solo cuenta con `disabled` y un texto no vacío.
  * El motivo se muestra debajo del botón, alineado según `reasonAlign`, y el botón lo enlaza con
  * `aria-describedby`. Con motivo, el botón usa `aria-disabled="true"` en lugar de `disabled`, para seguir
- * recibiendo el foco del teclado y que el lector de pantalla anuncie el motivo; no emite clic ni envía
- * el formulario (mismo guarda que en `loading`). El aspecto es el de siempre: lo da `data-state="disabled"`
- * en el anfitrión, que también tiene el botón deshabilitado sin motivo. Con motivo, el botón se ajusta a
- * su contenido en lugar de ocupar todo el ancho del anfitrión, y se alinea al inicio o al final.
+ * recibiendo el foco del teclado y que el lector de pantalla anuncie el motivo al enfocarlo. El aspecto
+ * lo da `data-state="disabled"` en el anfitrión (que también lleva el botón deshabilitado sin motivo);
+ * en alto contraste se pinta con `GrayText`, porque el navegador solo lo hace con `disabled` nativo.
+ *
+ * Con motivo, el botón se ajusta a su contenido en lugar de ocupar todo el ancho del anfitrión, y se
+ * alinea al inicio o al final: es lo que dibuja el diseño (Figma 65:456), cuyo motivo es más ancho que
+ * el botón. Sin motivo, nada de esto cambia.
+ *
+ * Límites que la pantalla debe conocer:
+ * - Solo se bloquea el clic (con el ratón, con Enter, con Espacio y el envío del formulario). Un
+ *   `(keydown)` o `(pointerup)` que la pantalla escuche en `liv-button` sí llega: la acción se escucha
+ *   con `(click)`. La autorización real de una acción está en el backend.
+ * - El motivo se anuncia cuando el botón recibe el foco. Si aparece o cambia con el foco ya puesto, el
+ *   lector de pantalla no lo anuncia; la pantalla lo pasa desde el primer dibujo.
+ * - Con el foco puesto, quitar el motivo sin quitar `disabled` pasa el botón a `disabled` nativo y el
+ *   navegador le quita el foco: no lo hagas.
  */
 @Component({
   selector: 'liv-button',
@@ -54,9 +67,10 @@ export type ButtonType = 'button' | 'submit' | 'reset';
   host: {
     '[attr.data-variant]': 'variant()',
     '[attr.data-size]': 'size()',
-    '[attr.data-state]': 'disabled() ? "disabled" : null',
-    '[attr.data-reason]': 'reason() ? "" : null',
-    '[attr.data-reason-align]': 'reasonAlign()',
+    '[attr.data-state]': "disabled() ? 'disabled' : null",
+    // Solo con motivo, y sin valor: la hoja de estilos mira la presencia del atributo.
+    '[attr.data-reason]': "reason() ? '' : null",
+    '[attr.data-reason-align]': 'reason() ? reasonAlign() : null',
   },
 })
 export class ButtonComponent {
@@ -85,7 +99,7 @@ export class ButtonComponent {
   );
   /** El motivo que se muestra: solo con `disabled` y con texto. */
   protected readonly reason = computed(() =>
-    this.disabled() ? (this.disabledReason()?.trim() ?? '') : '',
+    this.disabled() ? String(this.disabledReason() ?? '').trim() : '',
   );
   protected readonly reasonId = `liv-button-reason-${nextId++}`;
   /** Ocupado solo si no está deshabilitado: el estado Disabled prevalece. */

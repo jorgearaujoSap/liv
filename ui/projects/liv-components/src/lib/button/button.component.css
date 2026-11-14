@@ -4,7 +4,10 @@
   @apply inline-flex;
 }
 
-/* `w-full`: el ancho lo decide el anfitrión, así la pantalla puede estirarlo sin tocar el botón. */
+/*
+ * `w-full`: el ancho lo decide el anfitrión, así la pantalla puede estirarlo sin tocar el botón. Con
+ * motivo, el botón se ajusta a su contenido (más abajo).
+ */
 .button {
   @apply m-0 box-border inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 font-sans text-button-md whitespace-nowrap outline-none;
 }
@@ -12,7 +15,8 @@
 /*
  * El estado Disabled es el del anfitrión (`data-state='disabled'`), no el atributo `disabled` del botón:
  * con motivo el botón usa `aria-disabled` para seguir enfocable y se ve igual. Las reglas de hover y de
- * cargando (`aria-disabled`) lo excluyen con `:not([data-state='disabled'])`.
+ * cargando (`aria-disabled`) de cada variante lo excluyen con `:not([data-state='disabled'])`: el patrón
+ * se repite a propósito en las tres.
  */
 :host([data-state='disabled']) .button {
   @apply cursor-not-allowed;
@@ -121,4 +125,17 @@
  */
 :host([data-variant]) .button:focus-visible {
   @apply shadow-focus-ring outline-hidden;
+}
+
+/*
+ * Alto contraste: el navegador pinta `GrayText` un botón `disabled` nativo, pero no uno con
+ * `aria-disabled` (el que lleva motivo), y se vería como uno activo. Se usa `GrayText`, el color del
+ * sistema para lo inhabilitado; son los únicos colores que no salen de un token de theme.css (como en
+ * `RadioOption`).
+ */
+@media (forced-colors: active) {
+  :host([data-state='disabled']) .button {
+    color: GrayText;
+    border-color: GrayText;
+  }
 }
