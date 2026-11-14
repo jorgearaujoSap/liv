@@ -286,12 +286,21 @@ describe('Table', () => {
       expect(() => fixture.detectChanges()).toThrow(NO_NAME);
     });
 
-    it('también si el aria-label queda vacío con la tabla ya montada, y el atributo desaparece', () => {
+    it('también si el aria-label queda vacío con la tabla ya montada', () => {
       const fixture = mount(undefined, 'Vigencias fiscales');
       fixture.detectChanges();
       fixture.componentInstance.label.set('');
       expect(() => fixture.detectChanges()).toThrow(NO_NAME);
+    });
+
+    it('si el aria-label queda vacío con un caption, el atributo desaparece y se dibuja el caption', () => {
+      const fixture = mount('Vigencias', 'Vigencias fiscales de Ipiales');
+      fixture.detectChanges();
+      expect(tableOf(fixture).caption).toBeNull();
+      fixture.componentInstance.label.set('');
+      fixture.detectChanges();
       expect(tableOf(fixture).hasAttribute('aria-label')).toBe(false);
+      expect(tableOf(fixture).caption?.textContent?.trim()).toBe('Vigencias');
     });
 
     it('cumple axe (007-21) con aria-label en lugar de caption', async () => {

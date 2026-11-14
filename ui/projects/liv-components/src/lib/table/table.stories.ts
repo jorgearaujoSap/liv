@@ -13,7 +13,10 @@ const figmaCell =
   'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=63-283';
 
 interface TableArgs {
+  /** Nombre accesible por `<caption>` oculto; vaciar `caption` y `ariaLabel` lanza el error de desarrollo. */
   caption: string;
+  /** Nombre accesible por `aria-label`; si se da, no se dibuja el `<caption>`. */
+  ariaLabel: string;
   loading: boolean;
   /** Quita el destino del enlace de 2026, para ver una celda `link` inerte. */
   withoutHref: boolean;
@@ -40,11 +43,14 @@ const meta: Meta<TableArgs> = {
         component:
           'Tabla de datos de solo lectura, una tabla HTML real: `<table livTable>` con ' +
           '`tr[livTableRow]`, `th[livTableCell]` y `td[livTableCell]`. Su nombre accesible es ' +
-          'obligatorio: `caption` (oculto a la vista) o `aria-label`; `loading` declara ' +
-          '`aria-busy`. La celda `link` dibuja su propio enlace y emite `navigate` (la pantalla ' +
-          'valida el destino). **La fila no es clicable**: Hover pinta toda la fila, pero solo ' +
-          'navega el enlace del año, que es el único elemento enfocable. Focus dibuja el contorno ' +
-          'de la fila solo con el teclado (usa el Tab; un clic con el ratón no lo pinta). Todas las filas tienen las mismas columnas que el encabezado, y en un ancho ' +
+          'obligatorio: `caption` (oculto a la vista) o `aria-label` (como atributo o como ' +
+          '`[aria-label]`, nunca `[attr.aria-label]`); con los dos, solo cuenta el `aria-label`. ' +
+          '`loading` declara `aria-busy`. La celda `link` dibuja su propio enlace y emite ' +
+          '`navigate` (la pantalla valida el destino). **La fila no es clicable**: Hover pinta ' +
+          'toda la fila, pero solo navega el enlace de la celda `link`, que es el único elemento ' +
+          'enfocable. Focus dibuja el contorno de la fila solo con el teclado (usa el Tab; un clic ' +
+          'con el ratón no lo pinta). ' +
+          'Todas las filas tienen las mismas columnas que el encabezado, y en un ancho ' +
           'estrecho la pantalla envuelve la tabla en un contenedor con desplazamiento horizontal. ' +
           'El estado vacío, la barra y la paginación no entran: la 1.4 usa `ResultState`. ' +
           `[Table en Figma](${figmaTable}) · [TableRow en Figma](${figmaRow}) · ` +
@@ -54,6 +60,7 @@ const meta: Meta<TableArgs> = {
   },
   args: {
     caption: 'Vigencias fiscales',
+    ariaLabel: '',
     loading: false,
     withoutHref: false,
   },
@@ -61,7 +68,7 @@ const meta: Meta<TableArgs> = {
     props: args,
     template: `
       <div class="w-[1104px]">
-        <table livTable [caption]="caption" [loading]="loading">
+        <table livTable [caption]="caption" [aria-label]="ariaLabel" [loading]="loading">
           <thead>
             <tr livTableRow type="header">
               <th livTableCell>Año</th>
@@ -133,6 +140,15 @@ export const ConDatos: Story = { name: 'Con datos' };
  * son de la pantalla: aquí cada marcador va dentro de su celda, alineado con su columna.
  */
 export const Cargando: Story = { name: 'Cargando', args: { loading: true } };
+
+/**
+ * Nombre accesible por `aria-label` en lugar de `caption`: la tabla no dibuja el `<caption>`. Con los dos,
+ * solo cuenta el `aria-label`.
+ */
+export const ConAriaLabel: Story = {
+  name: 'Con aria-label',
+  args: { caption: '', ariaLabel: 'Vigencias fiscales de Ipiales' },
+};
 
 /**
  * Un enlace sin destino (`href` ausente o vacío) queda inerte y se pinta como texto, no como enlace: la
