@@ -14,10 +14,41 @@ function render(name: IconName, extra: { size?: IconSize; label?: string } = {})
   return { host, svg: host.querySelector('svg') as SVGSVGElement };
 }
 
+const NEW_ICONS: IconName[] = ['plus', 'circle'];
+
 describe('Icon', () => {
-  it('tiene los 38 iconos de Lucide de la página 02 Componentes, sin repetir', () => {
-    expect(ICON_NAMES).toHaveLength(38);
-    expect(new Set(ICON_NAMES).size).toBe(38);
+  it('tiene los 40 iconos de Lucide de la página 02 Componentes, sin repetir', () => {
+    expect(ICON_NAMES).toHaveLength(40);
+    expect(new Set(ICON_NAMES).size).toBe(40);
+  });
+
+  // Feature 007 (PR 8d, Figma 63:247 y 63:250): `plus` crea una vigencia y `circle` es el estado pendiente.
+  // `chevron-left` no entra: es de la paginación (1.6); el total de 40 lo fija.
+  it('agrega plus y circle', () => {
+    expect(ICON_NAMES).toEqual(expect.arrayContaining(NEW_ICONS));
+  });
+
+  it('dibuja plus con las dos líneas de Lucide', () => {
+    const paths = Array.from(render('plus').svg.querySelectorAll('path')).map((path) =>
+      path.getAttribute('d'),
+    );
+    expect(paths).toEqual(['M5 12h14', 'M12 5v14']);
+  });
+
+  it('dibuja circle como una circunferencia de radio 10 centrada en el lienzo', () => {
+    const shapes = Array.from(render('circle').svg.querySelectorAll('path, circle, rect, line'));
+    expect(shapes).toHaveLength(1);
+    const [circle] = shapes;
+    expect(circle.tagName.toLowerCase()).toBe('circle');
+    expect(['cx', 'cy', 'r'].map((name) => circle.getAttribute(name))).toEqual(['12', '12', '10']);
+  });
+
+  // El color lo da el `stroke="currentColor"` del `svg` (lo comprueba la prueba del lienzo); aquí, que ninguna
+  // forma lo tape con un relleno propio.
+  it.each(NEW_ICONS)('%s no rellena sus formas: toma el color del contenedor', (name) => {
+    for (const shape of Array.from(render(name).svg.querySelectorAll('path, circle, rect, line'))) {
+      expect(shape.getAttribute('fill') ?? 'none').toBe('none');
+    }
   });
 
   it.each(ICON_NAMES)('dibuja %s sobre el lienzo de 24 px con trazo de 2 px', (name) => {
@@ -25,6 +56,10 @@ describe('Icon', () => {
     expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
     expect(svg.getAttribute('stroke')).toBe('currentColor');
     expect(svg.getAttribute('stroke-width')).toBe('2');
+    expect([svg.getAttribute('stroke-linecap'), svg.getAttribute('stroke-linejoin')]).toEqual([
+      'round',
+      'round',
+    ]);
     expect(svg.querySelectorAll('path, circle, rect, line').length).toBeGreaterThan(0);
   });
 
@@ -81,5 +116,10 @@ describe('Icon', () => {
   it('cumple axe como decorativo y con texto alternativo', async () => {
     await expectNoAxeViolations(render('lock').host);
     await expectNoAxeViolations(render('circle-alert', { label: 'Error' }).host);
+  });
+
+  it.each(NEW_ICONS)('cumple axe como decorativo y con texto alternativo: %s', async (name) => {
+    await expectNoAxeViolations(render(name).host);
+    await expectNoAxeViolations(render(name, { label: 'Texto' }).host);
   });
 });

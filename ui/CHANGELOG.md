@@ -6,6 +6,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Iconos `plus` y `circle` en `Icon` (feature 007, PR 8d; Figma 63:247 y 63:250): `Icon` pasa de 38 a 40 iconos de Lucide. Se versionarán con 0.4.0 (PR 8f).
+  - `plus` es para las acciones de alta, como «Crear vigencia»; `circle` es el estado pendiente de la lista de preparación y nunca es la única señal: va siempre con el texto del estado.
+  - Toman el color de su contenedor (`currentColor`), como el resto. `IconName` crece con los dos nombres y no rompe el uso existente.
+  - `chevron-left`, que Figma también propone, no entra: solo lo usa la paginación y llega con la 1.6.
 - `RadioGroup` y `RadioOption` (feature 007, PR 8c; Figma 73:514 y 64:629): grupo de selección única, aprobado por el responsable funcional. Se versionará con 0.4.0 (PR 8f).
   - `liv-radio-group` es un `fieldset` con su `legend` visible (`legend`, el nombre accesible), `[(value)]` (`string | null`; `null` es sin elección), `name` opcional y `disabled`.
   - `liv-radio-option` (`value`, `label`, `description` y `disabled`) es un radio nativo dentro de una tarjeta y solo existe dentro de un grupo.
@@ -18,7 +22,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
     - Entradas: `status` (`met`, `pending` u `observed`), `number`, `heading` (el `Title` de Figma, que no se llama `title` para no chocar con el atributo del navegador), `reason`, `optional`, `link` y `linkHref`. Un estado desconocido se muestra como `pending`.
     - El estado se dice con texto en un `Badge` («Cumplido», «Pendiente», «Con observación»); el icono es decorativo.
     - El enlace es un `<a href>` que emite `navigate` con un clic normal, como `NavItem`; sin texto o sin destino no se dibuja. El destino no se sanea: debe ser una ruta propia de la aplicación.
-    - `Pending` dibuja su círculo vacío en el propio componente porque `Icon` todavía no tiene `circle` (PR 8d).
+    - `Pending` dibuja su círculo vacío en el propio componente porque `Icon` no tenía `circle` (lo agrega el PR 8d; pasarlo a `liv-icon` es un cambio aparte).
     - La pantalla quita al `ol` el relleno y el margen del navegador (`m-0 list-none p-0`).
   - `div[livDescriptionItem]` es un par etiqueta–valor (`dt` y `dd`) para una lista de descripción (`<dl>`), también de selector de atributo (la regla `definition-list` de axe no admite un elemento propio entre el `dl` y sus `dt` y `dd`).
     - Entradas: `type` (`text` o `badge`), `label` y `value`.

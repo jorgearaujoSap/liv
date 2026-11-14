@@ -32,6 +32,29 @@ export const ConTextoAlternativo: Story = {
   args: { name: 'circle-alert', label: 'Error' },
 };
 
+const figmaIcon = (node: string) =>
+  `[Diseño en Figma](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=${node})`;
+
+export const Plus: Story = {
+  args: { name: 'plus' },
+  parameters: {
+    docs: {
+      description: { story: `Acciones de alta, como «Crear vigencia». ${figmaIcon('63-247')}` },
+    },
+  },
+};
+
+export const Circle: Story = {
+  args: { name: 'circle' },
+  parameters: {
+    docs: {
+      description: {
+        story: `Estado pendiente de una lista de verificación; nunca es la única señal. ${figmaIcon('63-250')}`,
+      },
+    },
+  },
+};
+
 export const Tamano16: Story = { args: { size: 16 } };
 
 export const Tamano20: Story = { args: { size: 20 } };

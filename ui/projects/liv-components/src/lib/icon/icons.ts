@@ -1,6 +1,6 @@
 /*
  * Iconos de Lucide v1.66.0 (https://lucide.dev, licencia ISC; los derivados de Feather, MIT). Los avisos
- * de licencia están en THIRD_PARTY_NOTICES.md. Son los mismos 38 de la página 02 Componentes de Figma
+ * de licencia están en THIRD_PARTY_NOTICES.md. Son los mismos 40 de la página 02 Componentes de Figma
  * (`Icon/<nombre>`): lienzo de 24 px, trazo de 2 px, extremos y uniones redondeados.
  * Para agregar uno, primero se agrega en Figma.
  */
@@ -79,6 +79,7 @@ const ICONS = {
     { tag: 'path', d: 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3' },
     { tag: 'path', d: 'M12 17h.01' },
   ],
+  circle: [{ tag: 'circle', cx: '12', cy: '12', r: '10' }],
   'cloud-off': [
     { tag: 'path', d: 'M10.94 5.274A7 7 0 0 1 15.71 10h1.79a4.5 4.5 0 0 1 4.222 6.057' },
     { tag: 'path', d: 'M18.796 18.81A4.5 4.5 0 0 1 17.5 19H9A7 7 0 0 1 5.79 5.78' },
@@ -204,6 +205,10 @@ const ICONS = {
     { tag: 'path', d: 'm16 17 5-5-5-5' },
     { tag: 'path', d: 'M21 12H9' },
     { tag: 'path', d: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4' },
+  ],
+  plus: [
+    { tag: 'path', d: 'M5 12h14' },
+    { tag: 'path', d: 'M12 5v14' },
   ],
   'refresh-cw': [
     { tag: 'path', d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' },
