@@ -11,6 +11,7 @@ export { AvatarComponent, type AvatarSize } from './lib/avatar/avatar.component'
 export { BadgeComponent, type BadgeTone } from './lib/badge/badge.component';
 export {
   ButtonComponent,
+  type ButtonReasonAlign,
   type ButtonSize,
   type ButtonType,
   type ButtonVariant,

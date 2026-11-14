@@ -1,8 +1,9 @@
 <button
   class="button"
   [attr.type]="type()"
-  [disabled]="disabled()"
-  [attr.aria-disabled]="busy() ? 'true' : null"
+  [disabled]="disabled() && !reason()"
+  [attr.aria-disabled]="busy() || reason() ? 'true' : null"
+  [attr.aria-describedby]="reason() ? reasonId : null"
 >
   @if (busy()) {
     <span class="button__spinner" aria-hidden="true">
@@ -16,4 +17,7 @@
     <liv-icon class="button__trailing-icon" [name]="icon" [size]="iconSize()" />
   }
 </button>
+@if (reason(); as text) {
+  <span class="button__reason" [id]="reasonId">{{ text }}</span>
+}
 <span class="button__status" role="status">{{ busy() ? loadingLabel() : '' }}</span>
