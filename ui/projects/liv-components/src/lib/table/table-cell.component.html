@@ -1,0 +1,19 @@
+<ng-template #content><ng-content /></ng-template>
+
+@switch (kind()) {
+  @case ('link') {
+    <a class="table-cell__link" [attr.href]="target()" (click)="onLinkClick($event)">
+      <ng-container [ngTemplateOutlet]="content" />
+    </a>
+  }
+  @case ('action') {
+    @if (isHeader) {
+      <span class="table-cell__label"><ng-container [ngTemplateOutlet]="content" /></span>
+    } @else {
+      <span class="table-cell__chevron"><liv-icon name="chevron-right" [size]="20" /></span>
+    }
+  }
+  @default {
+    <ng-container [ngTemplateOutlet]="content" />
+  }
+}

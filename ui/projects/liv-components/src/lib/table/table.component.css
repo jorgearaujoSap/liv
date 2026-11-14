@@ -1,0 +1,15 @@
+@reference '../tailwind-reference.css';
+
+/*
+ * Layout fijo: la tabla reparte las columnas por igual y solo la de acción (56 px) fija su ancho, como en
+ * el diseño. Con `border-collapse: separate` el borde y el radio de 12 px recortan las filas; el borde
+ * inferior de cada fila lo dibujan sus celdas.
+ */
+:host {
+  @apply w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-xl border border-border-default bg-bg-surface;
+}
+
+/* El título de la pantalla: nombre accesible, sin ocupar espacio. */
+.table__caption {
+  @apply sr-only;
+}
