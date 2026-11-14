@@ -11,12 +11,31 @@
   @apply m-auto box-border flex w-[440px] max-w-full flex-col gap-6 rounded-xl bg-bg-surface p-6 shadow-elevation-xl outline-hidden forced-colors:border forced-colors:border-solid;
 }
 
+/* Tamaño (`size`): md es el de siempre; lg es el de los diálogos con cuerpo (Figma 73:482, 520 px). */
+.dialog__panel[data-size='lg'] {
+  @apply w-[520px];
+}
+
 .dialog__content {
   @apply flex items-start gap-4;
 }
 
+/* Tono (`tone`): warning es el de siempre; primary es el de los diálogos de una acción principal. */
 .dialog__tile {
   @apply flex size-10 shrink-0 items-center justify-center rounded-full bg-status-warning-subtle text-status-warning;
+}
+
+.dialog__tile[data-tone='primary'] {
+  @apply bg-action-primary-subtle text-action-primary;
+}
+
+/* El cuerpo se alinea con el texto: mosaico de 40 px + separación de 16 px. Sin contenido no ocupa lugar ni deja una separación de más. */
+.dialog__body {
+  @apply min-w-0 pl-[56px];
+}
+
+.dialog__body:empty {
+  @apply hidden;
 }
 
 .dialog__text {

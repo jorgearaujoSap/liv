@@ -4,35 +4,44 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [0.4.0] — 2026-11-14
+
+Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR (8a a 8f), y un cambio compatible en tres componentes existentes (`Button`, `Dialog` e `Icon`). Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend corre la prueba propia del aviso de sesión (`Dialog` sin cuerpo, `size` ni `tone` no cambió).
+
 ### Agregado
 
-- `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente. Se versionará con 0.4.0 (PR 8f).
+- `Dialog` con cuerpo, tamaño y tono (feature 007, PR 8f; Figma 73:482, con `Tone` `Warning` 65:472 y `Primary` 73:467): cambio compatible en un componente existente. Sin cuerpo, `size` ni `tone`, el diálogo es el de siempre (el aviso de sesión de la feature 001): 440 px, mosaico de advertencia y todo el contenido proyectado en las acciones.
+  - **Cuerpo:** el contenido con el atributo `livDialogBody` (`<ng-content select="[livDialogBody]">`) va entre el texto y las acciones, sangrado 56 px para alinearse con el texto (mosaico de 40 px más 16 px de separación). El contenido sin ese atributo sigue yendo a las acciones. Sin cuerpo no ocupa lugar ni deja separación (el contenedor queda vacío y se oculta).
+  - **`size`** (`DialogSize`: `md`, por omisión, de 440 px, o `lg`, de 520 px) y **`tone`** (`DialogTone`: `warning`, por omisión, o `primary`) son entradas nuevas y sus tipos salen por la API pública. `tone` cambia el color del mosaico del icono: `warning` usa `status/warning-subtle` con el icono en `status/warning`; `primary`, `action/primary-subtle` con el icono en `action/primary`. El icono por omisión sigue siendo `history` en los dos tonos. Sin valor o con un valor desconocido valen `md` y `warning`.
+  - **Trampa de foco:** cuenta las paradas de Tab como el navegador. Un grupo de radios (mismo `name` y mismo formulario) es **una** parada: el radio marcado o, si no hay ninguno, el primero habilitado al avanzar y el último al retroceder. Los controles inhabilitados no cuentan, ni los de un `fieldset` inhabilitado (salvo los de su primera `legend`); tampoco un radio inhabilitado, aunque esté marcado. La misma regla vale para el primer foco al abrir y para el elemento marcado con `data-initial-focus`. Con un `RadioGroup` en el cuerpo (uno o dos años, con y sin opción marcada) Tab y Mayús+Tab dan la vuelta por el diálogo sin salirse de él.
+  - Límites: la trampa solo reconoce radios nativos dentro del panel (un `role="radio"` propio no es un grupo); las flechas entre radios las da el navegador y se prueban en `e2e/`. Los botones y demás controles de un `fieldset` inhabilitado dejan de ser paradas, como en el navegador (antes contaban).
+- `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente.
   - Entradas nuevas: `disabledReason` (texto) y `reasonAlign` (`start`, por omisión, o `end`; su tipo, `ButtonReasonAlign`, sale por la API pública). Sin ellas, el botón se comporta y se ve como siempre.
   - `disabledReason` solo cuenta con `disabled` y con texto no vacío (se recorta). El motivo se muestra como texto visible debajo del botón (`body/sm`, `text/secondary`), enlazado con `aria-describedby`.
   - Con motivo, el botón usa `aria-disabled="true"` en lugar de `disabled`, para seguir recibiendo el foco del teclado y que el lector de pantalla anuncie el motivo al enfocarlo. No emite clic con el ratón, con Enter ni con Espacio, y no envía el formulario (el mismo guarda de `loading`). `disabled` sigue ganándole a `loading`.
-  - El aspecto no cambia: el estado Disabled pasa al anfitrión y las reglas de hover y de cargando lo excluyen. El anillo de foco se ve también en el botón deshabilitado con motivo, que es enfocable. En alto contraste (forced-colors) el botón deshabilitado se pinta con `GrayText`, porque el navegador solo lo hace con `disabled` nativo (excepción a «solo tokens», como en `RadioOption`).
+  - El aspecto inhabilitado no cambia: el estado Disabled pasa al anfitrión y las reglas de hover y de cargando lo excluyen. El anillo de foco se ve también en el botón deshabilitado con motivo, que es enfocable. En alto contraste (forced-colors) el botón deshabilitado se pinta con `GrayText`, porque el navegador solo lo hace con `disabled` nativo (excepción a «solo tokens», como en `RadioOption`).
   - Con motivo, el botón se ajusta a su contenido (no ocupa todo el ancho del anfitrión; así lo dibuja el diseño de Figma 65:456, con un motivo más ancho que el botón) y se alinea con el motivo, a la izquierda o a la derecha según `reasonAlign`. Sin motivo no cambia el ancho.
   - Límites que la pantalla debe conocer:
     - Solo se bloquea el clic: la acción se escucha con `(click)`; otros eventos que la pantalla escuche en `liv-button` (teclado, puntero) sí llegan.
     - El motivo se anuncia al enfocar el botón, no cuando aparece con el foco ya puesto: la pantalla lo pasa desde el primer dibujo.
     - Con el foco puesto, quitar el motivo sin quitar `disabled` pasa el botón a `disabled` nativo y le quita el foco.
-- Iconos `plus` y `circle` en `Icon` (feature 007, PR 8d; Figma 63:247 y 63:250): `Icon` pasa de 38 a 40 iconos de Lucide. Se versionarán con 0.4.0 (PR 8f).
+- Iconos `plus` y `circle` en `Icon` (feature 007, PR 8d; Figma 63:247 y 63:250): `Icon` pasa de 38 a 40 iconos de Lucide.
   - `plus` es para las acciones de alta, como «Crear vigencia»; `circle` es el estado pendiente de la lista de preparación y nunca es la única señal: va siempre con el texto del estado.
   - Toman el color de su contenedor (`currentColor`), como el resto. `IconName` crece con los dos nombres y no rompe el uso existente.
   - `chevron-left`, que Figma también propone, no entra: solo lo usa la paginación y llega con la 1.6.
-- `RadioGroup` y `RadioOption` (feature 007, PR 8c; Figma 73:514 y 64:629): grupo de selección única, aprobado por el responsable funcional. Se versionará con 0.4.0 (PR 8f).
+- `RadioGroup` y `RadioOption` (feature 007, PR 8c; Figma 73:514 y 64:629): grupo de selección única, aprobado por el responsable funcional.
   - `liv-radio-group` es un `fieldset` con su `legend` visible (`legend`, el nombre accesible), `[(value)]` (`string | null`; `null` es sin elección), `name` opcional y `disabled`.
   - `liv-radio-option` (`value`, `label`, `description` y `disabled`) es un radio nativo dentro de una tarjeta y solo existe dentro de un grupo.
   - Estados: Default, Hover, Focus y Disabled, elegida o no. La elegida no depende solo del color: borde, fondo y punto interior.
   - Los radios comparten un `name`, así que las flechas y el Tab que entra solo a la opción marcada los da el navegador.
   - El valor es un texto: una pantalla con valores numéricos (un año) lo convierte en los dos sentidos. El grupo no corrige su valor si la opción elegida desaparece; los `value` deben ser únicos y el `name`, si se da, único en la página.
   - En alto contraste (forced-colors) la elegida se distingue por su borde de 2 px y su punto, dibujado con borde, y la deshabilitada usa `GrayText` (único color que no sale de un token).
-- `ChecklistItem`, `DescriptionItem`, `Panel` y el formateador de fechas de negocio (feature 007, PR 8b; Figma 64:573, 64:583 y 64:631). Se versionarán con 0.4.0 (PR 8f).
+- `ChecklistItem`, `DescriptionItem`, `Panel` y el formateador de fechas de negocio (feature 007, PR 8b; Figma 64:573, 64:583 y 64:631).
   - `li[livChecklistItem]` es un punto de una lista de verificación, para usarse dentro de un `<ol role="list">`. Es un componente de **selector de atributo** (con una excepción de ESLint justificada en el código): un elemento `liv-*` entre el `ol` y sus `li` rompería la estructura de la lista.
     - Entradas: `status` (`met`, `pending` u `observed`), `number`, `heading` (el `Title` de Figma, que no se llama `title` para no chocar con el atributo del navegador), `reason`, `optional`, `link` y `linkHref`. Un estado desconocido se muestra como `pending`.
     - El estado se dice con texto en un `Badge` («Cumplido», «Pendiente», «Con observación»); el icono es decorativo.
     - El enlace es un `<a href>` que emite `navigate` con un clic normal, como `NavItem`; sin texto o sin destino no se dibuja. El destino no se sanea: debe ser una ruta propia de la aplicación.
-    - `Pending` dibuja su círculo vacío en el propio componente porque `Icon` no tenía `circle` (lo agrega el PR 8d; pasarlo a `liv-icon` es un cambio aparte).
+    - `Pending` dibuja su círculo vacío en el propio componente porque `Icon` no tenía `circle` cuando se escribió (con 0.4.0 ya lo tiene; pasarlo a `liv-icon` es un cambio aparte).
     - La pantalla quita al `ol` el relleno y el margen del navegador (`m-0 list-none p-0`).
   - `div[livDescriptionItem]` es un par etiqueta–valor (`dt` y `dd`) para una lista de descripción (`<dl>`), también de selector de atributo (la regla `definition-list` de axe no admite un elemento propio entre el `dl` y sus `dt` y `dd`).
     - Entradas: `type` (`text` o `badge`), `label` y `value`.
@@ -45,7 +54,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
     - Es la fecha larga de la decisión H2‑13; `new Date('2026-01-01')` mostraría el 31 de diciembre de 2025 en Bogotá.
     - Escribe los meses en español, sin depender de `Intl` ni de los datos de idioma del equipo.
     - Devuelve `null` si el valor está ausente, no es un texto o no es una fecha que exista.
-- `Table`, `TableRow` y `TableCell` (feature 007, PR 8a; Figma 64:446, 63:352 y 63:283): tabla de datos de solo lectura, una tabla HTML real. Se versionarán con 0.4.0 (PR 8f).
+- `Table`, `TableRow` y `TableCell` (feature 007, PR 8a; Figma 64:446, 63:352 y 63:283): tabla de datos de solo lectura, una tabla HTML real.
   - `<table livTable>`: nombre accesible obligatorio, por `caption` (dibujado como `<caption>` oculto a la vista) o por `aria-label`, como atributo o como `[aria-label]` (**`[attr.aria-label]` no vale**; `aria-labelledby` tampoco cuenta). Con los dos, solo cuenta el `aria-label` y no se dibuja el `<caption>`. Si faltan los dos o quedan vacíos, lanza un error solo en desarrollo, también si ocurre después. `loading` declara `aria-busy="true"`. Superficie `bg/surface`, borde `border/default` de 1 px y `radius/xl`, con las columnas repartidas por igual (layout fijo).
   - `tr[livTableRow]` (`type` `header` o `body`; sin `type`, la fila de un `<thead>` es el encabezado): Hover pinta `bg/subtle` y Focus dibuja un contorno `border/focus` de 2 px dentro de la fila mientras su enlace tiene el foco del teclado (`:has(:focus-visible)`: un clic con el ratón no lo pinta); un contorno, no una sombra, para que siga visible en alto contraste. La fila no es clicable: solo navega el enlace de la primera celda.
   - `th[livTableCell]` (siempre un encabezado de columna con `scope="col"`) y `td[livTableCell]` con `type` `text` (por omisión), `link`, `badge` o `action`. El `link` dibuja su propio `<a href>` y emite `navigate` con el destino, como `NavItem`: la pantalla navega con su enrutador. Es el único elemento de la fila que recibe el foco. `action` dibuja un chevron decorativo (`aria-hidden`, 20 px) en una columna de 56 px; su encabezado es un `th` con `type="action"`, cuyo texto, obligatorio, solo leen los lectores de pantalla. Un enlace sin destino queda inerte y se pinta como texto. La pantalla valida el destino que emite `navigate`.
