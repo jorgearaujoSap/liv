@@ -3,6 +3,8 @@ package co.com.sapenlinea.liv.platform.web;
 import co.com.sapenlinea.liv.platform.AuthenticationRejectedException;
 import co.com.sapenlinea.liv.platform.ErrorCodes;
 import co.com.sapenlinea.liv.platform.RequestRefusedException;
+import co.com.sapenlinea.liv.shared.NotFound;
+import co.com.sapenlinea.liv.shared.RuleViolation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -32,6 +34,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * <p>Codes: the criterion for security rejections, {@code SYS-<status>} for technical errors (the
  * {@code SYS-} constants of {@link ErrorCodes}, or built from the status for the standard Spring
  * MVC errors: 400, 404, 405, 415…, which keep their status).
+ *
+ * <p>The business errors of {@code shared} (ADR 0035) are answered here without {@code platform}
+ * knowing the modules that throw them: a {@link RuleViolation} is a 409 or a 422 with the code of
+ * the rule and its details as extensions, and a {@link NotFound} is the 404 {@code SYS-404} with no
+ * detail, so what does not exist and what belongs to another administration look the same (CA-12).
  */
 @RestControllerAdvice
 class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
@@ -57,6 +64,27 @@ class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
     LOG.warn("Request refused with {}: {}", exception.code(), exception.getMessage());
     return ResponseEntity.status(HttpStatus.FORBIDDEN)
         .body(problem(HttpStatus.FORBIDDEN, "Rechazado", exception.code()));
+  }
+
+  /** A rule refused the action: an expected answer, not a failure, so it is not logged as one. */
+  @ExceptionHandler(RuleViolation.class)
+  ResponseEntity<ProblemDetail> ruleViolation(RuleViolation violation) {
+    LOG.info("Rule {} refused the request: {}", violation.code(), violation.details());
+    HttpStatus status =
+        violation.type() == RuleViolation.Type.CONFLICT
+            ? HttpStatus.CONFLICT
+            : HttpStatus.UNPROCESSABLE_CONTENT;
+    ProblemDetail problem = problem(status, "Regla de negocio", violation.code());
+    violation.details().forEach(problem::setProperty);
+    return ResponseEntity.status(status).body(problem);
+  }
+
+  /** The same body whatever the reason: the log has it, the answer does not (CA-12). */
+  @ExceptionHandler(NotFound.class)
+  ResponseEntity<ProblemDetail> notFound(NotFound exception) {
+    LOG.info("{}", exception.getMessage());
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(problem(HttpStatus.NOT_FOUND, "No encontrado", ErrorCodes.NOT_FOUND));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

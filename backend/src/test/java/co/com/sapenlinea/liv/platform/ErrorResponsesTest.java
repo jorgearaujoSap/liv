@@ -16,6 +16,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -127,8 +128,8 @@ class ErrorResponsesTest extends PlatformWebTest {
   @Tag("CA-12")
   @DisplayName("CA-12 · «No existe» es un 404 SYS-404 con el mismo cuerpo sea cual sea el motivo")
   void notFoundIsTheSameWhateverTheReason() {
-    HttpResponse<String> missing = get("/api/v1/probe/not-found/missing", user("c-404a"));
-    HttpResponse<String> foreign = get("/api/v1/probe/not-found/foreign", user("c-404b"));
+    HttpResponse<String> missing = get("/api/v1/probe/not-found?reason=missing", user("c-404a"));
+    HttpResponse<String> foreign = get("/api/v1/probe/not-found?reason=foreign", user("c-404b"));
 
     assertProblem(missing, 404, ErrorCodes.NOT_FOUND);
     assertProblem(foreign, 404, ErrorCodes.NOT_FOUND);
@@ -167,14 +168,10 @@ class ErrorResponsesTest extends PlatformWebTest {
           "V-02", RuleViolation.Type.UNPROCESSABLE, Map.of("reason", "GAP", "requiredYear", 2027));
     }
 
-    @GetMapping("/api/v1/probe/not-found/missing")
-    Map<String, String> missing() {
-      throw new NotFound("fiscal year 2031 of the administration");
-    }
-
-    @GetMapping("/api/v1/probe/not-found/foreign")
-    Map<String, String> foreign() {
-      throw new NotFound("fiscal year 2026 of another administration");
+    /** The same route for both reasons: the body must not tell them apart. */
+    @GetMapping("/api/v1/probe/not-found")
+    Map<String, String> notFound(@RequestParam String reason) {
+      throw new NotFound("fiscal year, reason " + reason);
     }
   }
 }
