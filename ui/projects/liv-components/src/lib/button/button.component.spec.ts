@@ -7,10 +7,10 @@ import { cssVariable, declaredStyle, paintsShadow, usesToken } from '../../testi
 import { IconName } from '../icon/icons';
 import {
   ButtonComponent,
+  ButtonReasonAlign,
   ButtonSize,
   ButtonType,
   ButtonVariant,
-  ButtonReasonAlign,
 } from './button.component';
 
 const REASON = 'Faltan 6 puntos obligatorios de la lista de preparación.';
@@ -109,6 +109,41 @@ function render(inputs: Partial<HostComponent> = {}) {
   const host = fixture.nativeElement.querySelector('liv-button') as HTMLElement;
   const button = host.querySelector('button') as HTMLButtonElement;
   return { fixture, host, button, page: fixture.componentInstance };
+}
+
+/** Selectores de las reglas que están dentro de un `@media` cuya condición contiene `condition`. */
+function rulesInMedia(condition: string): string[] {
+  const found: string[] = [];
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (rule instanceof CSSMediaRule && rule.conditionText.includes(condition)) {
+        for (const inner of Array.from(rule.cssRules)) {
+          if (inner instanceof CSSStyleRule) {
+            found.push(
+              ...inner.selectorText
+                .replace(/["']/g, '')
+                .split(',')
+                .map((i) => i.trim()),
+            );
+          }
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Especificidad de un selector formado solo por clases, atributos y pseudoclases (sin ID, tipos ni
+ * `:where()`), sumada en un número: sirve para comparar dos reglas con la misma forma. `:not(x)` cuenta
+ * por `x`, no por sí mismo.
+ */
+function specificity(selector: string): number {
+  return (
+    (selector.match(/\[[^\]]*\]/g) ?? []).length +
+    (selector.match(/\.[\w-]/g) ?? []).length +
+    (selector.match(/:(?!:|not\()[\w-]+/g) ?? []).length
+  );
 }
 
 describe('Button', () => {
@@ -408,8 +443,10 @@ describe('Button', () => {
       // jsdom no evalúa :hover; la comprobación manual está en Storybook (Disabled con motivo).
       render({ disabled: true, disabledReason: REASON });
       const hostPart = (selector: string) => selector.split(' .button')[0];
-      const hover = rulesWith(':hover');
-      const loading = rulesWith('aria-disabled');
+      const ownRules = (fragment: string) =>
+        rulesWith(fragment).filter((selector) => selector.includes('.button'));
+      const hover = ownRules(':hover');
+      const loading = ownRules('aria-disabled');
       // Tres variantes en hover, y tres en cargando más el cursor de cargando.
       expect(hover).toHaveLength(3);
       expect(loading).toHaveLength(3 + 1);
@@ -422,10 +459,6 @@ describe('Button', () => {
       // Con `aria-disabled` el botón se enfoca y la regla Disabled (`shadow-none`) no debe quitarle el
       // anillo. `declaredStyle` no resuelve la especificidad: se calcula sobre el texto del selector.
       render({ disabled: true, disabledReason: REASON });
-      const specificity = (selector: string) =>
-        (selector.match(/\[[^\]]*\]/g) ?? []).length +
-        (selector.match(/\.[\w-]/g) ?? []).length +
-        (selector.match(/:(?!:|not\()[\w-]+/g) ?? []).length;
       const ring = rulesWith(':focus-visible').filter((selector) => selector.includes('.button'));
       const disabled = rulesWith('data-state=disabled]').filter(
         (selector) => !selector.includes(':not(') && !selector.includes('.button__'),
@@ -465,6 +498,26 @@ describe('Button', () => {
       expect(declaredStyle(button, 'border-color', 'forced-colors')).toBe('graytext');
       const active = render({ variant: 'secondary' }).button;
       expect(declaredStyle(active, 'color', 'forced-colors')).toBe('');
+    });
+
+    it('la regla de alto contraste tiene al menos la especificidad de las reglas Disabled', () => {
+      // `@media` no suma especificidad: si la regla GrayText fuera menos específica que la de cada
+      // variante, perdería y el botón con motivo se vería activo en alto contraste.
+      render({ disabled: true, disabledReason: REASON });
+      const forced = rulesInMedia('forced-colors').filter((selector) =>
+        selector.includes('data-state=disabled]'),
+      );
+      const disabled = rulesWith('data-state=disabled]').filter(
+        (selector) =>
+          !forced.includes(selector) &&
+          !selector.includes(':not(') &&
+          !selector.includes('.button__'),
+      );
+      expect(forced.length).toBeGreaterThan(0);
+      expect(disabled.length).toBeGreaterThanOrEqual(3);
+      for (const selector of disabled) {
+        expect(specificity(forced[0])).toBeGreaterThanOrEqual(specificity(selector));
+      }
     });
 
     it('con motivo, el anfitrión es una columna, el botón se ajusta a su contenido y el motivo se alinea', () => {
