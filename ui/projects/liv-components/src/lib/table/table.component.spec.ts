@@ -129,6 +129,12 @@ function render(inputs: RenderInputs = {}) {
   return { fixture, root, table, rows, links, page: fixture.componentInstance };
 }
 
+// Cada prueba parte sin foco y sin «modo teclado»: `:focus-visible` depende del último evento.
+afterEach(() => {
+  document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  (document.activeElement as HTMLElement | null)?.blur();
+});
+
 /** Teclado: `:focus-visible` solo se activa tras una tecla, como en el navegador. */
 function focusWithKeyboard(element: HTMLElement): void {
   document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
@@ -205,11 +211,13 @@ describe('Table', () => {
 
     @Component({
       imports: [TableComponent],
-      template: `<table livTable aria-label="Vigencias fiscales">
+      template: `<table livTable aria-label="  Vigencias fiscales ">
         <tbody></tbody>
       </table>`,
     })
     class StaticLabelHost {}
+
+    const NO_NAME = /nombre accesible/;
 
     function mount(caption: string | undefined, label: string | undefined) {
       const fixture = TestBed.createComponent(NameHost);
@@ -218,56 +226,72 @@ describe('Table', () => {
       return fixture;
     }
 
+    function tableOf(fixture: { nativeElement: unknown }): HTMLTableElement {
+      return (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLTableElement;
+    }
+
     it('con solo aria-label, ese es el nombre y no hay <caption>', () => {
       const fixture = mount(undefined, 'Vigencias fiscales');
       fixture.detectChanges();
-      const table = (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLElement;
-      expect(table.getAttribute('aria-label')).toBe('Vigencias fiscales');
-      expect(table.querySelector('caption')).toBeNull();
+      expect(tableOf(fixture).getAttribute('aria-label')).toBe('Vigencias fiscales');
+      expect(tableOf(fixture).querySelector('caption')).toBeNull();
     });
 
-    it('el aria-label también puede ir como atributo estático', () => {
+    it('el aria-label también puede ir como atributo estático, sin espacios sobrantes', () => {
       const fixture = TestBed.createComponent(StaticLabelHost);
       fixture.detectChanges();
-      const table = (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLElement;
-      expect(table.getAttribute('aria-label')).toBe('Vigencias fiscales');
+      expect(tableOf(fixture).getAttribute('aria-label')).toBe('Vigencias fiscales');
     });
 
-    it('con los dos, el aria-label manda y el caption se conserva', () => {
+    it('con los dos, la tabla tiene un solo nombre: el aria-label, sin <caption>', () => {
+      // Con los dos, algunos lectores de pantalla anunciarían el nombre dos veces.
       const fixture = mount('Vigencias', 'Vigencias fiscales de Ipiales');
       fixture.detectChanges();
-      const table = (fixture.nativeElement as HTMLElement).querySelector('table') as HTMLElement;
-      expect(table.getAttribute('aria-label')).toBe('Vigencias fiscales de Ipiales');
-      expect(table.querySelector('caption')?.textContent?.trim()).toBe('Vigencias');
+      expect(tableOf(fixture).getAttribute('aria-label')).toBe('Vigencias fiscales de Ipiales');
+      expect(tableOf(fixture).querySelector('caption')).toBeNull();
     });
 
-    it('con uno de los dos basta: el otro puede ir vacío', () => {
-      for (const [caption, label] of [
-        ['Vigencias fiscales', ''],
-        ['  ', 'Vigencias fiscales'],
-        [undefined, 'Vigencias fiscales'],
-        ['Vigencias fiscales', undefined],
-      ] as const) {
-        expect(() => mount(caption, label).detectChanges()).not.toThrow();
-      }
+    it.each<[string, string | undefined, string | undefined]>([
+      ['caption y aria-label vacío', 'Vigencias fiscales', ''],
+      ['caption y sin aria-label', 'Vigencias fiscales', undefined],
+      ['caption de espacios y aria-label', '  ', 'Vigencias fiscales'],
+      ['sin caption y aria-label', undefined, 'Vigencias fiscales'],
+    ])('con uno de los dos basta: %s', (_name, caption, label) => {
+      const fixture = mount(caption, label);
+      expect(() => fixture.detectChanges()).not.toThrow();
+      // Un caption vacío no se dibuja, ni un aria-label vacío deja el atributo.
+      const table = tableOf(fixture);
+      expect(table.caption === null || table.caption.textContent?.trim() !== '').toBe(true);
+      expect(table.getAttribute('aria-label') ?? 'x').not.toBe('');
     });
 
-    it('sin ninguno, o con los dos vacíos, lanza un error en desarrollo', () => {
-      for (const [caption, label] of [
-        [undefined, undefined],
-        ['', ''],
-        ['   ', undefined],
-        [undefined, '   '],
-      ] as const) {
-        expect(() => mount(caption, label).detectChanges()).toThrow(/caption|aria-label/i);
-      }
+    it.each<[string, string | undefined, string | undefined]>([
+      ['sin ninguno', undefined, undefined],
+      ['los dos vacíos', '', ''],
+      ['caption de espacios', '   ', undefined],
+      ['aria-label de espacios', undefined, '   '],
+    ])('lanza un error en desarrollo: %s', (_name, caption, label) => {
+      expect(() => mount(caption, label).detectChanges()).toThrow(NO_NAME);
     });
 
-    it('también si se quedan sin nombre con la tabla ya montada', () => {
+    it('el error dice cómo dar el nombre: aria-label o [aria-label], no [attr.aria-label]', () => {
+      // `[attr.aria-label]` no llega a la entrada y el componente lo borraría.
+      expect(() => mount(undefined, undefined).detectChanges()).toThrow(/\[attr\.aria-label\]/);
+    });
+
+    it('también si el caption queda vacío con la tabla ya montada', () => {
       const fixture = mount('Vigencias fiscales', undefined);
       fixture.detectChanges();
       fixture.componentInstance.caption.set('');
-      expect(() => fixture.detectChanges()).toThrow(/caption|aria-label/i);
+      expect(() => fixture.detectChanges()).toThrow(NO_NAME);
+    });
+
+    it('también si el aria-label queda vacío con la tabla ya montada, y el atributo desaparece', () => {
+      const fixture = mount(undefined, 'Vigencias fiscales');
+      fixture.detectChanges();
+      fixture.componentInstance.label.set('');
+      expect(() => fixture.detectChanges()).toThrow(NO_NAME);
+      expect(tableOf(fixture).hasAttribute('aria-label')).toBe(false);
     });
 
     it('cumple axe (007-21) con aria-label en lugar de caption', async () => {
@@ -394,7 +418,9 @@ describe('TableRow', () => {
   });
 
   it('con el ratón no pinta el contorno: el foco de la fila es solo del teclado', () => {
-    // Un clic enfoca el enlace, pero `:focus-visible` no se activa: la regla lo exige, no `:focus-within`.
+    // Un clic enfoca el enlace, pero no activa `:focus-visible`. La regla usa `:has(:focus-visible)` y no
+    // `:focus-within`, que también se activaría con el ratón. El texto de la regla es lo que protege el
+    // comportamiento en un navegador real; el `mousedown` sintético solo lo emula en jsdom.
     expect(rowCss).not.toContain(':focus-within');
     expect(rowCss).toContain(':has(:focus-visible)');
     const { rows, links } = render();
