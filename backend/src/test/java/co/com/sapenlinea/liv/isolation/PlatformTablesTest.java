@@ -34,6 +34,9 @@ class PlatformTablesTest {
           Map.entry("audit.event.read", "ADMIN_SISTEMA,AUDITOR"),
           Map.entry("documents.legal-instrument.read", TABLE_ROLES),
           Map.entry("tax.fiscal-year.read", TABLE_ROLES),
+          // Doc. 01 v0.5, §5 (H2-3 de la 007): crear y abrir la preparación, solo el administrador.
+          Map.entry("tax.fiscal-year.create", "ADMIN_SISTEMA"),
+          Map.entry("tax.fiscal-year.prepare", "ADMIN_SISTEMA"),
           Map.entry("valuation.batch.read", TABLE_ROLES),
           Map.entry("tax.rate.read", TABLE_ROLES),
           Map.entry("valuation.catalog.read", TABLE_ROLES),
@@ -55,7 +58,10 @@ class PlatformTablesTest {
 
   @Test
   @Tag("D-001-5")
-  @DisplayName("D-001-5 · La matriz de permisos sembrada es exactamente la aprobada en H2")
+  @Tag("007-02")
+  @Tag("007-09")
+  @DisplayName(
+      "D-001-5 · 007-02 · 007-09 · La matriz de permisos sembrada es exactamente la aprobada en H2")
   void permissionMatrixIsTheApprovedOne() throws SQLException {
     Map<String, String> stored = new TreeMap<>();
     rows(

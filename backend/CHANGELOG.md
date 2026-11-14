@@ -125,6 +125,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - Adaptador de prueba en `co.com.sapenlinea.liv.ledger.golden` (`LedgerGoldenEngine`, `NotImplementedLedgerEngine` y `LedgerGoldenEngines.current()`), con eventos `EMISSION`, `PAYMENT`, `BANK_REVERSAL` y `ALLOCATION` y la modalidad siempre como entrada, y `LedgerGoldenTest`, un método por criterio de la spec (`CA-4.01` con `LQ-C04`, `CA-4.02`, `CA-4.03`, `CA-4.04` con `IM-01` e `IM-03`, `CA-4.08` y `CA-4.09`), que falla con `GoldenEngineNotImplementedException` porque la cuenta corriente es de la Fase 4. Lleva `@Disabled` con el *issue* [#173](https://github.com/jorgearaujoSap/liv/issues/173), así que el CI no la ejecuta; el comando del `README` la ejecuta en rojo (9 invocaciones).
   - `LedgerGoldenFixturesTest`, en verde: los nueve casos, su fuente, sus claves esperadas, dónde viaja la modalidad, las entradas inferidas; treinta y una variantes dañadas del esquema que se rechazan solo por su motivo; las mutaciones de cada valor de cada caso real, incluidas las de las listas (un movimiento o una línea de más o de menos, el componente, `reverses`, el beneficiario o «se retiene o se gira» cambiados); IM‑01 e IM‑03 sobre el resultado; que el `@Disabled` cite su *issue* y que, sin cuenta corriente, cada invocación falle por `GoldenEngineNotImplementedException`.
   - Sección de cuenta corriente del `README` de las *golden*: archivos, casos, eventos, supuestos, `depends_on`, frontera de `ledger` y el *issue*.
+- Migraciones de las vigencias fiscales (feature 007, T5 y T6; ERD 2.3, esquema `tax`):
+  - `tax.fiscal_year`: el año fiscal nacional, sin RLS y de solo lectura para `liv_app`, con los años 1999 a 2100 (rango técnico y provisional) y `CHECK` de que sus fechas son el año calendario (V‑01);
+  - `tax.administration_fiscal_year`: la vigencia de cada administración, con `id` `uuidv7()`, estados `PLANEADA` a `CERRADA`, `CHECK (NOT assessments_enabled)`, `UNIQUE (administration_id, fiscal_year)` y FK compuestas de `created_by` y `updated_by`. La RLS tiene una política por operación y solo admite la transición `PLANEADA` → `EN_PREPARACION`; `liv_app` no puede cambiar `assessments_enabled` ni borrar;
+  - la migración comprueba que exista `uuidv7()` (PostgreSQL 18) y crea el esquema `tax` con `USAGE` para `liv_app`;
+  - permisos de acción `tax.fiscal-year.create` y `tax.fiscal-year.prepare`, solo para `ADMIN_SISTEMA`;
+  - pruebas de aislamiento, permisos exactos, restricciones y transiciones de estado, y la matriz de permisos ampliada.
 
 ### Cambiado
 

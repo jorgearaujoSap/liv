@@ -9,6 +9,7 @@ import static co.com.sapenlinea.liv.isolation.LivDatabase.SUBJECT_A;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.SUBJECT_B;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.USER_A;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.USER_B;
+import static co.com.sapenlinea.liv.isolation.LivDatabase.assertRlsDenied;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.count;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.failureOf;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.inTx;
@@ -16,10 +17,12 @@ import static co.com.sapenlinea.liv.isolation.LivDatabase.insertUser;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.rows;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.update;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -30,8 +33,17 @@ import org.junit.jupiter.api.Test;
 class AdministrationIsolationTest {
 
   private static final String[] ISOLATED_TABLES = {
-    "core.tax_administration", "core.admin_user", "core.user_session"
+    "core.tax_administration",
+    "core.admin_user",
+    "core.user_session",
+    "tax.administration_fiscal_year"
   };
+
+  private static final String FISCAL_YEAR_SQL =
+      """
+      INSERT INTO tax.administration_fiscal_year (administration_id, fiscal_year, created_by)
+      VALUES (?, ?, ?)
+      """;
 
   private static final String SESSION_SQL =
       """
@@ -52,6 +64,39 @@ class AdministrationIsolationTest {
     update(OWNER, null, SESSION_SQL, SID_B, USER_B, ADMIN_B, ISSUER, SUBJECT_B);
   }
 
+  /** A y B tienen cada una su 2026 (007-18); las crea el dueño, que no pasa por la RLS. */
+  @BeforeAll
+  static void createFiscalYears() throws SQLException {
+    update(
+        OWNER,
+        null,
+        FISCAL_YEAR_SQL + " ON CONFLICT (administration_id, fiscal_year) DO NOTHING",
+        ADMIN_A,
+        2026,
+        USER_A);
+    update(
+        OWNER,
+        null,
+        FISCAL_YEAR_SQL + " ON CONFLICT (administration_id, fiscal_year) DO NOTHING",
+        ADMIN_B,
+        2026,
+        USER_B);
+  }
+
+  /** Quita las vigencias de esta clase: así las pruebas de otras clases parten sin ellas. */
+  @AfterAll
+  static void removeTheFiscalYearsOfThisClass() throws SQLException {
+    update(
+        OWNER,
+        null,
+        "DELETE FROM tax.administration_fiscal_year WHERE fiscal_year IN (2026, 2031, 2090)"
+            + " AND administration_id IN ('"
+            + ADMIN_A
+            + "', '"
+            + ADMIN_B
+            + "')");
+  }
+
   private static String newSid() {
     return "sid-" + UUID.randomUUID();
   }
@@ -61,6 +106,9 @@ class AdministrationIsolationTest {
       "001-17 · Sin contexto, liv_app no ve ninguna fila de administraciones, usuarios ni sesiones")
   void noContextSeesNothing() throws SQLException {
     for (String table : ISOLATED_TABLES) {
+      assertThat(count(OWNER, null, "SELECT count(*) FROM " + table))
+          .as("filas de " + table + " que la RLS tiene que ocultar")
+          .isPositive();
       assertThat(count(APP, null, "SELECT count(*) FROM " + table)).as(table).isZero();
     }
   }
@@ -204,6 +252,115 @@ class AdministrationIsolationTest {
         failureOf(
             () -> update(OWNER, null, SESSION_SQL, newSid(), USER_A, ADMIN_A, ISSUER, SUBJECT_B));
     assertThat(otherIdentity.getSQLState()).isEqualTo("23503");
+  }
+
+  @Test
+  @Tag("007-18")
+  @DisplayName(
+      "CA-12 · 007-18 · Con el contexto de A solo se ve la vigencia 2026 de A, y con el de B la de B")
+  void contextSeesOnlyItsOwnFiscalYears() throws SQLException {
+    String select = "SELECT administration_id, fiscal_year FROM tax.administration_fiscal_year";
+
+    assertThat(rows(APP, ADMIN_A, select))
+        .extracting(row -> row[0], row -> ((Number) row[1]).intValue())
+        .contains(tuple(ADMIN_A, 2026))
+        .doesNotContain(tuple(ADMIN_B, 2026));
+    assertThat(rows(APP, ADMIN_A, select)).extracting(row -> row[0]).containsOnly(ADMIN_A);
+
+    assertThat(rows(APP, ADMIN_B, select))
+        .extracting(row -> row[0], row -> ((Number) row[1]).intValue())
+        .contains(tuple(ADMIN_B, 2026))
+        .doesNotContain(tuple(ADMIN_A, 2026));
+    assertThat(rows(APP, ADMIN_B, select)).extracting(row -> row[0]).containsOnly(ADMIN_B);
+  }
+
+  @Test
+  @Tag("007-19")
+  @DisplayName(
+      "CA-12 · 007-19 · Con el contexto de A no se crea ni se cambia una vigencia de B,"
+          + " y sin contexto no se escribe")
+  void contextCannotWriteOtherAdministrationFiscalYears() throws SQLException {
+    assertRlsDenied(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_B, 2027, USER_B));
+    assertRlsDenied(() -> update(APP, null, FISCAL_YEAR_SQL, ADMIN_A, 2027, USER_A));
+    // El 2026 de B ya existe: el rechazo es de la RLS y no de la clave única, y así el mensaje
+    // no revela que esa vigencia existe.
+    assertRlsDenied(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_B, 2026, USER_B));
+    assertThat(
+            update(
+                APP,
+                null,
+                """
+                UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION'
+                 WHERE fiscal_year = 2026
+                """))
+        .as("vigencias abiertas sin contexto")
+        .isZero();
+
+    assertThat(
+            update(
+                APP,
+                ADMIN_A,
+                """
+                UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION'
+                 WHERE administration_id = ? AND fiscal_year = 2026
+                """,
+                ADMIN_B))
+        .as("vigencias de B abiertas desde A")
+        .isZero();
+    assertThat(
+            rows(
+                    OWNER,
+                    null,
+                    """
+                    SELECT status FROM tax.administration_fiscal_year
+                     WHERE administration_id = ? AND fiscal_year = 2026
+                    """,
+                    ADMIN_B)
+                .get(0)[0])
+        .isEqualTo("PLANEADA");
+  }
+
+  @Test
+  @Tag("007-19")
+  @DisplayName(
+      "CA-12 · 007-19 · Cada administración abre solo su propia vigencia, aunque la consulta"
+          + " no filtre por administración")
+  void eachAdministrationOpensOnlyItsOwnFiscalYear() throws SQLException {
+    update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_A, 2090, USER_A);
+    update(APP, ADMIN_B, FISCAL_YEAR_SQL, ADMIN_B, 2090, USER_B);
+
+    assertThat(
+            update(
+                APP,
+                ADMIN_B,
+                """
+                UPDATE tax.administration_fiscal_year
+                   SET status = 'EN_PREPARACION', updated_by = ?, updated_at = now()
+                 WHERE fiscal_year = 2090
+                """,
+                USER_B))
+        .isEqualTo(1);
+
+    String statusOfA =
+        """
+        SELECT status FROM tax.administration_fiscal_year
+         WHERE administration_id = ? AND fiscal_year = 2090
+        """;
+    assertThat(rows(OWNER, null, statusOfA, ADMIN_A).get(0)[0]).isEqualTo("PLANEADA");
+    assertThat(rows(OWNER, null, statusOfA, ADMIN_B).get(0)[0]).isEqualTo("EN_PREPARACION");
+  }
+
+  @Test
+  @Tag("007-19")
+  @DisplayName(
+      "CA-12 · 007-19 · Con el contexto de A se crea una vigencia de A,"
+          + " y no se puede firmar con un usuario de B")
+  void contextCanCreateOwnFiscalYearOnlyWithOwnUsers() throws SQLException {
+    assertThat(update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_A, 2031, USER_A)).isEqualTo(1);
+
+    SQLException mixed =
+        failureOf(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_A, 2032, USER_B));
+    assertThat(mixed.getSQLState()).as("FK compuesta con created_by de B").isEqualTo("23503");
   }
 
   @Test
