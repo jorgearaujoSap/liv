@@ -89,8 +89,8 @@ class FiscalYearSchemaTest {
   void fiscalYearsFrom1999To2100Exist() throws SQLException {
     Object[] summary =
         rows(OWNER, null, "SELECT min(year), max(year), count(*) FROM tax.fiscal_year").get(0);
-    assertThat(summary[0]).isEqualTo((short) 1999);
-    assertThat(summary[1]).isEqualTo((short) 2100);
+    assertThat(summary[0]).isEqualTo(1999);
+    assertThat(summary[1]).isEqualTo(2100);
     assertThat(summary[2]).isEqualTo(102L);
 
     Object[] y2026 =
@@ -201,7 +201,7 @@ class FiscalYearSchemaTest {
                   FROM tax.administration_fiscal_year WHERE fiscal_year = 2052
                 """)
             .get(0);
-    assertThat(row).containsExactly((short) 7, "PLANEADA", false, true, null, null);
+    assertThat(row).containsExactly(7, "PLANEADA", false, true, null, null);
   }
 
   // --- tax.administration_fiscal_year: lo que liv_app puede escribir ---
