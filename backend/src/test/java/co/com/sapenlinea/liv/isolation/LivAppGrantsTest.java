@@ -35,10 +35,11 @@ class LivAppGrantsTest {
           Map.entry("platform.shedlock", "INSERT,SELECT,UPDATE"),
           Map.entry("audit.audit_event", "INSERT,SELECT"),
           Map.entry("audit.import_cursor", "INSERT,SELECT,UPDATE"),
-          // 007: el año es nacional y solo se lee; la vigencia de la administración se crea
-          // y cambia de estado, pero nunca se borra.
+          // 007: el año es nacional y solo se lee. La vigencia de la administración se lee y,
+          // por columnas, se crea y cambia de estado, pero nunca se borra: sin INSERT ni UPDATE
+          // de tabla (B3b).
           Map.entry("tax.fiscal_year", "SELECT"),
-          Map.entry("tax.administration_fiscal_year", "INSERT,SELECT"));
+          Map.entry("tax.administration_fiscal_year", "SELECT"));
 
   private static final Map<String, String> COLUMN_UPDATES =
       Map.of(
@@ -56,29 +57,24 @@ class LivAppGrantsTest {
     assertThat(grants("'liv_app'::regrole::oid")).containsExactlyInAnyOrderEntriesOf(TABLE_GRANTS);
   }
 
+  /**
+   * Columnas que {@code liv_app} puede escribir al crear la fila (H2-4); el resto lo fija la base.
+   */
+  private static final Map<String, String> COLUMN_INSERTS =
+      Map.of("tax.administration_fiscal_year", "administration_id,created_by,fiscal_year");
+
+  @Test
+  @Tag("007-12")
+  @DisplayName(
+      "007-12 · H2-4 · Las columnas que liv_app puede escribir al crear una fila son exactamente las esperadas")
+  void columnInsertsAreExactlyTheExpectedOnes() throws SQLException {
+    assertThat(columnPrivileges("INSERT")).containsExactlyInAnyOrderEntriesOf(COLUMN_INSERTS);
+  }
+
   @Test
   @DisplayName("001-17 · Las columnas que liv_app puede actualizar son exactamente las esperadas")
   void columnUpdatesAreExactlyTheExpectedOnes() throws SQLException {
-    List<Object[]> updatable =
-        rows(
-            OWNER,
-            null,
-            """
-            SELECT n.nspname || '.' || c.relname,
-                   string_agg(att.attname, ',' ORDER BY att.attname)
-              FROM pg_attribute att
-              JOIN pg_class c ON c.oid = att.attrelid
-              JOIN pg_namespace n ON n.oid = c.relnamespace
-              CROSS JOIN LATERAL aclexplode(att.attacl) a
-             WHERE a.grantee = 'liv_app'::regrole::oid AND a.privilege_type = 'UPDATE'
-               AND n.nspname = ANY (%s)
-             GROUP BY 1
-            """
-                .formatted(SCHEMAS));
-
-    Map<String, String> byTable = new TreeMap<>();
-    updatable.forEach(row -> byTable.put((String) row[0], (String) row[1]));
-    assertThat(byTable).containsExactlyInAnyOrderEntriesOf(COLUMN_UPDATES);
+    assertThat(columnPrivileges("UPDATE")).containsExactlyInAnyOrderEntriesOf(COLUMN_UPDATES);
   }
 
   @Test
@@ -199,6 +195,28 @@ class LivAppGrantsTest {
                     .formatted(administrationTables)))
         .as("tablas sin RLS o sin política para liv_app")
         .isEmpty();
+  }
+
+  /** Privilegios de columna de liv_app: tabla -> columnas con ese privilegio, ordenadas. */
+  private static Map<String, String> columnPrivileges(String privilege) throws SQLException {
+    Map<String, String> byTable = new TreeMap<>();
+    rows(
+            OWNER,
+            null,
+            """
+            SELECT n.nspname || '.' || c.relname,
+                   string_agg(att.attname, ',' ORDER BY att.attname)
+              FROM pg_attribute att
+              JOIN pg_class c ON c.oid = att.attrelid
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+              CROSS JOIN LATERAL aclexplode(att.attacl) a
+             WHERE a.grantee = 'liv_app'::regrole::oid AND a.privilege_type = '%s'
+               AND n.nspname = ANY (%s)
+             GROUP BY 1
+            """
+                .formatted(privilege, SCHEMAS))
+        .forEach(row -> byTable.put((String) row[0], (String) row[1]));
+    return byTable;
   }
 
   private static Map<String, String> grants(String grantee) throws SQLException {

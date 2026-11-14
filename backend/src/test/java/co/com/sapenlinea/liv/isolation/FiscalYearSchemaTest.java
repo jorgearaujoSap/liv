@@ -16,6 +16,8 @@ import java.sql.Connection;
 import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -40,8 +42,9 @@ class FiscalYearSchemaTest {
   private static final String INSERT_AS_OWNER =
       """
       INSERT INTO tax.administration_fiscal_year
-        (administration_id, fiscal_year, status, assessments_enabled, created_by)
-      VALUES (?, ?, ?, ?, ?)
+        (administration_id, fiscal_year, status, assessments_enabled, created_by,
+         updated_by, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       """;
 
   private static final String INSERT_AS_APP =
@@ -56,9 +59,6 @@ class FiscalYearSchemaTest {
          SET status = 'EN_PREPARACION', updated_by = ?, updated_at = now()
        WHERE administration_id = ? AND fiscal_year = ?
       """;
-
-  private static final List<String> STATUSES_BEYOND_PLANNED =
-      List.of("EN_PREPARACION", "LISTA", "HABILITADA", "CERRADA");
 
   private static final String INSUFFICIENT_PRIVILEGE = "42501";
   private static final String CHECK_VIOLATION = "23514";
@@ -239,25 +239,86 @@ class FiscalYearSchemaTest {
 
   @Test
   @Tag("007-10")
-  @DisplayName("007-10 · liv_app solo crea vigencias Planeada: ningún otro estado entra por INSERT")
-  void applicationOnlyInsertsPlanned() {
-    for (int i = 0; i < STATUSES_BEYOND_PLANNED.size(); i++) {
-      int year = 2060 + i;
-      String status = STATUSES_BEYOND_PLANNED.get(i);
-      assertRlsDenied(() ->
-          update(
-              APP,
-              ADMIN_A,
-              """
-              INSERT INTO tax.administration_fiscal_year
-                (administration_id, fiscal_year, status, created_by)
-              VALUES (?, ?, ?, ?)
-              """,
-              ADMIN_A,
-              year,
-              status,
-              USER_A));
+  @Tag("007-12")
+  @DisplayName(
+      "007-10 · 007-12 · H2-4 · liv_app solo escribe administración, año y autor al crear:"
+          + " ni el estado, ni la habilitación, ni el id, ni las marcas de cambio")
+  void applicationInsertsOnlyTheColumnsOfTheUseCase() throws SQLException {
+    for (String column :
+        List.of("id", "status", "assessments_enabled", "created_at", "updated_by", "updated_at")) {
+      String value =
+          switch (column) {
+            case "id" -> "uuidv7()";
+            case "status" -> "'PLANEADA'";
+            case "assessments_enabled" -> "false";
+            case "updated_by" -> "'" + USER_A + "'::uuid";
+            default -> "now()";
+          };
+      String sql =
+          "INSERT INTO tax.administration_fiscal_year"
+              + " (administration_id, fiscal_year, created_by, %s) VALUES (?, 2060, ?, %s)"
+                  .formatted(column, value);
+      SQLException denied = failureOf(() -> update(APP, ADMIN_A, sql, ADMIN_A, USER_A));
+      assertThat(denied.getSQLState()).as(column).isEqualTo(INSUFFICIENT_PRIVILEGE);
     }
+
+    assertThat(update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2060, USER_A))
+        .as("las tres columnas del caso de uso")
+        .isEqualTo(1);
+  }
+
+  @Test
+  @Tag("007-10")
+  @DisplayName(
+      "007-10 · La traza es coherente: En preparación exige updated_by y updated_at, y los dos van juntos")
+  void anOpenedFiscalYearAlwaysHasItsAuthorAndItsTime() throws SQLException {
+    update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2061, USER_A);
+    for (String sql :
+        List.of(
+            "UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION'"
+                + " WHERE fiscal_year = 2061",
+            "UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION', updated_at = now()"
+                + " WHERE fiscal_year = 2061",
+            "UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION',"
+                + " updated_by = '"
+                + USER_A
+                + "' WHERE fiscal_year = 2061")) {
+      assertThat(failureOf(() -> update(APP, ADMIN_A, sql)).getSQLState())
+          .as(sql)
+          .isEqualTo(CHECK_VIOLATION);
+    }
+    assertThat(statusOf(2061)).isEqualTo("PLANEADA");
+
+    Timestamp now = Timestamp.from(Instant.now());
+    for (Object[] trace : new Object[][] {{null, null}, {USER_A, null}, {null, now}}) {
+      SQLException incomplete =
+          failureOf(() ->
+              update(
+                  OWNER,
+                  null,
+                  INSERT_AS_OWNER,
+                  ADMIN_A,
+                  2062,
+                  "EN_PREPARACION",
+                  false,
+                  USER_A,
+                  trace[0],
+                  trace[1]));
+      assertThat(incomplete.getSQLState()).isEqualTo(CHECK_VIOLATION);
+    }
+    assertThat(
+            update(
+                OWNER,
+                null,
+                INSERT_AS_OWNER,
+                ADMIN_A,
+                2062,
+                "EN_PREPARACION",
+                false,
+                USER_A,
+                USER_A,
+                now))
+        .isEqualTo(1);
   }
 
   @Test
@@ -276,7 +337,7 @@ class FiscalYearSchemaTest {
                 """,
                 ADMIN_A,
                 USER_A));
-    assertThat(onInsert.getSQLState()).isEqualTo(CHECK_VIOLATION);
+    assertThat(onInsert.getSQLState()).isEqualTo(INSUFFICIENT_PRIVILEGE);
 
     update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2071, USER_A);
     for (String sql :
@@ -530,8 +591,18 @@ class FiscalYearSchemaTest {
   private static int insertAsOwner(
       UUID administration, int year, String status, boolean assessmentsEnabled, UUID createdBy)
       throws SQLException {
+    boolean opened = "EN_PREPARACION".equals(status);
     return update(
-        OWNER, null, INSERT_AS_OWNER, administration, year, status, assessmentsEnabled, createdBy);
+        OWNER,
+        null,
+        INSERT_AS_OWNER,
+        administration,
+        year,
+        status,
+        assessmentsEnabled,
+        createdBy,
+        opened ? createdBy : null,
+        opened ? Timestamp.from(Instant.now()) : null);
   }
 
   /** El estado de la vigencia de A de ese año, leído por la aplicación con el contexto de A. */
