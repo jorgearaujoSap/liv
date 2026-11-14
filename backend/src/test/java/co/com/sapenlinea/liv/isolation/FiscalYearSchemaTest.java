@@ -11,6 +11,7 @@ import static co.com.sapenlinea.liv.isolation.LivDatabase.failureOf;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.rows;
 import static co.com.sapenlinea.liv.isolation.LivDatabase.update;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.sql.Connection;
 import java.sql.Date;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.postgresql.util.PSQLException;
 
 /**
  * El esquema {@code tax} de la feature 007 (tablas {@code fiscal_year} y {@code
@@ -240,6 +242,7 @@ class FiscalYearSchemaTest {
   @Test
   @Tag("007-10")
   @Tag("007-12")
+  @Tag("H2-4")
   @DisplayName(
       "007-10 · 007-12 · H2-4 · liv_app solo escribe administración, año y autor al crear:"
           + " ni el estado, ni la habilitación, ni el id, ni las marcas de cambio")
@@ -252,14 +255,23 @@ class FiscalYearSchemaTest {
             case "status" -> "'PLANEADA'";
             case "assessments_enabled" -> "false";
             case "updated_by" -> "'" + USER_A + "'::uuid";
-            default -> "now()";
+            case "created_at", "updated_at" -> "now()";
+            default -> throw new IllegalStateException("Columna sin valor de prueba: " + column);
           };
       String sql =
-          "INSERT INTO tax.administration_fiscal_year"
-              + " (administration_id, fiscal_year, created_by, %s) VALUES (?, 2060, ?, %s)"
-                  .formatted(column, value);
-      SQLException denied = failureOf(() -> update(APP, ADMIN_A, sql, ADMIN_A, USER_A));
+          ("INSERT INTO tax.administration_fiscal_year"
+                  + " (administration_id, fiscal_year, created_by, %s) VALUES (?, 2060, ?, %s)")
+              .formatted(column, value);
+
+      Throwable thrown = catchThrowable(() -> update(APP, ADMIN_A, sql, ADMIN_A, USER_A));
+
+      assertThat(thrown).as(column).isInstanceOf(SQLException.class);
+      SQLException denied = (SQLException) thrown;
       assertThat(denied.getSQLState()).as(column).isEqualTo(INSUFFICIENT_PRIVILEGE);
+      assertThat(denied.getMessage())
+          .as(column + ": rechazo por permiso de columna, no por la RLS")
+          .contains("permission denied for table")
+          .doesNotContain("row-level security");
     }
 
     assertThat(update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2060, USER_A))
@@ -270,7 +282,7 @@ class FiscalYearSchemaTest {
   @Test
   @Tag("007-10")
   @DisplayName(
-      "007-10 · La traza es coherente: En preparación exige updated_by y updated_at, y los dos van juntos")
+      "007-10 · Una vigencia En preparación exige updated_by y updated_at, cada uno por separado")
   void anOpenedFiscalYearAlwaysHasItsAuthorAndItsTime() throws SQLException {
     update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2061, USER_A);
     for (String sql :
@@ -283,14 +295,16 @@ class FiscalYearSchemaTest {
                 + " updated_by = '"
                 + USER_A
                 + "' WHERE fiscal_year = 2061")) {
-      assertThat(failureOf(() -> update(APP, ADMIN_A, sql)).getSQLState())
-          .as(sql)
-          .isEqualTo(CHECK_VIOLATION);
+      SQLException incomplete = failureOf(() -> update(APP, ADMIN_A, sql));
+      assertThat(incomplete.getSQLState()).as(sql).isEqualTo(CHECK_VIOLATION);
+      assertThat(((PSQLException) incomplete).getServerErrorMessage().getConstraint())
+          .isEqualTo("administration_fiscal_year_opened_trace_check");
     }
     assertThat(statusOf(2061)).isEqualTo("PLANEADA");
 
     Timestamp now = Timestamp.from(Instant.now());
-    for (Object[] trace : new Object[][] {{null, null}, {USER_A, null}, {null, now}}) {
+    for (Trace trace :
+        List.of(new Trace(null, null), new Trace(USER_A, null), new Trace(null, now))) {
       SQLException incomplete =
           failureOf(() ->
               update(
@@ -302,8 +316,8 @@ class FiscalYearSchemaTest {
                   "EN_PREPARACION",
                   false,
                   USER_A,
-                  trace[0],
-                  trace[1]));
+                  trace.by(),
+                  trace.at()));
       assertThat(incomplete.getSQLState()).isEqualTo(CHECK_VIOLATION);
     }
     assertThat(
@@ -586,6 +600,9 @@ class FiscalYearSchemaTest {
     }
     throw new IllegalStateException("La segunda apertura no llegó a esperar el bloqueo de la fila");
   }
+
+  /** Quién y cuándo hizo el último cambio de una vigencia (updated_by y updated_at). */
+  private record Trace(UUID by, Timestamp at) {}
 
   /** Inserta como dueño (que no pasa por la RLS) una vigencia con el estado que se pida. */
   private static int insertAsOwner(

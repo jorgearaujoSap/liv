@@ -65,8 +65,10 @@ class LivAppGrantsTest {
 
   @Test
   @Tag("007-12")
+  @Tag("H2-4")
   @DisplayName(
-      "007-12 · H2-4 · Las columnas que liv_app puede escribir al crear una fila son exactamente las esperadas")
+      "007-12 · H2-4 · Las columnas que liv_app puede escribir al crear una fila"
+          + " son exactamente las esperadas")
   void columnInsertsAreExactlyTheExpectedOnes() throws SQLException {
     assertThat(columnPrivileges("INSERT")).containsExactlyInAnyOrderEntriesOf(COLUMN_INSERTS);
   }
