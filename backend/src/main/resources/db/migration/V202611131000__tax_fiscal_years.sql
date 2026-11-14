@@ -77,6 +77,13 @@ CREATE INDEX administration_fiscal_year_updated_by_idx
 -- en PLANEADA no da error: afecta 0 filas, y quien cambia el estado cuenta las filas y responde V-06.
 -- No hay política de DELETE: la RLS lo niega (y liv_app tampoco tiene el permiso). La feature de la opción 1.5.1
 -- amplía la política de UPDATE con su migración.
+-- Dos límites de este diseño, para quien la amplíe:
+--  * Solo sirve para UNA transición. Las políticas permisivas de UPDATE combinan con OR sus USING por un lado y sus
+--    WITH CHECK por otro, y WITH CHECK solo ve la fila nueva, nunca la anterior: con varias transiciones, la RLS no
+--    puede impedir los saltos. La 1.5.1 tiene que imponer los pares de estados permitidos de otra forma (por ejemplo,
+--    un disparador BEFORE UPDATE que compare OLD.status y NEW.status) y dejar la RLS para el aislamiento.
+--  * SELECT ... FOR UPDATE (y FOR SHARE) también aplica el USING de UPDATE: una fila que ya no está en PLANEADA no se
+--    ve para bloquearla. No hay que bloquear esta tabla por fila (@Lock PESSIMISTIC_WRITE) para decidir una apertura.
 ALTER TABLE tax.administration_fiscal_year ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY administration_read ON tax.administration_fiscal_year FOR SELECT TO liv_app

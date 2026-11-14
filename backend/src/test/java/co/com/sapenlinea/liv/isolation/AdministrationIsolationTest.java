@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -82,6 +83,15 @@ class AdministrationIsolationTest {
         USER_B);
   }
 
+  /** Quita las vigencias de esta clase: así las pruebas de otras clases parten sin ellas. */
+  @AfterAll
+  static void removeTheFiscalYearsOfThisClass() throws SQLException {
+    update(
+        OWNER,
+        null,
+        "DELETE FROM tax.administration_fiscal_year WHERE fiscal_year IN (2026, 2031, 2090)");
+  }
+
   private static String newSid() {
     return "sid-" + UUID.randomUUID();
   }
@@ -91,6 +101,9 @@ class AdministrationIsolationTest {
       "001-17 · Sin contexto, liv_app no ve ninguna fila de administraciones, usuarios ni sesiones")
   void noContextSeesNothing() throws SQLException {
     for (String table : ISOLATED_TABLES) {
+      assertThat(count(OWNER, null, "SELECT count(*) FROM " + table))
+          .as("filas de " + table + " que la RLS tiene que ocultar")
+          .isPositive();
       assertThat(count(APP, null, "SELECT count(*) FROM " + table)).as(table).isZero();
     }
   }
@@ -264,6 +277,20 @@ class AdministrationIsolationTest {
   void contextCannotWriteOtherAdministrationFiscalYears() throws SQLException {
     assertRlsDenied(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_B, 2027, USER_B));
     assertRlsDenied(() -> update(APP, null, FISCAL_YEAR_SQL, ADMIN_A, 2027, USER_A));
+    // El 2026 de B ya existe: el rechazo es de la RLS y no de la clave única, para que el mensaje
+    // no
+    // revele que esa vigencia existe.
+    assertRlsDenied(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_B, 2026, USER_B));
+    assertThat(
+            update(
+                APP,
+                null,
+                """
+                UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION'
+                 WHERE fiscal_year = 2026
+                """))
+        .as("vigencias abiertas sin contexto")
+        .isZero();
 
     assertThat(
             update(
@@ -287,6 +314,36 @@ class AdministrationIsolationTest {
                     ADMIN_B)
                 .get(0)[0])
         .isEqualTo("PLANEADA");
+  }
+
+  @Test
+  @Tag("007-19")
+  @DisplayName(
+      "CA-12 · 007-19 · Cada administración abre solo su propia vigencia, aunque la consulta"
+          + " no filtre por administración")
+  void eachAdministrationOpensOnlyItsOwnFiscalYear() throws SQLException {
+    update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_A, 2090, USER_A);
+    update(APP, ADMIN_B, FISCAL_YEAR_SQL, ADMIN_B, 2090, USER_B);
+
+    assertThat(
+            update(
+                APP,
+                ADMIN_B,
+                """
+                UPDATE tax.administration_fiscal_year
+                   SET status = 'EN_PREPARACION', updated_by = ?, updated_at = now()
+                 WHERE fiscal_year = 2090
+                """,
+                USER_B))
+        .isEqualTo(1);
+
+    String statusOfA =
+        """
+        SELECT status FROM tax.administration_fiscal_year
+         WHERE administration_id = ? AND fiscal_year = 2090
+        """;
+    assertThat(rows(OWNER, null, statusOfA, ADMIN_A).get(0)[0]).isEqualTo("PLANEADA");
+    assertThat(rows(OWNER, null, statusOfA, ADMIN_B).get(0)[0]).isEqualTo("EN_PREPARACION");
   }
 
   @Test

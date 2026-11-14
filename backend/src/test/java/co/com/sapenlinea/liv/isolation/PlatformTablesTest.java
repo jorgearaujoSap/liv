@@ -58,6 +58,8 @@ class PlatformTablesTest {
 
   @Test
   @Tag("D-001-5")
+  @Tag("007-02")
+  @Tag("007-09")
   @DisplayName(
       "D-001-5 · 007-02 · 007-09 · La matriz de permisos sembrada es exactamente la aprobada en H2")
   void permissionMatrixIsTheApprovedOne() throws SQLException {
