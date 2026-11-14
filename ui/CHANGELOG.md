@@ -6,13 +6,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
-- `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente (modificarlo es un cambio crítico). Se versionará con 0.4.0 (PR 8f).
+- `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente. Se versionará con 0.4.0 (PR 8f).
   - Entradas nuevas: `disabledReason` (texto) y `reasonAlign` (`start`, por omisión, o `end`; su tipo, `ButtonReasonAlign`, sale por la API pública). Sin ellas, el botón se comporta y se ve como siempre.
   - `disabledReason` solo cuenta con `disabled` y con texto no vacío (se recorta). El motivo se muestra como texto visible debajo del botón (`body/sm`, `text/secondary`), enlazado con `aria-describedby`.
   - Con motivo, el botón usa `aria-disabled="true"` en lugar de `disabled`, para seguir recibiendo el foco del teclado y que el lector de pantalla anuncie el motivo al enfocarlo. No emite clic con el ratón, con Enter ni con Espacio, y no envía el formulario (el mismo guarda de `loading`). `disabled` sigue ganándole a `loading`.
-  - El aspecto no cambia: el estado Disabled pasa al anfitrión y las reglas de hover y de cargando lo excluyen. El anillo de foco se ve también en el botón deshabilitado con motivo, que es enfocable. En alto contraste (forced-colors) el botón deshabilitado se pinta con `GrayText` (el único color que no sale de un token, como en `RadioOption`), porque el navegador solo lo hace con `disabled` nativo.
-  - Con motivo, el botón se ajusta a su contenido (no ocupa todo el ancho del anfitrión, como en el diseño, cuyo motivo es más ancho que el botón) y se alinea con el motivo, a la izquierda o a la derecha según `reasonAlign`. Sin motivo no cambia el ancho.
-  - Límites: solo se bloquea el clic, no otros eventos que la pantalla escuche en `liv-button` (la acción se escucha con `(click)`); el motivo se anuncia al enfocar el botón, no cuando aparece con el foco ya puesto; y quitar el motivo sin quitar `disabled` con el foco puesto le quita el foco (pasa a `disabled` nativo).
+  - El aspecto no cambia: el estado Disabled pasa al anfitrión y las reglas de hover y de cargando lo excluyen. El anillo de foco se ve también en el botón deshabilitado con motivo, que es enfocable. En alto contraste (forced-colors) el botón deshabilitado se pinta con `GrayText`, porque el navegador solo lo hace con `disabled` nativo (excepción a «solo tokens», como en `RadioOption`).
+  - Con motivo, el botón se ajusta a su contenido (no ocupa todo el ancho del anfitrión; así lo dibuja el diseño de Figma 65:456, con un motivo más ancho que el botón) y se alinea con el motivo, a la izquierda o a la derecha según `reasonAlign`. Sin motivo no cambia el ancho.
+  - Límites que la pantalla debe conocer:
+    - Solo se bloquea el clic: la acción se escucha con `(click)`; otros eventos que la pantalla escuche en `liv-button` (teclado, puntero) sí llegan.
+    - El motivo se anuncia al enfocar el botón, no cuando aparece con el foco ya puesto: la pantalla lo pasa desde el primer dibujo.
+    - Con el foco puesto, quitar el motivo sin quitar `disabled` pasa el botón a `disabled` nativo y le quita el foco.
 - Iconos `plus` y `circle` en `Icon` (feature 007, PR 8d; Figma 63:247 y 63:250): `Icon` pasa de 38 a 40 iconos de Lucide. Se versionarán con 0.4.0 (PR 8f).
   - `plus` es para las acciones de alta, como «Crear vigencia»; `circle` es el estado pendiente de la lista de preparación y nunca es la única señal: va siempre con el texto del estado.
   - Toman el color de su contenedor (`currentColor`), como el resto. `IconName` crece con los dos nombres y no rompe el uso existente.

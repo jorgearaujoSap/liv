@@ -43,7 +43,7 @@ export type ButtonType = 'button' | 'submit' | 'reset';
  * `aria-describedby`. Con motivo, el botón usa `aria-disabled="true"` en lugar de `disabled`, para seguir
  * recibiendo el foco del teclado y que el lector de pantalla anuncie el motivo al enfocarlo. El aspecto
  * lo da `data-state="disabled"` en el anfitrión (que también lleva el botón deshabilitado sin motivo);
- * en alto contraste se pinta con `GrayText`, porque el navegador solo lo hace con `disabled` nativo.
+ * en alto contraste se pinta con `GrayText` (ver la hoja de estilos).
  *
  * Con motivo, el botón se ajusta a su contenido en lugar de ocupar todo el ancho del anfitrión, y se
  * alinea al inicio o al final: es lo que dibuja el diseño (Figma 65:456), cuyo motivo es más ancho que

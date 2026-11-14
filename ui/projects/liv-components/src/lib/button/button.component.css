@@ -131,10 +131,11 @@
  * Alto contraste: el navegador pinta `GrayText` un botón `disabled` nativo, pero no uno con
  * `aria-disabled` (el que lleva motivo), y se vería como uno activo. Se usa `GrayText`, el color del
  * sistema para lo inhabilitado; son los únicos colores que no salen de un token de theme.css (como en
- * `RadioOption`).
+ * `RadioOption`). `@media` no suma especificidad: el selector lleva `[data-variant]` para igualar a las
+ * reglas Disabled de cada variante y ganarles por ir después.
  */
 @media (forced-colors: active) {
-  :host([data-state='disabled']) .button {
+  :host([data-variant][data-state='disabled']) .button {
     color: GrayText;
     border-color: GrayText;
   }

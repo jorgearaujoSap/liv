@@ -1,6 +1,6 @@
 import { moduleMetadata, type Meta, type StoryObj } from '@storybook/angular';
 import { ICON_NAMES, IconName } from '../icon/icons';
-import { ButtonComponent, ButtonSize, ButtonVariant, ButtonReasonAlign } from './button.component';
+import { ButtonComponent, ButtonReasonAlign, ButtonSize, ButtonVariant } from './button.component';
 
 const figma = 'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=20-298';
 const figmaDisabledReason =
