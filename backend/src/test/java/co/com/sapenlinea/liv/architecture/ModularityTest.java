@@ -26,6 +26,7 @@ class ModularityTest {
     assertThat(dependenciesOf("audit")).containsExactlyInAnyOrder("core", "platform");
     assertThat(dependenciesOf("core")).containsExactly("platform");
     assertThat(dependenciesOf("platform")).containsExactly("shared");
+    assertThat(dependenciesOf("tax")).containsExactlyInAnyOrder("platform", "shared");
     for (ApplicationModule module : MODULES) {
       assertThat(dependenciesOf(name(module))).as(name(module)).doesNotContain("audit");
     }
