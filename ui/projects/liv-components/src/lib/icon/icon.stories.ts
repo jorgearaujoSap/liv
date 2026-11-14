@@ -32,11 +32,28 @@ export const ConTextoAlternativo: Story = {
   args: { name: 'circle-alert', label: 'Error' },
 };
 
-/** `plus`: acciones de alta, como «Crear vigencia» (Figma 63:247). */
-export const Plus: Story = { args: { name: 'plus' } };
+const figmaIcon = (node: string) =>
+  `[Diseño en Figma](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=${node})`;
 
-/** `circle`: estado pendiente de una lista de verificación; nunca es la única señal (Figma 63:250). */
-export const Circle: Story = { args: { name: 'circle' } };
+export const Plus: Story = {
+  args: { name: 'plus' },
+  parameters: {
+    docs: {
+      description: { story: `Acciones de alta, como «Crear vigencia». ${figmaIcon('63-247')}` },
+    },
+  },
+};
+
+export const Circle: Story = {
+  args: { name: 'circle' },
+  parameters: {
+    docs: {
+      description: {
+        story: `Estado pendiente de una lista de verificación; nunca es la única señal. ${figmaIcon('63-250')}`,
+      },
+    },
+  },
+};
 
 export const Tamano16: Story = { args: { size: 16 } };
 
