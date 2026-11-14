@@ -18,6 +18,9 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 /** Tamaño: `md` (40 px) en la aplicación; `lg` (48 px) en los formularios de acceso y en móvil. */
 export type ButtonSize = 'md' | 'lg';
 
+/** Alineación del motivo de la deshabilitación: al inicio o al final del botón. */
+export type ReasonAlign = 'start' | 'end';
+
 /** Tipo del botón nativo. Por defecto `button`, para no enviar formularios por accidente. */
 export type ButtonType = 'button' | 'submit' | 'reset';
 
@@ -53,6 +56,9 @@ export class ButtonComponent {
   readonly leadingIcon = input<IconName>();
   /** Icono al final (`Show trailing icon` y `Trailing icon` de Figma). */
   readonly trailingIcon = input<IconName>();
+  /** Por qué está deshabilitado (stub rojo). */
+  readonly disabledReason = input<string>();
+  readonly reasonAlign = input<ReasonAlign>('start');
   /** Qué se anuncia mientras carga, p. ej. "Ingresando…". */
   readonly loadingLabel = input('Cargando');
 

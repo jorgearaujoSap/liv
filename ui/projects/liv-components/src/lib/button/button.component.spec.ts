@@ -2,9 +2,35 @@ import { Component, signal } from '@angular/core';
 import theme from '../../styles/theme.css' with { loader: 'text' };
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { cssVariable, declaredStyle, paintsShadow } from '../../testing/css';
+import { cssVariable, declaredStyle, paintsShadow, usesToken } from '../../testing/css';
 import { IconName } from '../icon/icons';
-import { ButtonComponent, ButtonSize, ButtonType, ButtonVariant } from './button.component';
+import {
+  ButtonComponent,
+  ButtonSize,
+  ButtonType,
+  ButtonVariant,
+  ReasonAlign,
+} from './button.component';
+
+const REASON = 'Faltan 6 puntos obligatorios de la lista de preparación.';
+
+/** Texto de las reglas de la hoja de estilos cuyo selector contiene `fragment`. */
+function rulesWith(fragment: string): string[] {
+  const found: string[] = [];
+  const visit = (rules: CSSRuleList) => {
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSStyleRule && rule.selectorText.includes(fragment)) {
+        found.push(rule.selectorText);
+      } else if ('cssRules' in rule) {
+        visit((rule as CSSGroupingRule).cssRules);
+      }
+    }
+  };
+  for (const sheet of Array.from(document.styleSheets)) {
+    visit(sheet.cssRules);
+  }
+  return found;
+}
 
 @Component({
   imports: [ButtonComponent],
@@ -16,6 +42,8 @@ import { ButtonComponent, ButtonSize, ButtonType, ButtonVariant } from './button
         [type]="type"
         [disabled]="disabled"
         [loading]="loading"
+        [disabledReason]="disabledReason"
+        [reasonAlign]="reasonAlign"
         [leadingIcon]="leadingIcon"
         [trailingIcon]="trailingIcon"
         (click)="clicks = clicks + 1"
@@ -30,6 +58,8 @@ class HostComponent {
   type: ButtonType = 'button';
   disabled = false;
   loading = false;
+  disabledReason?: string;
+  reasonAlign: ReasonAlign = 'start';
   leadingIcon?: IconName;
   trailingIcon?: IconName;
   label = 'Ingresar';
@@ -200,6 +230,187 @@ describe('Button', () => {
     expect(page.clicks).toBe(0);
   });
 
+  describe('Disabled con motivo (007-21, H2-15)', () => {
+    const reasonOf = (host: HTMLElement) =>
+      host.querySelector<HTMLElement>('.button__reason') as HTMLElement;
+
+    it('muestra el motivo como texto visible debajo del botón, enlazado con aria-describedby', () => {
+      const { host, button } = render({ disabled: true, disabledReason: REASON });
+      const reason = reasonOf(host);
+      expect(reason.textContent?.trim()).toBe(REASON);
+      expect(reason.id).not.toBe('');
+      expect(button.getAttribute('aria-describedby')).toBe(reason.id);
+      expect(button.contains(reason)).toBe(false);
+      expect(reason.hidden).toBe(false);
+      expect(reason.getAttribute('aria-hidden')).toBeNull();
+    });
+
+    it('cada botón tiene su propio identificador del motivo', () => {
+      const first = render({ disabled: true, disabledReason: REASON });
+      const second = render({ disabled: true, disabledReason: REASON });
+      expect(reasonOf(first.host).id).not.toBe(reasonOf(second.host).id);
+    });
+
+    it('usa aria-disabled="true" en lugar de disabled, así que sigue recibiendo el foco', () => {
+      const { button } = render({ disabled: true, disabledReason: REASON });
+      expect(button.disabled).toBe(false);
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      button.focus();
+      expect(document.activeElement).toBe(button);
+    });
+
+    it('pone su estado propio en el anfitrión, con y sin motivo', () => {
+      expect(render({ disabled: true, disabledReason: REASON }).host.dataset['state']).toBe(
+        'disabled',
+      );
+      expect(render({ disabled: true }).host.dataset['state']).toBe('disabled');
+      expect(render().host.dataset['state']).toBeUndefined();
+    });
+
+    it('sin disabled no muestra el motivo ni cambia el botón', () => {
+      const { host, button } = render({ disabledReason: REASON });
+      expect(host.querySelector('.button__reason')).toBeNull();
+      expect(button.hasAttribute('aria-describedby')).toBe(false);
+      expect(button.hasAttribute('aria-disabled')).toBe(false);
+      expect(button.disabled).toBe(false);
+    });
+
+    it.each([undefined, '', '   '])(
+      'con el motivo %j no dibuja el texto y usa disabled',
+      (reason) => {
+        const { host, button } = render({ disabled: true, disabledReason: reason });
+        expect(host.querySelector('.button__reason')).toBeNull();
+        expect(button.hasAttribute('aria-describedby')).toBe(false);
+        expect(button.disabled).toBe(true);
+        expect(button.hasAttribute('aria-disabled')).toBe(false);
+      },
+    );
+
+    it('al quitar el motivo vuelve a disabled nativo, y al quitar disabled el botón queda activo', () => {
+      const { fixture, button, host, page } = render({ disabled: true, disabledReason: REASON });
+      page.disabledReason = undefined;
+      fixture.detectChanges();
+      expect(button.disabled).toBe(true);
+      expect(host.querySelector('.button__reason')).toBeNull();
+
+      page.disabledReason = REASON;
+      page.disabled = false;
+      fixture.detectChanges();
+      expect(button.disabled).toBe(false);
+      expect(button.hasAttribute('aria-disabled')).toBe(false);
+      expect(button.hasAttribute('aria-describedby')).toBe(false);
+      button.click();
+      expect(page.clicks).toBe(1);
+    });
+
+    it('no emite clic con el ratón, con Enter, con Espacio ni envía el formulario', () => {
+      const { fixture, host, button, page } = render({
+        type: 'submit',
+        disabled: true,
+        disabledReason: REASON,
+      });
+      // Con el teclado, el navegador convierte Enter y Espacio en un clic del botón.
+      button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      button.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+      button.click();
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      host.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      reasonOf(host).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+      expect(page.clicks).toBe(0);
+      expect(page.submits).toBe(0);
+    });
+
+    it('cancela el clic y no deja el formulario enviarse por defecto', () => {
+      const { button } = render({ type: 'submit', disabled: true, disabledReason: REASON });
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+      button.dispatchEvent(click);
+      expect(click.defaultPrevented).toBe(true);
+    });
+
+    it('con motivo, el aspecto es el mismo que sin él', () => {
+      for (const variant of ['primary', 'secondary', 'ghost'] as ButtonVariant[]) {
+        const plain = render({ variant, disabled: true }).button;
+        const reasoned = render({ variant, disabled: true, disabledReason: REASON }).button;
+        const props = ['background-color', 'color', 'border-color', 'cursor', 'box-shadow'];
+        for (const property of props) {
+          expect(declaredStyle(reasoned, property)).toBe(declaredStyle(plain, property));
+        }
+        const a = getComputedStyle(plain);
+        const b = getComputedStyle(reasoned);
+        expect(b.backgroundColor).toBe(a.backgroundColor);
+        expect(b.color).toBe(a.color);
+        expect(b.height).toBe(a.height);
+      }
+    });
+
+    it.each<[ButtonVariant, string]>([
+      ['primary', '--color-bg-subtle'],
+      ['secondary', '--color-bg-surface'],
+    ])('en %s usa el fondo %s y el texto text/disabled, como sin motivo', (variant, background) => {
+      const style = getComputedStyle(
+        render({ variant, disabled: true, disabledReason: REASON }).button,
+      );
+      expect(style.backgroundColor).toContain(`var(${background}`);
+      expect(style.color).toContain('var(--color-text-disabled');
+    });
+
+    it('el cursor es el de deshabilitado, no el de cargando', () => {
+      const { button } = render({ disabled: true, disabledReason: REASON });
+      expect(declaredStyle(button, 'cursor')).toBe('not-allowed');
+    });
+
+    it('las reglas de hover y de cargando excluyen el estado disabled del anfitrión', () => {
+      // jsdom no evalúa :hover; la comprobación manual está en Storybook (Disabled con motivo).
+      render({ disabled: true, disabledReason: REASON });
+      const normalize = (selector: string) => selector.replace(/["']/g, '');
+      for (const fragment of [':hover', 'aria-disabled']) {
+        const selectors = rulesWith(fragment).map(normalize);
+        expect(selectors.length).toBeGreaterThan(0);
+        for (const selector of selectors) {
+          expect(selector).toContain(':not([data-state=disabled])');
+        }
+      }
+    });
+
+    it('Loading conserva su precedencia: disabled gana, sin spinner ni anuncio', () => {
+      const { host, button } = render({
+        disabled: true,
+        loading: true,
+        disabledReason: REASON,
+      });
+      expect(button.querySelector('liv-spinner')).toBeNull();
+      expect(host.querySelector(':scope > [role="status"]')?.textContent?.trim()).toBe('');
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      expect(host.dataset['state']).toBe('disabled');
+    });
+
+    it('con loading pero sin disabled, el motivo no se muestra y Loading es el de siempre', () => {
+      const { host, button } = render({ loading: true, disabledReason: REASON });
+      expect(host.querySelector('.button__reason')).toBeNull();
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      expect(host.dataset['state']).toBeUndefined();
+      expect(host.querySelector(':scope > [role="status"]')?.textContent?.trim()).toBe('Cargando');
+    });
+
+    it('reasonAlign es start por omisión y admite end', () => {
+      expect(render({ disabled: true, disabledReason: REASON }).host.dataset['reasonAlign']).toBe(
+        'start',
+      );
+      expect(
+        render({ disabled: true, disabledReason: REASON, reasonAlign: 'end' }).host.dataset[
+          'reasonAlign'
+        ],
+      ).toBe('end');
+    });
+
+    it('el motivo usa body/sm y text/secondary', () => {
+      const reason = reasonOf(render({ disabled: true, disabledReason: REASON }).host);
+      expect(usesToken(declaredStyle(reason, 'color'), '--color-text-secondary')).toBe(true);
+      expect(declaredStyle(reason, 'font-size')).toContain('--text-body-sm');
+    });
+  });
+
   it.each<[ButtonSize, string]>([
     ['md', '16'],
     ['lg', '20'],
@@ -281,5 +492,15 @@ describe('Button', () => {
     await expectNoAxeViolations(render({ size: 'lg', leadingIcon: 'log-out' }).host);
     await expectNoAxeViolations(render({ disabled: true }).host);
     await expectNoAxeViolations(render({ loading: true, label: 'Ingresando…' }).host);
+    for (const variant of ['primary', 'secondary', 'ghost'] as ButtonVariant[]) {
+      for (const reasonAlign of ['start', 'end'] as ReasonAlign[]) {
+        await expectNoAxeViolations(
+          render({ variant, disabled: true, disabledReason: REASON, reasonAlign }).host,
+        );
+      }
+    }
+    await expectNoAxeViolations(
+      render({ size: 'lg', disabled: true, disabledReason: REASON, leadingIcon: 'log-out' }).host,
+    );
   });
 });
