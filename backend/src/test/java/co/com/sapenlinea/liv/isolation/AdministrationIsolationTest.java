@@ -89,7 +89,12 @@ class AdministrationIsolationTest {
     update(
         OWNER,
         null,
-        "DELETE FROM tax.administration_fiscal_year WHERE fiscal_year IN (2026, 2031, 2090)");
+        "DELETE FROM tax.administration_fiscal_year WHERE fiscal_year IN (2026, 2031, 2090)"
+            + " AND administration_id IN ('"
+            + ADMIN_A
+            + "', '"
+            + ADMIN_B
+            + "')");
   }
 
   private static String newSid() {
@@ -277,9 +282,8 @@ class AdministrationIsolationTest {
   void contextCannotWriteOtherAdministrationFiscalYears() throws SQLException {
     assertRlsDenied(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_B, 2027, USER_B));
     assertRlsDenied(() -> update(APP, null, FISCAL_YEAR_SQL, ADMIN_A, 2027, USER_A));
-    // El 2026 de B ya existe: el rechazo es de la RLS y no de la clave única, para que el mensaje
-    // no
-    // revele que esa vigencia existe.
+    // El 2026 de B ya existe: el rechazo es de la RLS y no de la clave única, y así el mensaje
+    // no revela que esa vigencia existe.
     assertRlsDenied(() -> update(APP, ADMIN_A, FISCAL_YEAR_SQL, ADMIN_B, 2026, USER_B));
     assertThat(
             update(

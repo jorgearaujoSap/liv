@@ -80,6 +80,7 @@ class FiscalYearSchemaTest {
   // --- tax.fiscal_year (nacional) ---
 
   @Test
+  @Tag("007-12")
   @Tag("V-01")
   @DisplayName("007-12 · V-01 · starts_on es el 1 de enero y ends_on el 31 de diciembre del año")
   void fiscalYearDatesMustBeTheCalendarYear() {
@@ -103,6 +104,7 @@ class FiscalYearSchemaTest {
   }
 
   @Test
+  @Tag("007-12")
   @Tag("H2-2")
   @DisplayName(
       "007-12 · H2-2 · Existen los años 1999 a 2100, cada uno con sus fechas, y ninguno más")
@@ -418,34 +420,36 @@ class FiscalYearSchemaTest {
   @DisplayName(
       "007-10 · Las políticas de la tabla son exactamente las tres aprobadas, todas para liv_app")
   void policiesAreExactlyTheApprovedOnes() throws SQLException {
+    String isolated =
+        "(administration_id = (NULLIF(current_setting('app.administration_id'::text, true),"
+            + " ''::text))::uuid)";
+    String planned = "((status)::text = 'PLANEADA'::text)";
+    String opened = "((status)::text = 'EN_PREPARACION'::text)";
+
     List<Object[]> policies =
         rows(
             OWNER,
             null,
             """
-            SELECT policyname, cmd, roles::text, permissive, coalesce(qual, ''),
-                   coalesce(with_check, '')
+            SELECT policyname || '|' || cmd || '|' || roles::text || '|' || permissive,
+                   coalesce(trim(qual), ''), coalesce(trim(with_check), '')
               FROM pg_policies
              WHERE schemaname = 'tax' AND tablename = 'administration_fiscal_year'
              ORDER BY policyname
             """);
 
     assertThat(policies)
-        .extracting(row -> row[0] + "|" + row[1] + "|" + row[2] + "|" + row[3])
+        .extracting(row -> List.of(row[0], row[1], row[2]))
         .containsExactly(
-            "administration_create|INSERT|{liv_app}|PERMISSIVE",
-            "administration_open_preparation|UPDATE|{liv_app}|PERMISSIVE",
-            "administration_read|SELECT|{liv_app}|PERMISSIVE");
-    for (Object[] policy : policies) {
-      String isolated =
-          "administration_id = (NULLIF(current_setting('app.administration_id'::text, true)";
-      String conditions = policy[4] + " " + policy[5];
-      assertThat(conditions).as((String) policy[0]).contains(isolated);
-    }
-    Object[] update = policies.get(1);
-    assertThat((String) update[4]).contains("'PLANEADA'").doesNotContain("EN_PREPARACION");
-    assertThat((String) update[5]).contains("'EN_PREPARACION'").doesNotContain("PLANEADA");
-    assertThat((String) policies.get(0)[5]).contains("'PLANEADA'");
+            List.of(
+                "administration_create|INSERT|{liv_app}|PERMISSIVE",
+                "",
+                "(" + isolated + " AND " + planned + ")"),
+            List.of(
+                "administration_open_preparation|UPDATE|{liv_app}|PERMISSIVE",
+                "(" + isolated + " AND " + planned + ")",
+                "(" + isolated + " AND " + opened + ")"),
+            List.of("administration_read|SELECT|{liv_app}|PERMISSIVE", isolated, ""));
   }
 
   @Test
@@ -509,7 +513,8 @@ class FiscalYearSchemaTest {
                     rows(
                             superuser,
                             "SELECT count(*) FROM pg_stat_activity"
-                                + " WHERE usename = 'liv_app' AND wait_event_type = 'Lock'")
+                                + " WHERE usename = 'liv_app' AND wait_event_type = 'Lock'"
+                                + " AND datname = 'liv' AND query LIKE '%administration_fiscal_year%'")
                         .get(0)[0])
                 .longValue();
         if (waiting > 0) {
