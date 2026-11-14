@@ -34,7 +34,7 @@ Los puertos solo escuchan en `127.0.0.1` y se cambian en `dev/.env`. Las contras
 
 ## Roles de base de datos
 
-Los crea `dev/initdb/01-roles-y-bases.sh` la primera vez (doc. 02 §5.2, ADR 0025). Ninguno tiene `BYPASSRLS` ni privilegios de administración. `liv_owner` puede asumir `liv_identity_lookup` y `liv_audit_platform` (sin heredar sus permisos): es lo que permite a Flyway entregarles las funciones `SECURITY DEFINER`. La primera migración comprueba este contrato y se detiene con un mensaje claro si no se cumple. En AWS la infraestructura como código debe cumplirlo igual: PostgreSQL 16 o superior, los tres roles sin `BYPASSRLS`, y esa pertenencia. Si tu volumen es anterior a la tarea T10, recréalo (ver "Empezar de cero") o ejecuta como `postgres`: `GRANT liv_identity_lookup, liv_audit_platform TO liv_owner WITH INHERIT FALSE, SET TRUE;`.
+Los crea `dev/initdb/01-roles-y-bases.sh` la primera vez (doc. 02 §5.2, ADR 0025). Ninguno tiene `BYPASSRLS` ni privilegios de administración. `liv_owner` puede asumir `liv_identity_lookup` y `liv_audit_platform` (sin heredar sus permisos): es lo que permite a Flyway entregarles las funciones `SECURITY DEFINER`. La primera migración comprueba este contrato y se detiene con un mensaje claro si no se cumple. En AWS la infraestructura como código debe cumplirlo igual: PostgreSQL 18 (la primera migración exige 16; la de `tax` usa `uuidv7()` y se detiene con un mensaje claro si falta), los tres roles sin `BYPASSRLS`, y esa pertenencia. Si tu volumen es anterior a la tarea T10, recréalo (ver "Empezar de cero") o ejecuta como `postgres`: `GRANT liv_identity_lookup, liv_audit_platform TO liv_owner WITH INHERIT FALSE, SET TRUE;`.
 
 | Rol | Inicio de sesión | Uso |
 |---|---|---|

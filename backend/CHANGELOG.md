@@ -134,6 +134,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Vigencias fiscales (feature 007, B3b): la migración `V202611141000` ajusta `tax.administration_fiscal_year` según la decisión H2-4 (permisos mínimos de `liv_app`):
+  - `liv_app` solo escribe `administration_id`, `fiscal_year` y `created_by` al crear la vigencia, con `INSERT` por columnas; el estado, la habilitación, el `id` y `created_at` los fija la base. La entidad del adaptador tiene que dejar fuera de su `INSERT` también `updated_by` y `updated_at`, que nacen nulos;
+  - un `CHECK` exige `updated_by` y `updated_at` en una vigencia `EN_PREPARACION`.
+- `dev/README.md`: PostgreSQL 18 para AWS, por `uuidv7()`.
 - `SafeYamlLoader`, `JurisdictionConfigSchemas` y `CommonCases` (pruebas de la feature 004) pasan a `public` para que las use el paquete `golden`: solo cambia la visibilidad de la clase y de `load`, `compile`, `metaSchemaErrors`, `BACKEND` y `EXACT`; el comportamiento y las pruebas no cambian.
 
 - Pruebas del esquema de configuración de jurisdicción por versión (feature 005, B0; ADR 0034), sin cambiar lo que comprueban las de la 1.0:
