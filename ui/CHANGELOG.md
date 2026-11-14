@@ -6,6 +6,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente. Se versionará con 0.4.0 (PR 8f).
+  - Entradas nuevas: `disabledReason` (texto) y `reasonAlign` (`start`, por omisión, o `end`). Sin ellas, el botón se comporta y se ve como siempre.
+  - `disabledReason` solo cuenta con `disabled` y con texto no vacío. El motivo se muestra como texto visible debajo del botón (`body/sm`, `text/secondary`), enlazado con `aria-describedby`.
+  - Con motivo, el botón usa `aria-disabled="true"` en lugar de `disabled`, para seguir recibiendo el foco del teclado y que el lector de pantalla anuncie el motivo. No emite clic con el ratón, con Enter ni con Espacio, y no envía el formulario (el mismo guarda de `loading`). `disabled` sigue ganándole a `loading`.
+  - El aspecto no cambia: el estado Disabled pasa al anfitrión (`data-state="disabled"`, que ahora también lleva el botón deshabilitado sin motivo) y las reglas de hover y de cargando lo excluyen. El anillo de foco se ve también en el botón deshabilitado con motivo, que es enfocable.
+  - Con motivo, el botón se ajusta a su contenido (no ocupa todo el ancho del anfitrión) y se alinea con el motivo, a la izquierda o a la derecha según `reasonAlign`. Sin motivo no cambia nada, incluido el ancho.
 - Iconos `plus` y `circle` en `Icon` (feature 007, PR 8d; Figma 63:247 y 63:250): `Icon` pasa de 38 a 40 iconos de Lucide. Se versionarán con 0.4.0 (PR 8f).
   - `plus` es para las acciones de alta, como «Crear vigencia»; `circle` es el estado pendiente de la lista de preparación y nunca es la única señal: va siempre con el texto del estado.
   - Toman el color de su contenedor (`currentColor`), como el resto. `IconName` crece con los dos nombres y no rompe el uso existente.

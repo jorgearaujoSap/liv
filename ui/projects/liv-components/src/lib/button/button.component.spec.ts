@@ -81,6 +81,22 @@ class LiveHostComponent {
   readonly loading = signal(false);
 }
 
+/** Anfitrión con señales para cambiar `disabled` y el motivo después de dibujar. */
+@Component({
+  imports: [ButtonComponent],
+  template: `<liv-button
+    [disabled]="disabled()"
+    [disabledReason]="reason()"
+    (click)="clicks = clicks + 1"
+    >Habilitar</liv-button
+  >`,
+})
+class ReasonHostComponent {
+  readonly disabled = signal(false);
+  readonly reason = signal<string | undefined>(undefined);
+  clicks = 0;
+}
+
 function render(inputs: Partial<HostComponent> = {}) {
   const fixture = TestBed.createComponent(HostComponent);
   Object.assign(fixture.componentInstance, inputs);
@@ -286,21 +302,31 @@ describe('Button', () => {
       },
     );
 
-    it('al quitar el motivo vuelve a disabled nativo, y al quitar disabled el botón queda activo', () => {
-      const { fixture, button, host, page } = render({ disabled: true, disabledReason: REASON });
-      page.disabledReason = undefined;
-      fixture.detectChanges();
+    it('al quitar el motivo vuelve a disabled nativo, y al quitar disabled el botón queda activo', async () => {
+      const fixture = TestBed.createComponent(ReasonHostComponent);
+      fixture.componentInstance.disabled.set(true);
+      fixture.componentInstance.reason.set(REASON);
+      await fixture.whenStable();
+      const host = fixture.nativeElement.querySelector('liv-button') as HTMLElement;
+      const button = host.querySelector('button') as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+
+      fixture.componentInstance.reason.set(undefined);
+      await fixture.whenStable();
       expect(button.disabled).toBe(true);
+      expect(button.hasAttribute('aria-disabled')).toBe(false);
       expect(host.querySelector('.button__reason')).toBeNull();
 
-      page.disabledReason = REASON;
-      page.disabled = false;
-      fixture.detectChanges();
+      fixture.componentInstance.reason.set(REASON);
+      fixture.componentInstance.disabled.set(false);
+      await fixture.whenStable();
       expect(button.disabled).toBe(false);
       expect(button.hasAttribute('aria-disabled')).toBe(false);
       expect(button.hasAttribute('aria-describedby')).toBe(false);
+      expect(host.querySelector('.button__reason')).toBeNull();
       button.click();
-      expect(page.clicks).toBe(1);
+      expect(fixture.componentInstance.clicks).toBe(1);
     });
 
     it('no emite clic con el ratón, con Enter, con Espacio ni envía el formulario', () => {
@@ -354,6 +380,18 @@ describe('Button', () => {
       expect(style.backgroundColor).toContain(`var(${background}`);
       expect(style.color).toContain('var(--color-text-disabled');
     });
+
+    it.each<ButtonVariant>(['primary', 'secondary', 'ghost'])(
+      '%s, con el foco del teclado, pinta el anillo focus/ring aunque esté deshabilitado',
+      (variant) => {
+        const { button } = render({ variant, disabled: true, disabledReason: REASON });
+        const ring = cssVariable(theme, '--shadow-focus-ring');
+        expect(paintsShadow(button, ring)).toBe(false);
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        button.focus();
+        expect(paintsShadow(button, ring)).toBe(true);
+      },
+    );
 
     it('el cursor es el de deshabilitado, no el de cargando', () => {
       const { button } = render({ disabled: true, disabledReason: REASON });
@@ -492,6 +530,9 @@ describe('Button', () => {
     await expectNoAxeViolations(render({ size: 'lg', leadingIcon: 'log-out' }).host);
     await expectNoAxeViolations(render({ disabled: true }).host);
     await expectNoAxeViolations(render({ loading: true, label: 'Ingresando…' }).host);
+  });
+
+  it('cumple axe (007-21) con el botón deshabilitado y su motivo, en cada variante y alineación', async () => {
     for (const variant of ['primary', 'secondary', 'ghost'] as ButtonVariant[]) {
       for (const reasonAlign of ['start', 'end'] as ReasonAlign[]) {
         await expectNoAxeViolations(

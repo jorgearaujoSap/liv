@@ -9,16 +9,51 @@
   @apply m-0 box-border inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-0 font-sans text-button-md whitespace-nowrap outline-none;
 }
 
-.button:disabled {
+/*
+ * El estado Disabled es el del anfitrión (`data-state='disabled'`), no el atributo `disabled` del botón:
+ * con motivo el botón usa `aria-disabled` para seguir enfocable y se ve igual. Las reglas de hover y de
+ * cargando (`aria-disabled`) lo excluyen con `:not([data-state='disabled'])`.
+ */
+:host([data-state='disabled']) .button {
   @apply cursor-not-allowed;
 }
 
-.button[aria-disabled='true'] {
+:host(:not([data-state='disabled'])) .button[aria-disabled='true'] {
   @apply cursor-progress;
 }
 
 .button__status {
   @apply sr-only;
+}
+
+/* Motivo de la deshabilitación: debajo del botón, que se ajusta a su contenido y se alinea con él. */
+
+:host([data-reason]) {
+  @apply flex-col gap-2;
+}
+
+:host([data-reason][data-reason-align='start']) {
+  @apply items-start;
+}
+
+:host([data-reason][data-reason-align='end']) {
+  @apply items-end;
+}
+
+:host([data-reason]) .button {
+  @apply w-auto;
+}
+
+.button__reason {
+  @apply text-body-sm text-text-secondary;
+}
+
+:host([data-reason-align='start']) .button__reason {
+  @apply text-start;
+}
+
+:host([data-reason-align='end']) .button__reason {
+  @apply text-end;
 }
 
 /* Tamaños */
@@ -39,12 +74,12 @@
   @apply bg-action-primary text-text-inverse shadow-elevation-sm;
 }
 
-:host([data-variant='primary']) .button:hover:enabled,
-:host([data-variant='primary']) .button[aria-disabled='true'] {
+:host([data-variant='primary']:not([data-state='disabled'])) .button:hover:enabled,
+:host([data-variant='primary']:not([data-state='disabled'])) .button[aria-disabled='true'] {
   @apply bg-action-primary-hover;
 }
 
-:host([data-variant='primary']) .button:disabled {
+:host([data-variant='primary'][data-state='disabled']) .button {
   @apply bg-bg-subtle text-text-disabled shadow-none;
 }
 
@@ -54,12 +89,12 @@
   @apply border border-solid border-border-strong bg-bg-surface text-text-primary shadow-elevation-sm;
 }
 
-:host([data-variant='secondary']) .button:hover:enabled,
-:host([data-variant='secondary']) .button[aria-disabled='true'] {
+:host([data-variant='secondary']:not([data-state='disabled'])) .button:hover:enabled,
+:host([data-variant='secondary']:not([data-state='disabled'])) .button[aria-disabled='true'] {
   @apply bg-bg-subtle;
 }
 
-:host([data-variant='secondary']) .button:disabled {
+:host([data-variant='secondary'][data-state='disabled']) .button {
   @apply border-border-default bg-bg-surface text-text-disabled shadow-none;
 }
 
@@ -69,19 +104,21 @@
   @apply bg-transparent text-text-link;
 }
 
-:host([data-variant='ghost']) .button:hover:enabled,
-:host([data-variant='ghost']) .button[aria-disabled='true'] {
+:host([data-variant='ghost']:not([data-state='disabled'])) .button:hover:enabled,
+:host([data-variant='ghost']:not([data-state='disabled'])) .button[aria-disabled='true'] {
   @apply bg-action-primary-subtle;
 }
 
-:host([data-variant='ghost']) .button:disabled {
+:host([data-variant='ghost'][data-state='disabled']) .button {
   @apply text-text-disabled;
 }
 
 /*
- * El anillo de foco reemplaza la sombra, como en Figma; va al final para ganar a cada variante. En alto
- * contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno visible.
+ * El anillo de foco reemplaza la sombra, como en Figma; va al final y con la misma especificidad que la
+ * regla Disabled (`shadow-none`) para ganarle también al botón inhabilitado con motivo, que sí recibe el
+ * foco. En alto contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja un contorno
+ * visible.
  */
-:host .button:focus-visible {
+:host([data-variant]) .button:focus-visible {
   @apply shadow-focus-ring outline-hidden;
 }

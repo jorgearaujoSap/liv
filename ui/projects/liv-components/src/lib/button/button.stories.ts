@@ -1,14 +1,18 @@
 import { moduleMetadata, type Meta, type StoryObj } from '@storybook/angular';
 import { ICON_NAMES, IconName } from '../icon/icons';
-import { ButtonComponent, ButtonSize, ButtonVariant } from './button.component';
+import { ButtonComponent, ButtonSize, ButtonVariant, ReasonAlign } from './button.component';
 
 const figma = 'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=20-298';
+const figmaDisabledReason =
+  'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=65-456';
 
 interface ButtonArgs {
   variant: ButtonVariant;
   size: ButtonSize;
   disabled: boolean;
   loading: boolean;
+  disabledReason?: string;
+  reasonAlign: ReasonAlign;
   leadingIcon?: IconName;
   trailingIcon?: IconName;
   loadingLabel: string;
@@ -23,13 +27,14 @@ const meta: Meta<ButtonArgs> = {
   parameters: {
     docs: {
       description: {
-        component: `Botón con tres variantes (Primary es la acción principal, una por vista), dos tamaños (Md 40 px en la aplicación, Lg 48 px en los formularios de acceso y en móvil) e iconos opcionales. Hover y Focus son los del navegador: pasa el puntero o enfoca con Tab. En Loading no emite clic, sigue enfocable y, como en Figma, mantiene su texto y anuncia \`loadingLabel\`. [Diseño en Figma](${figma})`,
+        component: `Botón con tres variantes (Primary es la acción principal, una por vista), dos tamaños (Md 40 px en la aplicación, Lg 48 px en los formularios de acceso y en móvil) e iconos opcionales. Hover y Focus son los del navegador: pasa el puntero o enfoca con Tab. En Loading no emite clic, sigue enfocable y, como en Figma, mantiene su texto y anuncia \`loadingLabel\`. Deshabilitado con \`disabledReason\` muestra el motivo debajo, enlazado con \`aria-describedby\`; el botón usa \`aria-disabled\` para seguir enfocable (pruébalo con Tab). [Diseño en Figma](${figma}) · [Deshabilitado con motivo](${figmaDisabledReason})`,
       },
     },
   },
   argTypes: {
     variant: { control: 'inline-radio', options: ['primary', 'secondary', 'ghost'] },
     size: { control: 'inline-radio', options: ['md', 'lg'] },
+    reasonAlign: { control: 'inline-radio', options: ['start', 'end'] },
     leadingIcon: { control: 'select', options: [undefined, ...ICON_NAMES] },
     trailingIcon: { control: 'select', options: [undefined, ...ICON_NAMES] },
   },
@@ -38,6 +43,7 @@ const meta: Meta<ButtonArgs> = {
     size: 'md',
     disabled: false,
     loading: false,
+    reasonAlign: 'start',
     loadingLabel: 'Cargando',
     label: 'Ingresar',
   },
@@ -49,6 +55,8 @@ const meta: Meta<ButtonArgs> = {
         [size]="size"
         [disabled]="disabled"
         [loading]="loading"
+        [disabledReason]="disabledReason"
+        [reasonAlign]="reasonAlign"
         [leadingIcon]="leadingIcon"
         [trailingIcon]="trailingIcon"
         [loadingLabel]="loadingLabel"
@@ -81,6 +89,32 @@ export const SecondaryDisabled: Story = {
 
 export const GhostDisabled: Story = {
   args: { variant: 'ghost', disabled: true, label: 'Olvidé mi contraseña' },
+};
+
+const reason = 'Faltan 6 puntos obligatorios de la lista de preparación.';
+
+/** Figma 65:456: el motivo a la izquierda, como en el detalle de la vigencia (68:3460). */
+export const DisabledConMotivo: Story = {
+  args: { disabled: true, label: 'Habilitar liquidación', disabledReason: reason },
+};
+
+/** El motivo a la derecha, como en la lista de vigencias (66:2513). */
+export const DisabledConMotivoAlFinal: Story = {
+  args: {
+    disabled: true,
+    label: 'Crear vigencia',
+    leadingIcon: 'plus',
+    disabledReason: 'Ya existe la vigencia 2027, la última que se puede crear.',
+    reasonAlign: 'end',
+  },
+};
+
+export const SecondaryDisabledConMotivo: Story = {
+  args: { variant: 'secondary', disabled: true, label: 'Cancelar', disabledReason: reason },
+};
+
+export const GhostDisabledConMotivo: Story = {
+  args: { variant: 'ghost', disabled: true, label: 'Reintentar', disabledReason: reason },
 };
 
 export const Loading: Story = {
