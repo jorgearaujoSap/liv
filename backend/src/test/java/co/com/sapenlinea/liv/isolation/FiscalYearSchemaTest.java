@@ -319,6 +319,8 @@ class FiscalYearSchemaTest {
                   trace.by(),
                   trace.at()));
       assertThat(incomplete.getSQLState()).isEqualTo(CHECK_VIOLATION);
+      assertThat(((PSQLException) incomplete).getServerErrorMessage().getConstraint())
+          .isEqualTo("administration_fiscal_year_opened_trace_check");
     }
     assertThat(
             update(

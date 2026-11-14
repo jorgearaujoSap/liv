@@ -16,12 +16,13 @@ REVOKE INSERT ON tax.administration_fiscal_year FROM liv_app;
 GRANT INSERT (administration_id, fiscal_year, created_by) ON tax.administration_fiscal_year TO liv_app;
 
 -- Una vigencia que se abrió dice quién y cuándo hizo el último cambio: la política de UPDATE admite pasar a
--- EN_PREPARACION, pero no exige esas dos columnas. Solo cubre EN_PREPARACION, el único estado que la 007 escribe; la
--- feature de la opción 1.5.1 la reemplaza (DROP CONSTRAINT) por la suya, para los estados que escriba, y decide si el
--- disparador OLD/NEW de V202611131000 exige además que cada transición escriba la traza de nuevo. No es una garantía de autoría: updated_by y
--- updated_at los escribe la aplicación (liv_app conserva su UPDATE) y no se comprueba su valor. El registro de
--- auditoría es el que da fe de quién hizo cada cambio; la doble firma de la 1.5.1 no puede apoyarse en estas columnas,
--- porque cada cambio las sobrescribe.
+-- EN_PREPARACION, pero no exige esas dos columnas. Solo cubre EN_PREPARACION, el único estado que la 007 escribe. La
+-- feature de la opción 1.5.1 reemplaza este CHECK (DROP CONSTRAINT) por el suyo, para los estados que escriba, y decide
+-- si el disparador BEFORE UPDATE que propone V202611131000 (OLD.status y NEW.status; todavía no existe) exige además
+-- que cada transición vuelva a escribir la traza. No es una garantía de autoría: updated_by y updated_at los escribe
+-- la aplicación (liv_app conserva su UPDATE) y no se comprueba su valor. El registro de auditoría es el que da fe de
+-- quién hizo cada cambio; la doble firma de la 1.5.1 no puede apoyarse en estas columnas, porque cada cambio las
+-- sobrescribe.
 ALTER TABLE tax.administration_fiscal_year
   ADD CONSTRAINT administration_fiscal_year_opened_trace_check
   CHECK (status <> 'EN_PREPARACION' OR (updated_by IS NOT NULL AND updated_at IS NOT NULL));
