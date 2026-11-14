@@ -1,6 +1,6 @@
 import { moduleMetadata, type Meta, type StoryObj } from '@storybook/angular';
 import { ICON_NAMES, IconName } from '../icon/icons';
-import { ButtonComponent, ButtonSize, ButtonVariant, ReasonAlign } from './button.component';
+import { ButtonComponent, ButtonSize, ButtonVariant, ButtonReasonAlign } from './button.component';
 
 const figma = 'https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=20-298';
 const figmaDisabledReason =
@@ -12,7 +12,7 @@ interface ButtonArgs {
   disabled: boolean;
   loading: boolean;
   disabledReason?: string;
-  reasonAlign: ReasonAlign;
+  reasonAlign: ButtonReasonAlign;
   leadingIcon?: IconName;
   trailingIcon?: IconName;
   loadingLabel: string;

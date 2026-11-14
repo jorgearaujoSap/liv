@@ -21,7 +21,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 export type ButtonSize = 'md' | 'lg';
 
 /** Alineación del motivo de la deshabilitación: al inicio o al final del botón. */
-export type ReasonAlign = 'start' | 'end';
+export type ButtonReasonAlign = 'start' | 'end';
 
 /** Tipo del botón nativo. Por defecto `button`, para no enviar formularios por accidente. */
 export type ButtonType = 'button' | 'submit' | 'reset';
@@ -75,7 +75,7 @@ export class ButtonComponent {
    */
   readonly disabledReason = input<string>();
   /** Alineación del motivo y del botón: `start` (por omisión) o `end`. */
-  readonly reasonAlign = input<ReasonAlign>('start');
+  readonly reasonAlign = input<ButtonReasonAlign>('start');
   /** Qué se anuncia mientras carga, p. ej. "Ingresando…". */
   readonly loadingLabel = input('Cargando');
 
