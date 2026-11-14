@@ -81,7 +81,7 @@ Los pasos y los números de PR son los del plan: 1 y 2 (raíz), 3 a 7 y 10 (`bac
 
 Se integra **antes** de B3 y B4: la prueba de la matriz de permisos y el documento deben coincidir (`docs/arquitectura/02` §4.4). No toca la spec (las enmiendas ya están en ella) ni el Doc. 03.
 
-- [ ] **T1** · ERD 2.3.
+- [x] **T1** · ERD 2.3.
   - **Proyecto:** raíz · **PR:** D1
   - **Archivos:** `docs/funcional/ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (encabezado y esquema `tax`: el diagrama Mermaid, la lista de tablas, las restricciones y la nota de las FK futuras, y la lista previa a Flyway).
   - **Depende de:** ninguna.
@@ -92,7 +92,7 @@ Se integra **antes** de B3 y B4: la prueba de la matriz de permisos y el documen
     - la nota de las FK futuras (nacionales hacia `tax.fiscal_year (year)`; de una administración hacia (`administration_id`, `fiscal_year`));
     - la autorización H2‑1 en la lista previa a Flyway, con cada punto de la tabla del plan;
     - el conteo pasa de 79 a 80 tablas, en el encabezado y en la lista, y la versión pasa a 2.3 con su motivo.
-- [ ] **T2** · Doc. 01 v0.5, Doc. 02 v0.3, registro entre documentos y `AGENTS.md` §3.1.
+- [x] **T2** · Doc. 01 v0.5, Doc. 02 v0.3, registro entre documentos y `AGENTS.md` §3.1.
   - **Proyecto:** raíz · **PR:** D1
   - **Archivos:** `docs/funcional/01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` (encabezado, §1, §3, §5, §6.1, §8 y §11, y el registro de cambios entre documentos al estilo del Doc. 03 §7), `docs/funcional/02_Homologacion_y_Reglas_de_Liquidacion.md` (versión, LQ‑P01 y el diagrama del §B.2) y `AGENTS.md` (solo §3.1: «80 tablas» y «versión 2.3»).
   - **Depende de:** T1 (los nombres de tablas y columnas del ERD).
@@ -111,13 +111,13 @@ Se integra **antes** de B3 y B4: la prueba de la matriz de permisos y el documen
 
 Se integra **antes** de B5a, B5b, B6 y B7, porque el código de `tax` ya usa `platform` y `shared`. *Skill* `liv-adr`.
 
-- [ ] **T3** · Redactar el ADR 0035 como «Propuesto», su fila en la tabla de ADR y la figura de `docs/arquitectura/01` §3.2.
+- [x] **T3** · Redactar el ADR 0035 como «Propuesto», su fila en la tabla de ADR y la figura de `docs/arquitectura/01` §3.2.
   - **Proyecto:** raíz · **PR:** D2 · **Modelo:** nivel alto
   - **Archivos:** `docs/adr/ADR-0035-dependencias-entre-modulos-y-errores-de-negocio.md` (nuevo), `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` (solo la fila 0035 de la tabla de §6) y `docs/arquitectura/01_Arquitectura_de_Software.md` (la figura del §3.2 y su encabezado de versión; **no** el glosario del §15).
   - **Depende de:** ninguna.
   - **Recursos:** `docs/arquitectura/01` (D1 no lo edita; el glosario lo escribe el orquestador).
   - **Prueba primero:** el ADR sigue la plantilla MADR de `liv-adr` y el formato de los ADR 0033 y 0034; dice cada punto del plan (paso 2): `audit → tax`, `tax → platform`, `tax → shared` y `platform → shared` (con `ModularityTest`), ningún módulo depende de `audit`, `shared.RuleViolation` (con código de regla, tipo `CONFLICT` o `UNPROCESSABLE` y detalles) y `shared.NotFound` (404 `SYS-404`) traducidos por `ProblemDetailsHandler` sin ciclos, `shared` como módulo normal de Spring Modulith, la propiedad `liv.business-zone` (`America/Bogota`) con el `Clock` de `platform` en UTC, y los puntos de la lista de preparación que vivirán en `tax/infrastructure` (con `tax → documents` como flecha futura con su propio ADR); estado «Propuesto»; la fila del doc. 00 §6 coincide con el estilo de las filas 0033 y 0034; la figura del §3.2 coincide con el ADR.
-- [ ] **T4** · Aceptación formal del ADR 0035 en la H3.
+- [x] **T4** · Aceptación formal del ADR 0035 en la H3.
   - **Proyecto:** raíz · **PR:** D2 · **Modelo:** nivel alto
   - **Archivos:** `docs/adr/ADR-0035-dependencias-entre-modulos-y-errores-de-negocio.md` y la fila 0035 del doc. 00 §6 (solo el estado y la fecha).
   - **Depende de:** T3, y de que la persona acepte el ADR (solo un humano lo acepta).
@@ -129,7 +129,7 @@ Se integra **antes** de B5a, B5b, B6 y B7, porque el código de `tax` ya usa `pl
 
 *Skill* `liv-migracion`. Con D1 integrado. Ninguna migración aplicada se modifica.
 
-- [ ] **T5** · Esquema `tax`: `fiscal_year` y `administration_fiscal_year`, con su RLS y sus permisos.
+- [x] **T5** · Esquema `tax`: `fiscal_year` y `administration_fiscal_year`, con su RLS y sus permisos.
   - **Proyecto:** `backend/` · **PR:** B3
   - **Archivos:** `backend/src/main/resources/db/migration/V<marca>__tax_fiscal_years.sql` (nueva), y en `backend/src/test/java/co/com/sapenlinea/liv/isolation/`: `AdministrationIsolationTest.java` y `LivAppGrantsTest.java` (se amplían) y `FiscalYearSchemaTest.java` (nueva); `backend/CHANGELOG.md`.
   - **Depende de:** D1 integrado.
@@ -139,7 +139,7 @@ Se integra **antes** de B5a, B5b, B6 y B7, porque el código de `tax` ya usa `pl
     - `LivAppGrantsTest`: las columnas y los permisos esperados de las dos tablas (`SELECT` e `INSERT`; `UPDATE` solo de `status`, `updated_by` y `updated_at`; sin `DELETE`);
     - `FiscalYearSchemaTest`: los `CHECK` de V‑01 y de `assessments_enabled` (007-12); el `UNIQUE` (007-05); los años 1999 a 2100; que `liv_app` no puede insertar una vigencia en otro estado que *Planeada*, ni cambiar `assessments_enabled`, ni borrar; que `WITH CHECK` rechaza con 42501 pasar de *Planeada* a *Habilitada*, *Lista* o *Cerrada*; y que `USING` deja intactas las vigencias fuera de *Planeada*: volver de *En preparación* a *Planeada* y tocar solo `updated_at` actualizan **0 filas** (la prueba cuenta filas, PostgreSQL no da error).
   - **Verde:** la migración, con la comprobación de `uuidv7()`, el esquema `tax` con `GRANT USAGE` a `liv_app`, las dos tablas, los años 1999 a 2100, la RLS (una política por operación) y los permisos.
-- [ ] **T6** · Permisos de acción `tax.fiscal-year.create` y `tax.fiscal-year.prepare`.
+- [x] **T6** · Permisos de acción `tax.fiscal-year.create` y `tax.fiscal-year.prepare`.
   - **Proyecto:** `backend/` · **PR:** B3
   - **Archivos:** `backend/src/main/resources/db/migration/V<marca>__platform_fiscal_year_permissions.sql` (nueva, con una marca posterior a la de T5) y `backend/src/test/java/co/com/sapenlinea/liv/isolation/PlatformTablesTest.java` (`permissionMatrixIsTheApprovedOne`); `backend/CHANGELOG.md`.
   - **Depende de:** T5 (orden de las migraciones).
@@ -151,7 +151,7 @@ Se integra **antes** de B5a, B5b, B6 y B7, porque el código de `tax` ya usa `pl
 
 *Skill* `liv-endpoint`, paso 1. Con D1 integrado. Al integrarlo, `backend-main` publica `contract-tax-v1.0.0`.
 
-- [ ] **T7** · `tax.yaml` 1.0.0 y su generación.
+- [x] **T7** · `tax.yaml` 1.0.0 y su generación.
   - **Proyecto:** `backend/` · **PR:** B4
   - **Archivos:** `backend/contracts/openapi/tax.yaml` (nuevo), `backend/pom.xml` (solo una ejecución más de `openapi-generator`, sin dependencias nuevas), `backend/src/test/java/co/com/sapenlinea/liv/contracts/OpenApiContractTest.java`, `backend/README.md` (la tabla de contratos) y `backend/CHANGELOG.md`.
   - **Depende de:** D1 integrado (los códigos `V‑05` y `V‑06` salen del Doc. 01 v0.5).
@@ -170,13 +170,13 @@ Se integra **antes** de B5a, B5b, B6 y B7, porque el código de `tax` ya usa `pl
 
 Con D2 integrado. Java puro, con pruebas unitarias primero (`@DisplayName` con el código del criterio). No usa los modelos generados.
 
-- [ ] **T8** · `shared.RuleViolation`, `shared.NotFound`, `FiscalYearStatus` y `AdministrationFiscalYear`.
+- [x] **T8** · `shared.RuleViolation`, `shared.NotFound`, `FiscalYearStatus` y `AdministrationFiscalYear`.
   - **Proyecto:** `backend/` · **PR:** B5a
   - **Archivos:** en `backend/src/main/java/co/com/sapenlinea/liv/`: `shared/RuleViolation.java`, `shared/NotFound.java`, `tax/domain/FiscalYearStatus.java` y `tax/domain/AdministrationFiscalYear.java`; en `backend/src/test/java/co/com/sapenlinea/liv/`: `shared/RuleViolationTest.java` y `tax/domain/AdministrationFiscalYearTest.java`; `backend/CHANGELOG.md`.
   - **Depende de:** D2 integrado.
   - **Recursos:** `shared` (B6 y B7 lo usan después).
   - **Prueba primero:** `RuleViolationTest` (código de regla, tipo `CONFLICT` o `UNPROCESSABLE`, detalles, excepción **sin marcar**, `NotFound` aparte) y `AdministrationFiscalYearTest`: **007-10** · `openPreparation()` desde `PLANEADA` da `EN_PREPARACION` y desde cualquier otro estado da `V‑06` con el estado actual; los cinco estados con los códigos del Doc. 01 §5; `assessmentsEnabled` no cambia nunca.
-- [ ] **T9** · `FiscalYearOpeningPolicy`.
+- [x] **T9** · `FiscalYearOpeningPolicy`.
   - **Proyecto:** `backend/` · **PR:** B5a
   - **Archivos:** `backend/src/main/java/co/com/sapenlinea/liv/tax/domain/FiscalYearOpeningPolicy.java` (más los tipos pequeños que necesite, p. ej. `CreatableYear`, `YearRelation` y `CreateBlocked`, en `tax/domain/`) y `backend/src/test/java/co/com/sapenlinea/liv/tax/domain/FiscalYearOpeningPolicyTest.java`; `backend/CHANGELOG.md`.
   - **Depende de:** T8.
@@ -188,7 +188,7 @@ Con D2 integrado. Java puro, con pruebas unitarias primero (`@DisplayName` con e
 
 Con D2 integrado. Se puede escribir a la vez que B5a: no comparten archivos. Mismas condiciones que B5a: Java puro, pruebas unitarias primero y `@DisplayName` con el código del criterio.
 
-- [ ] **T10** · `PreparationChecklist` y el puerto `PreparationItemCheck`.
+- [x] **T10** · `PreparationChecklist` y el puerto `PreparationItemCheck`.
   - **Proyecto:** `backend/` · **PR:** B5b
   - **Archivos:** `backend/src/main/java/co/com/sapenlinea/liv/tax/domain/PreparationChecklist.java`, `PreparationItemCheck.java` y los tipos pequeños que necesite (p. ej. `PreparationItem`), y `backend/src/test/java/co/com/sapenlinea/liv/tax/domain/PreparationChecklistTest.java`; `backend/CHANGELOG.md`.
   - **Depende de:** D2 integrado. **No** depende de T8 ni de T9: recibe el estado de la vigencia como dato.
@@ -259,34 +259,34 @@ Con B6 integrado.
 
 *Skill* `liv-componente`. Cada componente lleva su prueba por variante y estado, axe en cada combinación (**007-21**), su historia de Storybook enlazada a su nodo de Figma, su exportación en `public-api.ts` y una entrada en `ui/CHANGELOG.md`; ninguno sabe de rutas ni de HTTP. Verificaciones del proyecto: `npm run lint`, `npm run format:check`, `npm test` y `npm run pack`. Los PR 8d, 8e y 8f son **críticos** (modifican un componente existente) y se revisan con la lente de riesgo de nivel alto. En todos los PR, la comparación con Figma es una revisión manual en Storybook, con capturas en la descripción (`ui/` no tiene regresión visual, Q14). Cada tarea indica su PR. Los cinco primeros van a «Sin publicar» (H2‑15); **el 8f sube la versión a 0.4.0** (`npm run version:minor`) y mueve las entradas a su sección. Nada se publica: lo hace la persona después de integrar el 8f.
 
-- [ ] **T18** · **8a** · `Table`, `TableRow` y `TableCell`.
+- [x] **T18** · **8a** · `Table`, `TableRow` y `TableCell`.
   - **Proyecto:** `ui/` · **PR:** 8a
   - **Archivos:** `ui/projects/liv-components/src/lib/table/` (los componentes, sus `.css`, `.html`, `.spec.ts` y las historias), `ui/projects/liv-components/src/public-api.ts` y `ui/CHANGELOG.md`.
   - **Depende de:** ninguna.
   - **Recursos:** `ui/CHANGELOG.md` y `public-api.ts`.
   - **Prueba primero:** una tabla HTML real (`table[livTable]`, `tr[livTableRow]`, `th[livTableCell]` con `scope="col"` y `td[livTableCell]`); nombre accesible obligatorio (`caption` o `aria-label`) y `aria-busy` en *Loading*; la celda de enlace dibuja su propio `<a href>` y emite `navigate`, con una prueba del color del enlace por *token*; solo el enlace recibe el foco, con *Hover* y *Focus* por `:focus-within` y el chevron decorativo (`aria-hidden`); los tipos `Header`, `Text`, `Link`, `Badge` y `Action`; axe por variante y estado. Sin *Empty* (la 007 usa `ResultState`), barra ni paginación. Diseño: nodos 63:283, 63:352 y 64:446.
   - **Al terminar:** revisión adversarial, las cuatro lentes y el PR (H3).
-- [ ] **T19** · **8b** · `ChecklistItem`, `DescriptionItem` y `Panel`.
+- [x] **T19** · **8b** · `ChecklistItem`, `DescriptionItem` y `Panel`.
   - **Proyecto:** `ui/` · **PR:** 8b
   - **Archivos:** `ui/projects/liv-components/src/lib/checklist-item/`, `description-item/` y `panel/` (componentes, estilos, pruebas e historias), `ui/projects/liv-components/src/public-api.ts` y `ui/CHANGELOG.md`.
   - **Depende de:** ninguna.
   - **Recursos:** `ui/CHANGELOG.md` y `public-api.ts`.
   - **Prueba primero:** `ChecklistItem` con `Status` `Met`, `Pending` y `Observed` (se implementa aunque la 007 no lo use), número, título, motivo, enlace y `Optional`; `DescriptionItem` `Text` y `Badge`; `Panel` con título, descripción opcional y contenido proyectado; axe por variante y estado. Diseño: nodos 64:573, 64:583 y 64:631.
-- [ ] **T20** · **8b** · Formateador de fechas de negocio.
+- [x] **T20** · **8b** · Formateador de fechas de negocio.
   - **Proyecto:** `ui/` · **PR:** 8b
   - **Archivos:** `ui/projects/liv-components/src/lib/shared/` (el formateador y su `.spec.ts`; la configuración de pruebas de la zona, si hace falta), `ui/projects/liv-components/src/public-api.ts` y `ui/CHANGELOG.md`.
   - **Depende de:** T19 (mismo PR y `public-api.ts`).
   - **Recursos:** `ui/CHANGELOG.md` y `public-api.ts`.
   - **Prueba primero:** formatea una fecha de negocio (`AAAA-MM-DD`) **sin convertir de zona**: la larga («1 de enero de 2026», H2‑13) y la corta (`dd/mm/aaaa`). La prueba fija `process.env.TZ = 'America/Bogota'` y comprueba al empezar que la zona está activa (`new Date(2026, 0, 1).getTimezoneOffset() === 300`); si no, falla, porque en UTC el defecto no se vería.
   - **Al terminar T19 y T20:** revisión adversarial, las cuatro lentes y el PR (H3).
-- [ ] **T21** · **8c** · `RadioGroup` y `RadioOption` (H2‑12, diseño aprobado).
+- [x] **T21** · **8c** · `RadioGroup` y `RadioOption` (H2‑12, diseño aprobado).
   - **Proyecto:** `ui/` · **PR:** 8c
   - **Archivos:** `ui/projects/liv-components/src/lib/radio-group/` (los dos componentes, estilos, pruebas e historias), `ui/projects/liv-components/src/public-api.ts` y `ui/CHANGELOG.md`.
   - **Depende de:** ninguna. **8f depende de este PR integrado.**
   - **Recursos:** `ui/CHANGELOG.md` y `public-api.ts`.
   - **Prueba primero:** un `<fieldset>` con su `<legend>` (nombre accesible) y radios nativos con un `name` común; el valor y el cambio de selección; `Selected` × `State` (`Default`, `Hover`, `Focus` y `Disabled`, que se implementa porque está diseñada); con y sin descripción; axe por variante y estado. Las flechas y el Tab que solo entra a la opción marcada los da el navegador y jsdom no los implementa: se prueban en `e2e/` (T35). Diseño: nodos 64:629 y 73:514.
   - **Al terminar:** revisión adversarial, las cuatro lentes y el PR (H3).
-- [ ] **T22** · **8d** · Iconos `plus` y `circle` en `Icon` (crítico).
+- [x] **T22** · **8d** · Iconos `plus` y `circle` en `Icon` (crítico).
   - **Proyecto:** `ui/` · **PR:** 8d
   - **Archivos:** `ui/projects/liv-components/src/lib/icon/icons.ts`, `icon.component.spec.ts` y `icon.stories.ts`, y `ui/CHANGELOG.md`.
   - **Depende de:** ninguna.
