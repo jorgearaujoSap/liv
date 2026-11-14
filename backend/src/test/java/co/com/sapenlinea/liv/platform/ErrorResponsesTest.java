@@ -3,6 +3,8 @@ package co.com.sapenlinea.liv.platform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
+import co.com.sapenlinea.liv.shared.NotFound;
+import co.com.sapenlinea.liv.shared.RuleViolation;
 import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.UUID;
@@ -12,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Import;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -20,6 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
  * goes to the log with the correlation id (doc. 02 §8, plan step 7).
  */
 @ExtendWith(OutputCaptureExtension.class)
+@Import(ErrorResponsesTest.BusinessErrorProbe.class)
 @DisplayName("Respuestas de error y su registro (T12)")
 class ErrorResponsesTest extends PlatformWebTest {
 
@@ -84,6 +90,52 @@ class ErrorResponsesTest extends PlatformWebTest {
     assertThat(output).doesNotContain(token.substring(token.lastIndexOf('.') + 1));
   }
 
+  @Test
+  @DisplayName("ADR 0035 · Una regla de tipo conflicto es un 409 con su código y sus extensiones")
+  void ruleConflictIs409() {
+    HttpResponse<String> response = get("/api/v1/probe/rule/conflict", user("c-409"));
+
+    assertProblem(response, 409, "V-01");
+    JsonNode body = JSON.readTree(response.body());
+    assertThat(body.get("year").asInt()).isEqualTo(2026);
+    assertThat(body.get("status").asInt()).isEqualTo(409);
+  }
+
+  @Test
+  @DisplayName(
+      "ADR 0035 · Una regla de tipo no procesable es un 422 con su código y sus extensiones")
+  void ruleUnprocessableIs422() {
+    HttpResponse<String> response = get("/api/v1/probe/rule/unprocessable", user("c-422"));
+
+    assertProblem(response, 422, "V-02");
+    JsonNode body = JSON.readTree(response.body());
+    assertThat(body.get("reason").asString()).isEqualTo("GAP");
+    assertThat(body.get("requiredYear").asInt()).isEqualTo(2027);
+  }
+
+  @Test
+  @DisplayName("ADR 0035 · Un rechazo de regla no registra una falla: es una respuesta esperada")
+  void ruleViolationIsNotLoggedAsAnError(CapturedOutput output) {
+    String correlationId = UUID.randomUUID().toString();
+
+    get("/api/v1/probe/rule/conflict", user(correlationId));
+
+    assertThat(output).doesNotContain("Unexpected error");
+  }
+
+  @Test
+  @Tag("CA-12")
+  @DisplayName("CA-12 · «No existe» es un 404 SYS-404 con el mismo cuerpo sea cual sea el motivo")
+  void notFoundIsTheSameWhateverTheReason() {
+    HttpResponse<String> missing = get("/api/v1/probe/not-found/missing", user("c-404a"));
+    HttpResponse<String> foreign = get("/api/v1/probe/not-found/foreign", user("c-404b"));
+
+    assertProblem(missing, 404, ErrorCodes.NOT_FOUND);
+    assertProblem(foreign, 404, ErrorCodes.NOT_FOUND);
+    assertThat(foreign.body()).isEqualTo(missing.body());
+    assertThat(missing.body()).doesNotContain("missing").doesNotContain("foreign");
+  }
+
   private static Map<String, String> user(String correlationId) {
     Map<String, String> headers = bearer(OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_A));
     headers.put("X-Correlation-Id", correlationId);
@@ -98,5 +150,31 @@ class ErrorResponsesTest extends PlatformWebTest {
     assertThat(body.get("code").asString()).isEqualTo(code);
     assertThat(body.has("detail")).isFalse();
     assertThat(body.has("trace")).isFalse();
+  }
+
+  /** Business errors the way a use case throws them, for the handler to translate. */
+  @RestController
+  static class BusinessErrorProbe {
+
+    @GetMapping("/api/v1/probe/rule/conflict")
+    Map<String, String> conflict() {
+      throw new RuleViolation("V-01", RuleViolation.Type.CONFLICT, Map.of("year", 2026));
+    }
+
+    @GetMapping("/api/v1/probe/rule/unprocessable")
+    Map<String, String> unprocessable() {
+      throw new RuleViolation(
+          "V-02", RuleViolation.Type.UNPROCESSABLE, Map.of("reason", "GAP", "requiredYear", 2027));
+    }
+
+    @GetMapping("/api/v1/probe/not-found/missing")
+    Map<String, String> missing() {
+      throw new NotFound("fiscal year 2031 of the administration");
+    }
+
+    @GetMapping("/api/v1/probe/not-found/foreign")
+    Map<String, String> foreign() {
+      throw new NotFound("fiscal year 2026 of another administration");
+    }
   }
 }
