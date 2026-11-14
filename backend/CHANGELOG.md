@@ -131,6 +131,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - la migración comprueba que exista `uuidv7()` (PostgreSQL 18) y crea el esquema `tax` con `USAGE` para `liv_app`;
   - permisos de acción `tax.fiscal-year.create` y `tax.fiscal-year.prepare`, solo para `ADMIN_SISTEMA`;
   - pruebas de aislamiento, permisos exactos, restricciones y transiciones de estado, y la matriz de permisos ampliada.
+- Vigencias fiscales (feature 007, B3b): la migración `V202611141000` ajusta `tax.administration_fiscal_year` según la decisión H2‑4 (permisos mínimos de `liv_app`):
+  - `liv_app` solo escribe `administration_id`, `fiscal_year` y `created_by` al crear la vigencia, con `INSERT` por columnas; el estado, la habilitación, el `id` y `created_at` los fija la base;
+  - un `CHECK` exige `updated_by` y `updated_at` en una vigencia `EN_PREPARACION`.
+  - `dev/README.md`: PostgreSQL 18 para AWS, por `uuidv7()`.
 
 ### Cambiado
 
