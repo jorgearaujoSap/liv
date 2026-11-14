@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-12
+> **Última actualización:** 2026-11-14
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -14,7 +14,7 @@
 | Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.3.1 publicada en npm con 18 componentes, y pruebas de navegador en local. Todavía sin funcionalidad de negocio |
 | Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
 | Arquitectura (00–05) | ✅ **Aprobada** el 2026-11-01: ADR 0001–0020 aceptados sin ajustes (Java 21 LTS en lugar de 25); ADR 0021 (backend con Maven y la base del equipo) y ADR 0022 (librería como proyecto `ui/` publicado en npm) aceptados el mismo día |
-| Diseño en Figma | 🔄 Estilos, hoja de fundamentos, variables de espaciado y radios, 38 iconos y logotipo hechos; 20 componentes y 15 pantallas de la feature 001 (versión 2, rediseñada) aprobados por el responsable funcional (2026-11-01) |
+| Diseño en Figma | 🔄 Estilos, hoja de fundamentos, variables de espaciado y radios, 40 iconos (`plus` y `circle` con la feature 007) y logotipo hechos; 20 componentes y 15 pantallas de la feature 001 (versión 2, rediseñada) aprobados por el responsable funcional (2026-11-01) |
 | Decisiones del equipo | ✅ 8 de 10 decididas; P6 espera a la entidad y P7 es provisional (§5) |
 
 ### Trabajo en curso
@@ -27,9 +27,27 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 |---|---|---|---|---|---|
 | Spec (H1) | raíz | `f007-diseno`, PR #176 (borrador) | — | ✅ Aprobada el 2026-11-12; firmada de nuevo con las enmiendas 1 a 3 de la H2 | — |
 | Diseño en Figma (paso 0) | Figma | `f007-figma` | Spec (H1) | ✅ Aprobado el 2026-11-12 (componentes nuevos, modificaciones de `Button`, `Dialog` e `Icon`, 3 pantallas) | — |
-| Plan (H2) | raíz | `f007-diseno`, PR #176 | Diseño | 🔄 Decisiones H2‑1 a H2‑15 tomadas el 2026-11-12; falta la verificación acotada del paso 6 | La H2 formal, tras la verificación |
-| Ajustes de diseño de la H2 (H2‑11, H2‑12, H2‑14) | Figma | `f007-figma` | Plan (H2) | 🔄 En curso | Aprobar `RadioGroup`, el `Tone` de `Dialog` y el diálogo sin «Sin permiso» |
-| Tareas | raíz | — | Plan (H2) | ⏳ Pendiente | — |
+| Plan (H2) | raíz | `f007-diseno`, PR #176 | Diseño | ✅ Aprobado el 2026-11-13 (H2‑1 a H2‑15) | — |
+| Ajustes de diseño de la H2 (H2‑11, H2‑12, H2‑14) | Figma | `f007-figma` | Plan (H2) | ✅ Aprobados el 2026-11-12 | — |
+| Tareas | raíz | `f007-tareas`, PR #178 | Plan (H2) | ✅ 35 tareas | — |
+| D1 · Documentos (T1, T2) | raíz | `f007-d1-docs`, PR #180 | Tareas | ✅ Integrado | — |
+| D2 · ADR 0035 (T3, T4) | raíz | `f007-d2-adr`, PR #179 y #181 | Tareas | ✅ Aceptado | — |
+| B3 · Base de datos (T5, T6) | `backend/` | `f007-b3-bd`, PR #189 | D1 | ✅ Integrado el 2026-11-14 | — |
+| B3b · Permisos de `INSERT` por columna y `CHECK` de la traza (H2‑4) | `backend/` | `f007-b3-bd` | B3 | 🔄 En curso | — |
+| B4 · Contrato `tax.yaml` 1.0.0 (T7) | `backend/` | `f007-b4-contrato`, PR #183 | D1 | ✅ Integrado | — |
+| B5a · Dominio (T8, T9) | `backend/` | PR #185 | D2 | ✅ Integrado | — |
+| B5b · Lista de preparación (T10) | `backend/` | PR #184 | D2 | ✅ Integrado | — |
+| B6 · Aplicación, persistencia y API (T11 a T15) | `backend/` | — | B3b, B4, B5a, B5b | ⏳ Después de B3b, sola en `backend/` | — |
+| B7 · Auditoría (T16, T17) | `backend/` | — | B6 | ⏳ Pendiente | — |
+| UI 8a · `Table` (T18) | `ui/` | `f007-ui-8a`, PR #187 | — | ✅ Integrado, con 2 ajustes de la H3 (nombre por `caption` o `aria-label`; foco de la fila con `:has(:focus-visible)`) | — |
+| UI 8b · `ChecklistItem`, `DescriptionItem`, `Panel` y fechas (T19, T20) | `ui/` | `f007-ui-8b`, PR #186 | — | ✅ Integrado | — |
+| UI 8c · `RadioGroup` (T21) | `ui/` | `f007-ui-8c`, PR #182 | — | ✅ Integrado | — |
+| UI 8d · Iconos `plus` y `circle` (T22) | `ui/` | `f007-ui-8d`, PR #188 | — | ✅ Integrado (40 iconos) | — |
+| UI 8e · `Button` con `disabledReason` (T23) | `ui/` | `f007-ui-8e` | — | 🔄 En curso | — |
+| UI 8f · `Dialog` y versión 0.4.0 (T24) | `ui/` | — | 8a a 8e | ⏳ Pendiente; actualiza `THIRD_PARTY_NOTICES.md` a 40 iconos | Publicar `liv-components` 0.4.0 en npm |
+| F9a y F9b · Frontend (T25 a T30) | `frontend/` | — | B6, 0.4.0 publicada | ⏳ Pendiente | — |
+| B10 · Menú y limpieza (T31, T32) | `backend/` | — | B6 | ⏳ Pendiente | — |
+| E11 · Pruebas de navegador (T33 a T35) | `e2e/` | — | F9b, B10 | ⏳ Pendiente | — |
 
 ---
 
@@ -167,6 +185,20 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-14
+
+- Feature 007, avance de la implementación (orquestador). Integrados D1 (#180), D2 (#179 y #181, ADR 0035 aceptado), B3 (#189), B4 (#183), B5a (#185), B5b (#184) y la serie `ui/` 8a (#187), 8b (#186), 8c (#182) y 8d (#188). Marcadas T1 a T10 y T18 a T22 en `tasks.md`.
+- Decisiones de la persona en la H3 (se anotan en `plan.md` al cerrar la feature):
+  - **8a (`Table`):** el nombre accesible se exige por `caption` o por `aria-label`, como dice el plan. El contorno de foco de la fila usa `:has(:focus-visible)` en lugar de `:focus-within`. Solo navega el enlace del año, no la fila. El borde inferior doble queda como en Figma. El `eslint-disable` justificado de los selectores de atributo se mantiene.
+  - **B3:** dos huecos frente a H2‑4, el `INSERT` de `liv_app` sobre toda la tabla y la falta de `CHECK` de coherencia de la traza, se corrigen en un PR B3b con una migración nueva, antes de B6. La RLS que solo admite una transición queda anotada para la regla 3 del ERD y la feature 1.5.1, al cerrar.
+  - **8d (iconos):** `ui/THIRD_PARTY_NOTICES.md` pasa a 40 iconos, con `plus` y `circle`, en el 8f, antes de 0.4.0.
+- Pendientes menores anotados para el cierre:
+  - T5 tocó `FlywayProfilesTest.java`, que no declaraba;
+  - un comentario viejo en `CurrentUserTest.java:48`;
+  - la descripción del conjunto `Icon` en Figma (40) y su sección;
+  - `ChecklistItem` dibuja su propio círculo en lugar de usar `liv-icon`.
+- Docker Desktop no arrancaba: había *sockets* viejos que Windows no deja borrar (error 1920) en `%LOCALAPPDATA%\Docker\run` y `%LOCALAPPDATA%\docker-secrets-engine`. Se resolvió renombrando las dos carpetas, y Docker las creó de nuevo.
 
 ### 2026-11-12
 
