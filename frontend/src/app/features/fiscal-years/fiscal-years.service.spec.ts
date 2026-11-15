@@ -87,16 +87,14 @@ describe('FiscalYearsService (007-01, 007-03, 007-04, 007-09)', () => {
 
   it('create deja pasar el rechazo del servidor con su Problem Details', async () => {
     const result = service.create(2027);
-    http
-      .expectOne('/api/v1/fiscal-years')
-      .flush(
-        { status: 409, code: 'V-01', year: 2027 },
-        {
-          status: 409,
-          statusText: 'Conflict',
-          headers: { 'Content-Type': 'application/problem+json' },
-        },
-      );
+    http.expectOne('/api/v1/fiscal-years').flush(
+      { status: 409, code: 'V-01', year: 2027 },
+      {
+        status: 409,
+        statusText: 'Conflict',
+        headers: { 'Content-Type': 'application/problem+json' },
+      },
+    );
 
     await expect(result).rejects.toMatchObject({
       status: 409,
