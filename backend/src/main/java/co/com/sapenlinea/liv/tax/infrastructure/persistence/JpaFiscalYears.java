@@ -34,9 +34,6 @@ class JpaFiscalYears implements FiscalYears {
 
   private static final String UNIQUE_VIOLATION = "23505";
 
-  /** The unique constraint on {@code (administration_id, fiscal_year)} (V-01). */
-  private static final String YEAR_KEY = "administration_fiscal_year_year_key";
-
   private final AdministrationFiscalYearRepository rows;
   private final NationalFiscalYearRepository national;
 
@@ -134,30 +131,21 @@ class JpaFiscalYears implements FiscalYears {
   }
 
   /**
-   * Whether the failure is the {@code UNIQUE (administration_id, fiscal_year)}: the SQLState 23505
-   * and the name of the constraint that the server reports. The name comes from the fields of the
-   * error of the PostgreSQL driver ({@code getServerErrorMessage().getConstraint()}), not from its
-   * text, so it does not depend on the language of the server. The driver is a runtime dependency,
-   * so it is read by reflection; if it cannot be read, the failure is not taken for V-01.
+   * Whether the failure of the {@code INSERT} is the {@code UNIQUE (administration_id,
+   * fiscal_year)}: the standard SQLState 23505 (unique violation) anywhere in the chain of causes.
+   * It does not read the name of the constraint, which needs the driver or the text of the server
+   * (and that depends on its language). It is right because the year key is the only unique
+   * constraint that an insert of {@code liv_app} can break: the primary key and {@code (id,
+   * administration_id)} depend on the id that the database generates with {@code uuidv7()}, which
+   * the application does not insert. {@code FiscalYearSchemaTest} fixes it: a new unique index
+   * without the id makes that test fail, and then this method must tell them apart.
    */
   static boolean breaksTheYearKey(DataIntegrityViolationException failure) {
     for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
       if (cause instanceof SQLException sql && UNIQUE_VIOLATION.equals(sql.getSQLState())) {
-        return YEAR_KEY.equals(constraintOf(sql));
+        return true;
       }
     }
     return false;
-  }
-
-  /** {@code PSQLException.getServerErrorMessage().getConstraint()}, or null if not available. */
-  private static String constraintOf(SQLException sql) {
-    try {
-      Object message = sql.getClass().getMethod("getServerErrorMessage").invoke(sql);
-      return message == null
-          ? null
-          : (String) message.getClass().getMethod("getConstraint").invoke(message);
-    } catch (ReflectiveOperationException | ClassCastException e) {
-      return null;
-    }
   }
 }
