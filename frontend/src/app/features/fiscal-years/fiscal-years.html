@@ -1,0 +1,94 @@
+<div>
+  <liv-page-header
+    heading="Vigencias fiscales"
+    [breadcrumb]="breadcrumb"
+    description="Cada vigencia es un año fiscal: en ella se cargan las tablas base y se habilita la liquidación."
+  />
+  @if (view() === 'ready' && canCreate() && !isEmpty()) {
+    <liv-button
+      leadingIcon="plus"
+      reasonAlign="end"
+      [disabled]="createDisabled()"
+      [disabledReason]="blockedReason()"
+    >
+      Crear vigencia
+    </liv-button>
+  }
+</div>
+
+@if (view() === 'error') {
+  <liv-result-state
+    tone="danger"
+    icon="cloud-off"
+    eyebrow="Error"
+    heading="No pudimos cargar las vigencias"
+    description="Ocurrió un problema al consultar las vigencias de tu administración. Intenta de nuevo; si continúa, avisa al administrador del sistema."
+  >
+    <liv-button leadingIcon="refresh-cw" (click)="load()">Reintentar</liv-button>
+  </liv-result-state>
+} @else if (view() === 'ready' && isEmpty()) {
+  <liv-result-state
+    tone="info"
+    icon="calendar-days"
+    heading="Aún no hay vigencias"
+    [description]="emptyDescription()"
+  >
+    @if (canCreate()) {
+      <liv-button
+        leadingIcon="plus"
+        [disabled]="createDisabled()"
+        [disabledReason]="blockedReason()"
+      >
+        Crear la primera vigencia
+      </liv-button>
+    }
+  </liv-result-state>
+} @else {
+  <div>
+    <table
+      livTable
+      aria-label="Vigencias fiscales de la administración"
+      [loading]="view() === 'loading'"
+    >
+      <thead>
+        <tr livTableRow>
+          <th livTableCell>Año</th>
+          <th livTableCell>Inicio</th>
+          <th livTableCell>Fin</th>
+          <th livTableCell>Estado</th>
+          <th livTableCell>Liquidación</th>
+          <th livTableCell type="action">Ver detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (view() === 'loading') {
+          @for (row of skeletonRows; track row) {
+            <tr livTableRow>
+              <td livTableCell><liv-skeleton /></td>
+              <td livTableCell><liv-skeleton /></td>
+              <td livTableCell><liv-skeleton /></td>
+              <td livTableCell><liv-skeleton /></td>
+              <td livTableCell><liv-skeleton /></td>
+              <td livTableCell></td>
+            </tr>
+          }
+        } @else {
+          @for (row of rows(); track row.year) {
+            <tr livTableRow>
+              <td livTableCell type="link" [href]="row.href" (navigate)="open($event)">
+                {{ row.year }}
+              </td>
+              <td livTableCell>{{ row.startsOn }}</td>
+              <td livTableCell>{{ row.endsOn }}</td>
+              <td livTableCell type="badge">
+                <liv-badge [tone]="row.tone">{{ row.status }}</liv-badge>
+              </td>
+              <td livTableCell>{{ row.liquidation }}</td>
+              <td livTableCell type="action"></td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+}

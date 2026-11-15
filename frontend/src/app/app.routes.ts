@@ -32,6 +32,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/errors/forbidden').then((m) => m.Forbidden),
       },
       { path: path(APP_PATHS.comingSoon), loadComponent: loadComingSoon },
+      // Vigencias fiscales (1.4, feature 007): su pantalla, antes de la ruta genérica de las opciones.
+      {
+        path: `${OPTION_ROUTE}/1.4`,
+        canActivate: [capabilityGuard],
+        data: { capability: '1.4' },
+        loadComponent: () =>
+          import('./features/fiscal-years/fiscal-years').then((m) => m.FiscalYears),
+      },
       // Cualquier opción del menú, por URL (001-16): cada feature registra antes la ruta de su opción.
       // Una opción sin pantalla propia (aún sin construir) cae aquí y la guarda decide: 403 si no está en
       // las capacidades, «Próximamente» si todavía no existe.

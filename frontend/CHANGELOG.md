@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Vigencias fiscales (feature 007, menú 1.4), lista y creación (T25 a T28; T25 trae el contrato y el servicio):
   - contrato `tax` 1.0.0 (*release* `contract-tax-v1.0.0`), fijado con su SHA-256 en `api-spec/versions.json`, y su cliente generado en `src/app/api/tax/`;
   - `FiscalYearsService` sobre ese cliente, con tiempo límite de 10 s: la lista con `canCreate`, `creatableYears` y `createBlocked` tal como vienen del backend, la creación, el detalle y la apertura de la preparación (007-01, 007-04, 007-09).
+  - la lista de vigencias, en `opcion/1.4` (T26; 007-01, 007-03, 007-09): con `liv-components` 0.4.0 (`Table`, `Badge`, `ResultState`, `Skeleton` y `Button` con `disabledReason`), con las fechas largas del formateador de la librería. «Crear vigencia» solo con `canCreate`, inhabilitado con su motivo si el backend manda `createBlocked`; vacía, cargando y con error (con «Reintentar»). Los años, los permisos y los motivos vienen del backend.
 - Pantallas de la feature 001 (T22), con sus diseños de Figma LIV-Diseño y solo con `liv-components` 0.2.0:
   - estructura general (`SideNav`, `AppHeader`) con el menú que arma `core/navigation/menu-presentation.ts` a partir de las capacidades: solo lo permitido, las opciones `COMING_SOON` deshabilitadas (001-02, 001-15);
   - Inicio, Sin permiso (403), Próximamente, Cargando y Error (rutas `/`, `/sin-permiso`, `/proximamente` y `/error`);
