@@ -25,10 +25,24 @@ class ModularityTest {
   void arrowsAreTheApprovedOnes() {
     assertThat(dependenciesOf("audit")).containsExactlyInAnyOrder("core", "platform");
     assertThat(dependenciesOf("core")).containsExactly("platform");
-    assertThat(dependenciesOf("platform")).isEmpty();
+    assertThat(dependenciesOf("platform")).containsExactly("shared");
+    assertThat(dependenciesOf("tax")).containsExactlyInAnyOrder("platform", "shared");
     for (ApplicationModule module : MODULES) {
       assertThat(dependenciesOf(name(module))).as(name(module)).doesNotContain("audit");
     }
+  }
+
+  @Test
+  @DisplayName("ADR 0035 · Solo platform y tax dependen de shared, y shared no depende de nadie")
+  void onlyPlatformAndTaxUseShared() {
+    Set<String> dependents = new java.util.TreeSet<>();
+    for (ApplicationModule module : MODULES) {
+      if (dependenciesOf(name(module)).contains("shared")) {
+        dependents.add(name(module));
+      }
+    }
+    assertThat(dependents).containsExactly("platform", "tax");
+    assertThat(dependenciesOf("shared")).isEmpty();
   }
 
   private static Set<String> dependenciesOf(String module) {
