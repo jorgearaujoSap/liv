@@ -45,7 +45,8 @@ public interface FiscalYears {
   List<NationalFiscalYear> nationalYears();
 
   /**
-   * Stores a new fiscal year.
+   * Stores a new fiscal year. The adapter takes any unique violation of this insert for V-01, so
+   * the caller must not leave other writes of its transaction pending (it flushes them first).
    *
    * @throws RuleViolation V-01 if the administration already has that year, also when another
    *     creation did not go through {@link #lockForCreation}

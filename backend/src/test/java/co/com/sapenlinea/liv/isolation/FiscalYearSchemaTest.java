@@ -181,7 +181,8 @@ class FiscalYearSchemaTest {
     SQLException duplicate =
         failureOf(() -> insertAsOwner(ADMIN_A, 2050, "PLANEADA", false, USER_A));
     assertThat(duplicate.getSQLState()).isEqualTo(UNIQUE_VIOLATION);
-    // El adaptador de la aplicación reconoce esta restricción por su nombre (V-01, plan paso 6).
+    // El nombre se fija para que un cambio de la restricción se note; el adaptador de la aplicación
+    // solo usa el SQLState (V-01), con la garantía de la prueba que sigue a esta.
     assertThat(
             ((org.postgresql.util.PSQLException) duplicate).getServerErrorMessage().getConstraint())
         .isEqualTo("administration_fiscal_year_year_key");
@@ -290,18 +291,27 @@ class FiscalYearSchemaTest {
     // broken by liv_app. The primary key and (id, administration_id) cannot: liv_app does not
     // insert id, which the database generates with uuidv7(). Any unique index without the id is a
     // new one that the insert can break: whoever adds it must also change how the adapter tells
-    // them apart (JpaFiscalYears.breaksTheYearKey).
+    // them apart (JpaFiscalYears.breaksTheYearKey). The same holds for what the insert can write
+    // elsewhere: a trigger or a rule on insert could raise a 23505 of another table.
+    String table = "'tax.administration_fiscal_year'::regclass";
+    assertThat(
+            LivDatabase.readAsOwner("SELECT relkind::text FROM pg_class WHERE oid = " + table)
+                .getFirst()[0])
+        .as("an ordinary table: a partitioned one needs this test reviewed")
+        .isEqualTo("r");
+
+    // Only the columns of the key count: the ones of INCLUDE are not part of the uniqueness, so an
+    // index on (administration_id) INCLUDE (id) is still a unique index on administration_id.
     List<Object[]> indexes =
         LivDatabase.readAsOwner(
             """
-            SELECT string_agg(a.attname, ',' ORDER BY a.attname), bool_or(i.indexprs IS NOT NULL)
+            SELECT coalesce(string_agg(a.attname, ',' ORDER BY a.attname), ''),
+                   bool_or(i.indexprs IS NOT NULL)
               FROM pg_index i
-              JOIN pg_class c ON c.oid = i.indrelid
-              JOIN pg_namespace n ON n.oid = c.relnamespace
-              CROSS JOIN LATERAL unnest(i.indkey) AS k(attnum)
-              LEFT JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
-             WHERE n.nspname = 'tax' AND c.relname = 'administration_fiscal_year'
-               AND i.indisunique
+              CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord)
+              LEFT JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+             WHERE i.indrelid = 'tax.administration_fiscal_year'::regclass
+               AND i.indisunique AND k.ord <= i.indnkeyatts
              GROUP BY i.indexrelid
             """);
 
@@ -314,13 +324,30 @@ class FiscalYearSchemaTest {
     assertThat(indexes)
         .as("every unique index is on plain columns")
         .allMatch(row -> !(Boolean) row[1]);
-    // And the application does not insert the id: the insert privilege has exactly three columns.
+
     assertThat(
             LivDatabase.readAsOwner(
-                    "SELECT string_agg(column_name, ',' ORDER BY column_name)"
-                        + " FROM information_schema.column_privileges"
-                        + " WHERE table_schema = 'tax' AND table_name = 'administration_fiscal_year'"
-                        + " AND grantee = 'liv_app' AND privilege_type = 'INSERT'")
+                    "SELECT count(*) FROM pg_trigger WHERE tgrelid = "
+                        + table
+                        + " AND NOT tgisinternal AND (tgtype & 4) <> 0")
+                .getFirst()[0])
+        .as("no trigger on insert")
+        .isEqualTo(0L);
+    assertThat(
+            LivDatabase.readAsOwner("SELECT count(*) FROM pg_rewrite WHERE ev_class = " + table)
+                .getFirst()[0])
+        .as("no rule")
+        .isEqualTo(0L);
+
+    // And the application does not insert the id: it can insert exactly three columns, counting
+    // PUBLIC and the roles it belongs to.
+    assertThat(
+            LivDatabase.readAsOwner(
+                    "SELECT string_agg(attname, ',' ORDER BY attname) FROM pg_attribute"
+                        + " WHERE attrelid = "
+                        + table
+                        + " AND attnum > 0 AND NOT attisdropped"
+                        + " AND has_column_privilege('liv_app', attrelid, attnum, 'INSERT')")
                 .getFirst()[0])
         .isEqualTo("administration_id,created_by,fiscal_year");
   }

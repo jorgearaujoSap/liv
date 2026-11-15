@@ -77,6 +77,9 @@ class JpaFiscalYears implements FiscalYears {
     if (!fitsSmallint(fiscalYear.year())) {
       throw new IllegalArgumentException("The year does not fit the column: " + fiscalYear.year());
     }
+    // Whatever the transaction of the caller has pending is written (and fails) here, outside the
+    // try: only the failure of this insert may be taken for V-01.
+    rows.flush();
     try {
       return toStored(
           rows.saveAndFlush(
