@@ -10,17 +10,18 @@ Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR
 
 ### Agregado
 
-- `Dialog` con cuerpo, tamaño y tono (feature 007, PR 8f; Figma 73:482, con `Tone` `Warning` 65:472 y `Primary` 73:467): cambio compatible en un componente existente. Sin cuerpo, `size` ni `tone`, el diálogo es el de siempre (el aviso de sesión de la feature 001): 440 px, mosaico de advertencia y todo el contenido proyectado en las acciones.
+- `Dialog` con cuerpo, tamaño y tono (feature 007, PR 8f; Figma 73:482, con `Tone` `Warning` 65:472 y `Primary` 73:467): cambio en un componente existente, compatible salvo lo indicado en «Cambiado». Sin cuerpo, `size` ni `tone`, el diálogo es el de siempre (el aviso de sesión de la feature 001): 440 px, mosaico de advertencia y todo el contenido proyectado en las acciones.
   - **Cuerpo:** el contenido con el atributo `livDialogBody` (`<ng-content select="[livDialogBody]">`) va entre el texto y las acciones, sangrado 56 px para alinearse con el texto (mosaico de 40 px más 16 px de separación). El contenido sin ese atributo sigue yendo a las acciones. Sin cuerpo no ocupa lugar ni deja separación (el contenedor queda vacío y se oculta).
   - **`size`** (`DialogSize`: `md`, por omisión, de 440 px, o `lg`, de 520 px) y **`tone`** (`DialogTone`: `warning`, por omisión, o `primary`) son entradas nuevas y sus tipos salen por la API pública. `tone` cambia el color del mosaico del icono: `warning` usa `status/warning-subtle` con el icono en `status/warning`; `primary`, `action/primary-subtle` con el icono en `action/primary`. El icono por omisión sigue siendo `history` en los dos tonos. Sin valor o con un valor desconocido valen `md` y `warning`.
   - **Trampa de foco:** cuenta las paradas de Tab como el navegador (comprobado en Chromium; Firefox y WebKit no se han comprobado).
-    - Un grupo de radios (mismo `name` y mismo formulario) es **una** parada: el radio marcado o, si no hay ninguno, el primer radio habilitado al avanzar y el último al retroceder. Con el marcado inhabilitado, el primer habilitado en las dos direcciones.
+    - Un grupo de radios (mismo `name` y mismo formulario) es **una** parada: el radio marcado o, si no hay ninguno, el primer radio habilitado al avanzar y el último al retroceder. Un marcado que no se puede enfocar (inhabilitado o con `tabindex` negativo) cuenta como «ninguno marcado».
     - No cuentan los controles inhabilitados, ni los de un `fieldset` inhabilitado (salvo los de su primera `legend`), ni los de `tabindex` negativo.
     - La misma regla vale para el primer foco al abrir: con `data-initial-focus` sobre un contenedor, el foco va a su primera parada. Con la marca sobre un control enfocable, va a ese control.
     - Con el foco en el propio panel (un clic en una zona sin controles), Mayús+Tab da la vuelta al último.
     - Con un `RadioGroup` en el cuerpo (uno o dos años, con y sin opción marcada), Tab y Mayús+Tab dan la vuelta por el diálogo sin salirse de él.
   - Límites:
     - La trampa solo reconoce radios nativos dentro del panel: un `role="radio"` propio no es un grupo, ni cuenta un radio de fuera con el mismo `name` y sin formulario, que el navegador sí agruparía (el `name` de un `RadioGroup` es propio de cada grupo).
+    - En un grupo sin marcar, Chromium vuelve a entrar por el último radio que tuvo el foco; la trampa siempre usa el primero (al avanzar) o el último (al retroceder), así que «como el navegador» vale con la página recién cargada.
     - No descarta los elementos ocultos (`hidden`, `display: none`, `inert`): la pantalla no debe dejarlos dentro del diálogo.
     - Las pruebas de teclado son sintéticas (jsdom no navega con Tab): el recorrido completo con un navegador real se comprueba en `e2e/`. Las flechas entre radios las da el navegador.
 - `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente.

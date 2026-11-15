@@ -219,6 +219,39 @@ class GroupLastHostComponent {
   value: string | null = null;
 }
 
+/**
+ * Tres años con el primero marcado e inhabilitado, el grupo como última parada: el marcado no se puede
+ * enfocar, así que cuenta como «ninguno marcado» (Chromium).
+ */
+@Component({
+  imports: [DialogComponent, RadioGroupComponent, RadioOptionComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Marcado inhabilitado">
+      <button id="first" type="button">Primero</button>
+      <liv-radio-group legend="Año" name="disabled-checked" value="2026">
+        <liv-radio-option value="2026" label="2026" disabled />
+        <liv-radio-option value="2027" label="2027" />
+        <liv-radio-option value="2028" label="2028" />
+      </liv-radio-group>
+    </liv-dialog>
+  `,
+})
+class DisabledCheckedHostComponent {}
+
+/** Un grupo nativo sin marcar cuyo último radio no está en el orden de Tab (`tabindex` negativo). */
+@Component({
+  imports: [DialogComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Radio fuera del orden de Tab">
+      <input id="l1" type="radio" name="l" aria-label="L1" />
+      <input id="l2" type="radio" name="l" aria-label="L2" />
+      <input id="l3" type="radio" name="l" aria-label="L3" tabindex="-1" />
+      <button id="end" type="button">Fin</button>
+    </liv-dialog>
+  `,
+})
+class NegativeTabindexRadioHostComponent {}
+
 /** La marca de foco inicial sobre el contenedor del grupo (no sobre uno de sus radios). */
 @Component({
   imports: [DialogComponent, RadioGroupComponent, RadioOptionComponent],
@@ -880,6 +913,25 @@ describe('Dialog', () => {
         first.focus();
         pressKey(first, 'Tab', { shiftKey: true });
         expect(document.activeElement).toBe(radio('2026'));
+      });
+
+      it('con el marcado inhabilitado, Mayús+Tab entra por el último habilitado y Tab por el primero (Chromium)', () => {
+        const { el } = renderHost(DisabledCheckedHostComponent);
+        el('#first').focus();
+        expect(pressKey(el('#first'), 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(el('input[value="2028"]'));
+        // Tab desde un radio del grupo final (la parada hacia adelante es 2027) da la vuelta.
+        el('input[value="2027"]').focus();
+        expect(pressKey(el('input[value="2027"]'), 'Tab').defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(el('#first'));
+      });
+
+      it('un radio con tabindex negativo no es parada: sin marcar, Mayús+Tab entra por el último que sí lo es', () => {
+        const { el } = renderHost(NegativeTabindexRadioHostComponent);
+        // La parada hacia atrás es l2 (l3 no está en el orden de Tab): l1 y l2 son del mismo grupo.
+        el('#l1').focus();
+        expect(pressKey(el('#l1'), 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(el('#end'));
       });
 
       it('Tab desde el primero no se intercepta', () => {

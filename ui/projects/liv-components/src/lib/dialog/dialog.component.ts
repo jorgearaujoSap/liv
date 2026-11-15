@@ -48,10 +48,9 @@ const openDialogs: DialogComponent[] = [];
  * ni `tone`, el diálogo es el de siempre: 440 px, mosaico de advertencia y todo el contenido en las acciones.
  *
  * Al abrirse, el foco va al elemento marcado con `data-initial-focus` (o a su primer enfocable) o, si no lo hay,
- * al primer enfocable; el foco queda atrapado adentro y, al cerrarse, vuelve a quien lo tenía. Un grupo de
- * radios cuenta como **una** parada, como en el navegador: el radio marcado o, si no hay ninguno, el primero
- * habilitado al avanzar y el último al retroceder; los controles de un `fieldset` inhabilitado no cuentan.
- * La misma regla vale para el primer foco al abrir. Escape
+ * al primer enfocable; el foco queda atrapado adentro y, al cerrarse, vuelve a quien lo tenía. Las paradas de
+ * Tab son las del navegador (el detalle y sus límites están en `tabStops`): un grupo de radios cuenta como
+ * **una** y no cuentan los controles inhabilitados. La misma regla vale para el primer foco al abrir. Escape
  * emite `closeRequested` si `dismissible` es verdadero; en acciones críticas, pásalo en falso. Hacer clic fuera
  * no cierra, para no perder lo que el usuario estaba haciendo.
  *
@@ -221,12 +220,14 @@ export class DialogComponent {
    * Las paradas de Tab dentro de `root`, en el orden del documento, como las ve el navegador (comprobado en
    * Chromium; Firefox y WebKit no). No cuentan los controles inhabilitados (tampoco los de un `fieldset`
    * inhabilitado, salvo los de su primera `legend`) ni los que llevan `tabindex` negativo. Los radios de un
-   * mismo grupo (mismo `name` y mismo formulario) son una sola parada: el marcado o, si no hay ninguno,
-   * el primer radio habilitado al avanzar y el último al retroceder; con el marcado inhabilitado, el primer
-   * habilitado en las dos direcciones. Un radio sin `name` no forma grupo. `stopOf` da la parada de un
-   * elemento: la de su grupo, si es un radio de un grupo.
+   * mismo grupo (mismo `name` y mismo formulario) son una sola parada: el marcado o, si no hay ninguno (o el
+   * marcado no se puede enfocar), el primer radio enfocable al avanzar y el último al retroceder. Un radio
+   * sin `name` no forma grupo. `stopOf` da la parada de un elemento: la de su grupo, si es un radio de un
+   * grupo.
    *
-   * No descarta los elementos ocultos (`hidden`, `display: none`, `inert`): la pantalla no debe dejarlos
+   * Límite: en un grupo sin marcar, Chromium vuelve a entrar por el último radio que tuvo el foco; aquí
+   * siempre es el primero (al avanzar) o el último (al retroceder), así que «como el navegador» vale con
+   * la página recién cargada. No descarta los elementos ocultos (`hidden`, `display: none`, `inert`): la pantalla no debe dejarlos
    * en el diálogo.
    */
   private tabStops(root: HTMLElement, backwards: boolean): TabStops {
@@ -264,12 +265,10 @@ export class DialogComponent {
 
   /** La parada de un grupo de radios, o `undefined` si ninguno es enfocable. */
   private radioGroupStop(members: HTMLInputElement[], backwards: boolean) {
-    const checked = members.find((member) => member.checked);
-    if (checked && !this.isDisabled(checked)) {
-      return checked;
-    }
-    const enabled = members.filter((member) => !this.isDisabled(member));
-    return enabled[backwards && !checked ? enabled.length - 1 : 0];
+    const focusable = members.filter((member) => member.tabIndex >= 0 && !this.isDisabled(member));
+    // Como Chromium, un radio marcado que no se puede enfocar cuenta como «ninguno marcado».
+    const checked = focusable.find((member) => member.checked);
+    return checked ?? focusable[backwards ? focusable.length - 1 : 0];
   }
 
   /** Si un control de formulario está inhabilitado, por sí mismo o por un `fieldset` inhabilitado. */
