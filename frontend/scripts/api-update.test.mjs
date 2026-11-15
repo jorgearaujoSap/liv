@@ -237,8 +237,8 @@ describe('api-spec/ y src/app/api/ del proyecto', () => {
   const specDir = join(projectDir, 'api-spec');
   const versions = readVersions(specDir);
 
-  it('versions.json fija core, platform y bff, y no core-internal (ADR 0025)', () => {
-    assert.deepEqual(Object.keys(versions.contracts).sort(), ['bff', 'core', 'platform']);
+  it('versions.json fija core, platform, bff y tax, y no core-internal (ADR 0025)', () => {
+    assert.deepEqual(Object.keys(versions.contracts).sort(), ['bff', 'core', 'platform', 'tax']);
   });
 
   it('las copias de api-spec/ coinciden con el SHA-256 de versions.json', () => {

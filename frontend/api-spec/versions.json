@@ -12,6 +12,10 @@
     "platform": {
       "version": "1.0.0",
       "sha256": "5b99fc08cdc379d9739dc22a9294a44ce18e13a851221851c465568c91576929"
+    },
+    "tax": {
+      "version": "1.0.0",
+      "sha256": "67a7c5ef4f007f1876c7dd2b33d1a73fc518e99dcfe1532d4936bda00eb55302"
     }
   }
 }
