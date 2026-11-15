@@ -36,7 +36,7 @@ class CreateFiscalYearTest {
 
   private CreateFiscalYear useCase(Instant now) {
     Clock clock = Clock.fixed(now, ZoneOffset.UTC);
-    return new CreateFiscalYear(fiscalYears, new BusinessYear(clock, BOGOTA), events::add, clock);
+    return new CreateFiscalYear(fiscalYears, events::add, clock, BOGOTA);
   }
 
   private RuleViolation rejected(CreateFiscalYear useCase, int year) {

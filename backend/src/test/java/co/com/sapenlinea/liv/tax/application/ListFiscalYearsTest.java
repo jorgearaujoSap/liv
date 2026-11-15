@@ -33,7 +33,7 @@ class ListFiscalYearsTest {
   private ListFiscalYears list(Instant now, String... permissions) {
     Clock clock = Clock.fixed(now, ZoneOffset.UTC);
     return new ListFiscalYears(
-        fiscalYears, FakeFiscalYears.catalogWith(permissions), new BusinessYear(clock, BOGOTA));
+        fiscalYears, FakeFiscalYears.catalogWith(permissions), clock, BOGOTA);
   }
 
   @Test
@@ -120,8 +120,7 @@ class ListFiscalYearsTest {
       "007-08 · La lista nunca ofrece un año que la creación rechace, en la frontera del año")
   void neverOffersWhatTheCreationRejects() {
     Clock clock = Clock.fixed(LAST_NIGHT_OF_2026, ZoneOffset.UTC);
-    var create =
-        new CreateFiscalYear(fiscalYears, new BusinessYear(clock, BOGOTA), event -> {}, clock);
+    var create = new CreateFiscalYear(fiscalYears, event -> {}, clock, BOGOTA);
     var offered =
         list(LAST_NIGHT_OF_2026, READ, CREATE).list(FakeFiscalYears.user()).creatableYears();
 
