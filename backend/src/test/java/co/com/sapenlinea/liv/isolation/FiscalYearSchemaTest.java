@@ -280,6 +280,52 @@ class FiscalYearSchemaTest {
   }
 
   @Test
+  @Tag("V-01")
+  @Tag("007-05")
+  @DisplayName(
+      "V-01 · 007-05 · (administration_id, fiscal_year) es la única restricción única que un INSERT de liv_app puede violar")
+  void theYearKeyIsTheOnlyUniqueAnApplicationInsertCanBreak() {
+    // The adapter turns any unique violation (SQLState 23505) of the insert into V-01 without
+    // reading the name of the constraint. That is right only while no other unique index can be
+    // broken by liv_app. The primary key and (id, administration_id) cannot: liv_app does not
+    // insert id, which the database generates with uuidv7(). Any unique index without the id is a
+    // new one that the insert can break: whoever adds it must also change how the adapter tells
+    // them apart (JpaFiscalYears.breaksTheYearKey).
+    List<Object[]> indexes =
+        LivDatabase.readAsOwner(
+            """
+            SELECT string_agg(a.attname, ',' ORDER BY a.attname), bool_or(i.indexprs IS NOT NULL)
+              FROM pg_index i
+              JOIN pg_class c ON c.oid = i.indrelid
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+              CROSS JOIN LATERAL unnest(i.indkey) AS k(attnum)
+              LEFT JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+             WHERE n.nspname = 'tax' AND c.relname = 'administration_fiscal_year'
+               AND i.indisunique
+             GROUP BY i.indexrelid
+            """);
+
+    List<String> withoutTheId =
+        indexes.stream()
+            .map(row -> (String) row[0])
+            .filter(columns -> !List.of(columns.split(",")).contains("id"))
+            .toList();
+    assertThat(withoutTheId).containsExactly("administration_id,fiscal_year");
+    assertThat(indexes)
+        .as("every unique index is on plain columns")
+        .allMatch(row -> !(Boolean) row[1]);
+    // And the application does not insert the id: the insert privilege has exactly three columns.
+    assertThat(
+            LivDatabase.readAsOwner(
+                    "SELECT string_agg(column_name, ',' ORDER BY column_name)"
+                        + " FROM information_schema.column_privileges"
+                        + " WHERE table_schema = 'tax' AND table_name = 'administration_fiscal_year'"
+                        + " AND grantee = 'liv_app' AND privilege_type = 'INSERT'")
+                .getFirst()[0])
+        .isEqualTo("administration_id,created_by,fiscal_year");
+  }
+
+  @Test
   @Tag("007-10")
   @DisplayName("007-10 · updated_at no puede ser anterior a created_at: ni al insertar ni al abrir")
   void updatedAtCannotPrecedeCreatedAt() throws SQLException {

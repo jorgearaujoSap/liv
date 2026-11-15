@@ -3,76 +3,50 @@ package co.com.sapenlinea.liv.tax.infrastructure.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.SQLException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.postgresql.util.PSQLException;
-import org.postgresql.util.ServerErrorMessage;
 import org.springframework.dao.DataIntegrityViolationException;
 
 /**
- * Which integrity failures the adapter turns into V-01: only the {@code UNIQUE (administration_id,
- * fiscal_year)}, by its SQLState and by the name of the constraint that the server reports in a
- * field of the error, whatever the language of its text. Failures built like the driver builds
- * them, because the database cannot produce another unique violation on this insert (the key is
- * generated).
+ * Which integrity failures of the {@code INSERT} the adapter turns into V-01: the standard SQLState
+ * {@code 23505} (unique violation), wherever it is in the chain of causes, and nothing else. It
+ * does not read the name of the constraint (that needs the driver or the text of the server, which
+ * depends on its language): {@code FiscalYearSchemaTest} fixes that the year key is the only unique
+ * constraint that an insert of the application can break.
  */
-@DisplayName("Reconocimiento del UNIQUE de la vigencia (V-01)")
+@DisplayName("Reconocimiento del UNIQUE de la vigencia por su SQLState (V-01)")
 class YearKeyViolationTest {
 
   private static final String UNIQUE_VIOLATION = "23505";
 
-  /** An error as the driver raises it: the fields of the server, with its message in Spanish. */
-  private static DataIntegrityViolationException failure(String sqlState, String constraint) {
-    String fields =
-        "SERROR\0C"
-            + sqlState
-            + "\0Mel valor de la llave duplicada viola la restricción de unicidad"
-            + (constraint == null ? "" : "\0n" + constraint)
-            + "\0";
-    SQLException sql = new PSQLException(new ServerErrorMessage(fields));
-    return new DataIntegrityViolationException("integrity", sql);
+  private static DataIntegrityViolationException failure(String sqlState) {
+    SQLException sql = new SQLException("failure of the server, in any language", sqlState);
+    return new DataIntegrityViolationException(
+        "integrity", new ConstraintViolationException("failure", sql, "any_name"));
   }
 
   @Test
   @Tag("V-01")
-  @DisplayName(
-      "V-01 · El UNIQUE del año se reconoce por su nombre aunque el mensaje esté en español")
-  void theYearKeyIsRecognizedWhateverTheLanguage() {
+  @DisplayName("V-01 · Una violación de unicidad (SQLState 23505) se reconoce, sin leer su nombre")
+  void aUniqueViolationIsRecognized() {
+    assertThat(JpaFiscalYears.breaksTheYearKey(failure(UNIQUE_VIOLATION))).isTrue();
     assertThat(
             JpaFiscalYears.breaksTheYearKey(
-                failure(UNIQUE_VIOLATION, "administration_fiscal_year_year_key")))
+                new DataIntegrityViolationException(
+                    "plain", new SQLException("without Hibernate", UNIQUE_VIOLATION))))
         .isTrue();
   }
 
   @Test
   @Tag("V-01")
-  @DisplayName("V-01 · Otra restricción única, otro SQLState, sin nombre o sin driver no son V-01")
+  @DisplayName("V-01 · Otro SQLState (FK, CHECK, NOT NULL) o un fallo sin SQL no son V-01")
   void anythingElseIsNotV01() {
-    assertThat(
-            JpaFiscalYears.breaksTheYearKey(
-                failure(UNIQUE_VIOLATION, "administration_fiscal_year_pkey")))
-        .isFalse();
-    assertThat(
-            JpaFiscalYears.breaksTheYearKey(
-                failure(UNIQUE_VIOLATION, "administration_fiscal_year_id_administration_key")))
-        .isFalse();
-    assertThat(
-            JpaFiscalYears.breaksTheYearKey(
-                failure(UNIQUE_VIOLATION, "other_schema.administration_fiscal_year_year_key")))
-        .isFalse();
-    assertThat(
-            JpaFiscalYears.breaksTheYearKey(
-                failure("23503", "administration_fiscal_year_year_key")))
-        .isFalse();
-    assertThat(JpaFiscalYears.breaksTheYearKey(failure(UNIQUE_VIOLATION, null))).isFalse();
-    assertThat(
-            JpaFiscalYears.breaksTheYearKey(
-                new DataIntegrityViolationException(
-                    "plain", new SQLException("without the driver", UNIQUE_VIOLATION))))
-        .isFalse();
-    assertThat(
-            JpaFiscalYears.breaksTheYearKey(new DataIntegrityViolationException("without cause")))
+    for (String sqlState : new String[] {"23503", "23514", "23502", "23000", "40001", null}) {
+      assertThat(JpaFiscalYears.breaksTheYearKey(failure(sqlState))).as("%s", sqlState).isFalse();
+    }
+    assertThat(JpaFiscalYears.breaksTheYearKey(new DataIntegrityViolationException("no cause")))
         .isFalse();
   }
 }
