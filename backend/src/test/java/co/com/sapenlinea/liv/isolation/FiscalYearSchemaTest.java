@@ -349,7 +349,7 @@ class FiscalYearSchemaTest {
     }
     assertThat(statusOf(2061)).isEqualTo("PLANEADA");
 
-    Timestamp now = Timestamp.from(Instant.now());
+    Timestamp now = afterCreation();
     for (Trace trace :
         List.of(new Trace(null, null), new Trace(USER_A, null), new Trace(null, now))) {
       SQLException incomplete =
@@ -654,6 +654,14 @@ class FiscalYearSchemaTest {
   private record Trace(UUID by, Timestamp at) {}
 
   /** Inserta como dueño (que no pasa por la RLS) una vigencia con el estado que se pida. */
+  /**
+   * A moment after the row is created (created_at is the clock of the database): a minute ahead, so
+   * the difference between the clock of the test and the one of the container does not matter.
+   */
+  private static Timestamp afterCreation() {
+    return Timestamp.from(Instant.now().plusSeconds(60));
+  }
+
   private static int insertAsOwner(
       UUID administration, int year, String status, boolean assessmentsEnabled, UUID createdBy)
       throws SQLException {
@@ -668,7 +676,7 @@ class FiscalYearSchemaTest {
         assessmentsEnabled,
         createdBy,
         opened ? createdBy : null,
-        opened ? Timestamp.from(Instant.now()) : null);
+        opened ? afterCreation() : null);
   }
 
   /** El estado de la vigencia de A de ese año, leído por la aplicación con el contexto de A. */
