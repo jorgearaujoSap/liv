@@ -124,10 +124,11 @@ class ErrorResponsesTest extends PlatformWebTest {
 
     String line =
         output.getAll().lines().filter(l -> l.contains("Rule V-01")).findFirst().orElse("");
-    assertThat(line).contains(" INFO ").contains(correlationId).contains("[year]");
+    assertThat(line).contains(" INFO ").contains(correlationId).contains("year").contains("marker");
     // The values of the details may become personal data in later rules: only their names are
     // logged.
     assertThat(line).doesNotContain("year=").doesNotContain("=2026");
+    assertThat(output).doesNotContain("VALOR-SECRETO-X");
     assertThat(output).doesNotContain("Unexpected error");
   }
 
@@ -166,7 +167,8 @@ class ErrorResponsesTest extends PlatformWebTest {
 
     @GetMapping("/api/v1/probe/rule/conflict")
     Map<String, String> conflict() {
-      throw new RuleViolation("V-01", RuleViolation.Type.CONFLICT, Map.of("year", 2026));
+      throw new RuleViolation(
+          "V-01", RuleViolation.Type.CONFLICT, Map.of("year", 2026, "marker", "VALOR-SECRETO-X"));
     }
 
     @GetMapping("/api/v1/probe/rule/unprocessable")

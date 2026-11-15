@@ -98,4 +98,26 @@ class GetFiscalYearTest {
     assertThatThrownBy(() -> useCase(READ).get(FakeFiscalYears.user(), 2026))
         .isInstanceOf(NotFound.class);
   }
+
+  @Test
+  @Tag("007-10")
+  @Tag("007-11")
+  @DisplayName(
+      "007-10 · 007-11 · En los cinco estados: el punto 1 se cumple salvo en PLANEADA, y la acción solo se ofrece en PLANEADA")
+  void theFiveStates() {
+    for (FiscalYearStatus status : FiscalYearStatus.values()) {
+      int year = 2000 + status.ordinal();
+      fiscalYears.given(ADMINISTRATION, year, status);
+
+      var detail = useCase(READ, PREPARE).get(FakeFiscalYears.user(), year);
+
+      boolean planned = status == FiscalYearStatus.PLANEADA;
+      assertThat(detail.preparation().items().getFirst().status())
+          .as(status.name())
+          .isEqualTo(planned ? PreparationItemStatus.PENDING : PreparationItemStatus.MET);
+      assertThat(detail.availableActions())
+          .as(status.name())
+          .isEqualTo(planned ? List.of("OPEN_PREPARATION") : List.of());
+    }
+  }
 }

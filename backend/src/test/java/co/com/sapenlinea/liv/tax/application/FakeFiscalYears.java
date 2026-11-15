@@ -99,6 +99,7 @@ final class FakeFiscalYears implements FiscalYears {
 
   @Override
   public Optional<Stored> find(UUID administrationId, int year) {
+    calls.add("find");
     return rowsOf(administrationId).stream()
         .filter(row -> row.fiscalYear().year() == year)
         .findFirst();
@@ -119,11 +120,18 @@ final class FakeFiscalYears implements FiscalYears {
 
   @Override
   public Stored persistOpened(Stored current, UUID openedBy) {
+    // It does not validate the state, as the UPDATE of the database would (0 rows): the use case
+    // must have decided V-06 before. It only records the call and changes the state.
+    calls.add("persistOpened");
     rows.remove(current);
     Stored opened =
         new Stored(
             current.id(),
-            current.fiscalYear().openPreparation(),
+            AdministrationFiscalYear.restore(
+                current.fiscalYear().administrationId(),
+                current.fiscalYear().year(),
+                FiscalYearStatus.EN_PREPARACION,
+                false),
             current.startsOn(),
             current.endsOn());
     rows.add(opened);

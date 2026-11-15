@@ -5,6 +5,7 @@ import static co.com.sapenlinea.liv.tax.application.FakeFiscalYears.USER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
+import co.com.sapenlinea.liv.platform.Correlation;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.FiscalYearCreated;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
@@ -16,9 +17,12 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 /**
  * Creating a fiscal year with a double of the port: each rejection, its code and its extensions.
@@ -33,6 +37,16 @@ class CreateFiscalYearTest {
 
   private final FakeFiscalYears fiscalYears = new FakeFiscalYears();
   private final List<Object> events = new ArrayList<>();
+
+  @BeforeEach
+  void putTheCorrelationOfTheRequest() {
+    MDC.put(Correlation.MDC_KEY, "correlation-1");
+  }
+
+  @AfterEach
+  void removeTheCorrelation() {
+    MDC.remove(Correlation.MDC_KEY);
+  }
 
   private CreateFiscalYear useCase(Instant now) {
     Clock clock = Clock.fixed(now, ZoneOffset.UTC);
@@ -81,6 +95,22 @@ class CreateFiscalYearTest {
     assertThat(event.previousStatus()).isNull();
     assertThat(event.newStatus()).isEqualTo("PLANEADA");
     assertThat(event.occurredAt()).isEqualTo(LAST_NIGHT_OF_2026);
+    assertThat(event.correlationId()).isEqualTo("correlation-1");
+  }
+
+  @Test
+  @Tag("007-04")
+  @DisplayName("007-04 · Cada evento lleva su propio eventId: la auditoría guarda cada uno una vez")
+  void everyEventHasItsOwnId() {
+    CreateFiscalYear useCase = useCase(LAST_NIGHT_OF_2026);
+
+    useCase.create(FakeFiscalYears.user(), 2026);
+    useCase.create(FakeFiscalYears.user(), 2027);
+
+    assertThat(events).hasSize(2);
+    assertThat(
+            events.stream().map(event -> ((FiscalYearCreated) event).eventId()).distinct().count())
+        .isEqualTo(2);
   }
 
   @Test

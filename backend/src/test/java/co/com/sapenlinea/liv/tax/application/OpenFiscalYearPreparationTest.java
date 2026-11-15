@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
+import co.com.sapenlinea.liv.platform.Correlation;
 import co.com.sapenlinea.liv.shared.NotFound;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.FiscalYearStatusChanged;
@@ -16,9 +17,12 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 @DisplayName("Abrir la preparación de una vigencia (007-10)")
 class OpenFiscalYearPreparationTest {
@@ -29,6 +33,16 @@ class OpenFiscalYearPreparationTest {
   private final List<Object> events = new ArrayList<>();
   private final OpenFiscalYearPreparation useCase =
       new OpenFiscalYearPreparation(fiscalYears, events::add, Clock.fixed(NOW, ZoneOffset.UTC));
+
+  @BeforeEach
+  void putTheCorrelationOfTheRequest() {
+    MDC.put(Correlation.MDC_KEY, "correlation-1");
+  }
+
+  @AfterEach
+  void removeTheCorrelation() {
+    MDC.remove(Correlation.MDC_KEY);
+  }
 
   @Test
   @Tag("007-10")
@@ -51,6 +65,8 @@ class OpenFiscalYearPreparationTest {
     assertThat(event.previousStatus()).isEqualTo("PLANEADA");
     assertThat(event.newStatus()).isEqualTo("EN_PREPARACION");
     assertThat(event.occurredAt()).isEqualTo(NOW);
+    assertThat(event.correlationId()).isEqualTo("correlation-1");
+    assertThat(fiscalYears.calls()).containsExactly("find", "persistOpened");
   }
 
   @Test
@@ -76,6 +92,8 @@ class OpenFiscalYearPreparationTest {
           .containsExactlyInAnyOrderEntriesOf(Map.of("year", year, "currentStatus", status.name()));
     }
     assertThat(events).isEmpty();
+    // The domain refuses it from the state it read: the port is never asked to write.
+    assertThat(fiscalYears.calls()).doesNotContain("persistOpened");
   }
 
   @Test

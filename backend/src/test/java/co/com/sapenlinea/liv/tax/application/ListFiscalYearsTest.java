@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -136,10 +137,12 @@ class ListFiscalYearsTest {
             new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026),
             new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026, 2028))) {
       List<Integer> offered = offeredYears(scenario.now(), scenario.existing());
-      assertThat(offered).as("la lista ofrece algo o está bloqueada").hasSizeLessThanOrEqualTo(2);
+      assertThat(offered).as("la lista ofrece de cero a dos años").hasSizeLessThanOrEqualTo(2);
       for (int year = 1999; year <= 2100; year++) {
         assertThat(offered.contains(year))
-            .as("año %d, ahora %s, con %s", year, scenario.now(), List.of(scenario.existing()))
+            .as(
+                "año %d, ahora %s, con %s",
+                year, scenario.now(), Arrays.toString(scenario.existing()))
             .isEqualTo(accepts(scenario.now(), scenario.existing(), year));
       }
     }
