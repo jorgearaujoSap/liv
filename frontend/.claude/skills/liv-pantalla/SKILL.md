@@ -37,7 +37,7 @@ Una pantalla nueva, o un cambio en su estructura o su aspecto, va por el SDD (`A
    - `imports` solo con componentes de `liv-components`.
    - `changeDetection: ChangeDetectionStrategy.OnPush`.
    - `input()`/`output()` en lugar de decoradores. Estado derivado con `computed()`. Flujo de control nativo de las plantillas (`@if`, `@for`).
-   - Textos en español en la plantilla, con los términos del glosario. Fechas y montos en `es-CO`: miles con punto, decimales con coma, `dd/mm/aaaa`.
+   - Textos en español en la plantilla, con los términos del glosario. Montos en `es-CO`: miles con punto, decimales con coma. Fechas con `formatBusinessDate` de `liv-components`, que no convierte de zona: `dd/mm/aaaa` (`'short'`) en tablas de consulta y exportaciones, y la fecha larga, «1 de enero de 2026» (`'long'`), para fechas sueltas. Si el diseño aprobado muestra otro formato, manda el diseño.
 6. **Estilos** en `<pantalla>.css`.
    - La primera línea es `@reference '../../../styles.css';`. Solo se usa `@apply` con utilidades de Tailwind y *tokens* de la librería (`text-heading-h3`, `text-text-primary`).
    - Nada de colores, tamaños de letra ni sombras sueltas. Nada de `::ng-deep`, ni de redefinir los estilos de un componente de la librería.
