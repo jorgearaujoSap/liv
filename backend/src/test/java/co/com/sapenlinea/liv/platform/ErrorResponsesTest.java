@@ -16,6 +16,8 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
@@ -145,6 +147,18 @@ class ErrorResponsesTest extends PlatformWebTest {
     assertThat(missing.body()).doesNotContain("missing").doesNotContain("foreign");
   }
 
+  @Test
+  @DisplayName(
+      "Contrato · Un campo entero solo acepta un entero: «5» y 5.5 son un 400 en cualquier API, no se convierten")
+  void anIntegerFieldDoesNotCoerce() {
+    String ok = post("/api/v1/probe/typed", user("c-int"), "{\"n\":5}").body();
+    assertThat(ok).contains("5");
+    for (String body :
+        new String[] {"{\"n\":\"5\"}", "{\"n\":5.5}", "{\"n\":5.0}", "{\"n\":true}"}) {
+      assertProblem(post("/api/v1/probe/typed", user("c-int"), body), 400, "SYS-400");
+    }
+  }
+
   private static Map<String, String> user(String correlationId) {
     Map<String, String> headers = bearer(OidcTestProvider.userToken(ACTIVE, LivDatabase.ADMIN_A));
     headers.put("X-Correlation-Id", correlationId);
@@ -175,6 +189,14 @@ class ErrorResponsesTest extends PlatformWebTest {
     Map<String, String> unprocessable() {
       throw new RuleViolation(
           "V-02", RuleViolation.Type.UNPROCESSABLE, Map.of("reason", "GAP", "requiredYear", 2027));
+    }
+
+    /** A body with an integer, to see how the JSON of the whole application converts it. */
+    record Typed(int n) {}
+
+    @PostMapping("/api/v1/probe/typed")
+    Map<String, Integer> typed(@RequestBody Typed body) {
+      return Map.of("n", body.n());
     }
 
     /** The same route for both reasons: the body must not tell them apart. */
