@@ -127,7 +127,7 @@ class ErrorResponsesTest extends PlatformWebTest {
     assertThat(line).contains(" INFO ").contains(correlationId).contains("[year]");
     // The values of the details may become personal data in later rules: only their names are
     // logged.
-    assertThat(line).doesNotContain("2026");
+    assertThat(line).doesNotContain("year=").doesNotContain("=2026");
     assertThat(output).doesNotContain("Unexpected error");
   }
 

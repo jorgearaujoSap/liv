@@ -2,7 +2,6 @@ package co.com.sapenlinea.liv.tax.application;
 
 import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
-import co.com.sapenlinea.liv.platform.RequiresPermission;
 import co.com.sapenlinea.liv.shared.NotFound;
 import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
@@ -10,15 +9,17 @@ import co.com.sapenlinea.liv.tax.domain.PreparationChecklist;
 import co.com.sapenlinea.liv.tax.domain.PreparationItemCheck;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * A fiscal year of the administration with what the user can do with it and its preparation
  * checklist (007-10 to 007-12). A year that does not exist in the administration, also one of
  * another, is {@link NotFound} (CA-12).
+ *
+ * <p>Not a bean yet: the adapter of the port arrives with the persistence (6a2), which makes it a
+ * {@code @Service} with {@code @RequiresPermission(PERMISSION)}. Until then nothing can call it
+ * from the API, and the permission is not applied.
  */
-@Service
 public class GetFiscalYear {
 
   public static final String PERMISSION = "tax.fiscal-year.read";
@@ -52,7 +53,6 @@ public class GetFiscalYear {
     }
   }
 
-  @RequiresPermission(PERMISSION)
   @Transactional(readOnly = true)
   public Detail get(CurrentUser user, int year) {
     Stored stored =

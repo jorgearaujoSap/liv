@@ -69,7 +69,8 @@ class ProblemDetailsHandler extends ResponseEntityExceptionHandler {
   /** A rule refused the action: an expected answer, not a failure, so it is not logged as one. */
   @ExceptionHandler(RuleViolation.class)
   ResponseEntity<ProblemDetail> ruleViolation(RuleViolation violation) {
-    LOG.info("Rule {} refused the request: {}", violation.code(), violation.details());
+    // Only the names of the details: their values may be personal data in later rules.
+    LOG.info("Rule {} refused the request: {}", violation.code(), violation.details().keySet());
     HttpStatus status =
         violation.type() == RuleViolation.Type.CONFLICT
             ? HttpStatus.CONFLICT
