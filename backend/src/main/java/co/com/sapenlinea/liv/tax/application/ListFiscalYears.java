@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.tax.application;
 
 import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
+import co.com.sapenlinea.liv.platform.RequiresPermission;
 import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.CreatableYear;
 import co.com.sapenlinea.liv.tax.domain.CreateBlocked;
@@ -11,17 +12,15 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The fiscal years of the administration and the years that can be created (007-01, 007-03). It
  * uses the same policy and the same current year as {@link CreateFiscalYear}, so it never offers a
  * year that the creation rejects.
- *
- * <p>Not a bean yet: the adapter of the port arrives with the persistence (6a2), which makes it a
- * {@code @Service} with {@code @RequiresPermission(PERMISSION)}. Until then nothing can call it
- * from the API, and the permission is not applied.
  */
+@Service
 public class ListFiscalYears {
 
   public static final String PERMISSION = "tax.fiscal-year.read";
@@ -60,6 +59,7 @@ public class ListFiscalYears {
     }
   }
 
+  @RequiresPermission(PERMISSION)
   @Transactional(readOnly = true)
   public Listing list(CurrentUser user) {
     List<Stored> items = fiscalYears.findAll(user.administrationId());

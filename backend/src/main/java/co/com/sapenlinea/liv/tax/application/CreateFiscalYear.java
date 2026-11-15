@@ -2,6 +2,7 @@ package co.com.sapenlinea.liv.tax.application;
 
 import co.com.sapenlinea.liv.platform.Correlation;
 import co.com.sapenlinea.liv.platform.CurrentUser;
+import co.com.sapenlinea.liv.platform.RequiresPermission;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.FiscalYearCreated;
 import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
@@ -12,6 +13,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,11 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The isolation is {@code READ_COMMITTED} on purpose: the lock only helps if every statement
  * after it sees what the other creation committed, and a snapshot taken before the lock would not.
- *
- * <p>Not a bean yet: the adapter of the port arrives with the persistence (6a2), which makes it a
- * {@code @Service} with {@code @RequiresPermission(PERMISSION)}. Until then nothing can call it
- * from the API, and the permission is not applied.
  */
+@Service
 public class CreateFiscalYear {
 
   public static final String PERMISSION = "tax.fiscal-year.create";
@@ -55,6 +54,7 @@ public class CreateFiscalYear {
   /**
    * @throws RuleViolation V-01, V-02 or V-05, the first rule the year breaks
    */
+  @RequiresPermission(PERMISSION)
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public Stored create(CurrentUser user, int year) {
     UUID administrationId = user.administrationId();

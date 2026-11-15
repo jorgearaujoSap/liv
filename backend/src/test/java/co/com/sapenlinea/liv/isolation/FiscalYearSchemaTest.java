@@ -181,7 +181,8 @@ class FiscalYearSchemaTest {
     SQLException duplicate =
         failureOf(() -> insertAsOwner(ADMIN_A, 2050, "PLANEADA", false, USER_A));
     assertThat(duplicate.getSQLState()).isEqualTo(UNIQUE_VIOLATION);
-    // El adaptador de la aplicación reconoce esta restricción por su nombre (V-01, plan paso 6).
+    // El nombre se fija para que un cambio de la restricción se note; el adaptador de la aplicación
+    // solo usa el SQLState (V-01), con la garantía de la prueba que sigue a esta.
     assertThat(
             ((org.postgresql.util.PSQLException) duplicate).getServerErrorMessage().getConstraint())
         .isEqualTo("administration_fiscal_year_year_key");
@@ -280,6 +281,126 @@ class FiscalYearSchemaTest {
   }
 
   @Test
+  @Tag("V-01")
+  @Tag("007-05")
+  @DisplayName(
+      "V-01 · 007-05 · (administration_id, fiscal_year) es la única restricción única que un INSERT de liv_app puede violar")
+  void theYearKeyIsTheOnlyUniqueAnApplicationInsertCanBreak() {
+    // The adapter turns any unique violation (SQLState 23505) of the insert into V-01 without
+    // reading the name of the constraint. That is right only while no other unique index can be
+    // broken by liv_app. The primary key and (id, administration_id) cannot: liv_app does not
+    // insert id, which the database generates with uuidv7(). Any unique index without the id is a
+    // new one that the insert can break: whoever adds it must also change how the adapter tells
+    // them apart (JpaFiscalYears.breaksTheYearKey). The same holds for what the insert can write
+    // elsewhere: a trigger or a rule on insert could raise a 23505 of another table.
+    String table = "'tax.administration_fiscal_year'::regclass";
+    assertThat(
+            LivDatabase.readAsOwner("SELECT relkind::text FROM pg_class WHERE oid = " + table)
+                .getFirst()[0])
+        .as("an ordinary table: a partitioned one needs this test reviewed")
+        .isEqualTo("r");
+
+    // Only the columns of the key count: the ones of INCLUDE are not part of the uniqueness, so an
+    // index on (administration_id) INCLUDE (id) is still a unique index on administration_id.
+    List<Object[]> indexes =
+        LivDatabase.readAsOwner(
+            """
+            SELECT coalesce(string_agg(a.attname, ',' ORDER BY a.attname), ''),
+                   bool_or(i.indexprs IS NOT NULL)
+              FROM pg_index i
+              CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord)
+              LEFT JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+             WHERE i.indrelid = 'tax.administration_fiscal_year'::regclass
+               AND i.indisunique AND k.ord <= i.indnkeyatts
+             GROUP BY i.indexrelid
+            """);
+
+    List<String> withoutTheId =
+        indexes.stream()
+            .map(row -> (String) row[0])
+            .filter(columns -> !List.of(columns.split(",")).contains("id"))
+            .toList();
+    assertThat(withoutTheId).containsExactly("administration_id,fiscal_year");
+    assertThat(indexes)
+        .as("every unique index is on plain columns")
+        .allMatch(row -> !(Boolean) row[1]);
+
+    assertThat(
+            LivDatabase.readAsOwner(
+                    "SELECT count(*) FROM pg_trigger WHERE tgrelid = "
+                        + table
+                        + " AND NOT tgisinternal AND (tgtype & 4) <> 0")
+                .getFirst()[0])
+        .as("no trigger on insert")
+        .isEqualTo(0L);
+    assertThat(
+            LivDatabase.readAsOwner("SELECT count(*) FROM pg_rewrite WHERE ev_class = " + table)
+                .getFirst()[0])
+        .as("no rule")
+        .isEqualTo(0L);
+
+    // And the application does not insert the id: it can insert exactly three columns, counting
+    // PUBLIC and the roles it belongs to.
+    assertThat(
+            LivDatabase.readAsOwner(
+                    "SELECT string_agg(attname, ',' ORDER BY attname) FROM pg_attribute"
+                        + " WHERE attrelid = "
+                        + table
+                        + " AND attnum > 0 AND NOT attisdropped"
+                        + " AND has_column_privilege('liv_app', attrelid, attnum, 'INSERT')")
+                .getFirst()[0])
+        .isEqualTo("administration_id,created_by,fiscal_year");
+  }
+
+  @Test
+  @Tag("007-10")
+  @DisplayName("007-10 · updated_at no puede ser anterior a created_at: ni al insertar ni al abrir")
+  void updatedAtCannotPrecedeCreatedAt() throws SQLException {
+    // The row is created now (created_at = now()); a day earlier is before its own creation,
+    // however
+    // far the clock of the container is from this one.
+    Timestamp beforeCreation = Timestamp.from(Instant.now().minusSeconds(86_400));
+    SQLException early =
+        failureOf(() ->
+            update(
+                OWNER,
+                null,
+                INSERT_AS_OWNER,
+                ADMIN_A,
+                2063,
+                "EN_PREPARACION",
+                false,
+                USER_A,
+                USER_A,
+                beforeCreation));
+    assertThat(early.getSQLState()).isEqualTo(CHECK_VIOLATION);
+    assertThat(((PSQLException) early).getServerErrorMessage().getConstraint())
+        .isEqualTo("administration_fiscal_year_updated_at_check");
+
+    // The application can write updated_at (it has the column privilege): the check is the barrier.
+    update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2064, USER_A);
+    SQLException backdated =
+        failureOf(() ->
+            update(
+                APP,
+                ADMIN_A,
+                "UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION',"
+                    + " updated_by = ?, updated_at = now() - interval '1 hour'"
+                    + " WHERE fiscal_year = 2064",
+                USER_A));
+    assertThat(backdated.getSQLState()).isEqualTo(CHECK_VIOLATION);
+    assertThat(((PSQLException) backdated).getServerErrorMessage().getConstraint())
+        .isEqualTo("administration_fiscal_year_updated_at_check");
+    assertThat(statusOf(2064)).isEqualTo("PLANEADA");
+
+    // The clock of the database is always valid: it is never before the start of the creation.
+    assertThat(update(APP, ADMIN_A, OPEN, USER_A, ADMIN_A, 2064)).isEqualTo(1);
+    assertThat(statusOf(2064)).isEqualTo("EN_PREPARACION");
+    // A row that was never updated has no updated_at and is valid.
+    update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2065, USER_A);
+  }
+
+  @Test
   @Tag("007-10")
   @DisplayName(
       "007-10 · Una vigencia En preparación exige updated_by y updated_at, cada uno por separado")
@@ -302,7 +423,7 @@ class FiscalYearSchemaTest {
     }
     assertThat(statusOf(2061)).isEqualTo("PLANEADA");
 
-    Timestamp now = Timestamp.from(Instant.now());
+    Timestamp now = afterCreation();
     for (Trace trace :
         List.of(new Trace(null, null), new Trace(USER_A, null), new Trace(null, now))) {
       SQLException incomplete =
@@ -606,6 +727,14 @@ class FiscalYearSchemaTest {
   /** Quién y cuándo hizo el último cambio de una vigencia (updated_by y updated_at). */
   private record Trace(UUID by, Timestamp at) {}
 
+  /**
+   * A moment after the row is created (created_at is the clock of the database): a day ahead, so
+   * the difference between the clock of the test and the one of the container does not matter.
+   */
+  private static Timestamp afterCreation() {
+    return Timestamp.from(Instant.now().plusSeconds(86_400));
+  }
+
   /** Inserta como dueño (que no pasa por la RLS) una vigencia con el estado que se pida. */
   private static int insertAsOwner(
       UUID administration, int year, String status, boolean assessmentsEnabled, UUID createdBy)
@@ -621,7 +750,7 @@ class FiscalYearSchemaTest {
         assessmentsEnabled,
         createdBy,
         opened ? createdBy : null,
-        opened ? Timestamp.from(Instant.now()) : null);
+        opened ? afterCreation() : null);
   }
 
   /** El estado de la vigencia de A de ese año, leído por la aplicación con el contexto de A. */
