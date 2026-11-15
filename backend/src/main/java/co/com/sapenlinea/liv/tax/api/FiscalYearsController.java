@@ -15,11 +15,11 @@ import co.com.sapenlinea.liv.tax.api.contract.model.Preparation;
 import co.com.sapenlinea.liv.tax.api.contract.model.PreparationItem;
 import co.com.sapenlinea.liv.tax.api.contract.model.PreparationItemStatus;
 import co.com.sapenlinea.liv.tax.application.CreateFiscalYear;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.application.GetFiscalYear;
 import co.com.sapenlinea.liv.tax.application.ListFiscalYears;
 import co.com.sapenlinea.liv.tax.application.OpenFiscalYearPreparation;
 import co.com.sapenlinea.liv.tax.domain.PreparationChecklist;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -85,7 +85,7 @@ class FiscalYearsController implements FiscalYearsApi {
 
   @Override
   public ResponseEntity<FiscalYear> createFiscalYear(CreateFiscalYearRequest request) {
-    Stored created = createFiscalYear.create(user(), request.getYear());
+    RegisteredFiscalYear created = createFiscalYear.create(user(), request.getYear());
     return ResponseEntity.status(HttpStatus.CREATED).body(toContract(created));
   }
 
@@ -105,7 +105,7 @@ class FiscalYearsController implements FiscalYearsApi {
             new AuthenticationRejectedException(ErrorCodes.NOT_AUTHENTICATED, "No current user"));
   }
 
-  private static FiscalYear toContract(Stored stored) {
+  private static FiscalYear toContract(RegisteredFiscalYear stored) {
     return new FiscalYear(
         stored.fiscalYear().year(),
         stored.startsOn(),

@@ -10,11 +10,11 @@ import co.com.sapenlinea.liv.shared.NotFound;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.application.CreateFiscalYear;
 import co.com.sapenlinea.liv.tax.application.FiscalYears;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.application.OpenFiscalYearPreparation;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import java.lang.reflect.Field;
@@ -86,7 +86,7 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
   void creationInsertsOnlyThePermittedColumns() {
     Tenant tenant = newTenant();
 
-    Stored stored = create(tenant, 2026);
+    RegisteredFiscalYear stored = create(tenant, 2026);
 
     assertThat(stored.id()).isNotNull();
     assertThat(stored.fiscalYear().status()).isEqualTo(FiscalYearStatus.PLANEADA);
@@ -134,7 +134,7 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
       "007-10 · Una entidad modificada en memoria no genera ningún UPDATE de Hibernate al vaciar")
   void aDirtyEntityNeverProducesAnUpdate() {
     Tenant tenant = newTenant();
-    Stored stored = create(tenant, 2026);
+    RegisteredFiscalYear stored = create(tenant, 2026);
     statistics.setStatisticsEnabled(true);
     statistics.clear();
 
@@ -194,7 +194,7 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
     create(tenant, 2027);
     create(other, 2026);
 
-    List<Stored> found =
+    List<RegisteredFiscalYear> found =
         inTransaction(tenant, () -> fiscalYears.findAll(tenant.administrationId()));
 
     assertThat(found).extracting(item -> item.fiscalYear().year()).containsExactly(2027, 2026);
@@ -237,13 +237,14 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
   @DisplayName("007-10 · La apertura que gana dice EN_PREPARACION, con su autor y su hora")
   void theOpeningThatWins() {
     Tenant tenant = newTenant();
-    Stored planned = create(tenant, 2026);
+    RegisteredFiscalYear planned = create(tenant, 2026);
 
-    Stored opened =
+    RegisteredFiscalYear opened =
         inTransaction(
             tenant,
             () -> {
-              Stored seen = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
+              RegisteredFiscalYear seen =
+                  fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
               return fiscalYears.persistOpened(seen, tenant.editorId());
             });
 
@@ -266,7 +267,7 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
     create(tenant, 2026);
     OpenFiscalYearPreparation open = openUseCase();
 
-    Stored first = inTransaction(tenant, () -> open.open(tenant.editor(), 2026));
+    RegisteredFiscalYear first = inTransaction(tenant, () -> open.open(tenant.editor(), 2026));
     RuleViolation retry =
         catchThrowableOfType(
             RuleViolation.class,

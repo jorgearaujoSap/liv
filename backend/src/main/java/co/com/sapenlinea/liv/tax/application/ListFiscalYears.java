@@ -3,10 +3,10 @@ package co.com.sapenlinea.liv.tax.application;
 import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
 import co.com.sapenlinea.liv.platform.RequiresPermission;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.CreatableYear;
 import co.com.sapenlinea.liv.tax.domain.CreateBlocked;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearOpeningPolicy;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.List;
@@ -48,7 +48,7 @@ public class ListFiscalYears {
    * @param createBlocked why nothing can be created, only with {@code canCreate}
    */
   public record Listing(
-      List<Stored> items,
+      List<RegisteredFiscalYear> items,
       boolean canCreate,
       List<CreatableYear> creatableYears,
       Optional<CreateBlocked> createBlocked) {
@@ -62,7 +62,7 @@ public class ListFiscalYears {
   @RequiresPermission(PERMISSION)
   @Transactional(readOnly = true)
   public Listing list(CurrentUser user) {
-    List<Stored> items = fiscalYears.findAll(user.administrationId());
+    List<RegisteredFiscalYear> items = fiscalYears.findAll(user.administrationId());
     boolean canCreate =
         catalog
             .permissionsOf(catalog.knownRoles(user.roles()))

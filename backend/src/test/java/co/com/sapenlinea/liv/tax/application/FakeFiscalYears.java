@@ -5,6 +5,7 @@ import co.com.sapenlinea.liv.platform.PermissionCatalog;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,7 +25,7 @@ final class FakeFiscalYears implements FiscalYears {
   static final UUID OTHER_ADMINISTRATION = UUID.fromString("10000000-0000-0000-0000-00000000000b");
   static final UUID USER = UUID.fromString("20000000-0000-0000-0000-00000000000a");
 
-  private final List<Stored> rows = new ArrayList<>();
+  private final List<RegisteredFiscalYear> rows = new ArrayList<>();
   private final List<UUID> lockedAdministrations = new ArrayList<>();
   private final List<String> calls = new ArrayList<>();
 
@@ -57,9 +58,9 @@ final class FakeFiscalYears implements FiscalYears {
   }
 
   /** Adds an existing fiscal year of the administration, in the given state. */
-  Stored given(UUID administration, int year, FiscalYearStatus status) {
-    Stored stored =
-        new Stored(
+  RegisteredFiscalYear given(UUID administration, int year, FiscalYearStatus status) {
+    RegisteredFiscalYear stored =
+        new RegisteredFiscalYear(
             UUID.randomUUID(),
             AdministrationFiscalYear.restore(administration, year, status, false),
             LocalDate.of(year, 1, 1),
@@ -85,20 +86,22 @@ final class FakeFiscalYears implements FiscalYears {
   }
 
   @Override
-  public List<Stored> findAll(UUID administrationId) {
+  public List<RegisteredFiscalYear> findAll(UUID administrationId) {
     calls.add("findAll");
     return rowsOf(administrationId);
   }
 
-  private List<Stored> rowsOf(UUID administrationId) {
+  private List<RegisteredFiscalYear> rowsOf(UUID administrationId) {
     return rows.stream()
         .filter(row -> row.fiscalYear().administrationId().equals(administrationId))
-        .sorted(Comparator.comparingInt((Stored row) -> row.fiscalYear().year()).reversed())
+        .sorted(
+            Comparator.comparingInt((RegisteredFiscalYear row) -> row.fiscalYear().year())
+                .reversed())
         .toList();
   }
 
   @Override
-  public Optional<Stored> find(UUID administrationId, int year) {
+  public Optional<RegisteredFiscalYear> find(UUID administrationId, int year) {
     calls.add("find");
     return rowsOf(administrationId).stream()
         .filter(row -> row.fiscalYear().year() == year)
@@ -112,20 +115,20 @@ final class FakeFiscalYears implements FiscalYears {
   }
 
   @Override
-  public Stored create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
+  public RegisteredFiscalYear create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
     // It does not enforce V-01, as a UNIQUE would: the use case must have decided it before.
     calls.add("create");
     return given(fiscalYear.administrationId(), fiscalYear.year(), fiscalYear.status());
   }
 
   @Override
-  public Stored persistOpened(Stored current, UUID openedBy) {
+  public RegisteredFiscalYear persistOpened(RegisteredFiscalYear current, UUID openedBy) {
     // It does not validate the state, as the UPDATE of the database would (0 rows): the use case
     // must have decided V-06 before. It only records the call and changes the state.
     calls.add("persistOpened");
     rows.remove(current);
-    Stored opened =
-        new Stored(
+    RegisteredFiscalYear opened =
+        new RegisteredFiscalYear(
             current.id(),
             AdministrationFiscalYear.restore(
                 current.fiscalYear().administrationId(),

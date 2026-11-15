@@ -5,8 +5,8 @@ import co.com.sapenlinea.liv.platform.AdministrationContext;
 import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.PlatformWebTest;
 import co.com.sapenlinea.liv.tax.application.FiscalYears;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -82,7 +82,7 @@ abstract class FiscalYearsPersistenceTestBase extends PlatformWebTest {
     return inTransaction(tenant, TransactionDefinition.PROPAGATION_REQUIRED, work);
   }
 
-  protected Stored create(Tenant tenant, int year) {
+  protected RegisteredFiscalYear create(Tenant tenant, int year) {
     return inTransaction(
         tenant,
         () ->
