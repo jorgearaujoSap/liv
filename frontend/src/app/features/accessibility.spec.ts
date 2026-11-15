@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -41,6 +42,7 @@ const fiscalYear = (year: number, status: FiscalYear['status']): FiscalYear => (
 
 class FakeFiscalYears {
   readonly list = vi.fn<() => Promise<FiscalYearList>>();
+  readonly create = vi.fn<(year: number) => Promise<FiscalYear>>();
 }
 
 class FakeIdle {
@@ -275,6 +277,50 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
 
       expect(page.textContent).toContain('No pudimos cargar las vigencias');
       expect(await violations(page)).toEqual([]);
+    });
+
+    describe('con el diálogo de creación abierto', () => {
+      const withCreatableYears: FiscalYearList = {
+        items: [fiscalYear(2026, 'EN_PREPARACION')],
+        canCreate: true,
+        creatableYears: [
+          { year: 2027, startsOn: '2027-01-01', endsOn: '2027-12-31', relation: 'NEXT' },
+          { year: 2028, startsOn: '2028-01-01', endsOn: '2028-12-31', relation: 'PAST' },
+        ],
+      };
+      const press = (page: HTMLElement, selector: string, label: string) =>
+        (
+          Array.from(page.querySelectorAll(selector)).find(
+            (candidate) => candidate.textContent?.trim() === label,
+          ) as HTMLButtonElement
+        ).click();
+      const openDialog = async () => {
+        fiscalYears.list.mockResolvedValue(withCreatableYears);
+        const page = await open('/opcion/1.4');
+        press(page, 'button', 'Crear vigencia');
+        TestBed.tick();
+        return page;
+      };
+
+      it('con la advertencia y las opciones de año', async () => {
+        const page = await openDialog();
+
+        expect(page.querySelector('[role="dialog"] fieldset')).not.toBeNull();
+        expect(await violations(page)).toEqual([]);
+      });
+
+      it('con un rechazo del servidor', async () => {
+        fiscalYears.create.mockRejectedValue(
+          new HttpErrorResponse({ status: 409, error: { status: 409, code: 'V-01', year: 2027 } }),
+        );
+        const page = await openDialog();
+        press(page, '[role="dialog"] button', 'Crear vigencia');
+        await TestBed.inject(ApplicationRef).whenStable();
+        TestBed.tick();
+
+        expect(page.querySelector('liv-alert[role="alert"]')).not.toBeNull();
+        expect(await violations(page)).toEqual([]);
+      });
     });
   });
 });
