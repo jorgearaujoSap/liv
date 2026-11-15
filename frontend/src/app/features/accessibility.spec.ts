@@ -5,11 +5,14 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import axe from 'axe-core';
 import { vi } from 'vitest';
 
+import type { FiscalYear, FiscalYearList } from '../api/tax/models';
 import { buildMenu } from '../core/navigation/menu-presentation';
 import { IdleService, type SessionWarning } from '../core/session/idle.service';
 import { ComingSoon } from './errors/coming-soon';
 import { Forbidden } from './errors/forbidden';
 import { LoadError } from './errors/load-error';
+import { FiscalYears } from './fiscal-years/fiscal-years';
+import { FiscalYearsService } from './fiscal-years/fiscal-years.service';
 import { Home } from './home/home';
 import { Shell } from './shell/shell';
 import { WorkspaceService } from './shell/workspace.service';
@@ -28,6 +31,18 @@ async function violations(element: Element): Promise<string[]> {
   );
 }
 
+const fiscalYear = (year: number, status: FiscalYear['status']): FiscalYear => ({
+  year,
+  startsOn: `${year}-01-01`,
+  endsOn: `${year}-12-31`,
+  status,
+  assessmentsEnabled: false,
+});
+
+class FakeFiscalYears {
+  readonly list = vi.fn<() => Promise<FiscalYearList>>();
+}
+
 class FakeIdle {
   readonly warning = signal<SessionWarning | undefined>(undefined);
   readonly extend = vi.fn().mockResolvedValue(true);
@@ -39,6 +54,7 @@ class FakeIdle {
 describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
   let workspace: FakeWorkspace;
   let idle: FakeIdle;
+  let fiscalYears: FakeFiscalYears;
 
   const open = async (url: string) => {
     const harness = await RouterTestingHarness.create();
@@ -51,6 +67,7 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
   beforeEach(() => {
     workspace = new FakeWorkspace();
     idle = new FakeIdle();
+    fiscalYears = new FakeFiscalYears();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -61,12 +78,14 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
               { path: '', pathMatch: 'full', component: Home },
               { path: 'sin-permiso', component: Forbidden },
               { path: 'proximamente', component: ComingSoon },
+              { path: 'opcion/1.4', component: FiscalYears },
             ],
           },
           { path: 'error', component: LoadError },
         ]),
         { provide: WorkspaceService, useValue: workspace },
         { provide: IdleService, useValue: idle },
+        { provide: FiscalYearsService, useValue: fiscalYears },
       ],
     });
   });
@@ -185,5 +204,77 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
 
     expect(page.querySelector('h1')?.textContent).toContain('No pudimos cargar tu sesión');
     expect(await violations(page)).toEqual([]);
+  });
+
+  // 007-21: las pantallas de la opción 1.4 pasan axe.
+  describe('Vigencias fiscales (007-21)', () => {
+    it('con vigencias y el botón inhabilitado con su motivo', async () => {
+      fiscalYears.list.mockResolvedValue({
+        items: [fiscalYear(2027, 'PLANEADA'), fiscalYear(2026, 'EN_PREPARACION')],
+        canCreate: true,
+        creatableYears: [],
+        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+      });
+      const page = await open('/opcion/1.4');
+
+      expect(page.querySelector('h1')?.textContent).toContain('Vigencias fiscales');
+      expect(page.querySelector('button[aria-disabled="true"][aria-describedby]')).not.toBeNull();
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('con «Crear vigencia» habilitado', async () => {
+      fiscalYears.list.mockResolvedValue({
+        items: [fiscalYear(2026, 'EN_PREPARACION')],
+        canCreate: true,
+        creatableYears: [
+          { year: 2027, startsOn: '2027-01-01', endsOn: '2027-12-31', relation: 'NEXT' },
+        ],
+      });
+      const page = await open('/opcion/1.4');
+
+      expect(page.querySelectorAll('tbody tr')).toHaveLength(1);
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('vacía, para quien puede crear', async () => {
+      fiscalYears.list.mockResolvedValue({
+        items: [],
+        canCreate: true,
+        creatableYears: [
+          { year: 2026, startsOn: '2026-01-01', endsOn: '2026-12-31', relation: 'CURRENT' },
+        ],
+      });
+      const page = await open('/opcion/1.4');
+
+      expect(page.textContent).toContain('Aún no hay vigencias');
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('vacía, solo de consulta', async () => {
+      fiscalYears.list.mockResolvedValue({ items: [], canCreate: false, creatableYears: [] });
+      const page = await open('/opcion/1.4');
+
+      expect(page.textContent).toContain('Aún no hay vigencias');
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('cargando', async () => {
+      fiscalYears.list.mockReturnValue(new Promise<FiscalYearList>(() => undefined));
+      const harness = await RouterTestingHarness.create();
+      await harness.navigateByUrl('/opcion/1.4');
+      harness.detectChanges();
+      const page = harness.fixture.nativeElement as HTMLElement;
+
+      expect(page.querySelector('table[aria-busy="true"]')).not.toBeNull();
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('con error', async () => {
+      fiscalYears.list.mockRejectedValue(new Error('500'));
+      const page = await open('/opcion/1.4');
+
+      expect(page.textContent).toContain('No pudimos cargar las vigencias');
+      expect(await violations(page)).toEqual([]);
+    });
   });
 });
