@@ -1,7 +1,11 @@
 import { BASE_URL, KEYCLOAK_URL } from './support/entorno';
 import { prepararUsuarios } from './support/keycloak';
+import { administracionesConVigencias, mensajeDeVigenciasPrevias } from './support/vigencias';
 
-/** Antes de las pruebas: comprueba que el sistema local esté arriba y crea los usuarios de las pruebas. */
+/**
+ * Antes de las pruebas: comprueba que el sistema local esté arriba, que las administraciones de prueba no tengan
+ * vigencias de una corrida anterior (feature 007) y crea los usuarios de las pruebas.
+ */
 export default async function preparar(): Promise<void> {
   for (const [nombre, url] of [
     ['el frontend', BASE_URL],
@@ -15,6 +19,10 @@ export default async function preparar(): Promise<void> {
           'y vuelve a correr las pruebas.',
       );
     }
+  }
+  const conVigencias = await administracionesConVigencias();
+  if (conVigencias.length > 0) {
+    throw new Error(mensajeDeVigenciasPrevias(conVigencias));
   }
   await prepararUsuarios();
 }

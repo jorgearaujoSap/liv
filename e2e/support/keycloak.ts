@@ -1,10 +1,12 @@
 import {
+  ADMINISTRACION_B,
   CLAVE,
   IPIALES,
   KEYCLOAK_ADMIN_PASSWORD,
   KEYCLOAK_ADMIN_USER,
   KEYCLOAK_URL,
   TOTP_SECRETO,
+  TOTP_SECRETO_B,
   USUARIOS_E2E,
 } from './entorno';
 
@@ -52,7 +54,7 @@ async function borrar(token: string, usuario: string): Promise<void> {
   }
 }
 
-function usuario(nombre: string, nombres: string, credenciales: unknown[]) {
+function usuario(nombre: string, nombres: string, credenciales: unknown[], administracion = IPIALES) {
   return {
     username: nombre,
     enabled: true,
@@ -60,7 +62,7 @@ function usuario(nombre: string, nombres: string, credenciales: unknown[]) {
     emailVerified: true,
     firstName: nombres,
     lastName: 'Prueba E2E',
-    attributes: { administration_id: [IPIALES] },
+    attributes: { administration_id: [administracion] },
     credentials: credenciales,
   };
 }
@@ -84,6 +86,16 @@ async function crear(token: string, cuerpo: ReturnType<typeof usuario>, rol: str
 
 const clave = { type: 'password', value: CLAVE, temporary: false };
 
+/** Credencial TOTP de Keycloak con un secreto conocido por las pruebas (6 dígitos, 30 s, HMAC-SHA1). */
+function totp(secreto: string) {
+  return {
+    type: 'otp',
+    userLabel: 'e2e',
+    secretData: JSON.stringify({ value: secreto }),
+    credentialData: JSON.stringify({ subType: 'totp', digits: 6, counter: 0, period: 30, algorithm: 'HmacSHA1' }),
+  };
+}
+
 /**
  * Crea de nuevo los usuarios de las pruebas: si quedaron de una corrida anterior, los borra antes. Si algo falla, los
  * borra todos, porque Playwright no corre `limpiar.ts` cuando falla `preparar.ts`.
@@ -100,23 +112,10 @@ export async function prepararUsuarios(): Promise<void> {
 }
 
 async function crearUsuarios(token: string): Promise<void> {
+  await crear(token, usuario(USUARIOS_E2E.totp, 'Tomás', [clave, totp(TOTP_SECRETO)]), 'ADMIN_SISTEMA');
   await crear(
     token,
-    usuario(USUARIOS_E2E.totp, 'Tomás', [
-      clave,
-      {
-        type: 'otp',
-        userLabel: 'e2e',
-        secretData: JSON.stringify({ value: TOTP_SECRETO }),
-        credentialData: JSON.stringify({
-          subType: 'totp',
-          digits: 6,
-          counter: 0,
-          period: 30,
-          algorithm: 'HmacSHA1',
-        }),
-      },
-    ]),
+    usuario(USUARIOS_E2E.adminB, 'Beatriz', [clave, totp(TOTP_SECRETO_B)], ADMINISTRACION_B),
     'ADMIN_SISTEMA',
   );
   await crear(token, usuario(USUARIOS_E2E.bloqueo, 'Berta', [clave]), 'CONSULTA');

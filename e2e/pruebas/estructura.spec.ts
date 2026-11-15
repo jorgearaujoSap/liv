@@ -32,13 +32,21 @@ test.describe('Inicio y estructura general', () => {
     expect(new Set(altos).size).toBe(1);
   });
 
-  test('001-15 · El menú muestra solo lo que permite el rol, con el tercer nivel en 1.5 y 1.6', async ({ page }) => {
+  test('001-15 · El menú muestra solo lo que permite el rol, con el tercer nivel y la 1.4 ya abierta', async ({ page }) => {
     await entrarComoAdministrador(page);
     const menu = page.locator('liv-side-nav');
 
     await menu.getByRole('button', { name: 'Administración' }).click();
     await expect(menu.getByText('Usuarios, roles y permisos')).toBeVisible();
     await expect(menu.locator('liv-nav-item[data-type="subgroup"]')).toHaveCount(2);
+    // Con la feature 007, «Vigencias fiscales» (1.4) ya navega; las demás opciones siguen en «Próximamente».
+    const vigencias = menu.getByRole('link', { name: 'Vigencias fiscales' });
+    await expect(vigencias).toHaveAttribute('href', /\/opcion\/1\.4$/);
+    await expect(vigencias).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(menu.getByRole('link', { name: 'Referencias vehiculares normalizadas' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
     await expect(page).toHaveScreenshot('inicio-administrador-menu.png', { fullPage: true });
   });
@@ -65,7 +73,8 @@ test.describe('Inicio y estructura general', () => {
   test('001-15 · Una opción que aún no está construida muestra «Próximamente»', async ({ page }) => {
     await entrarComo(page, 'dev.consulta');
 
-    await page.goto('/opcion/1.4');
+    // 1.7 (referencias vehiculares): la lee `CONSULTA` y todavía no la construye ninguna feature. La 1.4 ya existe.
+    await page.goto('/opcion/1.7');
 
     await expect(page).toHaveURL(/\/proximamente/);
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
