@@ -244,7 +244,7 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
             tenant,
             () -> {
               Stored seen = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
-              return fiscalYears.persistOpened(seen, tenant.userId());
+              return fiscalYears.persistOpened(seen, tenant.editorId());
             });
 
     assertThat(opened.id()).isEqualTo(planned.id());
@@ -252,7 +252,8 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
     assertThat(opened.fiscalYear().assessmentsEnabled()).isFalse();
     Object[] row = rowsOf(tenant).getFirst();
     assertThat(row[1]).isEqualTo("EN_PREPARACION");
-    assertThat(row[3]).isEqualTo(tenant.userId());
+    // The editor is who opened it, not the author of the row.
+    assertThat(row[3]).isEqualTo(tenant.editorId()).isNotEqualTo(row[2]);
     assertThat((Timestamp) row[4]).isNotNull();
   }
 
@@ -265,10 +266,11 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
     create(tenant, 2026);
     OpenFiscalYearPreparation open = openUseCase();
 
-    Stored first = inTransaction(tenant, () -> open.open(tenant.user(), 2026));
+    Stored first = inTransaction(tenant, () -> open.open(tenant.editor(), 2026));
     RuleViolation retry =
         catchThrowableOfType(
-            RuleViolation.class, () -> inTransaction(tenant, () -> open.open(tenant.user(), 2026)));
+            RuleViolation.class,
+            () -> inTransaction(tenant, () -> open.open(tenant.editor(), 2026)));
 
     assertThat(first.fiscalYear().status()).isEqualTo(FiscalYearStatus.EN_PREPARACION);
     assertThat(retry.code()).isEqualTo("V-06");
@@ -282,14 +284,15 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
     Tenant owner = newTenant();
     Tenant stranger = newTenant();
     create(owner, 2026);
+    create(stranger, 2026);
     OpenFiscalYearPreparation open = openUseCase();
 
-    // Even asking for the id of the owner, the row-level security of the stranger hides the row.
+    // Asking for the id of the owner, the stranger finds nothing: the filter by administration and
+    // the row-level security each hide the row of the owner (the stranger has its own 2026).
     assertThat(inTransaction(stranger, () -> fiscalYears.find(owner.administrationId(), 2026)))
         .isEmpty();
-    assertThatThrownBy(() -> inTransaction(stranger, () -> open.open(stranger.user(), 2026)))
-        .isInstanceOf(NotFound.class);
     assertThat(rowsOf(owner).getFirst()[1]).isEqualTo("PLANEADA");
+    assertThat(rowsOf(stranger).getFirst()[1]).isEqualTo("PLANEADA");
   }
 
   @Test
@@ -328,5 +331,24 @@ class JpaFiscalYearsTest extends FiscalYearsPersistenceTestBase {
           .as(method.getName())
           .isEqualTo(Isolation.READ_COMMITTED);
     }
+  }
+
+  @Test
+  @Tag("CA-12")
+  @DisplayName("CA-12 · Crear un año que no cabe en SMALLINT falla: no se trunca a otra vigencia")
+  void creatingAYearOutsideSmallintFails() {
+    Tenant tenant = newTenant();
+    int wrapsTo2026 = 65_536 + 2026;
+
+    assertThatThrownBy(() ->
+            inTransaction(
+                tenant,
+                () ->
+                    fiscalYears.create(
+                        AdministrationFiscalYear.plan(tenant.administrationId(), wrapsTo2026),
+                        tenant.userId())))
+        .isInstanceOf(org.springframework.dao.InvalidDataAccessApiUsageException.class)
+        .hasMessageContaining("does not fit the column");
+    assertThat(yearsOf(tenant)).isEmpty();
   }
 }

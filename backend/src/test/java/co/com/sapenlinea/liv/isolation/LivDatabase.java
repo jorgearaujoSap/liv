@@ -175,39 +175,32 @@ public final class LivDatabase {
   }
 
   /**
-   * Writes as the owner, past RLS, for the tests of other packages that need rows {@code liv_app}
-   * cannot create (a competing writer, a row that exists before the application acts).
-   */
-  public static int writeAsOwner(String sql, Object... args) {
-    try {
-      return update(OWNER, null, sql, args);
-    } catch (SQLException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  /**
    * Writes as the owner and keeps the transaction open while {@code during} runs, waits until the
-   * application is blocked on a lock (the unique index or the row the owner just wrote), and then
-   * commits: a concurrent write of the application is forced to meet this one, with no chance of
-   * reading it before.
+   * application is blocked on a lock while running a statement with {@code waitingStatement} (the
+   * unique index or the row the owner just wrote), and then commits: a concurrent write of the
+   * application is forced to meet this one, with no chance of reading it before.
    */
-  public static void writeAsOwnerUncommittedDuring(String sql, Object[] args, Runnable during) {
+  public static void writeAsOwnerUncommittedDuring(
+      String sql, Object[] args, String waitingStatement, Runnable during) {
     try (Connection connection = connect(OWNER)) {
       connection.setAutoCommit(false);
       update(connection, sql, args);
       during.run();
-      awaitApplicationWaitingOnALock();
+      awaitApplicationWaitingOnALock(waitingStatement);
       connection.commit();
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
   }
 
-  /** Waits until a session of {@code liv_app} waits for a lock (a row, an index, an advisory). */
-  public static void awaitAnApplicationSessionWaitingOnALock() {
+  /**
+   * Waits until a session of {@code liv_app} waits for a lock while running a statement that
+   * contains {@code statementFragment}, so a session left over by another test is not mistaken for
+   * the one the test is waiting for.
+   */
+  public static void awaitAnApplicationSessionWaitingOnALock(String statementFragment) {
     try {
-      awaitApplicationWaitingOnALock();
+      awaitApplicationWaitingOnALock(statementFragment);
     } catch (SQLException e) {
       throw new IllegalStateException(e);
     }
@@ -309,6 +302,10 @@ public final class LivDatabase {
   }
 
   private static void awaitApplicationWaitingOnALock() throws SQLException {
+    awaitApplicationWaitingOnALock("");
+  }
+
+  private static void awaitApplicationWaitingOnALock(String statementFragment) throws SQLException {
     long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
     try (Connection superuser =
         DriverManager.getConnection(jdbcUrl(), "postgres", "postgres-test-pw")) {
@@ -318,7 +315,9 @@ public final class LivDatabase {
                     rows(
                             superuser,
                             "SELECT count(*) FROM pg_stat_activity"
-                                + " WHERE usename = 'liv_app' AND wait_event_type = 'Lock'")
+                                + " WHERE usename = 'liv_app' AND wait_event_type = 'Lock'"
+                                + " AND query LIKE ?",
+                            "%" + statementFragment + "%")
                         .getFirst()[0])
                 .longValue();
         if (waiting > 0) {

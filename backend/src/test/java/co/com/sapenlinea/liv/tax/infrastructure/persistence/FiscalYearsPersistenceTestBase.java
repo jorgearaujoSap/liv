@@ -35,24 +35,34 @@ abstract class FiscalYearsPersistenceTestBase extends PlatformWebTest {
     this.transactionManager = transactionManager;
   }
 
-  /** An administration with one user, created by the owner: nothing else touches its years. */
-  record Tenant(UUID administrationId, UUID userId) {
+  /**
+   * An administration with two users, created by the owner: nothing else touches its years. The
+   * second one ({@code editorId}) opens what the first one created, so the editor of a row is never
+   * taken from its author.
+   */
+  record Tenant(UUID administrationId, UUID userId, UUID editorId) {
 
     CurrentUser user() {
       return new CurrentUser(userId, administrationId, ISSUER, "subject-" + userId, Set.of("ROLE"));
+    }
+
+    CurrentUser editor() {
+      return new CurrentUser(
+          editorId, administrationId, ISSUER, "subject-" + editorId, Set.of("ROLE"));
     }
   }
 
   static Tenant newTenant() {
     UUID administration = UUID.randomUUID();
     LivDatabase.registerAdministration(administration, "Administración " + administration);
-    LivDatabase.registerUser(administration, ISSUER, "jpa-" + administration, "ACTIVE");
-    UUID user =
-        (UUID)
-            LivDatabase.readAsOwner(
-                    "SELECT id FROM core.admin_user WHERE administration_id = ?", administration)
-                .getFirst()[0];
-    return new Tenant(administration, user);
+    LivDatabase.registerUser(administration, ISSUER, "jpa-a-" + administration, "ACTIVE");
+    LivDatabase.registerUser(administration, ISSUER, "jpa-b-" + administration, "ACTIVE");
+    List<Object[]> users =
+        LivDatabase.readAsOwner(
+            "SELECT id FROM core.admin_user WHERE administration_id = ?"
+                + " ORDER BY identity_subject",
+            administration);
+    return new Tenant(administration, (UUID) users.get(0)[0], (UUID) users.get(1)[0]);
   }
 
   /**

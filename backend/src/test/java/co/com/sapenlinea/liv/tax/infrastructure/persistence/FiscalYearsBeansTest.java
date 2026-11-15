@@ -151,9 +151,19 @@ class FiscalYearsBeansTest extends FiscalYearsPersistenceTestBase {
     GetFiscalYear.Detail planned = asRequestOf(admin, () -> get.get(admin, year));
     assertThat(planned.availableActions()).containsExactly("OPEN_PREPARATION");
 
-    var opened = asRequestOf(admin, () -> open.open(admin, year));
+    // Another administrator of the same administration opens it: the editor is the one who opens.
+    CurrentUser editor =
+        new CurrentUser(
+            tenant.editorId(),
+            tenant.administrationId(),
+            ISSUER,
+            "subject-" + tenant.editorId(),
+            Set.of("ADMIN_SISTEMA"));
+    var opened = asRequestOf(editor, () -> open.open(editor, year));
     assertThat(opened.fiscalYear().status()).isEqualTo(FiscalYearStatus.EN_PREPARACION);
     assertThat(asRequestOf(admin, () -> get.get(admin, year)).availableActions()).isEmpty();
-    assertThat(rowsOf(tenant).getFirst()[3]).isEqualTo(tenant.userId());
+    Object[] row = rowsOf(tenant).getFirst();
+    assertThat(row[2]).isEqualTo(tenant.userId());
+    assertThat(row[3]).isEqualTo(tenant.editorId());
   }
 }

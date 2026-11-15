@@ -64,8 +64,10 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
   }
 
   @AfterEach
-  void stopThreads() {
+  void stopThreads() throws InterruptedException {
     threads.shutdownNow();
+    // The next test must not meet a session that this one left waiting.
+    threads.awaitTermination(WAIT_SECONDS, TimeUnit.SECONDS);
   }
 
   // ---- el UNIQUE real
@@ -85,6 +87,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
         "INSERT INTO tax.administration_fiscal_year (administration_id, fiscal_year, created_by)"
             + " VALUES (?, 2026, ?)",
         new Object[] {tenant.administrationId(), tenant.userId()},
+        "administration_fiscal_year",
         () -> attempt.set(threads.submit(() -> catchThrowable(() -> create(tenant, 2026)))));
 
     Throwable thrown = attempt.get().get(WAIT_SECONDS, TimeUnit.SECONDS);
@@ -159,7 +162,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
                       Stored seen = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
                       return fiscalYears.persistOpened(seen, tenant.userId());
                     })));
-    LivDatabase.awaitAnApplicationSessionWaitingOnALock();
+    LivDatabase.awaitAnApplicationSessionWaitingOnALock("UPDATE tax.administration_fiscal_year");
     assertThatThrownBy(() -> t1.get(1, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
 
     t2Release.countDown();
@@ -302,7 +305,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     Future<Stored> creationB = createInAThread(tenant, b, AFTER_MIDNIGHT, 2028);
     if (withLock) {
       // B waits in the database for the lock of A, and keeps waiting while A holds it.
-      LivDatabase.awaitAnApplicationSessionWaitingOnALock();
+      LivDatabase.awaitAnApplicationSessionWaitingOnALock("pg_advisory_xact_lock");
       assertThatThrownBy(() -> creationB.get(1, TimeUnit.SECONDS))
           .isInstanceOf(TimeoutException.class);
       assertThat(yearsOf(tenant)).isEmpty();
@@ -348,5 +351,29 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     creationsAcrossMidnight(false, tenant);
 
     assertThat(yearsOf(tenant)).containsExactly(2026, 2028);
+  }
+
+  @Test
+  @Tag("007-05")
+  @DisplayName(
+      "007-05 · El bloqueo es por administración: otra administración crea sin esperar al que lo tiene")
+  void theLockIsOfTheAdministration() throws Exception {
+    Tenant holder = newTenant();
+    Tenant other = newTenant();
+    PausingFiscalYears a = new PausingFiscalYears(fiscalYears, true, true);
+    Future<Stored> creationA = createInAThread(holder, a, BEFORE_MIDNIGHT, 2026);
+    assertThat(a.paused.await(WAIT_SECONDS, TimeUnit.SECONDS)).as("A holds the lock").isTrue();
+
+    PausingFiscalYears b = new PausingFiscalYears(fiscalYears, true, false);
+    // Another administration does not wait: it finishes while A still holds its own lock.
+    assertThat(
+            createInAThread(other, b, BEFORE_MIDNIGHT, 2026)
+                .get(WAIT_SECONDS, TimeUnit.SECONDS)
+                .fiscalYear()
+                .year())
+        .isEqualTo(2026);
+
+    a.release.countDown();
+    assertThat(creationA.get(WAIT_SECONDS, TimeUnit.SECONDS).fiscalYear().year()).isEqualTo(2026);
   }
 }

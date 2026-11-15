@@ -2,6 +2,8 @@ package co.com.sapenlinea.liv.tax.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import co.com.sapenlinea.liv.platform.CurrentUser;
+import co.com.sapenlinea.liv.platform.RequiresPermission;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -34,5 +36,29 @@ class UseCasePermissionsTest {
                 "GetFiscalYear", "tax.fiscal-year.read",
                 "CreateFiscalYear", "tax.fiscal-year.create",
                 "OpenFiscalYearPreparation", "tax.fiscal-year.prepare"));
+  }
+
+  private static String annotated(Class<?> useCase, String method, Class<?>... parameters)
+      throws NoSuchMethodException {
+    RequiresPermission required =
+        useCase.getMethod(method, parameters).getAnnotation(RequiresPermission.class);
+    assertThat(required).as("%s.%s", useCase.getSimpleName(), method).isNotNull();
+    return required.value();
+  }
+
+  @Test
+  @Tag("007-02")
+  @Tag("007-09")
+  @DisplayName(
+      "007-02 · 007-09 · Cada método lleva @RequiresPermission con el permiso de su acción")
+  void eachMethodRequiresItsPermission() throws NoSuchMethodException {
+    assertThat(annotated(ListFiscalYears.class, "list", CurrentUser.class))
+        .isEqualTo("tax.fiscal-year.read");
+    assertThat(annotated(GetFiscalYear.class, "get", CurrentUser.class, int.class))
+        .isEqualTo("tax.fiscal-year.read");
+    assertThat(annotated(CreateFiscalYear.class, "create", CurrentUser.class, int.class))
+        .isEqualTo("tax.fiscal-year.create");
+    assertThat(annotated(OpenFiscalYearPreparation.class, "open", CurrentUser.class, int.class))
+        .isEqualTo("tax.fiscal-year.prepare");
   }
 }

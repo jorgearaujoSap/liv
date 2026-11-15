@@ -6,11 +6,11 @@ import co.com.sapenlinea.liv.tax.application.FiscalYears;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
@@ -77,6 +77,9 @@ class JpaFiscalYears implements FiscalYears {
 
   @Override
   public Stored create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
+    if (!fitsSmallint(fiscalYear.year())) {
+      throw new IllegalArgumentException("The year does not fit the column: " + fiscalYear.year());
+    }
     try {
       return toStored(
           rows.saveAndFlush(
@@ -108,6 +111,10 @@ class JpaFiscalYears implements FiscalYears {
         "The update changed no row but the fiscal year is still " + FiscalYearStatus.PLANEADA);
   }
 
+  private static boolean fitsSmallint(int year) {
+    return year >= Short.MIN_VALUE && year <= Short.MAX_VALUE;
+  }
+
   private Stored toStored(AdministrationFiscalYearEntity row) {
     NationalFiscalYearEntity year =
         national
@@ -128,19 +135,29 @@ class JpaFiscalYears implements FiscalYears {
 
   /**
    * Whether the failure is the {@code UNIQUE (administration_id, fiscal_year)}: the SQLState 23505
-   * and the name of the constraint. When the name cannot be read it is taken as that one: the only
-   * other unique constraints of the table are the primary key and {@code (id, administration_id)},
-   * and both depend on the id that the database generates with {@code uuidv7()}, which an insert
-   * cannot repeat.
+   * and the name of the constraint that the server reports. The name comes from the fields of the
+   * error of the PostgreSQL driver ({@code getServerErrorMessage().getConstraint()}), not from its
+   * text, so it does not depend on the language of the server. The driver is a runtime dependency,
+   * so it is read by reflection; if it cannot be read, the failure is not taken for V-01.
    */
   static boolean breaksTheYearKey(DataIntegrityViolationException failure) {
     for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
-      if (cause instanceof ConstraintViolationException violation) {
-        String constraint = violation.getConstraintName();
-        return UNIQUE_VIOLATION.equals(violation.getSQLState())
-            && (constraint == null || constraint.endsWith(YEAR_KEY));
+      if (cause instanceof SQLException sql && UNIQUE_VIOLATION.equals(sql.getSQLState())) {
+        return YEAR_KEY.equals(constraintOf(sql));
       }
     }
     return false;
+  }
+
+  /** {@code PSQLException.getServerErrorMessage().getConstraint()}, or null if not available. */
+  private static String constraintOf(SQLException sql) {
+    try {
+      Object message = sql.getClass().getMethod("getServerErrorMessage").invoke(sql);
+      return message == null
+          ? null
+          : (String) message.getClass().getMethod("getConstraint").invoke(message);
+    } catch (ReflectiveOperationException | ClassCastException e) {
+      return null;
+    }
   }
 }
