@@ -25,6 +25,35 @@ interface DialogArgs {
   year: string | null;
 }
 
+const sessionActions = `
+  <liv-button variant="secondary">Cerrar sesión</liv-button>
+  <liv-button data-initial-focus>Seguir conectado</liv-button>
+`;
+
+const createActions = `
+  <liv-radio-group livDialogBody legend="Año de la vigencia" [(value)]="year">
+    <liv-radio-option value="2026" label="2026" description="Año en curso" />
+    <liv-radio-option value="2027" label="2027" description="Año siguiente al año en curso" />
+  </liv-radio-group>
+  <liv-button variant="secondary">Cancelar</liv-button>
+  <liv-button>Crear vigencia</liv-button>
+`;
+
+/** La plantilla de `liv-dialog` con todas sus entradas, o sin `size` ni `tone` (el uso por omisión). */
+function dialogTemplate(content: string, bindSizeAndTone = true): string {
+  const sizeAndTone = bindSizeAndTone ? '[size]="size" [tone]="tone"' : '';
+  return `
+    <liv-dialog
+      [open]="open"
+      [heading]="heading"
+      [description]="description"
+      [icon]="icon"
+      [dismissible]="dismissible"
+      ${sizeAndTone}
+    >${content}</liv-dialog>
+  `;
+}
+
 const meta: Meta<DialogArgs> = {
   title: 'Componentes/Dialog',
   component: DialogComponent,
@@ -58,23 +87,7 @@ const meta: Meta<DialogArgs> = {
     tone: 'warning',
     year: '2026',
   },
-  render: (args) => ({
-    props: args,
-    template: `
-      <liv-dialog
-        [open]="open"
-        [heading]="heading"
-        [description]="description"
-        [icon]="icon"
-        [dismissible]="dismissible"
-        [size]="size"
-        [tone]="tone"
-      >
-        <liv-button variant="secondary">Cerrar sesión</liv-button>
-        <liv-button data-initial-focus>Seguir conectado</liv-button>
-      </liv-dialog>
-    `,
-  }),
+  render: (args) => ({ props: args, template: dialogTemplate(sessionActions) }),
 };
 
 export default meta;
@@ -83,6 +96,8 @@ type Story = StoryObj<DialogArgs>;
 /** Sin cuerpo, `size` ni `tone`: el aviso de sesión de siempre (440 px, tono de advertencia). */
 export const SesionPorExpirar: Story = {
   name: 'Sesión por expirar',
+  parameters: { controls: { exclude: ['size', 'tone', 'year'] } },
+  render: (args) => ({ props: args, template: dialogTemplate(sessionActions, false) }),
 };
 
 export const SinDescripcion: Story = {
@@ -107,27 +122,7 @@ export const ConCuerpoYTonoPrimario: Story = {
     size: 'lg',
     tone: 'primary',
   },
-  render: (args) => ({
-    props: args,
-    template: `
-      <liv-dialog
-        [open]="open"
-        [heading]="heading"
-        [description]="description"
-        [icon]="icon"
-        [dismissible]="dismissible"
-        [size]="size"
-        [tone]="tone"
-      >
-        <liv-radio-group livDialogBody legend="Año de la vigencia" [(value)]="year">
-          <liv-radio-option value="2026" label="2026" description="Año en curso" />
-          <liv-radio-option value="2027" label="2027" description="Año siguiente al año en curso" />
-        </liv-radio-group>
-        <liv-button variant="secondary">Cancelar</liv-button>
-        <liv-button>Crear vigencia</liv-button>
-      </liv-dialog>
-    `,
-  }),
+  render: (args) => ({ props: args, template: dialogTemplate(createActions) }),
 };
 
 /** Con cuerpo y tono de advertencia (Figma 65:472), 520 px, sin año elegido: el foco entra por el primer radio. */

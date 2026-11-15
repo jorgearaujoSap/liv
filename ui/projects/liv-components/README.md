@@ -23,4 +23,4 @@ El tema define colores (`--color-text-primary`, `--color-status-success`…), ti
 
 ## Componentes
 
-Todavía no hay componentes publicados. Cada uno tendrá el mismo nombre, variantes y propiedades que en el archivo de diseño de Figma.
+Los componentes tienen el mismo nombre, variantes y propiedades que en el archivo de diseño de Figma y se importan desde `liv-components` (por ejemplo, `import { ButtonComponent } from 'liv-components'`). Su catálogo (Storybook) y el historial de versiones (`CHANGELOG.md`) están en el proyecto `ui/` del repositorio.

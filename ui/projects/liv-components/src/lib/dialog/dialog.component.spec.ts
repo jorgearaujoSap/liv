@@ -163,6 +163,88 @@ function renderRadios(inputs: Partial<RadioHostComponent> = {}) {
   };
 }
 
+/**
+ * Controles nativos: un `fieldset` inhabilitado al final (sus controles no tienen `disabled` propio, así
+ * que solo el `fieldset` los excluye) con un botón en su primera `legend`, que sí cuenta.
+ */
+@Component({
+  imports: [DialogComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Fieldset">
+      <button id="first" type="button">Primero</button>
+      <fieldset disabled>
+        <legend><button id="in-legend" type="button">En la leyenda</button></legend>
+        <button id="blocked" type="button" data-initial-focus>Bloqueado</button>
+        <input id="blocked-radio" type="radio" name="blocked" aria-label="Bloqueado" />
+        <fieldset><button id="nested" type="button">Anidado</button></fieldset>
+      </fieldset>
+    </liv-dialog>
+  `,
+})
+class FieldsetHostComponent {}
+
+/** Radios del mismo `name` en dos formularios, y dos radios sin `name`. */
+@Component({
+  imports: [DialogComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Formularios">
+      <form livDialogBody>
+        <input id="a1" type="radio" name="g" value="a" checked aria-label="A1" />
+      </form>
+      <form livDialogBody>
+        <input id="b1" type="radio" name="g" value="b" aria-label="B1" />
+      </form>
+      <input id="n1" type="radio" checked aria-label="Sin nombre 1" />
+      <input id="n2" type="radio" aria-label="Sin nombre 2" />
+    </liv-dialog>
+  `,
+})
+class FormsHostComponent {}
+
+/** El grupo de radios es la última parada, después de un botón; `tabindex` negativo al final. */
+@Component({
+  imports: [DialogComponent, RadioGroupComponent, RadioOptionComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Grupo al final">
+      <button id="first" type="button">Primero</button>
+      <liv-radio-group legend="Año" name="last-group" [value]="value">
+        <liv-radio-option value="2026" label="2026" />
+        <liv-radio-option value="2027" label="2027" />
+      </liv-radio-group>
+      <button id="skipped" type="button" tabindex="-1">Fuera del orden de Tab</button>
+    </liv-dialog>
+  `,
+})
+class GroupLastHostComponent {
+  value: string | null = null;
+}
+
+/** La marca de foco inicial sobre el contenedor del grupo (no sobre uno de sus radios). */
+@Component({
+  imports: [DialogComponent, RadioGroupComponent, RadioOptionComponent],
+  template: `
+    <liv-dialog [open]="true" heading="Marca en el grupo">
+      <button id="first" type="button">Primero</button>
+      <liv-radio-group data-initial-focus legend="Año" name="marked-group" value="2027">
+        <liv-radio-option value="2026" label="2026" />
+        <liv-radio-option value="2027" label="2027" />
+      </liv-radio-group>
+    </liv-dialog>
+  `,
+})
+class MarkedGroupHostComponent {}
+
+function renderHost<T>(type: new () => T) {
+  const fixture = TestBed.createComponent(type);
+  fixture.detectChanges();
+  const root = fixture.nativeElement as HTMLElement;
+  return {
+    root,
+    el: (selector: string) => root.querySelector<HTMLElement>(selector)!,
+    panel: root.querySelector<HTMLElement>('[role="dialog"]')!,
+  };
+}
+
 function render(inputs: Partial<HostComponent> = {}) {
   const fixture = TestBed.createComponent(HostComponent);
   Object.assign(fixture.componentInstance, inputs);
@@ -505,10 +587,9 @@ describe('Dialog', () => {
       expect(actions.querySelector('#secondary')).not.toBeNull();
       expect(actions.querySelector('#primary')).not.toBeNull();
       const body = root.querySelector<HTMLElement>('.dialog__body');
-      expect(body?.hasChildNodes()).toBeFalsy();
-      if (body) {
-        expect(declaredStyle(body, 'display')).toBe('none');
-      }
+      expect(body).not.toBeNull();
+      expect(body!.hasChildNodes()).toBe(false);
+      expect(declaredStyle(body!, 'display')).toBe('none');
     });
   });
 
@@ -753,6 +834,103 @@ describe('Dialog', () => {
       expect(document.activeElement).toBe(create);
       radio('2026').focus();
       expect(pressKey(radio('2026'), 'Tab').defaultPrevented).toBe(false);
+    });
+
+    it('con el marcado inhabilitado, la parada es el primer radio habilitado (como Chromium)', () => {
+      const { radio, cancel, create } = renderRadios({ value: '2026', firstDisabled: true });
+      expect(document.activeElement).toBe(radio('2027'));
+      cancel.focus();
+      expect(pressKey(cancel, 'Tab', { shiftKey: true }).defaultPrevented).toBe(false);
+      create.focus();
+      pressKey(create, 'Tab');
+      expect(document.activeElement).toBe(radio('2027'));
+    });
+
+    describe('grupo como última parada', () => {
+      function renderLast(value: string | null = null) {
+        const fixture = TestBed.createComponent(GroupLastHostComponent);
+        fixture.componentInstance.value = value;
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        return {
+          first: root.querySelector<HTMLElement>('#first')!,
+          radio: (year: string) => root.querySelector<HTMLInputElement>(`input[value="${year}"]`)!,
+        };
+      }
+
+      it('sin marcar, Mayús+Tab desde el primero entra por el último radio', () => {
+        const { first, radio } = renderLast();
+        first.focus();
+        expect(pressKey(first, 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(radio('2027'));
+      });
+
+      it('sin marcar, Tab desde un radio del grupo final (también el último) da la vuelta; un botón con tabindex -1 no es parada', () => {
+        const { first, radio } = renderLast();
+        radio('2026').focus();
+        expect(pressKey(radio('2026'), 'Tab').defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(first);
+        radio('2027').focus();
+        expect(pressKey(radio('2027'), 'Tab').defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(first);
+      });
+
+      it('con uno marcado, Mayús+Tab desde el primero entra por el marcado', () => {
+        const { first, radio } = renderLast('2026');
+        first.focus();
+        pressKey(first, 'Tab', { shiftKey: true });
+        expect(document.activeElement).toBe(radio('2026'));
+      });
+
+      it('Tab desde el primero no se intercepta', () => {
+        const { first } = renderLast();
+        first.focus();
+        expect(pressKey(first, 'Tab').defaultPrevented).toBe(false);
+      });
+    });
+
+    it('la marca data-initial-focus sobre el grupo lleva el foco a su parada, el radio marcado', () => {
+      const { el } = renderHost(MarkedGroupHostComponent);
+      expect(document.activeElement).toBe(el('input[value="2027"]'));
+    });
+
+    it('con el foco en el propio panel, Mayús+Tab da la vuelta al último; Tab no se intercepta', () => {
+      const { radio, create } = renderRadios({ value: '2026' });
+      const panel = radio('2026').closest<HTMLElement>('[role="dialog"]')!;
+      panel.focus();
+      expect(pressKey(panel, 'Tab').defaultPrevented).toBe(false);
+      expect(pressKey(panel, 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(create);
+    });
+
+    describe('controles nativos', () => {
+      it('un fieldset inhabilitado excluye a sus controles, menos a los de su primera legend', () => {
+        const { el } = renderHost(FieldsetHostComponent);
+        // La marca de foco inicial está en un botón inhabilitado por su fieldset: se ignora.
+        expect(document.activeElement).toBe(el('#first'));
+        el('#first').focus();
+        expect(pressKey(el('#first'), 'Tab').defaultPrevented).toBe(false);
+        // La última parada es el botón de la leyenda, no los controles del fieldset.
+        el('#in-legend').focus();
+        expect(pressKey(el('#in-legend'), 'Tab').defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(el('#first'));
+        expect(pressKey(el('#first'), 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(el('#in-legend'));
+      });
+
+      it('los radios del mismo name en formularios distintos son grupos distintos, y sin name no hay grupo', () => {
+        const { el } = renderHost(FormsHostComponent);
+        // a1 está marcado y b1 no: son dos grupos, así que b1 no es de la parada de a1 y,
+        // hacia atrás, no es la primera parada.
+        el('#b1').focus();
+        expect(pressKey(el('#b1'), 'Tab', { shiftKey: true }).defaultPrevented).toBe(false);
+        // Sin name, cada radio es una parada: n1 no es la última, n2 sí.
+        el('#n1').focus();
+        expect(pressKey(el('#n1'), 'Tab').defaultPrevented).toBe(false);
+        el('#n2').focus();
+        expect(pressKey(el('#n2'), 'Tab').defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(el('#a1'));
+      });
     });
 
     it('cumple axe con el grupo, marcado y sin marcar (007-21)', async () => {

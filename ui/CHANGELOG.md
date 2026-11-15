@@ -4,17 +4,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
-## [0.4.0] — 2026-11-14
+## [0.4.0] — 2026-11-15
 
-Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR (8a a 8f), y un cambio compatible en tres componentes existentes (`Button`, `Dialog` e `Icon`). Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend corre la prueba propia del aviso de sesión (`Dialog` sin cuerpo, `size` ni `tone` no cambió).
+Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR (8a a 8f), y cambios en tres componentes existentes (`Button`, `Dialog` e `Icon`), compatibles salvo lo que dice «Cambiado». Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend ejecuta su prueba del aviso de sesión: el `Dialog` sin cuerpo, `size` ni `tone` no cambia.
 
 ### Agregado
 
 - `Dialog` con cuerpo, tamaño y tono (feature 007, PR 8f; Figma 73:482, con `Tone` `Warning` 65:472 y `Primary` 73:467): cambio compatible en un componente existente. Sin cuerpo, `size` ni `tone`, el diálogo es el de siempre (el aviso de sesión de la feature 001): 440 px, mosaico de advertencia y todo el contenido proyectado en las acciones.
   - **Cuerpo:** el contenido con el atributo `livDialogBody` (`<ng-content select="[livDialogBody]">`) va entre el texto y las acciones, sangrado 56 px para alinearse con el texto (mosaico de 40 px más 16 px de separación). El contenido sin ese atributo sigue yendo a las acciones. Sin cuerpo no ocupa lugar ni deja separación (el contenedor queda vacío y se oculta).
   - **`size`** (`DialogSize`: `md`, por omisión, de 440 px, o `lg`, de 520 px) y **`tone`** (`DialogTone`: `warning`, por omisión, o `primary`) son entradas nuevas y sus tipos salen por la API pública. `tone` cambia el color del mosaico del icono: `warning` usa `status/warning-subtle` con el icono en `status/warning`; `primary`, `action/primary-subtle` con el icono en `action/primary`. El icono por omisión sigue siendo `history` en los dos tonos. Sin valor o con un valor desconocido valen `md` y `warning`.
-  - **Trampa de foco:** cuenta las paradas de Tab como el navegador. Un grupo de radios (mismo `name` y mismo formulario) es **una** parada: el radio marcado o, si no hay ninguno, el primero habilitado al avanzar y el último al retroceder. Los controles inhabilitados no cuentan, ni los de un `fieldset` inhabilitado (salvo los de su primera `legend`); tampoco un radio inhabilitado, aunque esté marcado. La misma regla vale para el primer foco al abrir y para el elemento marcado con `data-initial-focus`. Con un `RadioGroup` en el cuerpo (uno o dos años, con y sin opción marcada) Tab y Mayús+Tab dan la vuelta por el diálogo sin salirse de él.
-  - Límites: la trampa solo reconoce radios nativos dentro del panel (un `role="radio"` propio no es un grupo); las flechas entre radios las da el navegador y se prueban en `e2e/`. Los botones y demás controles de un `fieldset` inhabilitado dejan de ser paradas, como en el navegador (antes contaban).
+  - **Trampa de foco:** cuenta las paradas de Tab como el navegador (comprobado en Chromium; Firefox y WebKit no se han comprobado).
+    - Un grupo de radios (mismo `name` y mismo formulario) es **una** parada: el radio marcado o, si no hay ninguno, el primer radio habilitado al avanzar y el último al retroceder. Con el marcado inhabilitado, el primer habilitado en las dos direcciones.
+    - No cuentan los controles inhabilitados, ni los de un `fieldset` inhabilitado (salvo los de su primera `legend`), ni los de `tabindex` negativo.
+    - La misma regla vale para el primer foco al abrir: con `data-initial-focus` sobre un contenedor, el foco va a su primera parada. Con la marca sobre un control enfocable, va a ese control.
+    - Con el foco en el propio panel (un clic en una zona sin controles), Mayús+Tab da la vuelta al último.
+    - Con un `RadioGroup` en el cuerpo (uno o dos años, con y sin opción marcada), Tab y Mayús+Tab dan la vuelta por el diálogo sin salirse de él.
+  - Límites:
+    - La trampa solo reconoce radios nativos dentro del panel: un `role="radio"` propio no es un grupo, ni cuenta un radio de fuera con el mismo `name` y sin formulario, que el navegador sí agruparía (el `name` de un `RadioGroup` es propio de cada grupo).
+    - No descarta los elementos ocultos (`hidden`, `display: none`, `inert`): la pantalla no debe dejarlos dentro del diálogo.
+    - Las pruebas de teclado son sintéticas (jsdom no navega con Tab): el recorrido completo con un navegador real se comprueba en `e2e/`. Las flechas entre radios las da el navegador.
 - `Button` con `disabledReason` (feature 007, PR 8e; Figma 65:456): cambio compatible en un componente existente.
   - Entradas nuevas: `disabledReason` (texto) y `reasonAlign` (`start`, por omisión, o `end`; su tipo, `ButtonReasonAlign`, sale por la API pública). Sin ellas, el botón se comporta y se ve como siempre.
   - `disabledReason` solo cuenta con `disabled` y con texto no vacío (se recorta). El motivo se muestra como texto visible debajo del botón (`body/sm`, `text/secondary`), enlazado con `aria-describedby`.
@@ -63,6 +71,7 @@ Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR
 
 ### Cambiado
 
+- `Dialog` (feature 007, PR 8f): los controles de un `fieldset` inhabilitado y los de `tabindex` negativo dejan de ser paradas de la trampa de foco (antes contaban, aunque el navegador no los visita), y un `data-initial-focus` sobre un control inhabilitado por su `fieldset` ya no recibe el foco inicial. El uso por omisión (el aviso de sesión) no cambia.
 - `Button` (feature 007, PR 8e): el estado Disabled lo da el atributo `data-state="disabled"` del anfitrión `liv-button` (antes, `:disabled` del botón). Todo botón deshabilitado, con o sin motivo, lleva ahora ese atributo en el DOM; el aspecto no cambia. Pruebas o selectores que dependan del DOM del botón pueden verlo.
 - `.vscode/mcp.json` usa el CLI del proyecto, en lugar de descargar la última versión con `npx -y`.
 - `AGENTS.md`: una tarea sin feature aprobada puede ser un cambio del flujo directo, según la evaluación previa del repositorio de plataforma (ADR 0028). Antes solo podía ser un cambio trivial.

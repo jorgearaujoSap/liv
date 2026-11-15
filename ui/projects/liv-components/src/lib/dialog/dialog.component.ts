@@ -27,6 +27,12 @@ export type DialogSize = 'md' | 'lg';
 /** Color del mosaico del icono (`Tone` de Figma): `warning` (avisos) o `primary` (una acción principal). */
 export type DialogTone = 'warning' | 'primary';
 
+/** Las paradas de Tab de un contenedor y la parada que representa a cada elemento (la de su grupo de radios). */
+interface TabStops {
+  readonly stops: HTMLElement[];
+  readonly stopOf: (element: Element | null) => Element | null | undefined;
+}
+
 let nextId = 0;
 
 /** Diálogos abiertos, el último abierto al final: solo ese atrapa el foco y atiende Escape. */
@@ -165,24 +171,26 @@ export class DialogComponent {
   /**
    * Tab en la última parada salta a la primera y Mayús+Tab en la primera salta a la última. Las paradas son
    * las del navegador (`tabStops`): un grupo de radios es una sola, y cuál de sus radios la representa
-   * depende de la dirección.
+   * depende de la dirección. Con el foco en el propio panel (un clic en una zona sin controles), Mayús+Tab
+   * también da la vuelta: antes del panel no hay nada de este diálogo.
    */
   private trapTab(event: KeyboardEvent) {
     const panel = this.panel()?.nativeElement;
     if (!panel) {
       return;
     }
-    const { stops, stopOf } = this.tabStops(panel, event.shiftKey);
+    const backwards = event.shiftKey;
+    const { stops, stopOf } = this.tabStops(panel, backwards);
     const first = stops[0];
     const last = stops[stops.length - 1];
     const active = this.document.activeElement;
     if (!first || !panel.contains(active)) {
       event.preventDefault();
       (first ?? panel).focus();
-    } else if (event.shiftKey && stopOf(active) === first) {
+    } else if (backwards && (active === panel || stopOf(active) === first)) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && stopOf(active) === last) {
+    } else if (!backwards && stopOf(active) === last) {
       event.preventDefault();
       first.focus();
     }
@@ -195,71 +203,93 @@ export class DialogComponent {
     }
   }
 
-  /** El elemento marcado con `data-initial-focus` (o su primera parada), la primera parada o el panel. */
+  /**
+   * El elemento marcado con `data-initial-focus` si es enfocable; si es un contenedor, su primera parada
+   * de Tab (con la regla de los grupos de radios, que puede depender de radios de fuera del contenedor);
+   * si no hay marca, la primera parada del panel; y si no hay paradas, el panel.
+   */
   private initialFocusTarget(panel: HTMLElement): HTMLElement {
     const marked = panel.querySelector<HTMLElement>('[data-initial-focus]');
     if (marked?.matches(FOCUSABLE) && !this.isDisabled(marked)) {
       return marked;
     }
-    return (
-      (marked && this.tabStops(marked, false).stops[0]) ||
-      this.tabStops(panel, false).stops[0] ||
-      panel
-    );
+    const stops = this.tabStops(panel, false).stops;
+    return (marked && stops.find((stop) => marked.contains(stop))) || stops[0] || panel;
   }
 
   /**
-   * Las paradas de Tab dentro de `root`, en el orden del documento, como las ve el navegador. No cuentan los
-   * controles inhabilitados (tampoco los de un `fieldset` inhabilitado) y los radios de un mismo grupo
-   * (mismo `name` y mismo formulario) son una sola parada: el marcado o, si no hay ninguno, el primero al
-   * avanzar y el último al retroceder. Un radio sin `name` no forma grupo. `stopOf` da la parada de un
+   * Las paradas de Tab dentro de `root`, en el orden del documento, como las ve el navegador (comprobado en
+   * Chromium; Firefox y WebKit no). No cuentan los controles inhabilitados (tampoco los de un `fieldset`
+   * inhabilitado, salvo los de su primera `legend`) ni los que llevan `tabindex` negativo. Los radios de un
+   * mismo grupo (mismo `name` y mismo formulario) son una sola parada: el marcado o, si no hay ninguno,
+   * el primer radio habilitado al avanzar y el último al retroceder; con el marcado inhabilitado, el primer
+   * habilitado en las dos direcciones. Un radio sin `name` no forma grupo. `stopOf` da la parada de un
    * elemento: la de su grupo, si es un radio de un grupo.
+   *
+   * No descarta los elementos ocultos (`hidden`, `display: none`, `inert`): la pantalla no debe dejarlos
+   * en el diálogo.
    */
-  private tabStops(
-    root: HTMLElement,
-    backwards: boolean,
-  ): { stops: HTMLElement[]; stopOf: (element: Element | null) => Element | null } {
+  private tabStops(root: HTMLElement, backwards: boolean): TabStops {
     const candidates = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-      (element) => !this.isDisabled(element),
+      (element) => element.tabIndex >= 0 && !this.isDisabled(element),
     );
-    const groups = new Map<HTMLInputElement, HTMLInputElement[]>();
-    const formIds = new Map<HTMLFormElement | null, number>();
-    const byKey = new Map<string, HTMLInputElement[]>();
-    for (const element of candidates) {
-      if (element instanceof HTMLInputElement && element.type === 'radio' && element.name) {
-        if (!formIds.has(element.form)) {
-          formIds.set(element.form, formIds.size);
-        }
-        const key = `${formIds.get(element.form)}:${element.name}`;
-        const members = byKey.get(key) ?? [];
-        members.push(element);
-        byKey.set(key, members);
-        groups.set(element, members);
-      }
-    }
+    const groups = this.radioGroups(root);
     const stopOf = (element: Element | null) => {
       const members = element instanceof HTMLInputElement ? groups.get(element) : undefined;
-      return members
-        ? (members.find((member) => member.checked) ?? members[backwards ? members.length - 1 : 0])
-        : element;
+      return members ? this.radioGroupStop(members, backwards) : element;
     };
     return { stops: candidates.filter((element) => stopOf(element) === element), stopOf };
   }
 
+  /** Cada radio con `name` de `root`, con todos los radios de su grupo (también los inhabilitados). */
+  private radioGroups(root: HTMLElement): Map<HTMLInputElement, HTMLInputElement[]> {
+    const groups = new Map<HTMLInputElement, HTMLInputElement[]>();
+    const byKey = new Map<string, HTMLInputElement[]>();
+    const formIds = new Map<HTMLFormElement | null, number>();
+    for (const radio of root.querySelectorAll<HTMLInputElement>('input[type="radio"][name]')) {
+      if (!radio.name) {
+        continue;
+      }
+      if (!formIds.has(radio.form)) {
+        formIds.set(radio.form, formIds.size);
+      }
+      const key = `${formIds.get(radio.form)}:${radio.name}`;
+      const members = byKey.get(key) ?? [];
+      members.push(radio);
+      byKey.set(key, members);
+      groups.set(radio, members);
+    }
+    return groups;
+  }
+
+  /** La parada de un grupo de radios, o `undefined` si ninguno es enfocable. */
+  private radioGroupStop(members: HTMLInputElement[], backwards: boolean) {
+    const checked = members.find((member) => member.checked);
+    if (checked && !this.isDisabled(checked)) {
+      return checked;
+    }
+    const enabled = members.filter((member) => !this.isDisabled(member));
+    return enabled[backwards && !checked ? enabled.length - 1 : 0];
+  }
+
   /** Si un control de formulario está inhabilitado, por sí mismo o por un `fieldset` inhabilitado. */
   private isDisabled(element: HTMLElement): boolean {
-    if (!FORM_CONTROL.test(element.tagName)) {
-      return false;
-    }
-    if (element.hasAttribute('disabled')) {
-      return true;
-    }
+    return (
+      FORM_CONTROL.test(element.tagName) &&
+      (element.hasAttribute('disabled') || this.isInDisabledFieldset(element))
+    );
+  }
+
+  /**
+   * Si el elemento está en un `fieldset` inhabilitado, o en uno anidado en él. Como dice el HTML, los
+   * controles de la primera `legend` del `fieldset` no quedan inhabilitados.
+   */
+  private isInDisabledFieldset(element: HTMLElement): boolean {
     for (
       let fieldset = element.closest('fieldset[disabled]');
       fieldset;
       fieldset = fieldset.parentElement?.closest('fieldset[disabled]') ?? null
     ) {
-      // Los controles de la primera `legend` del `fieldset` no quedan inhabilitados.
       const legend = Array.from(fieldset.children).find((child) => child.tagName === 'LEGEND');
       if (!legend?.contains(element)) {
         return true;
