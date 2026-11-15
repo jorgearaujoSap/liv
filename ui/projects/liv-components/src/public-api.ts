@@ -25,7 +25,7 @@ export {
   DescriptionItemComponent,
   type DescriptionItemType,
 } from './lib/description-item/description-item.component';
-export { DialogComponent } from './lib/dialog/dialog.component';
+export { DialogComponent, type DialogSize, type DialogTone } from './lib/dialog/dialog.component';
 export {
   IconButtonComponent,
   type IconButtonSize,
