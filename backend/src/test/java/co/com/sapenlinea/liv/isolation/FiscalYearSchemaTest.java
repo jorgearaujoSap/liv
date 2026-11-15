@@ -282,6 +282,53 @@ class FiscalYearSchemaTest {
   @Test
   @Tag("007-10")
   @DisplayName(
+      "007-10 · updated_at no puede ser anterior a created_at: ni en el futuro ni en el pasado de la fila")
+  void updatedAtCannotPrecedeCreatedAt() throws SQLException {
+    // The row is created now (created_at = now()); one hour earlier is before its own creation.
+    Timestamp beforeCreation = Timestamp.from(Instant.now().minusSeconds(3600));
+    SQLException early =
+        failureOf(() ->
+            update(
+                OWNER,
+                null,
+                INSERT_AS_OWNER,
+                ADMIN_A,
+                2063,
+                "EN_PREPARACION",
+                false,
+                USER_A,
+                USER_A,
+                beforeCreation));
+    assertThat(early.getSQLState()).isEqualTo(CHECK_VIOLATION);
+    assertThat(((PSQLException) early).getServerErrorMessage().getConstraint())
+        .isEqualTo("administration_fiscal_year_updated_at_check");
+
+    // The application can write updated_at (it has the column privilege): the check is the barrier.
+    update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2064, USER_A);
+    SQLException backdated =
+        failureOf(() ->
+            update(
+                APP,
+                ADMIN_A,
+                "UPDATE tax.administration_fiscal_year SET status = 'EN_PREPARACION',"
+                    + " updated_by = ?, updated_at = now() - interval '1 hour'"
+                    + " WHERE fiscal_year = 2064",
+                USER_A));
+    assertThat(backdated.getSQLState()).isEqualTo(CHECK_VIOLATION);
+    assertThat(((PSQLException) backdated).getServerErrorMessage().getConstraint())
+        .isEqualTo("administration_fiscal_year_updated_at_check");
+    assertThat(statusOf(2064)).isEqualTo("PLANEADA");
+
+    // The clock of the database is always valid: it is never before the start of the creation.
+    assertThat(update(APP, ADMIN_A, OPEN, USER_A, ADMIN_A, 2064)).isEqualTo(1);
+    assertThat(statusOf(2064)).isEqualTo("EN_PREPARACION");
+    // A row that was never updated has no updated_at and is valid.
+    update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2065, USER_A);
+  }
+
+  @Test
+  @Tag("007-10")
+  @DisplayName(
       "007-10 · Una vigencia En preparación exige updated_by y updated_at, cada uno por separado")
   void anOpenedFiscalYearAlwaysHasItsAuthorAndItsTime() throws SQLException {
     update(APP, ADMIN_A, INSERT_AS_APP, ADMIN_A, 2061, USER_A);

@@ -100,7 +100,8 @@ class FlywayProfilesTest {
               "202611031010",
               "202611131000",
               "202611131010",
-              "202611141000");
+              "202611141000",
+              "202611151000");
       assertThat(userOf(flyway.getConfiguration().getDataSource())).isEqualTo(LivDatabase.OWNER);
       assertThat(userOf(dataSource)).isEqualTo(LivDatabase.APP);
       try (Connection connection = dataSource.getConnection()) {
