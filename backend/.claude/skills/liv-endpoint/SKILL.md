@@ -26,30 +26,30 @@ En los módulos hexagonales (`jurisdiction`, `valuation`, `tax`, `ledger`) se re
 
 ### Ejemplo de un módulo hexagonal: `tax`, vigencias fiscales (feature 007)
 
-`POST /api/v1/fiscal-years/{year}/preparation` (`operationId: openFiscalYearPreparation`), con el resto de las operaciones de `tax.yaml`:
+La tabla sigue una de las cuatro operaciones de `tax.yaml`, `POST /api/v1/fiscal-years/{year}/preparation` (`operationId: openFiscalYearPreparation`); las otras tres comparten el controlador, el puerto y el adaptador:
 
 | Pieza | Archivo |
 |---|---|
 | Contrato | `contracts/openapi/tax.yaml` (rutas por año, no por `id`; los valores que crecerán son cadenas documentadas y no `enum`, para no romper Q08) |
 | Interfaz generada | `tax.api.contract.FiscalYearsApi` |
 | Controlador (sin lógica) | `tax/api/FiscalYearsController.java`: toma `CurrentUser.current()`, llama al caso de uso y convierte a los modelos generados |
-| Casos de uso | `tax/application/{List,Get,Create}FiscalYear*` y `OpenFiscalYearPreparation`: un `@Service` por acción, con `@RequiresPermission` y su constante `PERMISSION`; reciben el `CurrentUser` como argumento |
-| Puerto | `tax/application/FiscalYears.java` (lo que el caso de uso necesita de la persistencia: `lockForCreation`, `findAll`, `find`, `create`, `persistOpened`) |
-| Dominio (Java puro) | `tax/domain/AdministrationFiscalYear` (máquina de estados), `FiscalYearOpeningPolicy` (V-01, V-02 y V-05) y `PreparationChecklist` |
+| Casos de uso | `ListFiscalYears`, `GetFiscalYear`, `CreateFiscalYear` y `OpenFiscalYearPreparation`, en `tax/application`: un `@Service` por acción, con `@RequiresPermission` y su constante `PERMISSION`. Reciben el `CurrentUser` como argumento y devuelven tipos del dominio (el controlador solo puede depender de los `@Service` y de lo que ellos devuelven) |
+| Puerto | `tax/application/FiscalYears.java` (lo que los casos de uso necesitan de la persistencia: `lockForCreation`, `findAll`, `find`, `nationalYears`, `create` y `persistOpened`) |
+| Dominio (Java puro) | `tax/domain/AdministrationFiscalYear` (máquina de estados), `FiscalYearOpeningPolicy` (V-01, V-02 y V-05), `PreparationChecklist` y `RegisteredFiscalYear` (la vigencia tal como se guarda, que el caso de uso devuelve) |
 | Errores de negocio | `shared.RuleViolation` (código de la regla, tipo `CONFLICT` o `UNPROCESSABLE` y detalles) y `shared.NotFound`, que traduce `platform/web/ProblemDetailsHandler` a 409, 422 o 404 `SYS-404` sin que `platform` conozca a `tax` |
-| Eventos | `tax/FiscalYearCreated` y `FiscalYearStatusChanged` en el paquete raíz (los escucha `audit`; ningún módulo depende de `audit`) |
+| Eventos | `tax/FiscalYearCreated` y `FiscalYearStatusChanged` en el paquete raíz (los escuchará `audit` en B7; ningún módulo depende de `audit`) |
 | Adaptador JPA | `tax/infrastructure/persistence/JpaFiscalYears.java`, entidades y repositorios |
 | Pruebas | dominio (`tax/domain/*Test`), casos de uso con un doble del puerto (`tax/application/*Test`, `FakeFiscalYears`), el adaptador real con Testcontainers (`JpaFiscalYearsTest`, `JpaFiscalYearsRacesTest`, `FiscalYearsBeansTest`) y la API (`tax/FiscalYearsApiTest`, `extends PlatformWebTest`) |
 
 Lo que este ejemplo enseña y conviene repetir:
 
-- **El dominio no sabe de HTTP ni de Spring**: lanza `RuleViolation` y `NotFound`, sin marcar, y el manejador los traduce. `tax` depende de `platform` y `shared`, y `platform` depende solo de `shared` (`ModularityTest`).
-- **El reloj y la zona se inyectan**: `BusinessYear` (Java puro, sin ser un *bean*) calcula el año en curso con el `Clock` (UTC) y `liv.business-zone`. Una regla de arquitectura prohíbe `@Bean` de clases de `application` y exige permiso en todo `@Component`: por eso cada caso de uso lo construye.
+- **El dominio no sabe de HTTP ni de Spring**: lanza `RuleViolation` y `NotFound`, excepciones no comprobadas (`RuntimeException`), y el manejador los traduce. `tax` depende de `platform` y `shared`, y `platform` depende solo de `shared` (`ModularityTest`).
+- **El reloj y la zona se inyectan**: `BusinessYear` (Java puro, sin ser un *bean*) calcula el año en curso con el `Clock` (UTC) y `liv.business-zone`. Las reglas de `AuthorizationRulesTest` prohíben `@Bean` de clases de `application` y exigen que todo `@Component` de ese paquete sea un `@Service` con permiso en cada método público: por eso `BusinessYear` no es un *bean* y cada caso de uso lo construye.
 - **Una entidad JPA que solo se lee y se inserta** cuando `liv_app` tiene permisos por columna: `insertable = false` y `@Generated` para lo que pone la base, y `updatable = false` en todo. El cambio de estado es un `UPDATE` explícito que cuenta filas (`@Modifying`), no el *dirty checking*; así una carrera perdida da 409 y no un 503.
 - **Los errores de integridad**: la violación de un `UNIQUE` del `INSERT` se traduce a una regla (`V-01`) en el adaptador, por su SQLState `23505`, con una prueba de esquema que fija que es el único `UNIQUE` que el `INSERT` puede violar.
 - **Las pruebas de una carrera la fuerzan**: con dos transacciones, hilos y *latches*, y una variante que quita la protección para comprobar que la prueba la detecta. Una prueba por la API (varias peticiones a la vez) es solo de humo: casi nunca produce la intercalación.
 - **Un `404` que no revela**: una vigencia de otra administración y una que no existe dan el mismo cuerpo (CA-12), y se comprueba la existencia antes del estado, para que el 409 no revele el estado de una vigencia ajena.
-- **Tipos estrictos**: `spring.jackson` rechaza `"2026"` y `2026.5` donde el contrato dice entero (400).
+- **Tipos estrictos y campos omitidos** (`spring.jackson` en `application.yml`, para toda la API): un campo numérico o booleano del contrato no acepta `"2026"` ni `2026.5` (400), y un campo opcional sin valor se omite en vez de viajar como `null`. Un campo de texto sí acepta un número (`{"sid":123}`). Si un contrato guarda dinero como texto, hará falta una `CoercionConfig` por tipo o un campo numérico (ADR 0016).
 
 ## Pasos
 
