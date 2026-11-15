@@ -2,7 +2,6 @@ package co.com.sapenlinea.liv.tax.application;
 
 import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
-import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
@@ -10,7 +9,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -27,7 +25,8 @@ final class FakeFiscalYears implements FiscalYears {
   static final UUID USER = UUID.fromString("20000000-0000-0000-0000-00000000000a");
 
   private final List<Stored> rows = new ArrayList<>();
-  private int locks;
+  private final List<UUID> lockedAdministrations = new ArrayList<>();
+  private final List<String> calls = new ArrayList<>();
 
   static List<NationalFiscalYear> nationalTable() {
     return IntStream.rangeClosed(1999, 2100)
@@ -69,17 +68,29 @@ final class FakeFiscalYears implements FiscalYears {
     return stored;
   }
 
-  int locks() {
-    return locks;
+  /** The administrations {@code lockForCreation} was called with, in order. */
+  List<UUID> lockedAdministrations() {
+    return List.copyOf(lockedAdministrations);
+  }
+
+  /** The reads and writes the use case made through the port, in order. */
+  List<String> calls() {
+    return List.copyOf(calls);
   }
 
   @Override
   public void lockForCreation(UUID administrationId) {
-    locks++;
+    calls.add("lock");
+    lockedAdministrations.add(administrationId);
   }
 
   @Override
   public List<Stored> findAll(UUID administrationId) {
+    calls.add("findAll");
+    return rowsOf(administrationId);
+  }
+
+  private List<Stored> rowsOf(UUID administrationId) {
     return rows.stream()
         .filter(row -> row.fiscalYear().administrationId().equals(administrationId))
         .sorted(Comparator.comparingInt((Stored row) -> row.fiscalYear().year()).reversed())
@@ -88,22 +99,21 @@ final class FakeFiscalYears implements FiscalYears {
 
   @Override
   public Optional<Stored> find(UUID administrationId, int year) {
-    return findAll(administrationId).stream()
+    return rowsOf(administrationId).stream()
         .filter(row -> row.fiscalYear().year() == year)
         .findFirst();
   }
 
   @Override
   public List<NationalFiscalYear> nationalYears() {
+    calls.add("national");
     return nationalTable();
   }
 
   @Override
   public Stored create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
-    if (find(fiscalYear.administrationId(), fiscalYear.year()).isPresent()) {
-      throw new RuleViolation(
-          "V-01", RuleViolation.Type.CONFLICT, Map.of("year", fiscalYear.year()));
-    }
+    // It does not enforce V-01, as a UNIQUE would: the use case must have decided it before.
+    calls.add("create");
     return given(fiscalYear.administrationId(), fiscalYear.year(), fiscalYear.status());
   }
 

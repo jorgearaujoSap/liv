@@ -53,12 +53,15 @@ class CreateFiscalYearTest {
   void createsThePlannedYear() {
     var stored = useCase(LAST_NIGHT_OF_2026).create(FakeFiscalYears.user(), 2026);
 
+    assertThat(fiscalYears.calls().subList(0, 4))
+        .containsExactly("lock", "findAll", "national", "create");
     assertThat(stored.fiscalYear().status()).isEqualTo(FiscalYearStatus.PLANEADA);
     assertThat(stored.fiscalYear().assessmentsEnabled()).isFalse();
     assertThat(stored.startsOn()).isEqualTo(LocalDate.of(2026, 1, 1));
     assertThat(stored.endsOn()).isEqualTo(LocalDate.of(2026, 12, 31));
     assertThat(fiscalYears.findAll(ADMINISTRATION)).hasSize(1);
-    assertThat(fiscalYears.locks()).isEqualTo(1);
+    // The lock is of the administration, not of the user, and goes before any read.
+    assertThat(fiscalYears.lockedAdministrations()).containsExactly(ADMINISTRATION);
   }
 
   @Test
@@ -189,5 +192,27 @@ class CreateFiscalYearTest {
     RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2024);
 
     assertThat(violation.details()).containsEntry("currentYear", 2026);
+  }
+
+  @Test
+  @Tag("V-02")
+  @Tag("007-06")
+  @DisplayName("V-02 · 007-06 · Un año pasado pendiente (PAST) se puede crear; saltarse uno da GAP")
+  void aPastYearThatIsStillPendingCanBeCreated() {
+    // The latest is 2026 and it is 2028: nobody created 2027, the only year that can be created.
+    Instant inTheMiddleOf2028 = Instant.parse("2028-06-15T12:00:00Z");
+    fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
+    CreateFiscalYear useCase = useCase(inTheMiddleOf2028);
+
+    RuleViolation skipsIt = rejected(useCase, 2028);
+    assertThat(skipsIt.code()).isEqualTo("V-02");
+    assertThat(skipsIt.details())
+        .containsEntry("reason", "GAP")
+        .containsEntry("requiredYear", 2027);
+
+    assertThat(useCase.create(FakeFiscalYears.user(), 2027).fiscalYear().year()).isEqualTo(2027);
+    // With 2027 created, 2028 (the current year) is the next one.
+    assertThat(useCase.create(FakeFiscalYears.user(), 2028).fiscalYear().year()).isEqualTo(2028);
+    assertThat(rejected(useCase, 2030).details()).containsEntry("requiredYear", 2029);
   }
 }

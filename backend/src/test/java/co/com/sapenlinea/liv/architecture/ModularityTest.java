@@ -32,6 +32,19 @@ class ModularityTest {
     }
   }
 
+  @Test
+  @DisplayName("ADR 0035 · Solo platform y tax dependen de shared, y shared no depende de nadie")
+  void onlyPlatformAndTaxUseShared() {
+    Set<String> dependents = new java.util.TreeSet<>();
+    for (ApplicationModule module : MODULES) {
+      if (dependenciesOf(name(module)).contains("shared")) {
+        dependents.add(name(module));
+      }
+    }
+    assertThat(dependents).containsExactly("platform", "tax");
+    assertThat(dependenciesOf("shared")).isEmpty();
+  }
+
   private static Set<String> dependenciesOf(String module) {
     return MODULES
         .getModuleByName(module)

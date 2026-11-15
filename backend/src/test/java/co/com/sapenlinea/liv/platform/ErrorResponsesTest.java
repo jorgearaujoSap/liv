@@ -115,12 +115,19 @@ class ErrorResponsesTest extends PlatformWebTest {
   }
 
   @Test
-  @DisplayName("ADR 0035 · Un rechazo de regla no registra una falla: es una respuesta esperada")
-  void ruleViolationIsNotLoggedAsAnError(CapturedOutput output) {
+  @DisplayName(
+      "ADR 0035 · Un rechazo de regla se registra con su código, sin valores y sin nivel de falla")
+  void ruleViolationIsLoggedWithoutItsValues(CapturedOutput output) {
     String correlationId = UUID.randomUUID().toString();
 
     get("/api/v1/probe/rule/conflict", user(correlationId));
 
+    String line =
+        output.getAll().lines().filter(l -> l.contains("Rule V-01")).findFirst().orElse("");
+    assertThat(line).contains(" INFO ").contains(correlationId).contains("[year]");
+    // The values of the details may become personal data in later rules: only their names are
+    // logged.
+    assertThat(line).doesNotContain("2026");
     assertThat(output).doesNotContain("Unexpected error");
   }
 

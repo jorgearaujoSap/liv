@@ -2,7 +2,6 @@ package co.com.sapenlinea.liv.tax.application;
 
 import static co.com.sapenlinea.liv.tax.application.FakeFiscalYears.ADMINISTRATION;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import co.com.sapenlinea.liv.shared.RuleViolation;
@@ -15,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -25,6 +25,7 @@ class ListFiscalYearsTest {
 
   private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
   private static final Instant LAST_NIGHT_OF_2026 = Instant.parse("2027-01-01T04:30:00Z");
+  private static final Instant AFTER_MIDNIGHT = Instant.parse("2027-01-01T05:30:00Z");
   private static final String CREATE = "tax.fiscal-year.create";
   private static final String READ = "tax.fiscal-year.read";
 
@@ -114,26 +115,59 @@ class ListFiscalYearsTest {
         .containsExactly(tuple(2027, YearRelation.PAST));
   }
 
+  /**
+   * The list and the creation agree: for each scenario (an empty administration, the border of the
+   * year, a past year still pending, a full one) and for every year of the national table, the
+   * creation of a fresh administration with the same years accepts it exactly when the list offered
+   * it.
+   */
   @Test
   @Tag("007-08")
   @DisplayName(
-      "007-08 · La lista nunca ofrece un año que la creación rechace, en la frontera del año")
-  void neverOffersWhatTheCreationRejects() {
-    Clock clock = Clock.fixed(LAST_NIGHT_OF_2026, ZoneOffset.UTC);
-    var create = new CreateFiscalYear(fiscalYears, event -> {}, clock, BOGOTA);
-    var offered =
-        list(LAST_NIGHT_OF_2026, READ, CREATE).list(FakeFiscalYears.user()).creatableYears();
-
-    assertThat(offered).hasSize(2);
-    for (int year = 1999; year <= 2100; year++) {
-      boolean accepted = year == 2026 || year == 2027;
-      int candidate = year;
-      boolean inTheList = offered.stream().anyMatch(item -> item.year() == candidate);
-      assertThat(inTheList).as("año %d", year).isEqualTo(accepted);
-      if (!accepted) {
-        assertThatThrownBy(() -> create.create(FakeFiscalYears.user(), candidate))
-            .isInstanceOf(RuleViolation.class);
+      "007-08 · La lista ofrece exactamente los años que la creación acepta, en cada escenario")
+  void theListOffersExactlyWhatTheCreationAccepts() {
+    record Scenario(Instant now, int... existing) {}
+    for (Scenario scenario :
+        List.of(
+            new Scenario(LAST_NIGHT_OF_2026),
+            new Scenario(AFTER_MIDNIGHT),
+            new Scenario(LAST_NIGHT_OF_2026, 2026),
+            new Scenario(LAST_NIGHT_OF_2026, 2026, 2027),
+            new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026),
+            new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026, 2028))) {
+      List<Integer> offered = offeredYears(scenario.now(), scenario.existing());
+      assertThat(offered).as("la lista ofrece algo o está bloqueada").hasSizeLessThanOrEqualTo(2);
+      for (int year = 1999; year <= 2100; year++) {
+        assertThat(offered.contains(year))
+            .as("año %d, ahora %s, con %s", year, scenario.now(), List.of(scenario.existing()))
+            .isEqualTo(accepts(scenario.now(), scenario.existing(), year));
       }
     }
+  }
+
+  private List<Integer> offeredYears(Instant now, int... existing) {
+    var clock = Clock.fixed(now, ZoneOffset.UTC);
+    return new ListFiscalYears(
+            portWith(existing), FakeFiscalYears.catalogWith(READ, CREATE), clock, BOGOTA)
+        .list(FakeFiscalYears.user()).creatableYears().stream().map(CreatableYear::year).toList();
+  }
+
+  private boolean accepts(Instant now, int[] existing, int year) {
+    var clock = Clock.fixed(now, ZoneOffset.UTC);
+    try {
+      new CreateFiscalYear(portWith(existing), event -> {}, clock, BOGOTA)
+          .create(FakeFiscalYears.user(), year);
+      return true;
+    } catch (RuleViolation rejected) {
+      return false;
+    }
+  }
+
+  private static FakeFiscalYears portWith(int... existing) {
+    FakeFiscalYears port = new FakeFiscalYears();
+    for (int year : existing) {
+      port.given(ADMINISTRATION, year, FiscalYearStatus.PLANEADA);
+    }
+    return port;
   }
 }

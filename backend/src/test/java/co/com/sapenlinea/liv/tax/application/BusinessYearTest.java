@@ -21,16 +21,12 @@ import org.springframework.beans.factory.annotation.Value;
 @DisplayName("El año en curso de las vigencias, en la zona de negocio (ADR 0035)")
 class BusinessYearTest extends PlatformWebTest {
 
-  @Autowired private Clock clock;
-
-  @Value("${liv.business-zone}")
-  private ZoneId zone;
-
   @Test
   @Tag("007-08")
   @DisplayName(
       "007-08 · La zona configurada es America/Bogota y el reloj de la aplicación sigue en UTC")
-  void theConfiguredZoneIsBogota() {
+  void theConfiguredZoneIsBogota(
+      @Autowired Clock clock, @Value("${liv.business-zone}") ZoneId zone) {
     assertThat(zone).isEqualTo(ZoneId.of("America/Bogota"));
     assertThat(clock.getZone()).isEqualTo(ZoneOffset.UTC);
   }
@@ -39,7 +35,7 @@ class BusinessYearTest extends PlatformWebTest {
   @Tag("007-08")
   @DisplayName(
       "007-08 · Con la configuración real, a las 23:30 del 31 de diciembre sigue siendo 2026")
-  void lastNightOf2026IsStill2026() {
+  void lastNightOf2026IsStill2026(@Value("${liv.business-zone}") ZoneId zone) {
     Instant lastNight = Instant.parse("2027-01-01T04:30:00Z");
     BusinessYear businessYear = new BusinessYear(Clock.fixed(lastNight, ZoneOffset.UTC), zone);
 
