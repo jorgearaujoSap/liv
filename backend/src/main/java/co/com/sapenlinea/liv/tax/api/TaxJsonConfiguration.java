@@ -22,7 +22,8 @@ import tools.jackson.databind.annotation.JsonDeserialize;
  *   <li>{@code createBlocked} is optional: when there is no reason it is omitted, not written as
  *       {@code null}.
  *   <li>The {@code year} of the request is an integer: {@code "2026"}, {@code 2026.5} and {@code
- *       true} are not turned into 2026 (they would answer 201, which the contract does not allow).
+ *       2026.0} are not turned into 2026 (they would answer 201, which the contract does not
+ *       allow), and any other token is refused too.
  * </ul>
  */
 @Configuration(proxyBeanMethods = false)
