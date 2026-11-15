@@ -1,7 +1,7 @@
 spring:
   application:
     name: liv-api
-  # El contrato manda: un campo entero solo acepta un entero. Por omisión, Jackson convertiría
+  # El contrato manda (vale para toda la API y para el outbox de eventos): un campo entero solo acepta un entero. Por omisión, Jackson convertiría
   # "2026" en 2026 y 2026.5 en 2026, y la API respondería 201 a una petición que el contrato no admite.
   # Un campo opcional que no tiene valor se omite, no viaja como null: así lo dice el contrato.
   jackson:

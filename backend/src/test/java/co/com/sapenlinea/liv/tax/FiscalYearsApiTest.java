@@ -428,15 +428,23 @@ class FiscalYearsApiTest extends PlatformWebTest {
     assertThat(body(get("/api/v1/fiscal-years", nobody.as(ADMIN))).get("items")).isEmpty();
     assertThat(body(get("/api/v1/fiscal-years", owner.as(ADMIN))).get("items")).hasSize(1);
 
-    // A year that only the owner has: for the stranger it is the same as a year nobody created.
+    // The same route, before and after the owner creates the year: for the stranger the answer
+    // is exactly the same, body and headers (only the correlation changes).
     int onlyOwners = year + 1;
+    HttpResponse<String> neverCreated = detail(stranger, onlyOwners);
+    assertProblem(neverCreated, 404, "SYS-404");
     givenTheYear(owner, onlyOwners);
     HttpResponse<String> ofAnother = detail(stranger, onlyOwners);
-    HttpResponse<String> neverCreated = detail(stranger, 2099);
-    assertProblem(ofAnother, 404, "SYS-404");
-    assertThat(withoutInstance(ofAnother)).isEqualTo(withoutInstance(neverCreated));
-    assertThat(ofAnother.headers().map().keySet())
-        .containsExactlyInAnyOrderElementsOf(neverCreated.headers().map().keySet());
+    assertThat(ofAnother.body()).isEqualTo(neverCreated.body());
+    assertThat(sameHeaders(ofAnother)).isEqualTo(sameHeaders(neverCreated));
+  }
+
+  /** The headers of an answer except the ones that are different on every request. */
+  private static Map<String, List<String>> sameHeaders(HttpResponse<String> response) {
+    Map<String, List<String>> headers = new java.util.TreeMap<>(response.headers().map());
+    headers.remove("date");
+    headers.remove("x-correlation-id");
+    return headers;
   }
 
   @Test
@@ -458,10 +466,12 @@ class FiscalYearsApiTest extends PlatformWebTest {
     HttpResponse<String> planned = open(stranger, year);
     assertProblem(planned, 404, "SYS-404");
     assertThat(withoutInstance(planned)).isEqualTo(withoutInstance(neverCreated));
+    assertThat(sameHeaders(planned)).isEqualTo(sameHeaders(neverCreated));
     assertThat(open(owner, year).statusCode()).isEqualTo(200);
     HttpResponse<String> inPreparation = open(stranger, year);
     assertProblem(inPreparation, 404, "SYS-404");
     assertThat(withoutInstance(inPreparation)).isEqualTo(withoutInstance(neverCreated));
+    assertThat(sameHeaders(inPreparation)).isEqualTo(sameHeaders(neverCreated));
     assertThat(inPreparation.body()).isEqualTo(planned.body());
     assertThat(body(detail(owner, year)).get("status").asString()).isEqualTo("EN_PREPARACION");
   }

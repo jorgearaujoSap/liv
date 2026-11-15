@@ -27,7 +27,7 @@ class FiscalYearsContractParityTest {
   }
 
   @Test
-  @Tag("007-10")
+  @Tag("contrato")
   @DisplayName(
       "007-10 · Los cinco estados de la vigencia del dominio son los del contrato (Doc. 01 §5)")
   void fiscalYearStatuses() {
@@ -37,7 +37,7 @@ class FiscalYearsContractParityTest {
   }
 
   @Test
-  @Tag("007-11")
+  @Tag("contrato")
   @DisplayName("007-11 · Los estados de un punto de la lista del dominio son los del contrato")
   void preparationItemStatuses() {
     assertThat(contractValues(PreparationItemStatus.values()))
