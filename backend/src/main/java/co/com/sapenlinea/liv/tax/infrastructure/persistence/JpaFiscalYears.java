@@ -6,7 +6,6 @@ import co.com.sapenlinea.liv.tax.application.FiscalYears;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,6 +59,11 @@ class JpaFiscalYears implements FiscalYears {
 
   @Override
   public Optional<Stored> find(UUID administrationId, int year) {
+    // A year that does not fit the SMALLINT cannot exist, and a cast would wrap it into another
+    // year.
+    if (year < Short.MIN_VALUE || year > Short.MAX_VALUE) {
+      return Optional.empty();
+    }
     return rows.findByAdministrationIdAndFiscalYear(administrationId, (short) year)
         .map(this::toStored);
   }
@@ -97,7 +101,8 @@ class JpaFiscalYears implements FiscalYears {
     if (changed == 1) {
       return now;
     }
-    // 0 rows: another request opened it first. The domain tells the rule with the state it has now.
+    // 0 rows: another request opened it first. The domain answers V-06 with the state it has now:
+    // openPreparation() always throws here, because the fiscal year is no longer PLANEADA.
     now.fiscalYear().openPreparation();
     throw new IllegalStateException(
         "The update changed no row but the fiscal year is still " + FiscalYearStatus.PLANEADA);
@@ -123,19 +128,17 @@ class JpaFiscalYears implements FiscalYears {
 
   /**
    * Whether the failure is the {@code UNIQUE (administration_id, fiscal_year)}: the SQLState 23505
-   * and, when the driver gives it, the name of the constraint. The only other unique constraints of
-   * the table are the primary key and {@code (id, administration_id)}, and both depend on the id
-   * that the database generates with {@code uuidv7()}, so an insert cannot repeat them.
+   * and the name of the constraint. When the name cannot be read it is taken as that one: the only
+   * other unique constraints of the table are the primary key and {@code (id, administration_id)},
+   * and both depend on the id that the database generates with {@code uuidv7()}, which an insert
+   * cannot repeat.
    */
-  private static boolean breaksTheYearKey(DataIntegrityViolationException failure) {
+  static boolean breaksTheYearKey(DataIntegrityViolationException failure) {
     for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
       if (cause instanceof ConstraintViolationException violation) {
         String constraint = violation.getConstraintName();
         return UNIQUE_VIOLATION.equals(violation.getSQLState())
             && (constraint == null || constraint.endsWith(YEAR_KEY));
-      }
-      if (cause instanceof SQLException sql && UNIQUE_VIOLATION.equals(sql.getSQLState())) {
-        return true;
       }
     }
     return false;

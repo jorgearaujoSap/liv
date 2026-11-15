@@ -33,15 +33,18 @@ interface AdministrationFiscalYearRepository
    * The opening of the preparation, explicit: it moves the year from {@code PLANEADA} to {@code
    * EN_PREPARACION} only if it is still {@code PLANEADA}, and returns how many rows it changed (0
    * when another request got there first, or when the row-level security hides the row). The time
-   * is the one of the database, so it can never be in the future. Hibernate flushes before it and
-   * clears its persistence context after it, so the next read comes from the database.
+   * is the one of the database at the moment of the statement ({@code clock_timestamp()}, not the
+   * start of the transaction that {@code now()} gives): a row created by another transaction that
+   * started after this one is never opened with a time before its creation, and it can never be in
+   * the future. Hibernate flushes before it and clears its persistence context after it, so the
+   * next read comes from the database.
    */
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       value =
           """
           UPDATE tax.administration_fiscal_year
-             SET status = 'EN_PREPARACION', updated_by = :userId, updated_at = now()
+             SET status = 'EN_PREPARACION', updated_by = :userId, updated_at = clock_timestamp()
            WHERE id = :id AND status = 'PLANEADA'
           """,
       nativeQuery = true)
