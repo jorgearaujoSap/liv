@@ -281,11 +281,12 @@ class FiscalYearSchemaTest {
 
   @Test
   @Tag("007-10")
-  @DisplayName(
-      "007-10 · updated_at no puede ser anterior a created_at: ni en el futuro ni en el pasado de la fila")
+  @DisplayName("007-10 · updated_at no puede ser anterior a created_at: ni al insertar ni al abrir")
   void updatedAtCannotPrecedeCreatedAt() throws SQLException {
-    // The row is created now (created_at = now()); one hour earlier is before its own creation.
-    Timestamp beforeCreation = Timestamp.from(Instant.now().minusSeconds(3600));
+    // The row is created now (created_at = now()); a day earlier is before its own creation,
+    // however
+    // far the clock of the container is from this one.
+    Timestamp beforeCreation = Timestamp.from(Instant.now().minusSeconds(86_400));
     SQLException early =
         failureOf(() ->
             update(
@@ -653,15 +654,15 @@ class FiscalYearSchemaTest {
   /** Quién y cuándo hizo el último cambio de una vigencia (updated_by y updated_at). */
   private record Trace(UUID by, Timestamp at) {}
 
-  /** Inserta como dueño (que no pasa por la RLS) una vigencia con el estado que se pida. */
   /**
-   * A moment after the row is created (created_at is the clock of the database): a minute ahead, so
+   * A moment after the row is created (created_at is the clock of the database): a day ahead, so
    * the difference between the clock of the test and the one of the container does not matter.
    */
   private static Timestamp afterCreation() {
-    return Timestamp.from(Instant.now().plusSeconds(60));
+    return Timestamp.from(Instant.now().plusSeconds(86_400));
   }
 
+  /** Inserta como dueño (que no pasa por la RLS) una vigencia con el estado que se pida. */
   private static int insertAsOwner(
       UUID administration, int year, String status, boolean assessmentsEnabled, UUID createdBy)
       throws SQLException {

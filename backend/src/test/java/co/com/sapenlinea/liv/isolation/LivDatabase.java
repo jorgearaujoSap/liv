@@ -187,6 +187,33 @@ public final class LivDatabase {
   }
 
   /**
+   * Writes as the owner and keeps the transaction open while {@code during} runs, waits until the
+   * application is blocked on a lock (the unique index or the row the owner just wrote), and then
+   * commits: a concurrent write of the application is forced to meet this one, with no chance of
+   * reading it before.
+   */
+  public static void writeAsOwnerUncommittedDuring(String sql, Object[] args, Runnable during) {
+    try (Connection connection = connect(OWNER)) {
+      connection.setAutoCommit(false);
+      update(connection, sql, args);
+      during.run();
+      awaitApplicationWaitingOnALock();
+      connection.commit();
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /** Waits until a session of {@code liv_app} waits for a lock (a row, an index, an advisory). */
+  public static void awaitAnApplicationSessionWaitingOnALock() {
+    try {
+      awaitApplicationWaitingOnALock();
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
    * Sets the watermark of the importer of the identity provider, as its owner, with no ids seen
    * (T15); {@code null} removes it, as before the first import.
    */
