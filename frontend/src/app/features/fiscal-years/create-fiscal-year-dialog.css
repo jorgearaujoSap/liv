@@ -1,0 +1,11 @@
+@reference '../../../styles.css';
+
+/* El cuerpo del diálogo: la alerta de rechazo, el grupo de años, las fechas y la advertencia, en columna. */
+[livDialogBody] {
+  @apply flex flex-col gap-4;
+}
+
+/* Inicio y fin, uno junto al otro, como en Figma. */
+dl {
+  @apply m-0 flex gap-8;
+}

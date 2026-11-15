@@ -10,6 +10,7 @@
       reasonAlign="end"
       [disabled]="createDisabled()"
       [disabledReason]="blockedReason()"
+      (click)="creating.set(true)"
     >
       Crear vigencia
     </liv-button>
@@ -38,6 +39,7 @@
         leadingIcon="plus"
         [disabled]="createDisabled()"
         [disabledReason]="blockedReason()"
+        (click)="creating.set(true)"
       >
         Crear la primera vigencia
       </liv-button>
@@ -91,4 +93,13 @@
       </tbody>
     </table>
   </div>
+}
+
+@if (creating()) {
+  <app-create-fiscal-year-dialog
+    [years]="creatableYears()"
+    (created)="onCreated()"
+    (conflict)="onConflict()"
+    (closed)="creating.set(false)"
+  />
 }

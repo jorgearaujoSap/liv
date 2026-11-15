@@ -6,8 +6,21 @@ import type { CreatableYear, FiscalYear } from '../../api/tax/models';
 import { CreateFiscalYearDialog } from './create-fiscal-year-dialog';
 import { FiscalYearsService } from './fiscal-years.service';
 
-const text = (element: Element | null | undefined) =>
-  element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+/** El texto visible de un elemento: cada nodo de texto por separado, para que los bloques no se peguen. */
+const text = (element: Element | null | undefined): string => {
+  if (!element) {
+    return '';
+  }
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const parts: string[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const part = node.textContent?.replace(/\s+/g, ' ').trim();
+    if (part) {
+      parts.push(part);
+    }
+  }
+  return parts.join(' ');
+};
 
 const option = (year: number, relation: string): CreatableYear => ({
   year,
@@ -47,7 +60,9 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
   const radios = () => Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
   const checked = () => radios().find((radio) => radio.checked);
   const button = (label: string) =>
-    Array.from(host.querySelectorAll('button')).find((candidate) => text(candidate) === label);
+    Array.from(host.querySelectorAll('button')).find((candidate) =>
+      text(candidate).endsWith(label),
+    );
   const submit = async () => {
     button('Crear vigencia')?.click();
     await settle();

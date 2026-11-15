@@ -15,6 +15,7 @@ import {
 
 import type { CreatableYear, FiscalYear, FiscalYearList } from '../../api/tax/models';
 import { OPTION_ROUTE } from '../../core/app-paths';
+import { CreateFiscalYearDialog } from './create-fiscal-year-dialog';
 import { FiscalYearsService } from './fiscal-years.service';
 
 /** Cómo se muestra cada estado de una vigencia (Doc. 01 §5); uno que no conoce se muestra tal cual. */
@@ -63,6 +64,7 @@ interface Row {
     BadgeComponent,
     ResultStateComponent,
     SkeletonComponent,
+    CreateFiscalYearDialog,
   ],
   templateUrl: './fiscal-years.html',
   styleUrl: './fiscal-years.css',
@@ -83,6 +85,9 @@ export class FiscalYears {
   protected readonly rows = computed<Row[]>(() =>
     (this.list()?.items ?? []).map((item) => this.toRow(item)),
   );
+  protected readonly creatableYears = computed(() => this.list()?.creatableYears ?? []);
+  /** El diálogo de creación está abierto. */
+  protected readonly creating = signal(false);
   protected readonly isEmpty = computed(() => this.rows().length === 0);
   protected readonly canCreate = computed(() => this.list()?.canCreate === true);
 
@@ -128,19 +133,49 @@ export class FiscalYears {
     void this.load();
   }
 
-  protected async load(): Promise<void> {
-    const read = ++this.latestRead;
+  /** Lee las vigencias y muestra «cargando» mientras tanto. */
+  protected load(): Promise<boolean> {
     this.view.set('loading');
+    return this.read();
+  }
+
+  /** Vuelve a leer las vigencias sin mostrar «cargando»: la lista sigue a la vista hasta que llega la nueva. */
+  private reload(): Promise<boolean> {
+    return this.read();
+  }
+
+  /** Lee las vigencias; dice si salió bien. La respuesta de una lectura anterior a la última no cuenta. */
+  private async read(): Promise<boolean> {
+    const read = ++this.latestRead;
     try {
       const list = await this.fiscalYears.list();
       if (read === this.latestRead) {
         this.list.set(list);
         this.view.set('ready');
       }
+      return true;
     } catch {
       if (read === this.latestRead) {
         this.view.set('error');
       }
+      return false;
+    }
+  }
+
+  /** La vigencia quedó creada: se cierra el diálogo y la lista se vuelve a leer con ella. */
+  protected async onCreated(): Promise<void> {
+    this.creating.set(false);
+    await this.reload();
+  }
+
+  /**
+   * Otra persona creó el año antes (V-01): se vuelve a leer la lista. El diálogo sigue abierto, con el primer
+   * año que quede disponible; si no queda ninguno (o la lista no se pudo leer), se cierra.
+   */
+  protected async onConflict(): Promise<void> {
+    const read = await this.reload();
+    if (!read || this.creatableYears().length === 0) {
+      this.creating.set(false);
     }
   }
 
