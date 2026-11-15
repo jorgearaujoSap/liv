@@ -175,6 +175,18 @@ public final class LivDatabase {
   }
 
   /**
+   * Writes as the owner, past RLS, for the tests of other packages that need rows {@code liv_app}
+   * cannot create (a competing writer, a row that exists before the application acts).
+   */
+  public static int writeAsOwner(String sql, Object... args) {
+    try {
+      return update(OWNER, null, sql, args);
+    } catch (SQLException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
    * Sets the watermark of the importer of the identity provider, as its owner, with no ids seen
    * (T15); {@code null} removes it, as before the first import.
    */
