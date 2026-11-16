@@ -117,9 +117,9 @@ class JdbcAuditLog implements AuditLog {
     jdbc.sql(
             """
             INSERT INTO audit.audit_event (id, user_id, administration_id, entity_name, entity_id,
-                                           operation, new_values, occurred_at, correlation_id,
-                                           source, source_event_id, actor_ref)
-            VALUES (?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?)
+                                           operation, previous_values, new_values, occurred_at,
+                                           correlation_id, source, source_event_id, actor_ref)
+            VALUES (?, ?, ?, ?, ?, ?, CAST(? AS jsonb), CAST(? AS jsonb), ?, ?, ?, ?, ?)
             ON CONFLICT DO NOTHING
             """)
         .params(
@@ -129,6 +129,7 @@ class JdbcAuditLog implements AuditLog {
             entry.entityName(),
             entry.entityId(),
             entry.operation(),
+            entry.previousValues() == null ? null : JSON.writeValueAsString(entry.previousValues()),
             JSON.writeValueAsString(entry.newValues()),
             Timestamp.from(entry.occurredAt()),
             entry.correlationId(),

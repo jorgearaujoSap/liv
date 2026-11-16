@@ -45,6 +45,7 @@ public class RecordSessionEvents {
             event.startedAt(),
             event.correlationId(),
             null,
+            null,
             Map.of("result", "SUCCESS")));
   }
 
@@ -61,6 +62,7 @@ public class RecordSessionEvents {
             "SESSION_ENDED",
             event.endedAt(),
             event.correlationId(),
+            null,
             null,
             Map.of("result", "SUCCESS", "reason", event.reason())));
   }
@@ -80,6 +82,7 @@ public class RecordSessionEvents {
             event.deniedAt(),
             event.correlationId(),
             null,
+            null,
             Map.of("result", "DENIED", "reason", event.code())));
   }
 
@@ -96,6 +99,7 @@ public class RecordSessionEvents {
             "USER_PROVISIONED",
             event.provisionedAt(),
             event.correlationId(),
+            null,
             null,
             Map.of("result", "SUCCESS")));
   }

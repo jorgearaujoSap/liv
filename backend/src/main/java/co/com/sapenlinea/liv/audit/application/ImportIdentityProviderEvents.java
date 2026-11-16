@@ -201,6 +201,7 @@ public class ImportIdentityProviderEvents {
         entry.occurredAt(),
         null,
         null,
+        null,
         resultOnly);
   }
 
@@ -250,6 +251,7 @@ public class ImportIdentityProviderEvents {
         event.time(),
         null,
         event.authorSubject() == null ? null : masking.hmac(event.authorSubject()),
+        null,
         values(event));
   }
 
