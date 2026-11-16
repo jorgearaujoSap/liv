@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import theme from '../../styles/theme.css' with { loader: 'text' };
 import { TestBed } from '@angular/core/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { contrastRatio, solidColor } from '../../testing/contrast';
 import { cssVariable, declaredStyle, paintsShadow, usesToken } from '../../testing/css';
 import { DialogComponent } from '../dialog/dialog.component';
 import { IconComponent } from '../icon/icon.component';
@@ -37,12 +38,29 @@ class HostComponent {
   disabled = false;
 }
 
+/** El `Select` dentro de un formulario nativo, para probar su restablecimiento (`reset`). */
+@Component({
+  imports: [SelectComponent],
+  template: `
+    <form>
+      <liv-select label="Año de la vigencia" [(value)]="value" [options]="options" />
+    </form>
+  `,
+})
+class FormHostComponent {
+  value: string | null = '2026';
+  options = YEARS;
+}
+
 /** El `Select` como cuerpo de un `Dialog` real, como lo usa la pantalla de crear una vigencia. */
 @Component({
   imports: [DialogComponent, SelectComponent],
   template: `
     <button id="trigger" type="button">Abrir</button>
     <liv-dialog [open]="true" heading="Crear vigencia" tone="primary" size="lg">
+      @if (withBefore) {
+        <button livDialogBody id="before" type="button">Enlace previo</button>
+      }
       <liv-select
         livDialogBody
         label="Año de la vigencia"
@@ -61,6 +79,8 @@ class DialogHostComponent {
   value: string | null = null;
   disabled = false;
   initialFocus = true;
+  /** Un control enfocable antes del `Select`, para distinguir la marca `data-initial-focus`. */
+  withBefore = false;
 }
 
 function render(inputs: Partial<HostComponent> = {}) {
@@ -122,7 +142,7 @@ const CONTENTS: Record<string, Partial<HostComponent>> = {
 };
 
 describe('Select', () => {
-  describe('el control nativo', () => {
+  describe('el control nativo (007-22)', () => {
     it('envuelve un <select> con su <label> visible, enlazados por id (007-22)', () => {
       const { host, select } = render();
       const label = host.querySelector('label') as HTMLLabelElement;
@@ -146,14 +166,18 @@ describe('Select', () => {
       expect(select.hasAttribute('aria-expanded')).toBe(false);
     });
 
-    it('cada instancia tiene identificadores únicos', () => {
-      const first = render();
-      const second = render();
+    it('cada instancia tiene identificadores únicos, también para su mensaje', () => {
+      const first = render({ help: 'Uno.' });
+      const second = render({ help: 'Dos.' });
       expect(first.select.id).not.toBe(second.select.id);
+      const describedBy = (rendered: ReturnType<typeof render>) =>
+        rendered.select.getAttribute('aria-describedby');
+      expect(describedBy(first)).not.toBe(describedBy(second));
+      expect(first.host.querySelector(`#${describedBy(first)}`)?.textContent).toContain('Uno.');
     });
   });
 
-  describe('las opciones', () => {
+  describe('las opciones (007-22)', () => {
     it('salen en el orden recibido, con su texto y su valor', () => {
       const { select } = render();
       const options = realOptions(select);
@@ -188,7 +212,55 @@ describe('Select', () => {
     });
   });
 
-  describe('el valor', () => {
+  describe('las opciones que cambian después de dibujado (007-22)', () => {
+    it('si desaparece la opción elegida, se muestra sin elegir', () => {
+      const { fixture, host, select } = render({ value: '2026' });
+      update(fixture, { options: YEARS.filter((year) => year.value !== '2026') });
+      expect(select.value).toBe('');
+      expect(shownText(select)).toBe('Elige un año');
+      expect(host.dataset['content']).toBe('placeholder');
+    });
+
+    it('si las opciones llegan después del valor (una carga), muestra el valor', () => {
+      const { fixture, host, select } = render({ value: '2025', options: [] });
+      expect(shownText(select)).toBe('Elige un año');
+      update(fixture, { options: YEARS });
+      expect(select.value).toBe('2025');
+      expect(host.dataset['content']).toBe('filled');
+    });
+
+    it('con dos opciones del mismo valor dibuja las dos (el valor debe ser único)', () => {
+      const { select } = render({
+        value: null,
+        options: [
+          { value: 'a', label: 'A uno' },
+          { value: 'a', label: 'A dos' },
+        ],
+      });
+      expect(realOptions(select).map((option) => option.textContent?.trim())).toEqual([
+        'A uno',
+        'A dos',
+      ]);
+    });
+  });
+
+  describe('dentro de un formulario nativo', () => {
+    it('al restablecer el formulario, el control sigue mostrando el valor del modelo', () => {
+      const fixture = TestBed.createComponent(FormHostComponent);
+      fixture.detectChanges();
+      const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
+      const select = form.querySelector('select') as HTMLSelectElement;
+      select.value = '2025';
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      expect(fixture.componentInstance.value).toBe('2025');
+      form.reset();
+      // Sin un `selected` por omisión el navegador elegiría la primera opción y el modelo no se enteraría.
+      expect(select.value).toBe(fixture.componentInstance.value);
+    });
+  });
+
+  describe('el valor (007-22)', () => {
     it('de entrada: muestra la opción elegida', () => {
       const { select } = render({ value: '2025' });
       expect(select.value).toBe('2025');
@@ -216,7 +288,7 @@ describe('Select', () => {
     });
   });
 
-  describe('la opción vacía (Content=Placeholder)', () => {
+  describe('la opción vacía (Content=Placeholder, 007-22)', () => {
     it('con null muestra el placeholder, que no se puede volver a elegir ni se lista', () => {
       const { select } = render({ value: null });
       const empty = select.options[0];
@@ -288,9 +360,13 @@ describe('Select', () => {
       expect(usesToken(getComputedStyle(select).color, '--color-text-disabled')).toBe(true);
     });
 
-    it('en alto contraste (forced-colors) se ve inhabilitado: borde GrayText', () => {
-      const { control } = render({ disabled: true });
+    it('en alto contraste (forced-colors) se ve inhabilitado: borde, etiqueta y chevron GrayText', () => {
+      const { host, control } = render({ disabled: true });
       expect(declaredStyle(control, 'border-color', 'forced-colors')).toBe('graytext');
+      const label = host.querySelector('label') as HTMLElement;
+      const chevron = host.querySelector('.select__icon') as HTMLElement;
+      expect(declaredStyle(label, 'color', 'forced-colors')).toBe('graytext');
+      expect(declaredStyle(chevron, 'color', 'forced-colors')).toBe('graytext');
       const active = render().control;
       expect(declaredStyle(active, 'border-color', 'forced-colors')).toBe('');
     });
@@ -365,10 +441,13 @@ describe('Select', () => {
       expect(host.querySelector('.select__help liv-icon')).toBeNull();
     });
 
-    it('en Error con foco conserva el borde status/danger', () => {
+    it('en Error con foco conserva el borde status/danger y pinta el anillo de foco', () => {
       const { select, control } = render({ error: 'Elige un año.' });
       select.focus();
+      // `declaredStyle` toma la última regla declarada: las dos reglas deben tener la misma especificidad
+      // y la de Error ir después de la de foco, como en el CSS.
       expect(declaredStyle(control, 'border-color')).toContain('var(--color-status-danger,');
+      expect(paintsShadow(control, cssVariable(theme, '--shadow-focus-ring'))).toBe(true);
     });
   });
 
@@ -379,20 +458,23 @@ describe('Select', () => {
       expect(paintsShadow(control, cssVariable(theme, '--shadow-focus-ring'))).toBe(false);
     });
 
-    it('con el foco el borde pasa a border/focus y pinta el anillo focus/ring', () => {
-      const { select, control } = render();
-      const ring = cssVariable(theme, '--shadow-focus-ring');
-      select.focus();
-      expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-focus,');
-      expect(paintsShadow(control, ring)).toBe(true);
-      select.blur();
-      expect(paintsShadow(control, ring)).toBe(false);
-    });
+    // Open se pinta como Focus: CSS no sabe si la lista del sistema está abierta y el <select> conserva el foco.
+    it.each(['Focus', 'Open'])(
+      'State=%s: con el <select> enfocado, border/focus y el anillo focus/ring',
+      () => {
+        const { select, control } = render();
+        const ring = cssVariable(theme, '--shadow-focus-ring');
+        select.focus();
+        expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-focus,');
+        expect(paintsShadow(control, ring)).toBe(true);
+        select.blur();
+        expect(paintsShadow(control, ring)).toBe(false);
+      },
+    );
 
-    it('Open no dibuja una lista propia: se pinta como Focus, que el <select> conserva', () => {
+    it('Open no dibuja una lista propia: el navegador la dibuja', () => {
       const { host, select } = render();
       select.focus();
-      // CSS no puede saber si la lista del sistema está abierta: Open usa las reglas de Focus.
       expect(host.querySelector('[role="listbox"], [aria-expanded]')).toBeNull();
     });
 
@@ -441,6 +523,18 @@ describe('Select', () => {
       expect(usesToken(getComputedStyle(label).color, '--color-text-primary')).toBe(true);
     });
 
+    it.each([
+      ['el placeholder (text/muted)', 'text-muted', 'bg-surface', 4.5],
+      ['el texto elegido (text/primary)', 'text-primary', 'bg-surface', 4.5],
+      ['la ayuda (text/secondary)', 'text-secondary', 'bg-surface', 4.5],
+      ['el error (status/danger)', 'status-danger', 'bg-surface', 4.5],
+      ['el borde (border/strong)', 'border-strong', 'bg-surface', 3],
+      ['el borde de foco (border/focus)', 'border-focus', 'bg-surface', 3],
+    ])('contraste de %s sobre bg/surface', (_name, foreground, background, minimum) => {
+      const color = (token: string) => solidColor(cssVariable(theme, `--color-${token}`));
+      expect(contrastRatio(color(foreground), color(background))).toBeGreaterThanOrEqual(minimum);
+    });
+
     it('no usa el atributo style ni utilidades en la plantilla', () => {
       const { host } = render({ help: 'Ayuda.' });
       expect(host.querySelector('[style]')).toBeNull();
@@ -472,9 +566,14 @@ describe('Select', () => {
       expect(document.activeElement).toBe(select);
     });
 
-    it('sin la marca, el select, que va antes de las acciones, también es el primero', () => {
-      const { select } = renderDialog({ initialFocus: false });
+    it('con un control antes del select, la marca data-initial-focus lleva el foco al select', () => {
+      const { select } = renderDialog({ withBefore: true });
       expect(document.activeElement).toBe(select);
+    });
+
+    it('sin la marca, el primer foco es el del control que va antes del select', () => {
+      const { root } = renderDialog({ withBefore: true, initialFocus: false });
+      expect(document.activeElement).toBe(root.querySelector('#before'));
     });
 
     it('es una parada más de la trampa: Tab desde la última acción vuelve al select', () => {
