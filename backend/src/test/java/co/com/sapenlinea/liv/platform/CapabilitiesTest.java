@@ -134,18 +134,16 @@ class CapabilitiesTest extends PlatformWebTest {
       "001-15 · Las opciones aún no construidas vienen como COMING_SOON (007-01: solo la 1.4 está"
           + " disponible)")
   void optionsNotBuiltYetComeAsComingSoon() {
-    Map<String, String> leafStatuses = new TreeMap<>();
+    // AUDITOR sees the whole menu: leaves and branches. Only 1.4 and its branch 1 are available.
+    Map<String, String> statuses = new TreeMap<>();
     collect(
         capabilitiesOf(List.of("AUDITOR")),
-        node -> {
-          if (node.get("children").isEmpty()) {
-            leafStatuses.put(node.get("code").asString(), node.get("status").asString());
-          }
-        });
+        node -> statuses.put(node.get("code").asString(), node.get("status").asString()));
 
-    assertThat(leafStatuses).containsEntry("1.4", "AVAILABLE").hasSizeGreaterThan(1);
-    leafStatuses.remove("1.4");
-    assertThat(leafStatuses.values()).containsOnly("COMING_SOON");
+    assertThat(statuses).containsEntry("1", "AVAILABLE").containsEntry("1.4", "AVAILABLE");
+    Map<String, String> rest = new TreeMap<>(statuses);
+    rest.keySet().removeAll(List.of("1", "1.4"));
+    assertThat(rest.values()).isNotEmpty().containsOnly("COMING_SOON");
   }
 
   @Test

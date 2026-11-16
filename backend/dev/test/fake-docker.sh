@@ -1,7 +1,7 @@
 #!/bin/sh
 # docker falso para probar limpiar-vigencias.sh sin Docker (lo pone primero en el PATH limpiar-vigencias-escenarios.sh,
-# con el nombre docker). Imita solo lo que usa el script: «docker compose -f dev/compose.yaml ps -q postgres» y
-# «docker compose -f dev/compose.yaml exec -T postgres psql …». Cualquier otra orden la rechaza con el código 99 y
+# con el nombre docker). Imita solo lo que usa el script: «docker compose -f dev/compose.yaml -p liv-backend-dev ps -q postgres» y
+# «docker compose -f dev/compose.yaml -p liv-backend-dev exec -T postgres psql …». Cualquier otra orden la rechaza con el código 99 y
 # queda anotada, para que la prueba falle. Guarda en $FAKE_DOCKER_STORE:
 #   llamadas   cada llamada recibida, una por línea (los saltos de línea de los argumentos, como espacios)
 #   entorno    el valor de COMPOSE_PROJECT_NAME y de COMPOSE_FILE en cada llamada
@@ -19,8 +19,9 @@ rechazar() { echo "fake-docker: $1" >&2; exit 99; }
 
 [ "${1:-}" = compose ] || rechazar "orden no imitada: $*"
 [ "${2:-}" = -f ] && [ "${3:-}" = dev/compose.yaml ] || rechazar "falta «-f dev/compose.yaml»: $*"
-subcomando=${4:-}
-shift 4
+[ "${4:-}" = -p ] && [ "${5:-}" = liv-backend-dev ] || rechazar "falta «-p liv-backend-dev»: $*"
+subcomando=${6:-}
+shift 6
 
 case "$subcomando" in
   ps)
