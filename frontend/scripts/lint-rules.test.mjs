@@ -224,6 +224,49 @@ describe('las pantallas solo usan componentes de liv-components', () => {
     }
   });
 
+  // `Table` de liv-components (0.4.0) vive en una tabla HTML real: `<table livTable>` con filas
+  // `<tr livTableRow>` y celdas `<th livTableCell>` o `<td livTableCell>`. Cada etiqueta solo se permite con
+  // su atributo; sin él, es una tabla hecha a mano y sin estilos de la librería.
+  it('la tabla de la librería, con sus tres atributos, se permite', async () => {
+    assert.deepEqual(
+      await template(
+        '<table livTable aria-label="V"><thead><tr livTableRow><th livTableCell>Año</th></tr></thead><tbody><tr livTableRow><td livTableCell>2026</td></tr></tbody></table>',
+      ),
+      [],
+    );
+  });
+
+  it('una `<table>` sin el atributo livTable no se permite', async () => {
+    await rejects('<table aria-label="Vigencias"></table>', /liv-components/);
+    await rejects('<table data-livTable></table>', /liv-components/);
+    await rejects('<table livTableX></table>', /liv-components/);
+  });
+
+  it('un `<tr>` sin livTableRow no se permite', async () => {
+    await rejects('<table livTable><tr><td livTableCell>x</td></tr></table>', /liv-components/);
+    await rejects('<table livTable><tr data-livTableRow></tr></table>', /liv-components/);
+  });
+
+  it('un `<th>` o un `<td>` sin livTableCell no se permite', async () => {
+    await rejects('<table livTable><tr livTableRow><th>Año</th></tr></table>', /liv-components/);
+    await rejects('<table livTable><tr livTableRow><td>2026</td></tr></table>', /liv-components/);
+    await rejects(
+      '<table livTable><tr livTableRow><td livTableX></td></tr></table>',
+      /liv-components/,
+    );
+  });
+
+  it('el atributo de un hijo no autoriza al padre ni al revés', async () => {
+    await rejects(
+      '<table><tr livTableRow><td livTableCell><table livTable></table></td></tr></table>',
+      /liv-components/,
+    );
+    await rejects(
+      '<table livTable><tr livTableRow><td livTableCell><table></table></td></tr></table>',
+      /liv-components/,
+    );
+  });
+
   it('sí: liv-components, secciones app-, router-outlet y contenedores nativos sin estilo', async () => {
     const code = `<main>
   <section>
