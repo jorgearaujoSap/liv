@@ -550,7 +550,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       await TestBed.inject(ApplicationRef).whenStable();
       TestBed.tick();
     };
-    const status = (host: HTMLElement) => text(host.querySelector('[role="status"]'));
+    const status = (host: HTMLElement) => text(host.querySelector('p[role="status"]'));
 
     it('anuncia en una región de estado que se creó la vigencia', async () => {
       service.create.mockResolvedValue(fiscalYear(2027));

@@ -419,7 +419,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
 
       await dialog.submit();
 
-      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+      expect(button('Crear vigencia')?.disabled).toBe(true);
       expect(service.create).not.toHaveBeenCalled();
     });
 

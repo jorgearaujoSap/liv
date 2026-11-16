@@ -1,6 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  Injector,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import {
+  AlertComponent,
   BadgeComponent,
   type BadgeTone,
   ButtonComponent,
@@ -34,6 +44,9 @@ const SKELETON_ROWS = [1, 2, 3];
 
 type View = 'loading' | 'ready' | 'error';
 
+/** Cómo terminó una lectura: aplicada, fallida o descartada por una más nueva. */
+type ReadResult = 'applied' | 'failed' | 'stale';
+
 /** Una fila de la tabla, lista para mostrar: textos ya formateados y el destino de su enlace. */
 interface Row {
   readonly year: number;
@@ -64,6 +77,7 @@ interface Row {
     BadgeComponent,
     ResultStateComponent,
     SkeletonComponent,
+    AlertComponent,
     CreateFiscalYearDialog,
   ],
   templateUrl: './fiscal-years.html',
@@ -73,6 +87,8 @@ interface Row {
 export class FiscalYears {
   private readonly router = inject(Router);
   private readonly fiscalYears = inject(FiscalYearsService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   protected readonly breadcrumb = ['Administración', '1.4 Vigencias fiscales'];
   protected readonly skeletonRows = SKELETON_ROWS;
@@ -88,6 +104,12 @@ export class FiscalYears {
   protected readonly creatableYears = computed(() => this.list()?.creatableYears ?? []);
   /** El diálogo de creación está abierto. */
   protected readonly creating = signal(false);
+  /** Se está releyendo la lista sin mostrar «cargando»: mientras tanto no se ofrece crear. */
+  protected readonly reloading = signal(false);
+  /** La última relectura falló: la lista que se ve puede estar vieja. */
+  protected readonly refreshFailed = signal(false);
+  /** Lo que se anuncia a los lectores de pantalla tras una creación; la región existe desde el inicio. */
+  protected readonly notice = signal('');
   protected readonly isEmpty = computed(() => this.rows().length === 0);
   protected readonly canCreate = computed(() => this.list()?.canCreate === true);
 
@@ -111,7 +133,9 @@ export class FiscalYears {
   });
 
   /** La acción de crear queda inhabilitada cuando el backend dice que no hay años disponibles. */
-  protected readonly createDisabled = computed(() => this.blockedReason() !== undefined);
+  protected readonly createDisabled = computed(
+    () => this.blockedReason() !== undefined || this.reloading(),
+  );
 
   protected readonly emptyDescription = computed(() => {
     if (!this.canCreate()) {
@@ -134,53 +158,95 @@ export class FiscalYears {
   }
 
   /** Lee las vigencias y muestra «cargando» mientras tanto. */
-  protected load(): Promise<boolean> {
+  protected load(): Promise<ReadResult> {
     this.view.set('loading');
-    return this.read();
-  }
-
-  /** Vuelve a leer las vigencias sin mostrar «cargando»: la lista sigue a la vista hasta que llega la nueva. */
-  private reload(): Promise<boolean> {
-    return this.read();
-  }
-
-  /** Lee las vigencias; dice si salió bien. La respuesta de una lectura anterior a la última no cuenta. */
-  private async read(): Promise<boolean> {
-    const read = ++this.latestRead;
-    try {
-      const list = await this.fiscalYears.list();
-      if (read === this.latestRead) {
-        this.list.set(list);
-        this.view.set('ready');
-      }
-      return true;
-    } catch {
-      if (read === this.latestRead) {
-        this.view.set('error');
-      }
-      return false;
-    }
-  }
-
-  /** La vigencia quedó creada: se cierra el diálogo y la lista se vuelve a leer con ella. */
-  protected async onCreated(): Promise<void> {
-    this.creating.set(false);
-    await this.reload();
+    return this.read(false);
   }
 
   /**
-   * Otra persona creó el año antes (V-01): se vuelve a leer la lista. El diálogo sigue abierto, con el primer
-   * año que quede disponible; si no queda ninguno (o la lista no se pudo leer), se cierra.
+   * Vuelve a leer las vigencias sin mostrar «cargando»: la lista sigue a la vista hasta que llega la nueva, y
+   * si la lectura falla se conserva y se avisa, porque lo que hay a la vista sigue siendo lo último que se supo.
    */
-  protected async onConflict(): Promise<void> {
-    const read = await this.reload();
-    if (!read || this.creatableYears().length === 0) {
+  private async reload(): Promise<ReadResult> {
+    this.reloading.set(true);
+    this.refreshFailed.set(false);
+    const result = await this.read(true);
+    if (result === 'failed') {
+      this.refreshFailed.set(true);
+    }
+    return result;
+  }
+
+  /**
+   * Lee las vigencias. La respuesta de una lectura anterior a la última se descarta (`stale`); por eso
+   * `reloading` lo baja la lectura que sí cuenta, y no `reload()`: una descartada no debe apagarlo.
+   */
+  private async read(silent: boolean): Promise<ReadResult> {
+    const read = ++this.latestRead;
+    try {
+      const list = await this.fiscalYears.list();
+      if (read !== this.latestRead) {
+        return 'stale';
+      }
+      this.list.set(list);
+      this.view.set('ready');
+      this.reloading.set(false);
+      return 'applied';
+    } catch {
+      if (read !== this.latestRead) {
+        return 'stale';
+      }
+      if (!silent) {
+        this.view.set('error');
+      }
+      this.reloading.set(false);
+      return 'failed';
+    }
+  }
+
+  /**
+   * La vigencia quedó creada: se vuelve a leer la lista con ella, con el diálogo abierto y su acción ocupada
+   * para no ofrecer años que ya no están, y después se cierra y se anuncia. Si la lista no se puede releer,
+   * se conserva la que había y se avisa.
+   */
+  protected async onCreated(created: FiscalYear): Promise<void> {
+    await this.reload();
+    this.creating.set(false);
+    this.notice.set(`Se creó la vigencia ${created.year}.`);
+    this.focusFirstYearIfLost();
+  }
+
+  /**
+   * La lista que se muestra pudo quedar vieja (V-01, o no se sabe si se creó): se vuelve a leer. El diálogo
+   * sigue abierto, con el primer año que quede disponible; solo se cierra si ya no queda ninguno. Si la lista
+   * no se pudo leer, el diálogo sigue abierto con su alerta.
+   */
+  protected async onStaleList(): Promise<void> {
+    const result = await this.reload();
+    if (result === 'applied' && this.creatableYears().length === 0) {
       this.creating.set(false);
     }
   }
 
   protected open(href: string): void {
     void this.router.navigateByUrl(href);
+  }
+
+  /**
+   * Al cerrarse el diálogo, el foco vuelve a quien lo abrió. Si esa acción ya no existe (la primera vigencia
+   * quita el estado vacío), el foco se perdería en el documento: pasa al enlace de la primera vigencia.
+   */
+  private focusFirstYearIfLost(): void {
+    afterNextRender(
+      () => {
+        const root = this.host.nativeElement;
+        const active = root.ownerDocument.activeElement;
+        if (!active || !root.contains(active) || active === root.ownerDocument.body) {
+          root.querySelector<HTMLElement>('tbody a[href]')?.focus();
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   private toRow(item: FiscalYear): Row {

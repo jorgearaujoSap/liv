@@ -32,9 +32,9 @@
   </div>
   <liv-button variant="secondary" [disabled]="submitting()" (click)="close()">Cancelar</liv-button>
   <liv-button
-    [loading]="submitting()"
-    loadingLabel="Creando la vigencia…"
-    data-initial-focus
+    [loading]="submitting() || refreshing()"
+    [loadingLabel]="busyLabel()"
+    [disabled]="!choice()"
     (click)="submit()"
   >
     Crear vigencia

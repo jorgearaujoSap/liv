@@ -1,26 +1,34 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
+import { TimeoutError } from '../../core/http/with-timeout';
+
 /** Lo que la pantalla muestra en una alerta de error cuando la API rechaza una operación sobre una vigencia. */
 export interface Rejection {
   readonly heading: string;
   readonly message: string;
 }
 
-/** El rechazo de una creación: dice además si la lista cambió por debajo de la pantalla (V-01). */
+/** El rechazo de una creación: dice además si la lista que se muestra pudo quedar vieja. */
 export interface CreationRejection extends Rejection {
-  /** V-01 */
-  readonly conflict: boolean;
+  /** V-01 (otra persona creó el año) o un resultado que no se conoce (tiempo agotado, error del servidor). */
+  readonly reload: boolean;
 }
 
-/** El rechazo de abrir la preparación: dice además si la vigencia cambió de estado (V-06). */
+/** El rechazo de abrir la preparación: dice además si la vigencia cambió de estado. */
 export interface PreparationRejection extends Rejection {
   /** V-06 */
   readonly refresh: boolean;
 }
 
+/** El código del 403 anti-CSRF (001-12): no es falta de permiso, y el interceptor no lleva a «Sin permiso». */
+const CSRF_RULE_CODE = '001-12';
+
 const CREATION_HEADING = 'No se creó la vigencia';
 const CREATION_FAILED =
   'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.';
+const CREATION_UNKNOWN_HEADING = 'No sabemos si se creó la vigencia';
+const CREATION_UNKNOWN =
+  'No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.';
 const PREPARATION_HEADING = 'No se abrió la preparación';
 const PREPARATION_FAILED =
   'No pudimos abrir la preparación. Intenta de nuevo; si continúa, avisa al administrador del sistema.';
@@ -31,8 +39,8 @@ const PREPARATION_FAILED =
  * (67:3284), y nunca con el `detail` ni el `title` que mande el servidor. Un error que no es de una regla
  * conocida (o al que le falta el año que necesita su mensaje) cae en el mensaje general.
  *
- * Sin mensaje (`undefined`) quedan el 401 y el 403: los atiende el interceptor, que lleva a iniciar sesión o
- * a «Sin permiso» (001-16, H2-14).
+ * Sin mensaje (`undefined`) queda el 403 de falta de permiso: lo atiende el interceptor, que lleva a «Sin
+ * permiso» (001-16, H2-14). El 403 anti-CSRF y el 401 no siempre llevan a otra pantalla, así que sí tienen mensaje.
  */
 export function creationRejection(
   error: unknown,
@@ -47,12 +55,19 @@ export function creationRejection(
     const year = asYear(problem['year']) ?? requestedYear;
     return {
       heading: CREATION_HEADING,
-      conflict: true,
+      reload: true,
       message: `V-01 · La vigencia ${year} ya existe en tu administración: es posible que otra persona la haya creado hace un momento. Actualizamos la lista.`,
     };
   }
   const message = problem ? ruleMessage(code, problem) : undefined;
-  return { heading: CREATION_HEADING, conflict: false, message: message ?? CREATION_FAILED };
+  if (message) {
+    return { heading: CREATION_HEADING, reload: false, message };
+  }
+  // Sin respuesta (tiempo agotado, red) o con un error del servidor, la creación pudo haber ocurrido.
+  if (isOutcomeUnknown(error)) {
+    return { heading: CREATION_UNKNOWN_HEADING, reload: true, message: CREATION_UNKNOWN };
+  }
+  return { heading: CREATION_HEADING, reload: false, message: CREATION_FAILED };
 }
 
 /**
@@ -102,9 +117,24 @@ function ruleMessage(code: unknown, problem: Record<string, unknown>): string | 
   return undefined;
 }
 
-/** El 401 y el 403 los atiende el interceptor de la API con una navegación: no llevan mensaje propio. */
+/**
+ * El 403 de falta de permiso lo atiende el interceptor con una navegación a «Sin permiso» (001-16). No el 403
+ * anti-CSRF (001-12), ni un 401 cuando no se pudo averiguar si hay sesión: en esos casos la pantalla debe decirlo.
+ */
 function isHandledByInterceptor(error: unknown): boolean {
-  return error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403);
+  return (
+    error instanceof HttpErrorResponse &&
+    error.status === 403 &&
+    problemOf(error)?.['code'] !== CSRF_RULE_CODE
+  );
+}
+
+/** Si no se sabe si la operación llegó a hacerse: no hubo respuesta o el servidor falló. */
+function isOutcomeUnknown(error: unknown): boolean {
+  if (error instanceof TimeoutError) {
+    return true;
+  }
+  return error instanceof HttpErrorResponse && (error.status === 0 || error.status >= 500);
 }
 
 /** El cuerpo del Problem Details de una respuesta de error, si es un objeto. */
@@ -116,7 +146,16 @@ function problemOf(error: unknown): Record<string, unknown> | undefined {
   return typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined;
 }
 
-/** Un año de una extensión: solo un entero, nunca un texto, para no escribir en el mensaje algo inventado. */
+/** Los años de la tabla nacional de vigencias (el rango del contrato `tax`). */
+const MIN_NATIONAL_YEAR = 1999;
+const MAX_NATIONAL_YEAR = 2100;
+
+/** Un año de una extensión: un entero de la tabla nacional, nunca un texto ni algo inventado. */
 function asYear(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) ? value : undefined;
+  const valid =
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_NATIONAL_YEAR &&
+    value <= MAX_NATIONAL_YEAR;
+  return valid ? value : undefined;
 }

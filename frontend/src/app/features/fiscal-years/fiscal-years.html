@@ -17,6 +17,13 @@
   }
 </div>
 
+<p role="status">{{ notice() }}</p>
+@if (refreshFailed()) {
+  <liv-alert status="warning">
+    No pudimos actualizar la lista de vigencias. Recarga la pantalla para verla al día.
+  </liv-alert>
+}
+
 @if (view() === 'error') {
   <liv-result-state
     tone="danger"
@@ -98,8 +105,9 @@
 @if (creating()) {
   <app-create-fiscal-year-dialog
     [years]="creatableYears()"
-    (created)="onCreated()"
-    (conflict)="onConflict()"
+    [refreshing]="reloading()"
+    (created)="onCreated($event)"
+    (staleList)="onStaleList()"
     (closed)="creating.set(false)"
   />
 }
