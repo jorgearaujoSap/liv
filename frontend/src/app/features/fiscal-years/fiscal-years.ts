@@ -23,10 +23,10 @@ import {
   TableRowComponent,
 } from 'liv-components';
 
-import type { CreatableYear, FiscalYear, FiscalYearList } from '../../api/tax/models';
+import type { FiscalYear, FiscalYearList } from '../../api/tax/models';
 import { OPTION_ROUTE } from '../../core/app-paths';
 import { CreateFiscalYearDialog, type StaleList } from './create-fiscal-year-dialog';
-import type { Rejection } from './fiscal-year-rejections';
+import { asYear, type Rejection } from './fiscal-year-rejections';
 import { FiscalYearsService } from './fiscal-years.service';
 
 /** Cómo se muestra cada estado de una vigencia (Doc. 01 §5); uno que no conoce se muestra tal cual. */
@@ -118,8 +118,8 @@ export class FiscalYears {
 
   /**
    * Por qué no se puede crear, con permiso y cuando el backend bloquea la creación o no ofrece ningún año; sin
-   * motivo, la acción está activa. El año del motivo solo se escribe si es un entero (`Number.isInteger`): si
-   * no, cae en el texto general.
+   * motivo, la acción está activa. Los años del motivo solo se escriben si son años de la tabla nacional y van en
+   * orden (`asYear`): si no, cae en el texto general.
    */
   protected readonly blockedReason = computed(() => {
     const list = this.list();
@@ -128,11 +128,9 @@ export class FiscalYears {
     }
     const blocked = list.createBlocked;
     if (blocked) {
-      return blocked.reason === 'FUTURE_LIMIT' && Number.isInteger(blocked.maxYear)
-        ? `Ya existe la vigencia ${blocked.maxYear}, la última que se puede crear.`
-        : NO_YEARS_AVAILABLE;
+      return allCreatedReason(blocked) ?? NO_YEARS_AVAILABLE;
     }
-    return list.creatableYears.length === 0 ? NO_YEARS_AVAILABLE : undefined;
+    return this.creatableYears().length === 0 ? NO_YEARS_AVAILABLE : undefined;
   });
 
   /** La acción de crear queda inhabilitada cuando el backend dice que no hay años disponibles. */
@@ -146,12 +144,13 @@ export class FiscalYears {
     if (blocked) {
       return blocked;
     }
-    const options = (this.list()?.creatableYears ?? []).map((candidate) =>
-      describeCreatableYear(candidate),
-    );
-    return options.length > 0
-      ? `Crea la primera vigencia de tu administración: puede ser ${options.join(' o ')}.`
-      : 'Crea la primera vigencia de tu administración.';
+    const range = yearRange(this.creatableYears().map((candidate) => candidate.year));
+    if (!range) {
+      return 'Crea la primera vigencia de tu administración.';
+    }
+    return range.first === range.last
+      ? `Crea la primera vigencia de tu administración. Puedes crear el año ${range.first}.`
+      : `Crea la primera vigencia de tu administración. Puedes crear cualquier año de ${range.first} a ${range.last}.`;
   });
 
   constructor() {
@@ -301,16 +300,30 @@ export class FiscalYears {
   }
 }
 
-/** Cómo se nombra un año que se puede crear: la relación y el año salen de lo que manda el backend. */
-function describeCreatableYear(candidate: CreatableYear): string {
-  switch (candidate.relation) {
-    case 'CURRENT':
-      return `la del año en curso (${candidate.year})`;
-    case 'NEXT':
-      return `la del año siguiente (${candidate.year})`;
-    case 'PAST':
-      return `la de un año pasado (${candidate.year})`;
-    default:
-      return `la de ${candidate.year}`;
+/**
+ * El primer y el último año de los que manda el servidor, sin depender del orden de la lista; `undefined` si no hay
+ * ninguno o si alguno no es un año de la tabla nacional (`asYear`): entonces la pantalla no escribe ningún rango.
+ */
+function yearRange(years: readonly unknown[]): { first: number; last: number } | undefined {
+  const valid = years.map((year) => asYear(year));
+  if (valid.length === 0 || valid.includes(undefined)) {
+    return undefined;
   }
+  const numbers = valid as number[];
+  return { first: Math.min(...numbers), last: Math.max(...numbers) };
+}
+
+/**
+ * El motivo de `ALL_CREATED` con su rango (007-23), o `undefined` si el motivo es otro o los años no son años de
+ * la tabla nacional y van en orden: entonces la pantalla usa el texto general.
+ */
+function allCreatedReason(
+  blocked: NonNullable<FiscalYearList['createBlocked']>,
+): string | undefined {
+  const min = asYear(blocked.minYear);
+  const max = asYear(blocked.maxYear);
+  if (blocked.reason !== 'ALL_CREATED' || min === undefined || max === undefined || min > max) {
+    return undefined;
+  }
+  return `Ya existen todas las vigencias que se pueden crear: de ${min} a ${max}.`;
 }

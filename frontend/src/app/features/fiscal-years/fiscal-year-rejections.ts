@@ -37,7 +37,7 @@ const PREPARATION_FAILED =
   'No pudimos abrir la preparación. Intenta de nuevo; si continúa, avisa al administrador del sistema.';
 
 /**
- * El mensaje de un rechazo al crear la vigencia de `requestedYear` (V-01, V-02 y V-05; 007-05 a 007-08). Se
+ * El mensaje de un rechazo al crear la vigencia de `requestedYear` (V-01 y V-05; 007-05 y 007-07). Se
  * arma con el código de la regla y las extensiones del Problem Details (contrato `tax`), como en Figma
  * (67:3284), y nunca con el `detail` ni el `title` que mande el servidor. Un error que no es de una regla
  * conocida (o al que le falta el año que necesita su mensaje) cae en el mensaje general.
@@ -103,26 +103,24 @@ export function openPreparationRejection(
   return { heading: PREPARATION_HEADING, refresh: false, message: PREPARATION_FAILED };
 }
 
-/** El mensaje de V-02 y V-05 según su motivo, o `undefined` si el código, el motivo o el año no son los esperados. */
+/**
+ * El mensaje de V-05 según su motivo (007-07), o `undefined` si el código, el motivo o el año no son los
+ * esperados. Desde el contrato 1.1.0 el servidor solo emite `PAST_LIMIT` y `FUTURE_LIMIT`; V-02 y los demás
+ * motivos de V-05 ya no existen y caen en el mensaje general.
+ */
 function ruleMessage(code: unknown, problem: Record<string, unknown>): string | undefined {
+  if (code !== 'V-05') {
+    return undefined;
+  }
   const reason = problem['reason'];
-  const required = asYear(problem['requiredYear']);
-  const oldest = asYear(problem['oldestYear']);
-  const current = asYear(problem['currentYear']);
-  const next = asYear(problem['nextYear']);
+  const min = asYear(problem['minYear']);
   const max = asYear(problem['maxYear']);
 
-  if (code === 'V-02' && reason === 'GAP' && required !== undefined) {
-    return `V-02 · No se puede saltar un año: primero debe existir la vigencia ${required}.`;
+  if (reason === 'PAST_LIMIT' && min !== undefined) {
+    return `V-05 · No se puede crear una vigencia anterior a ${min}, el primer año que se puede crear.`;
   }
-  if (code === 'V-02' && reason === 'HISTORICAL' && oldest !== undefined) {
-    return `V-02 · No se pueden crear vigencias anteriores a la más antigua (${oldest}): la carga de vigencias históricas todavía no está autorizada.`;
-  }
-  if (code === 'V-05' && reason === 'FIRST_YEAR' && current !== undefined && next !== undefined) {
-    return `V-05 · La primera vigencia de la administración debe ser la del año en curso (${current}) o la del año siguiente (${next}).`;
-  }
-  if (code === 'V-05' && reason === 'FUTURE_LIMIT' && max !== undefined) {
-    return `V-05 · No se puede crear una vigencia posterior al año siguiente al año en curso (${max}).`;
+  if (reason === 'FUTURE_LIMIT' && max !== undefined) {
+    return `V-05 · No se puede crear una vigencia posterior al año siguiente al año en curso: el último año que se puede crear es ${max}.`;
   }
   return undefined;
 }
@@ -161,7 +159,7 @@ const MIN_NATIONAL_YEAR = 1999;
 const MAX_NATIONAL_YEAR = 2100;
 
 /** Un año de una extensión: un entero de la tabla nacional, nunca un texto ni algo inventado. */
-function asYear(value: unknown): number | undefined {
+export function asYear(value: unknown): number | undefined {
   const valid =
     typeof value === 'number' &&
     Number.isInteger(value) &&

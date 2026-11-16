@@ -4,13 +4,14 @@
 import { Year } from '../models/year';
 
 /**
- * Hay permiso para crear pero ningún año disponible. La pantalla inhabilita la acción con este motivo.
+ * Hay permiso para crear pero ningún año disponible. La pantalla inhabilita la acción con este motivo. minYear es opcional en el esquema (con otro motivo puede faltar), pero viene siempre con ALL_CREATED.
  */
 export interface CreateBlocked {
   maxYear: Year;
+  minYear?: Year;
 
   /**
-   * Motivo. Valor documentado: FUTURE_LIMIT (ya existe la vigencia del último año que se puede crear, V-05). Pueden agregarse otros.
+   * Motivo. Valores documentados: ALL_CREATED (ya existen todas las vigencias de minYear a maxYear, V-05) y FUTURE_LIMIT (ya existe la vigencia del último año que se puede crear; no se emite desde 1.1.0). Pueden agregarse otros.
    */
   reason: string;
 }
