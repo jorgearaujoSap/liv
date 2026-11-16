@@ -15,8 +15,8 @@ info:
     Su maxLength es un límite fijo: subirlo también es un cambio incompatible. Los códigos de
     regla (V-01, V-02, V-05 y V-06) se escriben con el guion ASCII, no con el de no separación del
     Doc. 01.
-    Versión 1.1.0 (enmienda 4): una vigencia se puede crear de 2002 al año siguiente al año en
-    curso, en cualquier orden (V-02 ya no rechaza; V-05, Doc. 01 v0.6). Es compatible con la 1.0.0:
+    Versión 1.1.0: una vigencia se puede crear de 2002 al año siguiente al año en curso, en
+    cualquier orden (V-02 ya no rechaza; V-05 del Doc. 01). Es compatible con la 1.0.0:
     agrega valores de motivo (PAST_LIMIT y ALL_CREATED) y una extensión opcional (minYear), y deja
     de emitir motivos sin quitarlos del esquema. Cambia el comportamiento de creatableYears, que
     pasa a venir del más reciente al más antiguo y a traer hasta un año por cada uno de 2002 al
@@ -275,8 +275,9 @@ components:
             Años que la creación acepta ahora, del más reciente al más antiguo y en el orden en
             que la pantalla los muestra. Van de 2002 (V-05) al año siguiente al año en curso, sin
             los que la administración ya tiene y siempre dentro de la tabla nacional: cada año hay
-            uno más. En una administración sin vigencias, el primero es el último año que se puede
-            crear y el último es el primero. Vacío sin canCreate y cuando createBlocked viene.
+            uno más. Si la administración no tiene vigencias y la tabla nacional trae todos los
+            años del rango, el primero es el último año que se puede crear (maxYear) y el último es
+            2002 (minYear). Vacío sin canCreate y cuando createBlocked viene.
           items:
             $ref: '#/components/schemas/CreatableYear'
         createBlocked:
@@ -302,7 +303,8 @@ components:
       type: object
       description: >-
         Hay permiso para crear pero ningún año disponible. La pantalla inhabilita la acción con
-        este motivo.
+        este motivo. minYear es opcional en el esquema (con otro motivo puede faltar), pero
+        minYear viene siempre con ALL_CREATED.
       required: [reason, maxYear]
       properties:
         reason:
@@ -432,8 +434,8 @@ components:
         Extensiones del Problem de V-05; viene solo la que corresponde al motivo, y reason siempre.
         Los motivos GAP, HISTORICAL y FIRST_YEAR ya no se emiten desde 1.1.0, así que sus
         extensiones están obsoletas: requiredYear y oldestYear (V-02) y currentYear y nextYear
-        (V-05). Se quedan en el esquema para no quitar una propiedad (Q08) y como Year, sin
-        deprecated, para no copiar su rango.
+        (V-05). Se quedan en el esquema para no quitar una propiedad (Q08), y como Year, sin
+        deprecated: true, porque ese atributo obligaría a repetir el rango del año en cada una.
       required: [reason]
       properties:
         reason:
