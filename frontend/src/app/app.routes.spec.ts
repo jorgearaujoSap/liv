@@ -233,7 +233,7 @@ describe('rutas', () => {
 
         expect(router.url).toBe('/opcion/1.4/2026');
         expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Vigencia');
-        expect(harness.routeNativeElement?.textContent).toContain('Cargando…');
+        expect(harness.routeNativeElement?.textContent).toContain('Cargando los datos…');
       });
     });
 

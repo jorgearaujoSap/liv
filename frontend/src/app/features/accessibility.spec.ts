@@ -370,7 +370,7 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
       const page = await open('/opcion/1.4/2026');
 
       expect(page.querySelector('h1')?.textContent).toContain('Vigencia 2026');
-      expect(page.querySelectorAll('ol li')).toHaveLength(9);
+      expect(page.querySelectorAll('[livChecklistItem]')).toHaveLength(9);
       expect(page.querySelector('button[aria-disabled="true"][aria-describedby]')).not.toBeNull();
       expect(await violations(page)).toEqual([]);
     });

@@ -101,7 +101,12 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
   const buttons = (host: HTMLElement) => Array.from(host.querySelectorAll('button'));
   const button = (host: HTMLElement, label: string) =>
     buttons(host).find((candidate) => text(candidate) === label);
-  const checklist = (host: HTMLElement) => Array.from(host.querySelectorAll('ol li'));
+  const checklist = (host: HTMLElement) => Array.from(host.querySelectorAll('[livChecklistItem]'));
+  /** Los datos de la vigencia como «etiqueta valor» (el `dt` y el `dd` de cada uno). */
+  const facts = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll('[livDescriptionItem]')).map(
+      (item) => `${text(item.querySelector('dt'))} ${text(item.querySelector('dd'))}`,
+    );
   const alertOf = (host: HTMLElement) => host.querySelector('liv-alert');
 
   beforeEach(() => {
@@ -135,9 +140,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       const panel = host.querySelector('liv-panel') as HTMLElement;
 
       expect(text(panel.querySelector('h2'))).toBe('Datos de la vigencia');
-      expect(
-        Array.from(panel.querySelectorAll('[livDescriptionItem]')).map((item) => text(item)),
-      ).toEqual([
+      expect(facts(panel)).toEqual([
         'Año 2026',
         'Inicio 1 de enero de 2026',
         'Fin 31 de diciembre de 2026',
@@ -153,9 +156,8 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
         assessmentsEnabled: true,
       });
       const { host } = await render('2027');
-      const values = Array.from(host.querySelectorAll('[livDescriptionItem]')).map(text);
 
-      expect(values.slice(3)).toEqual(['Estado Habilitada', 'Liquidación Habilitada']);
+      expect(facts(host).slice(3)).toEqual(['Estado Habilitada', 'Liquidación Habilitada']);
     });
 
     it('un estado que no conoce se muestra tal cual', async () => {
@@ -165,7 +167,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       } as unknown as FiscalYearDetail);
       const { host } = await render();
 
-      expect(text(host)).toContain('Estado ARCHIVADA');
+      expect(facts(host)).toContain('Estado ARCHIVADA');
     });
   });
 
@@ -177,9 +179,9 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
 
       expect(points).toHaveLength(9);
       points.forEach((point, index) => {
-        expect(text(point)).toContain(`${index + 1}. ${TITLES[index]}`);
+        expect(text(point)).toMatch(new RegExp(`^${index + 1}[.] ?${TITLES[index]}`));
       });
-      expect(host.querySelector('ol')?.getAttribute('role')).toBe('list');
+      expect(host.querySelector('ol:has([livChecklistItem])')?.getAttribute('role')).toBe('list');
     });
 
     it('arma la frase de obligatorios y opcionales con `required`', async () => {
@@ -250,7 +252,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       const { host } = await render();
 
       expect(checklist(host)).toHaveLength(10);
-      expect(text(checklist(host)[9])).toContain('10. Punto 10');
+      expect(text(checklist(host)[9])).toMatch(/^10\. ?Punto 10/);
       expect(text(checklist(host)[9])).not.toContain('MOTIVO_NUEVO');
     });
   });
@@ -365,7 +367,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       expect(service.openPreparation).toHaveBeenCalledExactlyOnceWith(2027);
       expect(service.get).toHaveBeenCalledTimes(2);
       expect(button(host, 'Abrir preparación')).toBeUndefined();
-      expect(text(host)).toContain('Estado En preparación');
+      expect(facts(host)).toContain('Estado En preparación');
       expect(text(checklist(host)[0])).toContain('Cumplido');
       expect(text(host.querySelector('[role="status"]'))).toBe(
         'Se abrió la preparación de la vigencia 2027.',
@@ -383,9 +385,10 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       open.click();
 
       expect(service.openPreparation).toHaveBeenCalledTimes(1);
-      expect(
-        host.querySelector('liv-button[data-loading], button[aria-busy="true"]'),
-      ).not.toBeNull();
+      expect(open.getAttribute('aria-disabled')).toBe('true');
+      expect(Array.from(host.querySelectorAll('liv-button [role="status"]')).map(text)).toContain(
+        'Abriendo preparación…',
+      );
     });
 
     it('al abrirse, el foco no se pierde: pasa al título', async () => {
@@ -430,7 +433,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
         ).toBeTruthy();
         expect(service.get).toHaveBeenCalledTimes(2);
         expect(button(host, 'Abrir preparación')).toBeUndefined();
-        expect(text(host)).toContain('Estado En preparación');
+        expect(facts(host)).toContain('Estado En preparación');
       });
 
       it('V-06 no escribe un año inventado por el servidor', async () => {
@@ -580,8 +583,9 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       expect(text(host.querySelector('h1'))).toBe('Vigencia');
       expect(host.querySelector('[aria-busy="true"]')).not.toBeNull();
       expect(host.querySelectorAll('liv-skeleton')).toHaveLength(7);
-      expect(text(host)).toContain('Cargando…');
-      expect(host.querySelector('ol')).toBeNull();
+      expect(text(host)).toContain('Cargando los datos…');
+      expect(text(host)).toContain('Cargando la lista de preparación…');
+      expect(host.querySelector('[livChecklistItem]')).toBeNull();
       expect(buttons(host)).toHaveLength(0);
     });
   });

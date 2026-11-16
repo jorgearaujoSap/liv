@@ -1,0 +1,44 @@
+@reference '../../../styles.css';
+
+:host {
+  @apply flex flex-col gap-8;
+}
+
+/* Encabezado de la pantalla: el título a la izquierda y «Abrir preparación» a la derecha, como en Figma. */
+:host > div:first-of-type {
+  @apply flex items-end justify-between gap-6;
+}
+
+:host > div:first-of-type > liv-page-header {
+  @apply min-w-0 flex-1;
+}
+
+/* Los paneles de «cargando» van uno bajo otro, con el mismo espacio que el resto de la pantalla. */
+div[aria-busy='true'] {
+  @apply flex flex-col gap-8;
+}
+
+/* Los marcadores de «cargando» y los datos se apilan o se reparten dentro de su panel. */
+liv-panel:has(liv-skeleton) {
+  @apply flex flex-col gap-4;
+}
+
+/* Los cinco datos de la vigencia van en fila, separados 64 px, como en Figma. */
+dl {
+  @apply m-0 flex flex-wrap gap-x-16 gap-y-4;
+}
+
+/* La lista de preparación: sin viñetas ni relleno del navegador, para que los puntos queden alineados con el panel. */
+ol {
+  @apply m-0 list-none p-0;
+}
+
+/* «Habilitar liquidación» queda 16 px bajo la lista (8 px del panel y 8 px propios); el motivo va debajo del botón. */
+liv-panel:has(ol) > div {
+  @apply pt-2;
+}
+
+/* La región de estado solo es para los lectores de pantalla. */
+p[role='status'] {
+  @apply sr-only;
+}
