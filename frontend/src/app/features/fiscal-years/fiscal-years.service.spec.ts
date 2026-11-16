@@ -62,13 +62,17 @@ describe('FiscalYearsService (007-01, 007-03, 007-04, 007-09)', () => {
       items: [FISCAL_YEAR_2026],
       canCreate: true,
       creatableYears: [],
-      createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+      createBlocked: { reason: 'ALL_CREATED', minYear: 2002, maxYear: 2027 },
     };
 
     const result = service.list();
     http.expectOne('/api/v1/fiscal-years').flush(body);
 
-    expect((await result).createBlocked).toEqual({ reason: 'FUTURE_LIMIT', maxYear: 2027 });
+    expect((await result).createBlocked).toEqual({
+      reason: 'ALL_CREATED',
+      minYear: 2002,
+      maxYear: 2027,
+    });
   });
 
   it('create pide POST /api/v1/fiscal-years con el año como número', async () => {
