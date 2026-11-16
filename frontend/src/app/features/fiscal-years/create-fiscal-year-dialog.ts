@@ -19,20 +19,28 @@ import {
   DescriptionItemComponent,
   DialogComponent,
   formatBusinessDate,
-  RadioGroupComponent,
-  RadioOptionComponent,
+  SelectComponent,
+  type SelectOption,
 } from 'liv-components';
 
 import type { CreatableYear, FiscalYear } from '../../api/tax/models';
 import { creationRejection, isOutcomeUnknown, type Rejection } from './fiscal-year-rejections';
 import { FiscalYearsService } from './fiscal-years.service';
 
-/** Qué dice la etiqueta de un año según su relación con el año en curso; una relación que no conoce no lleva. */
+/**
+ * Qué dice la etiqueta de un año según su relación con el año en curso (E4-4). Un año pasado, o con una relación
+ * que no conoce, solo muestra su número.
+ */
 const RELATION_LABELS: Readonly<Record<string, string>> = {
   CURRENT: 'Año en curso',
   NEXT: 'Año siguiente al año en curso',
-  PAST: 'Año anterior al año en curso',
 };
+
+/**
+ * Qué pasa con el año elegido cuando llegan los años nuevos (ver `selected`): `none`, sin un rechazo antes;
+ * `keepAttempted`, tras un resultado que no se conoce; `startOver`, tras un V-01.
+ */
+type YearsAfterRejection = 'none' | 'keepAttempted' | 'startOver';
 
 /** Una alerta de rechazo. El `id` cambia en cada intento para que el lector de pantalla la anuncie de nuevo. */
 interface RejectionAlert {
@@ -52,23 +60,23 @@ export interface StaleList {
 }
 
 /**
- * Diálogo de creación de una vigencia (007-04 a 007-08). Las opciones son los años que el backend dice que se
- * pueden crear (`years`, de `creatableYears`), con sus fechas y su etiqueta; la pantalla no calcula ninguno.
- * Al abrir queda marcado el año en curso o, si no viene, el siguiente (nunca uno pasado), y el foco inicial va a él
- * y no a «Crear vigencia»: crear no se puede deshacer y no debe bastar con pulsar Enter al abrir. Los rechazos de
- * la API se muestran en una alerta con el código de la regla; ante un V-01 (otra persona creó el año antes) o un
- * resultado que no se conoce avisa con `staleList` para que la lista se vuelva a leer, y las `years` nuevas
- * conservan el año marcado si sigue disponible y, si no, marcan el año en curso o el siguiente. Diseño: Figma
- * LIV-Diseño, 67:3040 (el diálogo), 67:3163 (con un rechazo), 67:3284 (los mensajes) y 75:4479 (la etiqueta de un
- * año pasado).
+ * Diálogo de creación de una vigencia (007-04 a 007-08, 007-22). El año se elige en una lista desplegable
+ * (`Select`) cuyas opciones son los años que el backend dice que se pueden crear (`years`, de `creatableYears`),
+ * en su orden y con su etiqueta; la pantalla no calcula ninguno. Viene elegido el año en curso o, si no se puede
+ * crear, ninguno: nunca un año pasado. El foco inicial va a la lista y no a «Crear vigencia»: crear no se puede
+ * deshacer y no debe bastar con pulsar Enter al abrir. Con un año pasado elegido, una advertencia propia
+ * reemplaza a la general. Los rechazos de la API se muestran en una alerta con el código de la regla; ante un
+ * V-01 (otra persona creó el año antes) o un resultado que no se conoce avisa con `staleList` para que la lista
+ * se vuelva a leer. La lista queda inhabilitada mientras se envía y mientras se relee, así que el año intentado
+ * es siempre el que se envió (H2-18). Diseño: Figma LIV-Diseño, 67:3040 (el diálogo), 82:5802 (un año pasado),
+ * 67:3163 (con un rechazo) y 67:3284 (los mensajes).
  */
 @Component({
   selector: 'app-create-fiscal-year-dialog',
   imports: [
     DialogComponent,
     ButtonComponent,
-    RadioGroupComponent,
-    RadioOptionComponent,
+    SelectComponent,
     DescriptionItemComponent,
     AlertComponent,
   ],
@@ -95,16 +103,31 @@ export class CreateFiscalYearDialog {
   readonly closed = output<void>();
 
   /**
-   * El año marcado, como texto (el valor de un radio): conserva el actual si sigue disponible y, si no, marca el
-   * año en curso o el siguiente (`pickYear`).
+   * El año elegido, como texto (el valor de la lista), o `null` si no hay ninguno. Cuando llegan años nuevos:
+   * - al abrir y después de un V-01 (`startOver`), el año en curso si viene en la lista y, si no, ninguno (E4-3);
+   * - después de un resultado que no se conoce (`keepAttempted`), el año intentado si todavía está y, si no,
+   *   ninguno (H2-18): el diálogo no cambia por su cuenta lo que la persona eligió;
+   * - en cualquier otro cambio de la lista (`none`), el año elegido si sigue y, si no, lo mismo que al abrir.
    */
   protected readonly selected = linkedSignal<readonly CreatableYear[], string | null>({
     source: this.years,
-    computation: (years, previous) => pickYear(years, previous?.value),
+    computation: (years, previous) => {
+      const mode = this.afterRejection;
+      this.afterRejection = 'none';
+      return pickYear(years, previous?.value ?? null, mode);
+    },
   });
   protected readonly choice = computed(() =>
     this.years().find((candidate) => String(candidate.year) === this.selected()),
   );
+  protected readonly options = computed<SelectOption[]>(() =>
+    this.years().map((candidate) => ({
+      value: String(candidate.year),
+      label: describeYear(candidate),
+    })),
+  );
+  /** El año elegido es uno pasado: lo dice la relación que manda el servidor, no un cálculo de fechas. */
+  protected readonly isPast = computed(() => this.choice()?.relation === 'PAST');
   protected readonly startsOn = computed(
     () => formatBusinessDate(this.choice()?.startsOn, 'long') ?? '',
   );
@@ -121,18 +144,18 @@ export class CreateFiscalYearDialog {
   private attempts = 0;
   /** Cerrojo del envío: tras crear queda puesto (el diálogo se va a cerrar) y solo un rechazo lo libera. */
   private locked = false;
-  /** Tras un rechazo que pide releer la lista, el foco va al año marcado cuando lleguen los años nuevos. */
-  private refocusOnNextYears = false;
+  /** Qué pasa con el año elegido en la próxima lista de años: lo fija un rechazo y `selected` lo consume. */
+  private afterRejection: YearsAfterRejection = 'none';
+  /** Tras un rechazo que pide releer la lista, el foco vuelve a la lista cuando termina la relectura. */
+  private focusListWhenReloaded = false;
 
   constructor() {
     effect(() => {
       this.years();
-      untracked(() => this.focusYearIfPending());
+      if (!this.refreshing()) {
+        untracked(() => this.focusListIfPending());
+      }
     });
-  }
-
-  protected relationLabel(relation: string): string {
-    return Object.hasOwn(RELATION_LABELS, relation) ? RELATION_LABELS[relation] : '';
   }
 
   protected async submit(): Promise<void> {
@@ -141,7 +164,8 @@ export class CreateFiscalYearDialog {
       return;
     }
     this.locked = true;
-    this.refocusOnNextYears = false;
+    this.afterRejection = 'none';
+    this.focusListWhenReloaded = false;
     this.submitting.set(true);
     this.alerts.set([]);
     let created: FiscalYear;
@@ -166,21 +190,17 @@ export class CreateFiscalYearDialog {
   }
 
   /**
-   * La lista nueva puede cambiar el año marcado (el que ya existía deja de estar): el foco va al año marcado
-   * para que se lea cuál es, y no se queda en «Crear vigencia», donde un Enter crearía otro año sin avisar. Si la
-   * lista nueva no deja ningún año marcado, el foco va al primer radio del grupo.
+   * Cuando termina la relectura, el foco vuelve a la lista: con ella inhabilitada lo perdió, y no debe quedar en
+   * «Crear vigencia», donde un Enter crearía otro año sin avisar. También si la relectura falló o si no queda
+   * ningún año elegido.
    */
-  private focusYearIfPending(): void {
-    if (!this.refocusOnNextYears) {
+  private focusListIfPending(): void {
+    if (!this.focusListWhenReloaded) {
       return;
     }
-    this.refocusOnNextYears = false;
+    this.focusListWhenReloaded = false;
     afterNextRender(
-      () => {
-        const radio = (selector: string) =>
-          this.host.nativeElement.querySelector<HTMLElement>(selector);
-        (radio('input[type="radio"]:checked') ?? radio('input[type="radio"]'))?.focus();
-      },
+      () => this.host.nativeElement.querySelector<HTMLElement>('liv-select select')?.focus(),
       { injector: this.injector },
     );
   }
@@ -194,30 +214,43 @@ export class CreateFiscalYearDialog {
       { id: ++this.attempts, heading: rejection.heading, message: rejection.message },
     ]);
     if (rejection.reload) {
-      this.refocusOnNextYears = true;
+      const unknown = isOutcomeUnknown(error);
+      this.afterRejection = unknown ? 'keepAttempted' : 'startOver';
+      this.focusListWhenReloaded = true;
       this.staleList.emit({
         year,
-        unknown: isOutcomeUnknown(error),
+        unknown,
         rejection: { heading: rejection.heading, message: rejection.message },
       });
     }
   }
 }
 
-/**
- * El año que queda marcado: el que ya estaba, si sigue disponible; si no, el año en curso; si no viene, el
- * siguiente; y si tampoco, ninguno. Nunca un año pasado por omisión, ni por su posición en la lista (riesgo 6 de
- * la spec: el contrato 1.1.0 manda del más reciente al más antiguo). Regla transitoria hasta el diálogo con `Select`.
- */
+/** Lo que dice la lista de un año: su número y, si es el en curso o el siguiente, su etiqueta (E4-4). */
+function describeYear(candidate: CreatableYear): string {
+  return Object.hasOwn(RELATION_LABELS, candidate.relation)
+    ? `${candidate.year} · ${RELATION_LABELS[candidate.relation]}`
+    : String(candidate.year);
+}
+
+/** El año que queda elegido cuando llegan `years`, según lo que había y lo que pasó antes (ver `selected`). */
 function pickYear(
   years: readonly CreatableYear[],
-  previous: string | null | undefined,
+  kept: string | null,
+  mode: YearsAfterRejection,
 ): string | null {
-  if (years.some((candidate) => String(candidate.year) === previous)) {
-    return previous ?? null;
+  const stillThere = years.some((candidate) => String(candidate.year) === kept);
+  if (mode === 'keepAttempted') {
+    return stillThere ? kept : null;
   }
-  const preferred =
-    years.find((candidate) => candidate.relation === 'CURRENT') ??
-    years.find((candidate) => candidate.relation === 'NEXT');
-  return preferred ? String(preferred.year) : null;
+  if (mode === 'none' && stillThere) {
+    return kept;
+  }
+  return currentYear(years);
+}
+
+/** El año en curso si se puede crear y, si no, ninguno: nunca el siguiente ni uno pasado. */
+function currentYear(years: readonly CreatableYear[]): string | null {
+  const current = years.find((candidate) => candidate.relation === 'CURRENT');
+  return current ? String(current.year) : null;
 }
