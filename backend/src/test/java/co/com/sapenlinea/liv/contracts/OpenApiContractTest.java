@@ -189,6 +189,10 @@ class OpenApiContractTest {
     assertThat(strings(creatable.get("required")))
         .containsExactlyInAnyOrder("year", "startsOn", "endsOn", "relation");
     assertOpenString(property(creatable, "relation"), "PAST", "CURRENT", "NEXT");
+    // V-05 · 007-23: PAST es cualquier año anterior al año en curso, sin el ejemplo de V-02.
+    assertThat((String) property(creatable, "relation").get("description"))
+        .contains("anterior al año en curso")
+        .doesNotContain("2027");
     for (String date : List.of("startsOn", "endsOn")) {
       assertThat(property(creatable, date))
           .containsEntry("$ref", "#/components/schemas/BusinessDate");
@@ -198,8 +202,30 @@ class OpenApiContractTest {
         .containsEntry("type", "string")
         .containsEntry("format", "date");
     Map<String, Object> blocked = schema(contract, "CreateBlocked");
+    // minYear es opcional en el esquema: el servidor lo envía siempre con ALL_CREATED.
     assertThat(strings(blocked.get("required"))).containsExactlyInAnyOrder("reason", "maxYear");
-    assertOpenString(property(blocked, "reason"), "FUTURE_LIMIT");
+    assertThat(property(blocked, "minYear")).containsEntry("$ref", YEAR_REF);
+    assertOpenString(property(blocked, "reason"), "ALL_CREATED", "FUTURE_LIMIT");
+    assertThat((String) property(blocked, "reason").get("description"))
+        .contains("no se emite desde 1.1.0");
+  }
+
+  @Test
+  @DisplayName("V-05 · 007-23 · El contrato sube a 1.1.0, compatible, y documenta el nuevo orden")
+  void versionAndOrderOfCreatableYears() {
+    Map<String, Object> contract = load("tax.yaml");
+    assertThat(map(contract.get("info"))).containsEntry("version", "1.1.0");
+    Map<String, Object> list = schema(contract, "FiscalYearList");
+    String description = (String) property(list, "creatableYears").get("description");
+    // 007-03: del más reciente al más antiguo, de 2002 al año siguiente al año en curso, sin los
+    // que existen; sale «de cero a dos» de la 1.0.0.
+    assertThat(description)
+        .contains("del más reciente al más antiguo")
+        .contains("2002")
+        .contains("siguiente al año en curso")
+        .doesNotContain("de cero a dos");
+    String get = (String) operation(contract, YEARS, "get").get("description");
+    assertThat(get).contains("V-01 y V-05").doesNotContain("V-02");
   }
 
   @Test
@@ -296,8 +322,7 @@ class OpenApiContractTest {
   }
 
   @Test
-  @DisplayName(
-      "007-04 · POST /api/v1/fiscal-years crea la vigencia y rechaza con V-01, V-02 y V-05")
+  @DisplayName("007-04 · POST /api/v1/fiscal-years crea la vigencia y rechaza con V-01 y V-05")
   void createFiscalYear() {
     Map<String, Object> contract = load("tax.yaml");
     Map<String, Object> post = operation(contract, YEARS, "post");
@@ -308,8 +333,11 @@ class OpenApiContractTest {
     assertThat(strings(schema(contract, "CreateFiscalYearRequest").get("required")))
         .containsExactly("year");
     assertThat(post).containsKey("requestBody");
-    // El año de V-01 y el motivo de V-02 y V-05 vienen siempre: la pantalla arma su mensaje con
-    // ellos.
+    // V-05 · 007-07: el orden de evaluación es V-01, V-05 PAST_LIMIT y V-05 FUTURE_LIMIT.
+    assertThat((String) post.get("description"))
+        .contains("V-01, V-05 PAST_LIMIT y V-05 FUTURE_LIMIT")
+        .doesNotContain("V-02 HISTORICAL");
+    // El año de V-01 y el motivo de V-05 vienen siempre: la pantalla arma su mensaje con ellos.
     assertThat(strings(assertRejection(contract, post, "409", "V-01", "year").get("required")))
         .containsExactly("year");
     Map<String, Object> creation =
@@ -317,21 +345,30 @@ class OpenApiContractTest {
             contract,
             post,
             "422",
-            "V-02",
             "V-05",
             "reason",
+            "minYear",
+            "maxYear",
             "requiredYear",
             "oldestYear",
             "currentYear",
-            "nextYear",
-            "maxYear");
+            "nextYear");
     assertThat(strings(creation.get("required"))).containsExactly("reason");
     assertOpenString(
         property(schema(contract, "CreationRejectionExtensions"), "reason"),
-        "GAP",
-        "HISTORICAL",
-        "FIRST_YEAR",
+        "PAST_LIMIT",
         "FUTURE_LIMIT");
+    // Compatible (H2-17): los motivos viejos se quedan como extensiones obsoletas, pero ya no se
+    // emiten, y siguen siendo un $ref a Year (no deprecated: true, que obligaría a copiar el
+    // rango).
+    String note = (String) schema(contract, "CreationRejectionExtensions").get("description");
+    assertThat(note)
+        .contains("GAP", "HISTORICAL", "FIRST_YEAR")
+        .contains("ya no se emiten desde 1.1.0")
+        .contains("requiredYear", "oldestYear", "currentYear", "nextYear")
+        .contains("obsoletas");
+    String rejected = (String) response(contract, "CreationRejected").get("description");
+    assertThat(rejected).contains("PAST_LIMIT", "minYear", "FUTURE_LIMIT", "maxYear");
     assertErrorsAreProblems(contract, post);
   }
 
