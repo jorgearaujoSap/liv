@@ -209,7 +209,7 @@ class OpenApiContractTest {
     String reason = (String) property(blocked, "reason").get("description");
     assertThat(reason).containsPattern("FUTURE_LIMIT[^.]*no se emite desde 1\\.1\\.0");
     assertThat((String) blocked.get("description"))
-        .contains("minYear viene siempre con ALL_CREATED");
+        .containsPattern("minYear[^.]*siempre[^.]*ALL_CREATED");
   }
 
   @Test
@@ -226,6 +226,7 @@ class OpenApiContractTest {
         .contains("del más reciente al más antiguo")
         .contains("de 2002 (V-05) al año siguiente al año en curso")
         .contains("sin los que la administración ya tiene")
+        .contains("la tabla nacional trae todos los años del rango")
         .contains("el primero es el último año que se puede crear")
         .doesNotContain("de cero a dos");
     String get = (String) operation(contract, YEARS, "get").get("description");

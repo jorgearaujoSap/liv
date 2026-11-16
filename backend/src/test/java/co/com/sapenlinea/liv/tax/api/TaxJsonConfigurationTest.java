@@ -41,7 +41,8 @@ class TaxJsonConfigurationTest extends PlatformWebTest {
   @DisplayName(
       "V-05 · 007-23 · createBlocked omite minYear cuando no hay y no lo escribe null; con él, lo escribe")
   void createBlockedOmitsAnAbsentMinYear() {
-    CreateBlocked withoutMin = new CreateBlocked("FUTURE_LIMIT", 2027);
+    // Solo prueba la omisión de lo que falta; qué motivo lleva minYear lo decide el servidor.
+    CreateBlocked withoutMin = new CreateBlocked("OTHER_REASON", 2027);
     CreateBlocked withMin = new CreateBlocked("ALL_CREATED", 2027);
     withMin.setMinYear(2002);
 

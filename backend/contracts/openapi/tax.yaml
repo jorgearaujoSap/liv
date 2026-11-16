@@ -276,8 +276,8 @@ components:
             que la pantalla los muestra. Van de 2002 (V-05) al año siguiente al año en curso, sin
             los que la administración ya tiene y siempre dentro de la tabla nacional: cada año hay
             uno más. Si la administración no tiene vigencias y la tabla nacional trae todos los
-            años del rango, el primero es el último año que se puede crear (maxYear) y el último es
-            2002 (minYear). Vacío sin canCreate y cuando createBlocked viene.
+            años del rango, el primero es el último año que se puede crear y el último es 2002.
+            Vacío sin canCreate y cuando createBlocked viene.
           items:
             $ref: '#/components/schemas/CreatableYear'
         createBlocked:
@@ -304,7 +304,7 @@ components:
       description: >-
         Hay permiso para crear pero ningún año disponible. La pantalla inhabilita la acción con
         este motivo. minYear es opcional en el esquema (con otro motivo puede faltar), pero
-        minYear viene siempre con ALL_CREATED.
+        viene siempre con ALL_CREATED.
       required: [reason, maxYear]
       properties:
         reason:
