@@ -22,7 +22,8 @@ final class AuditRows {
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
   private static final String COLUMNS =
-      "administration_id, user_id, entity_name, entity_id, operation, new_values::text,"
+      "administration_id, user_id, entity_name, entity_id, operation, previous_values::text,"
+          + " new_values::text,"
           + " occurred_at, correlation_id, source, source_event_id, actor_ref, row_to_json(e)::text";
 
   private AuditRows() {}
@@ -34,6 +35,7 @@ final class AuditRows {
       String entityName,
       UUID entityId,
       String operation,
+      Map<String, Object> previousValues,
       Map<String, Object> newValues,
       Instant occurredAt,
       String correlationId,
@@ -129,13 +131,18 @@ final class AuditRows {
         (String) c[2],
         (UUID) c[3],
         (String) c[4],
-        c[5] == null ? null : JSON.readValue((String) c[5], new TypeReference<>() {}),
-        instant(c[6]),
-        (String) c[7],
+        json(c[5]),
+        json(c[6]),
+        instant(c[7]),
         (String) c[8],
         (String) c[9],
         (String) c[10],
-        (String) c[11]);
+        (String) c[11],
+        (String) c[12]);
+  }
+
+  private static Map<String, Object> json(Object value) {
+    return value == null ? null : JSON.readValue((String) value, new TypeReference<>() {});
   }
 
   private static Instant instant(Object value) {

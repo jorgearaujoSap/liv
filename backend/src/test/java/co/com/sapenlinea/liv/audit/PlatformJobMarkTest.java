@@ -86,6 +86,7 @@ class PlatformJobMarkTest extends PlatformWebTest {
         Instant.now(),
         null,
         null,
+        null,
         Map.of("result", "FAILURE"));
   }
 }

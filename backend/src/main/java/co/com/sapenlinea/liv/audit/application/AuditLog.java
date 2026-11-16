@@ -40,13 +40,15 @@ public interface AuditLog {
    * @param sourceEventId the id of the event in its source, unique with the source
    * @param administrationId the administration of the row, or null for a platform row
    * @param userId the LIV user of the event, or null
-   * @param entityName what the event is about: {@code session}, {@code user} or {@code
-   *     identity_provider}
+   * @param entityName what the event is about: {@code session}, {@code user}, {@code
+   *     identity_provider} or {@code tax.administration_fiscal_year}
    * @param entityId the id of that entity in LIV, or null
    * @param operation what happened, for example {@code SESSION_STARTED}
    * @param occurredAt when it happened at its source
    * @param correlationId the correlation id of the request of LIV, or null
    * @param actorRef an opaque reference to an actor who is not a LIV user, or null
+   * @param previousValues the whitelisted facts before the change, or null when there was no state
+   *     before (a creation) or the event is not a change
    * @param newValues the whitelisted facts of the event: result, reason and masked data
    */
   record Entry(
@@ -60,9 +62,11 @@ public interface AuditLog {
       Instant occurredAt,
       String correlationId,
       String actorRef,
+      Map<String, Object> previousValues,
       Map<String, Object> newValues) {
 
     public Entry {
+      previousValues = previousValues == null ? null : Map.copyOf(previousValues);
       newValues = Map.copyOf(newValues);
     }
   }

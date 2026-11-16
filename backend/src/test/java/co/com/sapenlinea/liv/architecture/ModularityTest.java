@@ -21,9 +21,10 @@ class ModularityTest {
   }
 
   @Test
-  @DisplayName("ADR 0025 · Las flechas entre módulos son las aprobadas y nadie depende de audit")
+  @DisplayName(
+      "ADR 0025 y 0035 · Las flechas entre módulos son las aprobadas y nadie depende de audit")
   void arrowsAreTheApprovedOnes() {
-    assertThat(dependenciesOf("audit")).containsExactlyInAnyOrder("core", "platform");
+    assertThat(dependenciesOf("audit")).containsExactlyInAnyOrder("core", "platform", "tax");
     assertThat(dependenciesOf("core")).containsExactly("platform");
     assertThat(dependenciesOf("platform")).containsExactly("shared");
     assertThat(dependenciesOf("tax")).containsExactlyInAnyOrder("platform", "shared");
