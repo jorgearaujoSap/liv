@@ -1,0 +1,471 @@
+openapi: 3.0.3
+info:
+  title: LIV · tax
+  version: 1.0.0
+  description: >-
+    API pública del módulo tax (doc. 01 §10, ADR 0005). Contract-first: el backend genera sus
+    interfaces desde este archivo y el frontend usa una copia fijada en frontend/api-spec/.
+    Feature 007 · Vigencias fiscales (opción 1.4). Una vigencia es de una administración: el año es
+    nacional y su estado es de cada administración (Doc. 01 §5), que sale de la sesión; las rutas
+    usan el año y nunca el identificador de la fila (CA-12). Lo que la pantalla muestra sobre años,
+    fechas y motivos lo da esta API: el frontend no calcula reglas con el reloj del navegador.
+    Los valores de relation, de los motivos, de availableActions y de los puntos de la lista de
+    preparación son cadenas con sus valores documentados y no enumeraciones, para que una feature
+    posterior agregue los suyos sin romper el contrato (Q08); el frontend ignora los que no conoce.
+    Su maxLength es un límite fijo: subirlo también es un cambio incompatible. Los códigos de
+    regla (V-01, V-02, V-05 y V-06) se escriben con el guion ASCII, no con el de no separación del
+    Doc. 01.
+tags:
+  - name: FiscalYears
+    description: Vigencias fiscales de la administración y su preparación.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/fiscal-years:
+    get:
+      tags: [FiscalYears]
+      operationId: listFiscalYears
+      summary: Vigencias de la administración y los años que se pueden crear (007-01, 007-03).
+      description: >-
+        Requiere tax.fiscal-year.read. Las vigencias van de la más reciente a la más antigua. Si la
+        administración no tiene ninguna, items viene vacío y la pantalla ofrece creatableYears.
+        canCreate dice si el usuario tiene tax.fiscal-year.create: sin él, la pantalla no muestra la
+        acción. creatableYears son los años que la creación aceptaría hoy (V-01, V-02 y V-05), así
+        que la lista nunca ofrece un año que la creación rechace; viene vacío sin canCreate.
+        createBlocked viene solo con permiso y sin ningún año disponible, con su motivo.
+      responses:
+        '200':
+          description: Vigencias de la administración.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalYearList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [FiscalYears]
+      operationId: createFiscalYear
+      summary: Crea la vigencia de un año de la administración, en PLANEADA (007-04 a 007-08).
+      description: >-
+        Requiere tax.fiscal-year.create. La vigencia nace PLANEADA, con assessmentsEnabled en falso
+        y las fechas del año calendario. Una vigencia no se puede borrar. Las reglas se evalúan en
+        este orden y el primero que falla es el que se responde: V-01, V-02 HISTORICAL, V-05
+        FIRST_YEAR, V-02 GAP y V-05 FUTURE_LIMIT (Doc. 01 §5).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFiscalYearRequest'
+      responses:
+        '201':
+          description: Vigencia creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalYear'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/YearAlreadyExists'
+        '422':
+          $ref: '#/components/responses/CreationRejected'
+  /api/v1/fiscal-years/{year}:
+    get:
+      tags: [FiscalYears]
+      operationId: getFiscalYear
+      summary: Una vigencia de la administración, con sus acciones y su lista de preparación (007-11, 007-12).
+      description: >-
+        Requiere tax.fiscal-year.read. Una vigencia de otra administración da exactamente el mismo
+        404 que un año que no existe (CA-12).
+      parameters:
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: La vigencia con su lista de preparación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalYearDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/fiscal-years/{year}/preparation:
+    post:
+      tags: [FiscalYears]
+      operationId: openFiscalYearPreparation
+      summary: Abre la preparación de la vigencia, de PLANEADA a EN_PREPARACION (007-10).
+      description: >-
+        Requiere tax.fiscal-year.prepare. Primero se comprueba el permiso (403), luego que la
+        vigencia exista en la administración (404) y solo después el estado: así V-06 nunca revela
+        el estado de una vigencia ajena. Desde cualquier otro estado, también cuando otra persona
+        la abrió un instante antes, responde V-06 con el estado actual y no cambia nada. No hay
+        ninguna operación que habilite la liquidación: assessmentsEnabled no se puede cambiar por
+        esta API.
+      parameters:
+        - $ref: '#/components/parameters/Year'
+      responses:
+        '200':
+          description: Preparación abierta; la vigencia queda EN_PREPARACION.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalYear'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/TransitionNotAllowed'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acceso del usuario. Lo agrega el BFF; el navegador nunca lo recibe.
+  parameters:
+    Year:
+      name: year
+      in: path
+      required: true
+      description: Año de la vigencia, de 1999 a 2100 (el rango de la tabla nacional).
+      schema:
+        type: integer
+        format: int32
+        minimum: 1999
+        maximum: 2100
+  responses:
+    BadRequest:
+      description: >-
+        Solicitud mal formada: el año no es un entero de 1999 a 2100 o el cuerpo no cumple este
+        contrato. code: SYS-400.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: >-
+        Sin sesión válida. code: 001-14 (token inválido o ausente, o usuario no registrado en LIV),
+        001-05 (usuario desactivado) o 001-17 (la administración del token no es la registrada).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: >-
+        El usuario no tiene el permiso de la operación. code: 001-16.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: >-
+        No hay una vigencia de ese año en la administración del usuario. code: SYS-404, con un
+        cuerpo idéntico sea cual sea el motivo: un año que nadie creó o una vigencia de otra
+        administración (CA-12).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    YearAlreadyExists:
+      description: >-
+        V-01: la administración ya tiene la vigencia de ese año (también cuando otra persona la
+        creó un instante antes). Extensión: year.
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - $ref: '#/components/schemas/YearExtensions'
+    CreationRejected:
+      description: >-
+        Una regla de V-02 o de V-05 rechaza el año. code V-02 con reason GAP (extensión
+        requiredYear, el año que debe crearse primero) o HISTORICAL (oldestYear, la vigencia más
+        antigua); code V-05 con reason FIRST_YEAR (currentYear y nextYear, los únicos años
+        admitidos para la primera vigencia) o FUTURE_LIMIT (maxYear, el último año que se puede
+        crear).
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - $ref: '#/components/schemas/CreationRejectionExtensions'
+    TransitionNotAllowed:
+      description: >-
+        V-06: la vigencia no está PLANEADA, así que la transición no es posible desde su estado
+        actual. Extensiones: year y currentStatus, el estado actual (no se llama status porque
+        las extensiones no pueden usar las claves del Problem, ADR 0035).
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - $ref: '#/components/schemas/TransitionRejectionExtensions'
+  schemas:
+    Year:
+      type: integer
+      format: int32
+      description: Año de una vigencia, de 1999 a 2100 (el rango de la tabla nacional).
+      minimum: 1999
+      maximum: 2100
+    BusinessDate:
+      type: string
+      format: date
+      description: Fecha de negocio (AAAA-MM-DD), sin zona horaria.
+    FiscalYearStatus:
+      type: string
+      description: >-
+        Estado de la vigencia en la administración (Doc. 01 §5). La 007 solo llega a
+        EN_PREPARACION; los demás los usan las features siguientes. Es una enumeración cerrada a
+        propósito: agregar un estado es un cambio incompatible (Q08) y sube la versión mayor.
+      enum: [PLANEADA, EN_PREPARACION, LISTA, HABILITADA, CERRADA]
+    FiscalYear:
+      type: object
+      required: [year, startsOn, endsOn, status, assessmentsEnabled]
+      properties:
+        year:
+          $ref: '#/components/schemas/Year'
+        startsOn:
+          $ref: '#/components/schemas/BusinessDate'
+        endsOn:
+          $ref: '#/components/schemas/BusinessDate'
+        status:
+          $ref: '#/components/schemas/FiscalYearStatus'
+        assessmentsEnabled:
+          type: boolean
+          description: >-
+            Si la administración puede liquidar el año. En la 007 siempre es falso: ninguna
+            operación lo cambia.
+    FiscalYearList:
+      type: object
+      required: [items, canCreate, creatableYears]
+      properties:
+        items:
+          type: array
+          description: Vigencias de la administración, de la más reciente a la más antigua.
+          items:
+            $ref: '#/components/schemas/FiscalYear'
+        canCreate:
+          type: boolean
+          description: El usuario tiene tax.fiscal-year.create.
+        creatableYears:
+          type: array
+          description: >-
+            Años que la creación aceptaría ahora, de cero a dos y siempre dentro de la tabla
+            nacional. Vacío sin canCreate y cuando createBlocked viene.
+          items:
+            $ref: '#/components/schemas/CreatableYear'
+        createBlocked:
+          $ref: '#/components/schemas/CreateBlocked'
+    CreatableYear:
+      type: object
+      required: [year, startsOn, endsOn, relation]
+      properties:
+        year:
+          $ref: '#/components/schemas/Year'
+        startsOn:
+          $ref: '#/components/schemas/BusinessDate'
+        endsOn:
+          $ref: '#/components/schemas/BusinessDate'
+        relation:
+          type: string
+          maxLength: 32
+          description: >-
+            Relación del año con el año en curso de la hora oficial de Colombia. Valores
+            documentados: PAST (un año pasado que sigue pendiente, por ejemplo 2027 cuando la más
+            reciente es 2026 y estamos en 2028), CURRENT (el año en curso) y NEXT (el siguiente).
+            Pueden agregarse otros.
+    CreateBlocked:
+      type: object
+      description: >-
+        Hay permiso para crear pero ningún año disponible. La pantalla inhabilita la acción con
+        este motivo.
+      required: [reason, maxYear]
+      properties:
+        reason:
+          type: string
+          maxLength: 32
+          description: >-
+            Motivo. Valor documentado: FUTURE_LIMIT (ya existe la vigencia del último año que se
+            puede crear, V-05). Pueden agregarse otros.
+        maxYear:
+          $ref: '#/components/schemas/Year'
+    FiscalYearDetail:
+      type: object
+      required:
+        - year
+        - startsOn
+        - endsOn
+        - status
+        - assessmentsEnabled
+        - availableActions
+        - preparation
+      properties:
+        year:
+          $ref: '#/components/schemas/Year'
+        startsOn:
+          $ref: '#/components/schemas/BusinessDate'
+        endsOn:
+          $ref: '#/components/schemas/BusinessDate'
+        status:
+          $ref: '#/components/schemas/FiscalYearStatus'
+        assessmentsEnabled:
+          type: boolean
+          description: Siempre falso en la 007.
+        availableActions:
+          type: array
+          description: >-
+            Lo que el usuario puede hacer con la vigencia según su estado y sus permisos. Valor
+            documentado: OPEN_PREPARATION (tax.fiscal-year.prepare y estado PLANEADA). El frontend
+            ignora los que no conoce; las features siguientes agregan los suyos.
+          items:
+            type: string
+            maxLength: 32
+        preparation:
+          $ref: '#/components/schemas/Preparation'
+    Preparation:
+      type: object
+      description: Lista de preparación de la vigencia (Doc. 01 §6.1), de solo lectura.
+      required: [items, canEnable, missing]
+      properties:
+        items:
+          type: array
+          description: Los nueve puntos, en el orden del Doc. 01 §6.1.
+          items:
+            $ref: '#/components/schemas/PreparationItem'
+        canEnable:
+          type: boolean
+          description: >-
+            Verdadero solo con todos los puntos obligatorios cumplidos (V-03). En la 007 siempre es
+            falso.
+        missing:
+          type: array
+          description: Número de cada punto obligatorio que falta.
+          items:
+            type: integer
+            format: int32
+            minimum: 1
+    PreparationItem:
+      type: object
+      required: [number, code, required, option, status, reason]
+      properties:
+        number:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Número del punto en el Doc. 01 §6.1.
+        code:
+          type: string
+          maxLength: 64
+          description: >-
+            Qué punto es; la pantalla pone el título a partir de este código. Valores
+            documentados, por número de punto: FISCAL_YEAR_IN_PREPARATION (1),
+            VALUATION_RESOLUTION (2), VALUATION_CATALOG_PUBLISHED (3), TAX_RATES (4),
+            TAX_CALENDAR (5), TAX_BENEFITS (6), PENALTY_RULES (7), SAMPLE_ASSESSMENT (8) y
+            JURISDICTION_CONFIG_PUBLISHED (9). Pueden agregarse otros.
+        required:
+          type: boolean
+          description: Obligatorio para habilitar la liquidación. Opcional es required en falso.
+        option:
+          type: string
+          maxLength: 16
+          pattern: '^[0-9]+(\.[0-9]+)*$'
+          description: Número de la opción de menú donde se atiende el punto, por ejemplo 1.5.2.
+        status:
+          $ref: '#/components/schemas/PreparationItemStatus'
+        reason:
+          type: string
+          maxLength: 64
+          description: >-
+            Por qué tiene ese estado. Valores documentados: MET, FISCAL_YEAR_PLANNED (el punto 1
+            en una vigencia PLANEADA) y OPTION_NOT_AVAILABLE (la opción que lo verifica aún no
+            existe). Pueden agregarse otros.
+    PreparationItemStatus:
+      type: string
+      description: >-
+        MET (cumplido), PENDING (pendiente) u OBSERVED (con observación). Nadie usa OBSERVED
+        todavía. Opcional no es un estado: es required en falso. Enumeración cerrada, como
+        FiscalYearStatus.
+      enum: [MET, PENDING, OBSERVED]
+    CreateFiscalYearRequest:
+      type: object
+      required: [year]
+      properties:
+        year:
+          $ref: '#/components/schemas/Year'
+    YearExtensions:
+      type: object
+      description: Extensión del Problem de V-01.
+      required: [year]
+      properties:
+        year:
+          $ref: '#/components/schemas/Year'
+    CreationRejectionExtensions:
+      type: object
+      description: >-
+        Extensiones del Problem de V-02 y V-05; viene solo la que corresponde al motivo, y reason
+        siempre.
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          maxLength: 32
+          description: >-
+            Valores documentados: GAP y HISTORICAL (V-02), FIRST_YEAR y FUTURE_LIMIT (V-05).
+        requiredYear:
+          $ref: '#/components/schemas/Year'
+        oldestYear:
+          $ref: '#/components/schemas/Year'
+        currentYear:
+          $ref: '#/components/schemas/Year'
+        nextYear:
+          $ref: '#/components/schemas/Year'
+        maxYear:
+          $ref: '#/components/schemas/Year'
+    TransitionRejectionExtensions:
+      type: object
+      description: Extensiones del Problem de V-06.
+      required: [year, currentStatus]
+      properties:
+        year:
+          $ref: '#/components/schemas/Year'
+        currentStatus:
+          $ref: '#/components/schemas/FiscalYearStatus'
+    Problem:
+      type: object
+      description: Problem Details (RFC 9457) con el código de la regla o criterio (doc. 01 §10).
+      required: [status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        code:
+          type: string
+          description: Código de la regla o del criterio, por ejemplo 001-14.
+          maxLength: 32

@@ -6,6 +6,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Agregado
 
+- Vigencias fiscales (feature 007, menú 1.4), lista y creación (T25 a T28; T25 trae el contrato y el servicio):
+  - contrato `tax` 1.0.0 (*release* `contract-tax-v1.0.0`), fijado con su SHA-256 en `api-spec/versions.json`, y su cliente generado en `src/app/api/tax/`;
+  - `FiscalYearsService` sobre ese cliente, con tiempo límite de 10 s: la lista con `canCreate`, `creatableYears` y `createBlocked` tal como vienen del backend, la creación, el detalle y la apertura de la preparación (007-01, 007-04, 007-09).
+  - la lista de vigencias, en `opcion/1.4` (T26; 007-01, 007-03, 007-09): con `liv-components` 0.4.0 (`Table`, `Badge`, `ResultState`, `Skeleton` y `Button` con `disabledReason`), con las fechas largas del formateador de la librería. «Crear vigencia» solo con `canCreate`, inhabilitado con su motivo si el backend manda `createBlocked`; vacía, cargando y con error (con «Reintentar»). Los años, los permisos y los motivos vienen del backend.
 - Pantallas de la feature 001 (T22), con sus diseños de Figma LIV-Diseño y solo con `liv-components` 0.2.0:
   - estructura general (`SideNav`, `AppHeader`) con el menú que arma `core/navigation/menu-presentation.ts` a partir de las capacidades: solo lo permitido, las opciones `COMING_SOON` deshabilitadas (001-02, 001-15);
   - Inicio, Sin permiso (403), Próximamente, Cargando y Error (rutas `/`, `/sin-permiso`, `/proximamente` y `/error`);
@@ -31,6 +35,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Regla de ESLint de las plantillas de las pantallas: `<table>`, `<tr>`, `<th>` y `<td>` se permiten solo con `livTable`, `livTableRow` y `livTableCell` (el `Table` de `liv-components` 0.4.0 es una tabla HTML real); sin el atributo siguen rechazados. Ajuste aprobado por la persona (`AGENTS.md` raíz §4.5), con sus pruebas en `scripts/lint-rules.test.mjs`.
+- `liv-components` 0.3.1 → 0.4.0 (versión exacta): `Table`, `Panel`, `ChecklistItem`, `DescriptionItem`, `RadioGroup`, `Button` con `disabledReason` y `Dialog` con cuerpo, tamaño y tono. El aviso de sesión no cambia: la prueba del `Dialog` por omisión pasa igual.
 - Las pantallas de la feature 001 siguen las convenciones de Angular 21 que pide el código nuevo (decisión del responsable del 2026-11-06), sin cambio de comportamiento: todos los componentes usan `ChangeDetectionStrategy.OnPush`, e Inicio, Sin permiso y Próximamente se cargan en diferido (`loadComponent`). La estructura general (`Shell`) y «Error» siguen en el paquete inicial: la primera envuelve todas las pantallas y la segunda sale cuando el servidor no responde, y entonces puede que tampoco llegue su paquete. No había `@Input` ni `@Output` que pasar a `input()` y `output()`.
 - Una navegación que falla, p. ej. porque no llegó el paquete de una pantalla diferida (red caída o despliegue nuevo), lleva a «Error» en vez de dejar la página en blanco (`withNavigationErrorHandler`, `core/navigation/navigation-errors.ts`; decisión del responsable del 2026-11-06). El fallo se sigue reportando. Si la que falla es «Error», no se redirige de nuevo y el enrutador relanza el error.
 - Menú lateral de tres niveles (1.5.x y 1.6.x), como en Figma (Menú · tres niveles): una opción con subopciones es un subgrupo (`NavItem` `subgroup`) con las suyas anidadas (`nested`). Al navegar se abren las ramas que contienen la pantalla actual; la persona puede abrir y contraer cualquiera, y ninguna se cierra sola. Las opciones sin construir siguen deshabilitadas (feature 001, 001-15).
