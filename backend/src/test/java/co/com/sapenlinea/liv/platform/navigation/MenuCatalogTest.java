@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -123,6 +124,33 @@ class MenuCatalogTest {
         assertThat(leavesOf(catalog.visibleTo(Set.of(permission))))
             .as(permission)
             .containsExactlyElementsOf(leaves));
+  }
+
+  @Test
+  @Tag("007-01")
+  @DisplayName(
+      "007-01 · La opción 1.4 está disponible con el permiso tax.fiscal-year.read y las demás siguen"
+          + " como COMING_SOON")
+  void fiscalYearsIsTheOnlyAvailableOption() {
+    MenuCatalog catalog = MenuCatalog.load(MenuCatalog.LIV_CATALOG);
+
+    Map<String, CapabilityStatus> leafStatuses = new TreeMap<>();
+    collectLeafStatuses(catalog.visibleTo(catalog.permissions()), leafStatuses);
+
+    assertThat(leafStatuses.get("1.4")).isEqualTo(CapabilityStatus.AVAILABLE);
+    assertThat(
+            leafStatuses.entrySet().stream()
+                .filter(leaf -> leaf.getValue() == CapabilityStatus.AVAILABLE)
+                .map(Map.Entry::getKey))
+        .containsExactly("1.4");
+    assertThat(leafStatuses.values()).hasSizeGreaterThan(1);
+    // The option is reached with its permission alone, and it makes its branch available.
+    assertThat(catalog.visibleTo(Set.of("tax.fiscal-year.read")))
+        .containsExactly(
+            new Capability(
+                "1",
+                CapabilityStatus.AVAILABLE,
+                List.of(new Capability("1.4", CapabilityStatus.AVAILABLE, List.of()))));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -277,6 +305,16 @@ class MenuCatalogTest {
       leaves.addAll(leavesOf(item.children()));
     }
     return leaves;
+  }
+
+  private static void collectLeafStatuses(
+      List<Capability> items, Map<String, CapabilityStatus> statuses) {
+    for (Capability item : items) {
+      if (item.children().isEmpty()) {
+        statuses.put(item.code(), item.status());
+      }
+      collectLeafStatuses(item.children(), statuses);
+    }
   }
 
   private static MenuCatalog load(String yaml) {

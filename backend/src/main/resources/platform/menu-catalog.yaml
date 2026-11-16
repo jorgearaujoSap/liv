@@ -25,7 +25,7 @@ items:
         status: COMING_SOON
       - code: "1.4"
         permission: tax.fiscal-year.read
-        status: COMING_SOON
+        status: AVAILABLE
       - code: "1.5"
         children:
           - code: "1.5.1"

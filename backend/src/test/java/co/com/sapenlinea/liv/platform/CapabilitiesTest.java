@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -129,13 +130,20 @@ class CapabilitiesTest extends PlatformWebTest {
 
   @Test
   @Tag("001-15")
-  @DisplayName("001-15 · Las opciones aún no construidas vienen como COMING_SOON")
+  @DisplayName(
+      "001-15 · Las opciones aún no construidas vienen como COMING_SOON (007-01: solo la 1.4 está"
+          + " disponible)")
   void optionsNotBuiltYetComeAsComingSoon() {
-    List<String> statuses = new ArrayList<>();
+    // AUDITOR sees the whole menu: leaves and branches. Only 1.4 and its branch 1 are available.
+    Map<String, String> statuses = new TreeMap<>();
     collect(
-        capabilitiesOf(List.of("AUDITOR")), node -> statuses.add(node.get("status").asString()));
+        capabilitiesOf(List.of("AUDITOR")),
+        node -> statuses.put(node.get("code").asString(), node.get("status").asString()));
 
-    assertThat(statuses).isNotEmpty().containsOnly("COMING_SOON");
+    assertThat(statuses).containsEntry("1", "AVAILABLE").containsEntry("1.4", "AVAILABLE");
+    Map<String, String> rest = new TreeMap<>(statuses);
+    rest.keySet().removeAll(List.of("1", "1.4"));
+    assertThat(rest.values()).isNotEmpty().containsOnly("COMING_SOON");
   }
 
   @Test

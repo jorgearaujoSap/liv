@@ -92,6 +92,29 @@ set -a; . dev/.env; set +a
 
 Las pruebas de base de datos (`./mvnw verify`) no usan este entorno: levantan su propio PostgreSQL con Testcontainers y necesitan Docker.
 
+## Repetir las pruebas de `e2e/`: limpiar las vigencias
+
+Una vigencia fiscal, una vez creada, no se borra por la API ni por `liv_app` (feature 007). Para volver a correr las pruebas de navegador de `e2e/` con la administración de Ipiales sin vigencias, la persona ejecuta antes de `npm test`, con el entorno levantado y desde `backend/` en Git Bash:
+
+```bash
+sh dev/limpiar-vigencias.sh
+```
+
+Borra todas las filas de `tax.administration_fiscal_year` de la base **local** (las de Ipiales y las de la administración de prueba B) y no toca nada más; la auditoría no se toca, así que una prueba de `e2e/` no debe contar eventos de auditoría sin filtrarlos por corrida. Solo ejecuta `docker compose -f dev/compose.yaml -p liv-backend-dev ps -q postgres` y `… exec -T postgres psql …`: va por el contenedor, no por un puerto, así que no depende del `POSTGRES_PORT` de `dev/.env`. Se niega, con salida distinta de 0 y sin borrar nada, si:
+
+- recibe argumentos;
+- `DOCKER_HOST` o `DOCKER_CONTEXT` apuntan a otro equipo;
+- Docker no responde, falta `dev/.env` o el contenedor de PostgreSQL de desarrollo no está levantado;
+- la base no es la de desarrollo: la comprobación (base `liv` con la administración de prueba B de `dev/seed`) va en la misma sentencia que el borrado, así que si falla no se borra nada.
+
+Límites: no detecta un contexto de Docker remoto fijado con `docker context use`, ni un Docker remoto elegido de otra forma; en esos casos solo queda la comprobación de la base, que reconoce cualquier base con la semilla de desarrollo. `dev/seed` y el perfil `dev` son solo de tu equipo: no los uses en ningún otro entorno. `e2e/` no lo llama (ADR 0030): lo corre la persona.
+
+Su prueba de escenarios, con un `docker` falso y sin Docker real:
+
+```bash
+sh dev/test/limpiar-vigencias-escenarios.sh
+```
+
 ## Empezar de cero
 
 Para borrar los datos y volver a crear roles y bases:
