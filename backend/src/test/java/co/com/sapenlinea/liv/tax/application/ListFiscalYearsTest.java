@@ -153,6 +153,11 @@ class ListFiscalYearsTest {
             new Scenario(LAST_NIGHT_OF_2026, 2010, 2020),
             new Scenario(LAST_NIGHT_OF_2026, 2002, 2027))) {
       List<Integer> offered = offeredYears(scenario.now(), scenario.existing());
+      assertThat(
+              listed(scenario.now(), scenario.existing()).createBlocked().isPresent()
+                  && !offered.isEmpty())
+          .as("createBlocked y creatableYears nunca vienen juntos")
+          .isFalse();
       assertThat(offered).as("la lista nunca repite un año").doesNotHaveDuplicates();
       for (int year = 1999; year <= 2100; year++) {
         assertThat(offered.contains(year))
@@ -165,10 +170,14 @@ class ListFiscalYearsTest {
   }
 
   private List<Integer> offeredYears(Instant now, int... existing) {
+    return listed(now, existing).creatableYears().stream().map(CreatableYear::year).toList();
+  }
+
+  private ListFiscalYears.Listing listed(Instant now, int... existing) {
     var clock = Clock.fixed(now, ZoneOffset.UTC);
     return new ListFiscalYears(
             portWith(existing), FakeFiscalYears.catalogWith(READ, CREATE), clock, BOGOTA)
-        .list(FakeFiscalYears.user()).creatableYears().stream().map(CreatableYear::year).toList();
+        .list(FakeFiscalYears.user());
   }
 
   private boolean accepts(Instant now, int[] existing, int year) {

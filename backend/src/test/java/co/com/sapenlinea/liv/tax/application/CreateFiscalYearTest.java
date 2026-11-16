@@ -186,8 +186,8 @@ class CreateFiscalYearTest {
 
   @Test
   @Tag("V-05")
-  @Tag("007-06")
-  @DisplayName("V-05 · 007-06 · Pasar del año siguiente al en curso da V-05 FUTURE_LIMIT")
+  @Tag("007-07")
+  @DisplayName("V-05 · 007-07 · Pasar del año siguiente al en curso da V-05 FUTURE_LIMIT")
   void futureLimit() {
     fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
     fiscalYears.given(ADMINISTRATION, 2027, FiscalYearStatus.PLANEADA);

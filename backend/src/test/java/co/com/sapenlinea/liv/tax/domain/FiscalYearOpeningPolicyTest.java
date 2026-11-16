@@ -214,6 +214,7 @@ class FiscalYearOpeningPolicyTest {
   @Test
   @Tag("V-05")
   @Tag("007-07")
+  @Tag("E4-1")
   @DisplayName("V-05 · E4-1 · El primer año que se puede crear es 2002")
   void theFirstCreatableYearIs2002() {
     // Falla si alguien mueve la constante: 2002 se acepta y 2001 da PAST_LIMIT con minYear 2002.
@@ -246,6 +247,7 @@ class FiscalYearOpeningPolicyTest {
   }
 
   @Test
+  @Tag("V-05")
   @Tag("007-03")
   @DisplayName(
       "007-03 · creatableYears va de mayor a menor, con sus fechas, y relation NEXT, CURRENT y PAST")
@@ -269,6 +271,7 @@ class FiscalYearOpeningPolicyTest {
   }
 
   @Test
+  @Tag("V-05")
   @Tag("007-03")
   @DisplayName("007-03 · Un año que falta en la tabla nacional no se ofrece")
   void aYearMissingFromTheNationalTableIsNotOffered() {
@@ -359,6 +362,59 @@ class FiscalYearOpeningPolicyTest {
 
     assertThat(policy.creatableYears()).isEmpty();
     assertThat(policy.createBlocked()).isEmpty();
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-23")
+  @DisplayName(
+      "V-05 · 007-23 · Si falta solo el último año (el siguiente al en curso), no hay createBlocked y se ofrece solo ese")
+  void missingOnlyTheLastYearIsNotBlocked() {
+    FiscalYearOpeningPolicy policy = policy(2026, range(2002, 2026));
+
+    assertThat(years(policy)).containsExactly(2027);
+    assertThat(policy.createBlocked()).isEmpty();
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-23")
+  @DisplayName(
+      "V-05 · 007-23 · Con todos los años creados, crear uno es V-01 si existe o V-05 si queda fuera del rango")
+  void everyYearCreatedStillAnswersTheRules() {
+    FiscalYearOpeningPolicy policy = policy(2026, range(2002, 2027));
+
+    assertRefusal(refusal(policy, 2010), "V-01", RuleViolation.Type.CONFLICT, Map.of("year", 2010));
+    assertRefusal(
+        refusal(policy, 2028),
+        "V-05",
+        RuleViolation.Type.UNPROCESSABLE,
+        Map.of("reason", "FUTURE_LIMIT", "maxYear", 2027));
+    assertRefusal(
+        refusal(policy, 2001),
+        "V-05",
+        RuleViolation.Type.UNPROCESSABLE,
+        Map.of("reason", "PAST_LIMIT", "minYear", 2002));
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-23")
+  @DisplayName(
+      "V-05 · 007-23 · Con un año en curso imposible (anterior a 2001) no hay createBlocked: el rango está vacío")
+  void anEmptyRangeIsNotBlocked() {
+    FiscalYearOpeningPolicy policy = policy(2000);
+
+    assertThat(policy.createBlocked()).isEmpty();
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-23")
+  @DisplayName("V-05 · 007-23 · Un createBlocked con el rango invertido no se puede crear")
+  void createBlockedNeedsAValidRange() {
+    assertThatThrownBy(() -> new CreateBlocked(CreateBlocked.Reason.ALL_CREATED, 2028, 2027))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   // ---- Lo que no cambia
