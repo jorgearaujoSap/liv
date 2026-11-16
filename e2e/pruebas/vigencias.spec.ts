@@ -194,6 +194,8 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     expect(numeros).toEqual([...numeros].sort((a, b) => b - a));
     anios = aniosDePrueba(lista);
     ofrecidos = lista.creatableYears;
+    // El primer año que se puede crear es fijo (V‑05): no depende del calendario de la prueba.
+    expect(anios.minimo.year).toBe(2002);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Vigencias fiscales' })).toBeVisible();
     await expect(page.getByText('Aún no hay vigencias')).toBeVisible();
@@ -260,8 +262,9 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     await expect(crear).toBeVisible();
     await expect(selector).toBeFocused();
     expect(peticionesPost).toEqual([]);
-    // En Chromium, Enter sobre la lista cerrada abre la de opciones del sistema, que se queda con la siguiente tecla:
-    // se cierra devolviendo el foco a la lista, para probar el recorrido del teclado sin esa ventana abierta.
+    // Según la plataforma, Enter sobre la lista cerrada abre la de opciones del sistema (en el Chromium de Windows con
+    // el que se probó, sí), que se queda con la siguiente tecla: se cierra devolviendo el foco a la lista, para probar
+    // el recorrido del teclado sin esa ventana abierta.
     await selector.evaluate((lista) => lista.blur());
     await selector.focus();
     await expect(selector).toBeFocused();
@@ -333,6 +336,9 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     const lista = await leerVigencias(page);
     expect(lista.items.map((vigencia) => vigencia.year)).toEqual([anios.actual.year]);
     expect(lista.items[0].assessmentsEnabled).toBe(false);
+    // Las fechas no se escriben a mano: del 1 de enero al 31 de diciembre del año elegido.
+    expect(lista.items[0].startsOn).toBe(`${anios.actual.year}-01-01`);
+    expect(lista.items[0].endsOn).toBe(`${anios.actual.year}-12-31`);
   });
 
   test('007-06 · V‑02 · Con una vigencia creada, se crean el año siguiente, el más antiguo y uno del medio, en ese orden y con huecos, sin ningún rechazo', async ({
@@ -350,13 +356,21 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
       );
       await expect(selector.locator('option:checked')).toHaveText(OPCION_VACIA);
       await expect(botonConfirmarCreacion(page)).toBeDisabled();
+      await expect(crear.getByText('Inicio', { exact: true })).toHaveCount(0);
+      await expect(crear.getByText('Fin', { exact: true })).toHaveCount(0);
 
       await elegirAnio(page, anio);
+      const respuesta = page.waitForResponse(
+        (candidata) => candidata.request().method() === 'POST' && candidata.url().endsWith('/api/v1/fiscal-years'),
+      );
       await botonConfirmarCreacion(page).click();
 
+      // Ningún rechazo (V‑02 ya no rechaza): la API responde 201 y el diálogo se cierra.
+      expect((await respuesta).status()).toBe(201);
       await expect(crear).toHaveCount(0);
-      await expect(page.getByText(/V.02/)).toHaveCount(0);
       creados.push(anio);
+      // La lista se releyó antes de abrir el siguiente diálogo, para que ofrezca los años que quedan.
+      await expect(filasDeVigencias(page)).toHaveCount(creados.length);
     }
 
     // 007-01: de la más reciente a la más antigua, aunque se crearon en otro orden.
@@ -377,18 +391,24 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     page,
   }) => {
     await page.goto(RUTA);
+    const antes = (await leerVigencias(page)).items.map((vigencia) => vigencia.year);
 
     const anterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anios.minimo.year - 1 });
-    expect(anterior.estado).toBe(422);
+    expect(anterior.estado, JSON.stringify(anterior)).toBe(422);
     // El primer año que se puede crear coincide con el último de la lista de la administración vacía.
     expect(anterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'PAST_LIMIT', minYear: anios.minimo.year });
 
     const posterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anios.siguiente.year + 1 });
-    expect(posterior.estado).toBe(422);
+    expect(posterior.estado, JSON.stringify(posterior)).toBe(422);
     expect(posterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: anios.siguiente.year });
 
-    const lista = await leerVigencias(page);
-    expect(lista.items).toHaveLength(4);
+    // Un año que ya existe da el rechazo de V‑01 y no el de V‑05, aunque sea el límite.
+    const repetido = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anios.minimo.year });
+    expect(repetido.estado).toBe(409);
+    expect(repetido.cuerpo).toMatchObject({ code: 'V-01' });
+
+    const despues = (await leerVigencias(page)).items.map((vigencia) => vigencia.year);
+    expect(despues).toEqual(antes);
   });
 
   test('007-10 · Abrir la preparación de una vigencia Planeada la pasa a «En preparación»', async ({ page }) => {
@@ -492,12 +512,10 @@ test.describe('1.4 · Roles que consultan pero no crean, en una administración 
       await page.goto(RUTA);
       const lista = await leerVigencias(page);
       expect(lista.canCreate).toBe(false);
-      // Precondición: las pruebas del administrador de Ipiales (arriba) crearon sus vigencias. La pantalla se compara con
-      // las de la API, no con un número fijo.
-      expect(
-        lista.items.length,
-        'Corre el archivo completo: las pruebas del administrador crean las vigencias',
-      ).toBeGreaterThan(0);
+      // Precondición: las pruebas del administrador de Ipiales (arriba) crearon sus vigencias; la pantalla se compara con
+      // las de la API.
+      // Las cuatro que creó 007-06: el año siguiente, el en curso, uno del medio y el más antiguo.
+      expect(lista.items, 'Corre el archivo completo: las pruebas del administrador crean las vigencias').toHaveLength(4);
 
       await expect(filasDeVigencias(page)).toHaveCount(lista.items.length);
       for (const [indice, vigencia] of lista.items.entries()) {
@@ -552,11 +570,29 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     ({ actual: anioDeB, siguiente: anioSiguiente } = aniosB);
   });
 
-  test('V‑01 · 007-05 · Si otra persona crea el mismo año al mismo tiempo, se rechaza con el mensaje de V‑01 y, al releer la lista, no queda ningún año elegido', async ({
+  test('V‑05 · 007-08 · La primera vigencia de una administración puede ser de cualquier año del rango: B crea el más antiguo como primera', async ({
     page,
   }) => {
     await page.goto(RUTA);
     await botonCrearPrimera(page).click();
+    await elegirAnio(page, aniosB.minimo);
+    await expect(dialogo(page).getByText('Es un año pasado', { exact: true })).toBeVisible();
+    const respuesta = page.waitForResponse(
+      (candidata) => candidata.request().method() === 'POST' && candidata.url().endsWith('/api/v1/fiscal-years'),
+    );
+    await botonConfirmarCreacion(page).click();
+
+    expect((await respuesta).status()).toBe(201);
+    await expect(dialogo(page)).toHaveCount(0);
+    await expect(filaDelAnio(page, aniosB.minimo.year)).toContainText('Planeada');
+  });
+
+  test('V‑01 · 007-05 · Si otra persona crea el mismo año al mismo tiempo, se rechaza con el mensaje de V‑01 y, al releer la lista, no queda ningún año elegido', async ({
+    page,
+  }) => {
+    await page.goto(RUTA);
+    // B ya tiene su primera vigencia (007-08): ahora se abre desde la acción de la lista.
+    await botonCrearVigencia(page).click();
     const crear = dialogo(page);
     const selector = selectorDeAnio(page);
     await expect(selector.locator('option:checked')).toHaveText(etiquetaDeAnio(anioDeB));
@@ -575,7 +611,7 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     // La lista se volvió a leer: `anioDeB` ya no está entre las opciones, no queda ningún año elegido (el año en
     // curso ya existe), «Crear vigencia» está inhabilitado y el foco está en la lista (67:3163).
     await expect(selector.locator('option')).toHaveText(
-      textosDeOpciones(ofrecidosB.filter((ofrecido) => ofrecido !== anioDeB)),
+      textosDeOpciones(ofrecidosB.filter((ofrecido) => ofrecido !== anioDeB && ofrecido !== aniosB.minimo)),
     );
     await expect(selector.locator('option:checked')).toHaveText(OPCION_VACIA);
     await expect(botonConfirmarCreacion(page)).toBeDisabled();
@@ -590,7 +626,8 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
   }) => {
     await page.goto(RUTA);
 
-    await expect(filasDeVigencias(page)).toHaveCount(1);
+    // Las de B: la más antigua (007-08) y la del año en curso (007-05).
+    await expect(filasDeVigencias(page)).toHaveCount(2);
     await expect(filaDelAnio(page, anioDeB.year)).toContainText('Planeada');
 
     // En Ipiales ese año quedó «En preparación» (007-10): abrir la preparación allá no cambió esta.
@@ -607,7 +644,7 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Vigencia no encontrada' })).toBeVisible();
     await expect(page.getByText('No encontramos esa vigencia')).toBeVisible();
     const lista = await leerVigencias(page);
-    expect(lista.items.map((vigencia) => vigencia.year)).toEqual([anioDeB.year]);
+    expect(lista.items.map((vigencia) => vigencia.year)).toEqual([anioDeB.year, aniosB.minimo.year]);
   });
 
   test('V‑06 · 007-10 · Si otra persona abre la preparación antes, se rechaza con el mensaje de V‑06 y la pantalla se actualiza', async ({
@@ -645,6 +682,14 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     }
     await page.goto(RUTA);
     expect((await leerVigencias(page)).creatableYears).toEqual([]);
+    // La API no ofrece ningún año y crear uno se rechaza con V‑01 (ya existe) o con V‑05 (fuera del rango).
+    const existente = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: aniosB.minimo.year });
+    expect(existente.estado).toBe(409);
+    expect(existente.cuerpo).toMatchObject({ code: 'V-01' });
+    const anterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: aniosB.minimo.year - 1 });
+    expect(anterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'PAST_LIMIT', minYear: aniosB.minimo.year });
+    const posterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anioSiguiente.year + 1 });
+    expect(posterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: anioSiguiente.year });
 
     const crear = botonCrearVigencia(page);
     await expect(crear).toHaveAttribute('aria-disabled', 'true');
