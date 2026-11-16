@@ -28,15 +28,15 @@ class RuleViolationTest {
   void carriesCodeTypeAndDetails() {
     RuleViolation violation =
         new RuleViolation(
-            "V-02",
+            "V-05",
             RuleViolation.Type.UNPROCESSABLE,
-            Map.of("reason", "GAP", "requiredYear", 2027));
+            Map.of("reason", "PAST_LIMIT", "minYear", 2002));
 
-    assertThat(violation.code()).isEqualTo("V-02");
+    assertThat(violation.code()).isEqualTo("V-05");
     assertThat(violation.type()).isEqualTo(RuleViolation.Type.UNPROCESSABLE);
     assertThat(violation.details())
-        .containsEntry("reason", "GAP")
-        .containsEntry("requiredYear", 2027);
+        .containsEntry("reason", "PAST_LIMIT")
+        .containsEntry("minYear", 2002);
   }
 
   @Test
