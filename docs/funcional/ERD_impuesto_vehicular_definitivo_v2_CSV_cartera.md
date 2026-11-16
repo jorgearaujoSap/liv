@@ -559,7 +559,7 @@ erDiagram
 
 **Tablas y funciones:**
 
-- `tax.fiscal_year` — El año fiscal, un dato **nacional** de referencia. En la 2.3 solo guarda `year` (`SMALLINT`, clave), `starts_on` y `ends_on` (los dos `DATE NOT NULL`), con `CHECK (starts_on = make_date(year, 1, 1))` y `CHECK (ends_on = make_date(year, 12, 31))` (V‑01 del Doc. 01 §5; H2‑2). No lleva `administration_id` ni RLS, y `liv_app` solo la lee: la llena la migración con un **rango técnico y provisional de años, de 1999 a 2100**.
+- `tax.fiscal_year` — El año fiscal, un dato **nacional** de referencia. Desde la 2.3 solo guarda `year` (`SMALLINT`, clave), `starts_on` y `ends_on` (los dos `DATE NOT NULL`), con `CHECK (starts_on = make_date(year, 1, 1))` y `CHECK (ends_on = make_date(year, 12, 31))` (V‑01 del Doc. 01 §5; H2‑2). No lleva `administration_id` ni RLS, y `liv_app` solo la lee: la llena la migración con un **rango técnico y provisional de años, de 1999 a 2100**.
   - **Alcance del rango:** alcanza mientras el año en curso sea 2099 o anterior, porque V‑05 permite crear hasta el año siguiente.
   - **El límite inferior lo fija V‑05 del Doc. 01 §5, no este rango** (Doc. 01 v0.6: 2002, una decisión de producto que no es un valor tributario). Una administración puede crear vigencias de 2002 al año siguiente al año en curso; los años de 1999 a 2001 existen en la tabla, pero ninguna vigencia los usa.
   - **Cartera:** el rango tampoco decide qué se migra a la cartera (pendiente 5 del Doc. 01 §11, que sigue abierto para la apertura de cartera, opción 5.1).

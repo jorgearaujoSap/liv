@@ -372,7 +372,7 @@ stateDiagram-v2
 7. **Liquidar vigencias anteriores con este motor** (feature 007, enmienda 4; Doc. 01 v0.6 §5):
    - **La pregunta de origen está decidida, pero el pendiente sigue abierto:** el responsable funcional decidió el 2026-11-16 que sí se liquidan, **sin exigir un concepto jurídico previo**. Es una decisión de producto y queda como propuesta pendiente de revisión jurídica. Un año pasado se liquida con los mismos prerrequisitos que cualquier vigencia, `LQ‑P01` a `LQ‑P04` (§B.3), y sus tablas y catálogos los exige la habilitación de la opción 1.5.1 (V‑03).
    - **Siguen abiertas**, sin bloquear nada en la feature 007, para la feature del motor (Fase 2) y el Módulo 5 (Doc. 05 §6), con jurídica:
-     - **La prescripción, la firmeza y la competencia de la administración ese año** (`competencia.modalidades`, Doc. 03 §9.5). Los criterios que aportó el responsable funcional el 2026-11-16 son una **guía y una propuesta pendiente de revisión jurídica, no reglas aprobadas**:
+     - **La prescripción, la firmeza y la competencia de la administración ese año** (`competencia.modalidades`, Doc. 03 §9.5). Los criterios que aportó el responsable funcional el 2026-11-16 son una **guía y una propuesta pendiente de revisión jurídica, no reglas aprobadas, y no se han verificado con las fuentes normativas**:
        - **Plazo:** la acción de cobro prescribe por regla general a los 5 años (art. 817 ET, aplicable a los impuestos territoriales por el art. 59 de la Ley 788 de 2002; el impuesto es el de la Ley 488 de 1998, arts. 138 a 150).
        - **Inicio del término:** no es necesariamente el 1 de enero de la vigencia. Depende del supuesto: el vencimiento para declarar o pagar, la presentación extemporánea, una corrección o la ejecutoria del acto de determinación.
        - **Interrupción y suspensión** (art. 818 ET): la notificación válida del mandamiento de pago interrumpe el término y desde ella corre uno nuevo de 5 años. Expedir el mandamiento no basta.
@@ -382,7 +382,7 @@ stateDiagram-v2
        - **Dos diferencias con el Doc. 05 §6.1, que quedan como preguntas para el Módulo 5, con jurídica, sin decidirlas aquí:** (a) el Doc. 05 deriva la exigibilidad y la fecha de prescripción, sin guardarlas, y la propuesta sugiere guardar la fecha de inicio y el vencimiento; (b) la presentación extemporánea y la corrección, como inicio del término, no son valores de `cartera.prescripcion.inicio_termino` (hoy `FECHA_EJECUTORIA_FACTURA`, `FECHA_LIMITE_PAGO` o `FECHA_PRESENTACION_DECLARACION`), así que agregarlas sería un cambio de la configuración, con CJ16.
      - **Los intereses de mora desde la fecha límite de ese año y las sanciones.**
      - **Las tasas de usura desde esa fecha.** El pendiente 7 del Doc. 05 solo pide las de los años que se migran con `RECALCULAR`, así que hace falta cargar también las de los años que se liquidan en LIV.
-     - **Qué hace el motor con un año que ya tiene una obligación migrada** (Doc. 05, pendiente 28).
+     - **Qué hace el motor con un año que ya tiene una obligación migrada,** y cómo afecta a `LQ‑P01` a `LQ‑P04` (Doc. 05, pendiente 28).
      - **El efecto de la imputación a la más antigua primero** (Doc. 04 §5): una obligación de un año pasado recién liquidada recibiría primero los pagos sin indicación de vigencia que el contribuyente quizá hizo para el año en curso.
 
 ## 13. Siguiente entrega propuesta
