@@ -8,14 +8,30 @@
     [attr.aria-describedby]="message() ? messageId : null"
     (change)="onChange($event)"
   >
-    <option class="select__option" value="" disabled hidden [selected]="shownValue() === null">
+    <!--
+      `selected` va como propiedad (la elección en vivo) y como atributo (la elección por omisión): al
+      restablecer un formulario, el navegador vuelve a la opción del atributo, que es la del modelo.
+    -->
+    <option
+      class="select__option"
+      value=""
+      disabled
+      hidden
+      [selected]="shownValue() === null"
+      [attr.selected]="shownValue() === null ? '' : null"
+    >
       {{ placeholder() }}
     </option>
-    @for (option of options(); track option.value) {
+    <!--
+      Por posición: con `track option.value`, reordenar quita y reinserta la opción elegida y el
+      navegador cambia la elección mostrada.
+    -->
+    @for (option of options(); track $index) {
       <option
         class="select__option"
         [value]="option.value"
         [selected]="option.value === shownValue()"
+        [attr.selected]="option.value === shownValue() ? '' : null"
       >
         {{ option.label }}
       </option>

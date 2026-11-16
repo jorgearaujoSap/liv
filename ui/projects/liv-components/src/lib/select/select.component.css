@@ -38,7 +38,8 @@
 
 /* El chevron es decorativo: el clic llega al <select> que tiene debajo. */
 .select__icon {
-  @apply pointer-events-none absolute top-3 right-3 text-text-secondary;
+  /* top-[11px]: el alto interior del control (44 − 2 de borde) menos los 20 del icono, entre dos. */
+  @apply pointer-events-none absolute top-[11px] right-3 text-text-secondary;
 }
 
 .select__help {
@@ -73,13 +74,18 @@
 }
 
 /*
- * Alto contraste: el navegador reemplaza los colores por los del sistema y el borde de «deshabilitado»
- * (border/default) dejaría de distinguirse del de un control activo. Se usa `GrayText`, el color del
- * sistema para lo inhabilitado; es el único color que no sale de un token de theme.css (como en
- * `RadioOption`). El texto del <select> inhabilitado ya lo pinta el navegador con `GrayText`.
+ * Alto contraste: el navegador reemplaza los colores por los del sistema y los de «deshabilitado»
+ * (border/default y text/disabled) dejarían de distinguirse de un control activo. Se usa `GrayText`, el
+ * color del sistema para lo inhabilitado; es el único color que no sale de un token de theme.css (como
+ * en `RadioOption`). El texto del <select> inhabilitado ya lo pinta el navegador con `GrayText`.
  */
 @media (forced-colors: active) {
   :host([data-state='disabled']) .select__control {
     border-color: GrayText;
+  }
+
+  :host([data-state='disabled']) .select__label,
+  :host([data-state='disabled']) .select__icon {
+    color: GrayText;
   }
 }

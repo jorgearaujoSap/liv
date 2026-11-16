@@ -79,12 +79,30 @@ export const Placeholder: Story = { args: { value: null } };
 
 export const ConAyuda: Story = { args: { help: 'Elige el año de la vigencia que vas a crear.' } };
 
+/** Pone el foco en el control, como lo haría el teclado: el estado Focus lo da el navegador. */
+const focusSelect: Story['play'] = ({ canvasElement }) => {
+  canvasElement.querySelector('select')?.focus({ preventScroll: true });
+};
+
 export const Focus: Story = {
+  play: focusSelect,
   parameters: {
     docs: {
       description: {
         story:
-          'El foco lo da el navegador: pulsa Tab hasta el control. Con la lista abierta (Open en Figma) el control conserva este mismo aspecto.',
+          'El control con el foco (Focus en Figma): borde `border/focus` de 1,5 px y anillo `focus/ring`.',
+      },
+    },
+  },
+};
+
+export const Open: Story = {
+  play: focusSelect,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Con la lista abierta (Open en Figma) el control conserva el foco y se ve como en Focus; la lista la dibuja el navegador, así que no se puede mostrar aquí. Haz clic para abrirla.',
       },
     },
   },
@@ -105,6 +123,9 @@ export const DisabledPlaceholder: Story = { args: { disabled: true, value: null 
 
 export const ListaLarga: Story = {
   args: { options: manyYears, value: null },
+  argTypes: {
+    value: { control: 'select', options: [null, ...manyYears.map((year) => year.value)] },
+  },
   parameters: {
     docs: {
       description: {

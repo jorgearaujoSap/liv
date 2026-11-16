@@ -27,11 +27,16 @@ let nextId = 0;
  *
  * - `options` se muestran en el orden recibido. Los `value` deben ser únicos y no vacíos: el vacío es la
  *   opción del `placeholder`.
+ * - Un `value` que no está en las opciones (porque aún no llegaron o ya no existe) se muestra como «sin
+ *   elegir», pero **no se corrige**: `value()` y el enlace del padre lo conservan. Quien use el control
+ *   decide si hay elección por pertenencia a las opciones, no por `value !== null`.
  * - `placeholder` es el texto de esa opción vacía, que se muestra mientras el valor es `null` (o no está
- *   en las opciones) y no se puede volver a elegir ni aparece en la lista (`Content=Placeholder`).
+ *   en las opciones) y no se puede volver a elegir (`Content=Placeholder`). Tampoco aparece en la lista, salvo en los
+ *   navegadores que no respetan `hidden` en una opción (Safari).
  * - `help` es un texto de ayuda enlazado con `aria-describedby`. Con `error` el control pasa al estado
  *   Error: expone `aria-invalid="true"` y el mensaje, que dice cómo corregir, reemplaza a la ayuda.
  *   Inhabilitado, el error no se muestra porque no se puede corregir.
+ * - La parada de foco es el `<select>` interno (`liv-select select`): el componente no tiene un `focus()`.
  * - `Open` se pinta igual que `Focus`: CSS no puede saber si la lista del sistema está abierta, y el
  *   `<select>` conserva el foco mientras tanto.
  */

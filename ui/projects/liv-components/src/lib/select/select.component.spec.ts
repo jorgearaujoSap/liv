@@ -213,6 +213,25 @@ describe('Select', () => {
   });
 
   describe('las opciones que cambian después de dibujado (007-22)', () => {
+    const PERMUTATIONS: Record<string, (options: SelectOption[]) => SelectOption[]> = {
+      invertidas: (options) => [...options].reverse(),
+      'la última primero': (options) => [options[options.length - 1], ...options.slice(0, -1)],
+      'la primera al final': (options) => [...options.slice(1), options[0]],
+      'las dos primeras cambiadas': (options) => [options[1], options[0], ...options.slice(2)],
+    };
+
+    for (const [name, permute] of Object.entries(PERMUTATIONS)) {
+      it(`con las opciones ${name}, cada valor elegido sigue mostrando su propia opción`, () => {
+        for (const option of YEARS) {
+          const { fixture, host, select } = render({ value: option.value });
+          update(fixture, { options: permute(YEARS) });
+          expect(select.value).toBe(option.value);
+          expect(shownText(select)).toBe(option.label);
+          expect(host.dataset['content']).toBe('filled');
+        }
+      });
+    }
+
     it('si desaparece la opción elegida, se muestra sin elegir', () => {
       const { fixture, host, select } = render({ value: '2026' });
       update(fixture, { options: YEARS.filter((year) => year.value !== '2026') });
@@ -245,11 +264,31 @@ describe('Select', () => {
   });
 
   describe('dentro de un formulario nativo', () => {
-    it('al restablecer el formulario, el control sigue mostrando el valor del modelo', () => {
+    function renderForm(value: string | null) {
       const fixture = TestBed.createComponent(FormHostComponent);
+      fixture.componentInstance.value = value;
       fixture.detectChanges();
       const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
-      const select = form.querySelector('select') as HTMLSelectElement;
+      return { fixture, form, select: form.querySelector('select') as HTMLSelectElement };
+    }
+
+    it('si el padre cambia el valor y luego se restablece, sigue mostrando el valor del padre', () => {
+      const { fixture, form, select } = renderForm('2026');
+      fixture.componentInstance.value = '2024';
+      fixture.changeDetectorRef.markForCheck();
+      fixture.detectChanges();
+      form.reset();
+      expect(select.value).toBe('2024');
+    });
+
+    it('con un valor fuera de las opciones, al restablecer vuelve a «sin elegir»', () => {
+      const { form, select } = renderForm('1999');
+      form.reset();
+      expect(select.value).toBe('');
+    });
+
+    it('al restablecer el formulario, el control sigue mostrando el valor del modelo', () => {
+      const { fixture, form, select } = renderForm('2026');
       select.value = '2025';
       select.dispatchEvent(new Event('change'));
       fixture.detectChanges();
@@ -495,6 +534,11 @@ describe('Select', () => {
       expect(declaredStyle(control, 'border-color')).toContain('var(--color-border-strong,');
       expect(declaredStyle(control, 'box-sizing')).toBe('border-box');
       expect(usesToken(getComputedStyle(control).backgroundColor, '--color-bg-surface')).toBe(true);
+    });
+
+    it('el chevron se coloca a 11 px del borde superior interior, centrado en un control de 44 px', () => {
+      const icon = render().host.querySelector('.select__icon') as HTMLElement;
+      expect(declaredStyle(icon, 'top')).toBe('11px');
     });
 
     it('el <select> pierde su aspecto nativo, para dibujar el chevron propio', () => {
