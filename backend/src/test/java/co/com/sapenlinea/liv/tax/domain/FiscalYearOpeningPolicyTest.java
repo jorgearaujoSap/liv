@@ -371,7 +371,8 @@ class FiscalYearOpeningPolicyTest {
 
     years.add(2027);
 
-    assertThat(years(policy)).doesNotContain(2026, 2027);
+    // La política copió {2026}: 2027, que se agregó después a la lista, se sigue ofreciendo.
+    assertThat(years(policy)).doesNotContain(2026).contains(2027);
   }
 
   @Test
