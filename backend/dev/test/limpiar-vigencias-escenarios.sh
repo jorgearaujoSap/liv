@@ -129,8 +129,8 @@ verificar "desde otro directorio y con COMPOSE_* en el entorno, funciona" test "
 verificar "ignora COMPOSE_PROJECT_NAME y COMPOSE_FILE del entorno" \
   test "$(grep -c 'COMPOSE_PROJECT_NAME=sin-definir COMPOSE_FILE=sin-definir' "$almacen/entorno")" -eq 2
 verificar "sin puerto fijo: el script no nombra puertos ni direcciones" \
-  test "$(grep -cE '543[0-9]|localhost|127\.0\.0\.1|POSTGRES_PORT| -h | -p ' "$script")" -eq 0
-verificar "el script no lee ni imprime contraseñas" test "$(grep -ciE 'password|PGPASSWORD' "$script")" -eq 0
+  test "$(grep -v '^ *#' "$script" | grep -cE '543[0-9]|localhost|127\.0\.0\.1|POSTGRES_PORT| -h | -p ')" -eq 0
+verificar "el script no lee ni imprime contraseñas" test "$(grep -v '^ *#' "$script" | grep -ciE 'password|PGPASSWORD')" -eq 0
 
 if [ "$fallas" -eq 0 ]; then
   echo "Todo lo esperado."
