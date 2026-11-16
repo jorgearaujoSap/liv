@@ -19,7 +19,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend
 | Tokens | Colores, tipografías y sombras solo con los tokens de `liv-components/styles/theme.css`. La paleta por defecto de Tailwind está anulada. Un token nuevo o distinto se pide a la librería (y antes a Figma), nunca se define aquí | Compilación |
 | Lógica de negocio | El frontend no calcula impuestos, descuentos ni saldos: muestra lo que calcula el backend | Revisión |
 | Accesibilidad | WCAG 2.1 AA | ESLint (reglas de accesibilidad de plantillas) + axe‑core en las pruebas de pantalla (`features/accessibility.spec.ts`) y en e2e |
-| Localización | `es-CO`: miles con punto, decimales con coma, COP. Fechas: `dd/mm/aaaa` en las tablas de consulta y en las exportaciones; en una fecha suelta (un dato dentro de un texto, un diálogo, un detalle) se admite la fecha larga, «1 de enero de 2026». Siempre con `formatBusinessDate` de `liv-components` (`'long'` o `'short'`), que no convierte de zona. Si el diseño aprobado de Figma muestra otro formato, manda el diseño | Revisión |
+| Localización | `es-CO`: miles con punto, decimales con coma, COP. Fechas: `dd/mm/aaaa` en las tablas de consulta y en las exportaciones; en una fecha suelta (un dato dentro de un texto, un diálogo, un detalle) se admite la fecha larga, «1 de enero de 2026». Siempre con `formatBusinessDate` de `liv-components` (`'long'` o `'short'`), que no convierte de zona. Excepción de H2-13: la lista de vigencias (1.4) usa la fecha larga en su tabla, porque una vigencia es una fila por año y no hay columnas de montos que alinear | Revisión |
 | Formato | Prettier | `npm run format:check` |
 | TDD | Commit `test:` (prueba en rojo) antes del `feat:`/`fix:` | Revisión del PR |
 
