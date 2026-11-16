@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
 
 /**
  * The methods of {@code RecordFiscalYearEvents} are open use cases: they need no permission because
@@ -19,6 +20,10 @@ import org.junit.jupiter.api.Test;
  * safe only while nobody else can call them: they take the administration and the user from their
  * argument, so a controller or another use case that called them could write audit rows for anyone.
  * Only the listener of the events of {@code tax} depends on them.
+ *
+ * <p>Known limit: the rule closes the use cases, not the events. A class that sees the public
+ * events of {@code tax} could publish a false one, as it could with those of {@code core}; this
+ * test does not cover that path, nor the other open use cases of {@code audit}.
  */
 @DisplayName("Quién llama a los casos de uso abiertos de la auditoría de vigencias (007-20)")
 class OpenUseCaseCallersTest {
@@ -32,20 +37,26 @@ class OpenUseCaseCallersTest {
           .importPackages("co.com.sapenlinea.liv");
 
   @Test
+  @Tag("001-16")
   @Tag("007-20")
-  @DisplayName("007-20 · Solo el oyente de los eventos de tax depende de RecordFiscalYearEvents")
+  @DisplayName(
+      "001-16 y 007-20 · Solo el oyente de los eventos de tax depende de RecordFiscalYearEvents")
   void onlyTheListenerCallsTheOpenUseCases() {
-    assertThat(callersOfRecordFiscalYearEvents(PRODUCTION)).containsExactly(LISTENER);
+    assertThat(callersOfRecordFiscalYearEvents(PRODUCTION)).containsOnly(LISTENER);
   }
 
   @Test
+  @Tag("001-16")
   @Tag("007-20")
-  @DisplayName("007-20 · La regla detecta a una clase ajena que dependa de RecordFiscalYearEvents")
+  @DisplayName(
+      "001-16 y 007-20 · La regla detecta a una clase ajena que dependa de RecordFiscalYearEvents")
   void theRuleSeesAnIntruder() {
     JavaClasses classes =
-        new ClassFileImporter().importClasses(RecordFiscalYearEvents.class, Intruder.class);
+        new ClassFileImporter()
+            .importClasses(RecordFiscalYearEvents.class, Intruder.class, CallingIntruder.class);
 
-    assertThat(callersOfRecordFiscalYearEvents(classes)).containsExactly(Intruder.class.getName());
+    assertThat(callersOfRecordFiscalYearEvents(classes))
+        .containsOnly(Intruder.class.getName(), CallingIntruder.class.getName());
   }
 
   /** The classes, other than itself, that depend on {@code RecordFiscalYearEvents}. */
@@ -55,6 +66,15 @@ class OpenUseCaseCallersTest {
         .map(dependency -> dependency.getOriginClass().getName())
         .filter(name -> !name.equals(target.getName()))
         .collect(Collectors.toSet());
+  }
+
+  /** Calls the use case without a field: a bean taken from the context. */
+  @SuppressWarnings("unused")
+  private static class CallingIntruder {
+
+    void call(ApplicationContext context) {
+      context.getBean(RecordFiscalYearEvents.class).created(null);
+    }
   }
 
   /** What a controller or another use case would look like if it used the open use cases. */
