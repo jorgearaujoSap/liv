@@ -61,4 +61,5 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Corregido
 
+- `Shell`: la página ya no tiene una barra de desplazamiento propia ni un espacio gris debajo del *layout*; solo se desplaza el área de trabajo. Causa: los avisos ocultos (`sr-only`, posición absoluta) de `liv-button` que quedan al final del contenido que se desplaza tenían como bloque contenedor la página, y el `overflow` del área de trabajo no los recorta (p. ej. el detalle de la vigencia 2026 medía 1243 px en una ventana de 768 px). Ahora el host del `Shell` y el área de trabajo son su bloque contenedor y el host recorta. Flujo directo; prueba de navegador en `e2e/` (001-02).
 - Durante la precarga del navegador (p. ej. mientras se escribe la dirección en la barra), la aplicación no arranca: espera a que la persona abra la página (`prerenderingchange`, `core/browser/when-opened.ts`). Así decide si hay sesión con lo que hay al abrirla, y la precarga no pide nada al BFF ni avisa a otras pestañas. Antes se veía un 404 en `/bff/login`, porque el BFF no abre un inicio de sesión desde una precarga (feature 001, 001-01).

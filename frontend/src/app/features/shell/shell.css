@@ -1,16 +1,22 @@
 @reference '../../../styles.css';
 
-/* Menú lateral a todo el alto y, a su derecha, la cabecera sobre el área de trabajo. */
+/*
+ * Menú lateral a todo el alto y, a su derecha, la cabecera sobre el área de trabajo. El host es el bloque contenedor
+ * de los elementos de posición absoluta (el aviso oculto `sr-only` de cada botón, por ejemplo) y los recorta: sin esto
+ * su bloque contenedor es la página y los que quedan al final del contenido que se desplaza le suman una barra propia
+ * y un espacio vacío debajo.
+ */
 :host {
-  @apply flex h-screen;
+  @apply relative flex h-screen overflow-hidden;
 }
 
 :host > div:not([aria-busy]) {
   @apply flex min-w-0 flex-1 flex-col;
 }
 
+/* Posicionado: lo absoluto que hay dentro del contenido se desplaza con él, no se queda fijo respecto del host. */
 main {
-  @apply flex flex-1 flex-col overflow-auto p-8;
+  @apply relative flex flex-1 flex-col overflow-auto p-8;
 }
 
 /* Marco de «Cargando»: el mismo esqueleto, con marcadores en lugar del contenido. */
