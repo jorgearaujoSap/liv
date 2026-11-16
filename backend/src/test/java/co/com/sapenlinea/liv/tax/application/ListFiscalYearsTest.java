@@ -151,13 +151,15 @@ class ListFiscalYearsTest {
             new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026),
             new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026, 2028),
             new Scenario(LAST_NIGHT_OF_2026, 2010, 2020),
-            new Scenario(LAST_NIGHT_OF_2026, 2002, 2027))) {
+            new Scenario(LAST_NIGHT_OF_2026, 2002, 2027),
+            new Scenario(LAST_NIGHT_OF_2026, IntStream.rangeClosed(2002, 2026).toArray()),
+            new Scenario(LAST_NIGHT_OF_2026, IntStream.rangeClosed(2002, 2027).toArray()))) {
       List<Integer> offered = offeredYears(scenario.now(), scenario.existing());
-      assertThat(
-              listed(scenario.now(), scenario.existing()).createBlocked().isPresent()
-                  && !offered.isEmpty())
-          .as("createBlocked y creatableYears nunca vienen juntos")
-          .isFalse();
+      // La tabla nacional del doble está completa: o se ofrece algún año o el bloqueo es
+      // ALL_CREATED.
+      assertThat(listed(scenario.now(), scenario.existing()).createBlocked().isPresent())
+          .as("createBlocked sale si y solo si no se ofrece ningún año")
+          .isEqualTo(offered.isEmpty());
       assertThat(offered).as("la lista nunca repite un año").doesNotHaveDuplicates();
       for (int year = 1999; year <= 2100; year++) {
         assertThat(offered.contains(year))

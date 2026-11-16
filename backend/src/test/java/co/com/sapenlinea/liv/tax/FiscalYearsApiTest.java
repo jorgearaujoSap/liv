@@ -329,14 +329,15 @@ class FiscalYearsApiTest extends PlatformWebTest {
   void afterTheNextYear() {
     Tenant empty = newTenant();
     Tenant withYears = newTenant();
-    givenTheYear(withYears, currentYear());
+    int year = currentYear();
+    givenTheYear(withYears, year);
 
     for (Tenant tenant : List.of(empty, withYears)) {
-      HttpResponse<String> response = create(tenant, currentYear() + 2);
+      HttpResponse<String> response = create(tenant, year + 2);
 
       assertProblem(response, 422, "V-05");
       assertThat(body(response).get("reason").asString()).isEqualTo("FUTURE_LIMIT");
-      assertThat(body(response).get("maxYear").asInt()).isEqualTo(currentYear() + 1);
+      assertThat(body(response).get("maxYear").asInt()).isEqualTo(year + 1);
       assertThat(body(response).has("minYear")).isFalse();
       // Las extensiones de los motivos que ya no se emiten no vienen nunca.
       for (String obsolete : List.of("requiredYear", "oldestYear", "currentYear", "nextYear")) {
@@ -372,8 +373,8 @@ class FiscalYearsApiTest extends PlatformWebTest {
       "V-05 · 007-23 · Con todas las vigencias de 2002 al año siguiente, createBlocked es ALL_CREATED con minYear y maxYear")
   void everyYearCreated() {
     Tenant tenant = newTenant();
-    int last = currentYear() + 1;
     int yearAtStart = currentYear();
+    int last = yearAtStart + 1;
 
     // Se crean con la propia API: ningún año fijo y ningún borrado, que liv_app no puede hacer.
     for (int year = last; year >= 2002; year--) {

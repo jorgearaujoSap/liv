@@ -411,6 +411,18 @@ class FiscalYearOpeningPolicyTest {
   @Test
   @Tag("V-05")
   @Tag("007-23")
+  @DisplayName(
+      "V-05 · 007-23 · La frontera: con un rango de un solo año (2002) y esa vigencia creada, ALL_CREATED")
+  void aRangeOfOneYearCanBeAllCreated() {
+    assertThat(policy(2001, 2002).createBlocked())
+        .contains(new CreateBlocked(CreateBlocked.Reason.ALL_CREATED, 2002, 2002));
+    assertThatCode(() -> new CreateBlocked(CreateBlocked.Reason.ALL_CREATED, 2027, 2027))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-23")
   @DisplayName("V-05 · 007-23 · Un createBlocked con el rango invertido no se puede crear")
   void createBlockedNeedsAValidRange() {
     assertThatThrownBy(() -> new CreateBlocked(CreateBlocked.Reason.ALL_CREATED, 2028, 2027))
