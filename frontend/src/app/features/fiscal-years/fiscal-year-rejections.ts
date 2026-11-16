@@ -159,7 +159,7 @@ const MIN_NATIONAL_YEAR = 1999;
 const MAX_NATIONAL_YEAR = 2100;
 
 /** Un año de una extensión: un entero de la tabla nacional, nunca un texto ni algo inventado. */
-function asYear(value: unknown): number | undefined {
+export function asYear(value: unknown): number | undefined {
   const valid =
     typeof value === 'number' &&
     Number.isInteger(value) &&

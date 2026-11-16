@@ -300,17 +300,6 @@ describe('Crear vigencia (007-04 a 007-08, 007-22)', () => {
       expect(document.activeElement).toBe(select());
     });
 
-    it('Enter al abrir no crea nada', async () => {
-      render(FROM_2027_TO_2024);
-
-      document.activeElement?.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-      );
-      await settle();
-
-      expect(service.create).not.toHaveBeenCalled();
-    });
-
     it('si la persona eligió un año y la lista cambia sin un rechazo, se queda elegido mientras siga disponible', async () => {
       render(FROM_2027_TO_2024);
       await choose(2025);
@@ -481,6 +470,38 @@ describe('Crear vigencia (007-04 a 007-08, 007-22)', () => {
       await reread([...FROM_2027_TO_2024]);
 
       expect(chosen()).toBe('2026');
+    });
+  });
+
+  describe('la advertencia se anuncia cuando cambia (82:5802)', () => {
+    it('vive en una región viva que no se recrea al elegir otro año', async () => {
+      render(FROM_2027_TO_2024);
+      const region = host.querySelector('[aria-live="polite"]');
+      expect(region?.querySelector('liv-alert[status="warning"]')).not.toBeNull();
+
+      await choose(2025);
+
+      expect(host.querySelector('[aria-live="polite"]')).toBe(region);
+      expect(text(region)).toContain('Es un año pasado');
+    });
+  });
+
+  describe('lo que pidió un rechazo no pisa una elección posterior (H2-18)', () => {
+    it('tras un V-01 con la relectura fallida, el año que la persona elige después se conserva cuando la lista cambia', async () => {
+      service.create.mockRejectedValue(v01(2026));
+      render(FROM_2027_TO_2024);
+
+      await submit();
+      fixture.componentRef.setInput('refreshing', true);
+      await settle();
+      fixture.componentRef.setInput('refreshFailed', true);
+      fixture.componentRef.setInput('refreshing', false);
+      await settle();
+      await choose(2025);
+      fixture.componentRef.setInput('years', [...FROM_2027_TO_2024]);
+      await settle();
+
+      expect(chosen()).toBe('2025');
     });
   });
 

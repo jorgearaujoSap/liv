@@ -26,7 +26,7 @@ import {
 import type { FiscalYear, FiscalYearList } from '../../api/tax/models';
 import { OPTION_ROUTE } from '../../core/app-paths';
 import { CreateFiscalYearDialog, type StaleList } from './create-fiscal-year-dialog';
-import type { Rejection } from './fiscal-year-rejections';
+import { asYear, type Rejection } from './fiscal-year-rejections';
 import { FiscalYearsService } from './fiscal-years.service';
 
 /** Cómo se muestra cada estado de una vigencia (Doc. 01 §5); uno que no conoce se muestra tal cual. */
@@ -118,8 +118,8 @@ export class FiscalYears {
 
   /**
    * Por qué no se puede crear, con permiso y cuando el backend bloquea la creación o no ofrece ningún año; sin
-   * motivo, la acción está activa. El año del motivo solo se escribe si es un entero (`Number.isInteger`): si
-   * no, cae en el texto general.
+   * motivo, la acción está activa. Los años del motivo solo se escriben si son años de la tabla nacional y van en
+   * orden (`asYear`): si no, cae en el texto general.
    */
   protected readonly blockedReason = computed(() => {
     const list = this.list();
@@ -128,10 +128,13 @@ export class FiscalYears {
     }
     const blocked = list.createBlocked;
     if (blocked) {
+      const min = asYear(blocked.minYear);
+      const max = asYear(blocked.maxYear);
       return blocked.reason === 'ALL_CREATED' &&
-        Number.isInteger(blocked.minYear) &&
-        Number.isInteger(blocked.maxYear)
-        ? `Ya existen todas las vigencias que se pueden crear: de ${blocked.minYear} a ${blocked.maxYear}.`
+        min !== undefined &&
+        max !== undefined &&
+        min <= max
+        ? `Ya existen todas las vigencias que se pueden crear: de ${min} a ${max}.`
         : NO_YEARS_AVAILABLE;
     }
     return list.creatableYears.length === 0 ? NO_YEARS_AVAILABLE : undefined;
@@ -148,13 +151,13 @@ export class FiscalYears {
     if (blocked) {
       return blocked;
     }
-    const years = this.creatableYears();
-    // La lista va del año más reciente al más antiguo (contrato 1.1.0): los extremos son el rango.
-    const latest = years.at(0)?.year;
-    const earliest = years.at(-1)?.year;
-    return Number.isInteger(latest) && Number.isInteger(earliest)
-      ? `Crea la primera vigencia de tu administración. Puedes crear cualquier año de ${earliest} a ${latest}.`
-      : 'Crea la primera vigencia de tu administración.';
+    const range = yearRange(this.creatableYears().map((candidate) => candidate.year));
+    if (!range) {
+      return 'Crea la primera vigencia de tu administración.';
+    }
+    return range.first === range.last
+      ? `Crea la primera vigencia de tu administración. Puedes crear el año ${range.first}.`
+      : `Crea la primera vigencia de tu administración. Puedes crear cualquier año de ${range.first} a ${range.last}.`;
   });
 
   constructor() {
@@ -302,4 +305,17 @@ export class FiscalYears {
       liquidation: item.assessmentsEnabled ? 'Habilitada' : 'No habilitada',
     };
   }
+}
+
+/**
+ * El primer y el último año de los que manda el servidor, sin depender del orden de la lista; `undefined` si no hay
+ * ninguno o si alguno no es un año de la tabla nacional (`asYear`): entonces la pantalla no escribe ningún rango.
+ */
+function yearRange(years: readonly unknown[]): { first: number; last: number } | undefined {
+  const valid = years.map((year) => asYear(year));
+  if (valid.length === 0 || valid.includes(undefined)) {
+    return undefined;
+  }
+  const numbers = valid as number[];
+  return { first: Math.min(...numbers), last: Math.max(...numbers) };
 }

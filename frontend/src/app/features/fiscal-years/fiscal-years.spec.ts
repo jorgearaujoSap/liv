@@ -219,6 +219,24 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(text(host)).toContain('Puedes crear cualquier año de 2010 a 2031.');
     });
 
+    it('el rango no depende del orden de la lista: en orden ascendente dice lo mismo', async () => {
+      const host = await render({
+        items: [],
+        canCreate: true,
+        creatableYears: [...FULL_RANGE].reverse(),
+      });
+
+      expect(text(host)).toContain('Puedes crear cualquier año de 2002 a 2027.');
+    });
+
+    it('con un solo año en la lista, dice ese año y no «de 2027 a 2027»', async () => {
+      const host = await render({ items: [], canCreate: true, creatableYears: [NEXT_2027] });
+
+      expect(text(host)).toContain(
+        'Crea la primera vigencia de tu administración. Puedes crear el año 2027.',
+      );
+    });
+
     it('sin ningún año en la lista, no inventa un rango', async () => {
       const host = await render({ items: [], canCreate: true, creatableYears: [] });
 
@@ -382,6 +400,8 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       ['minYear que no es entero', { reason: 'ALL_CREATED', minYear: '2002', maxYear: 2027 }],
       ['sin minYear', { reason: 'ALL_CREATED', maxYear: 2027 }],
       ['sin maxYear', { reason: 'ALL_CREATED', minYear: 2002 }],
+      ['años fuera de la tabla nacional', { reason: 'ALL_CREATED', minYear: 99999, maxYear: 2027 }],
+      ['minYear mayor que maxYear', { reason: 'ALL_CREATED', minYear: 2030, maxYear: 2002 }],
     ])('un bloqueo ALL_CREATED con %s cae en el texto general', async (_name, blocked) => {
       const host = await render({
         ...withRows,

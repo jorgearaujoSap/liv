@@ -22,7 +22,8 @@
       label="Año de la vigencia"
       placeholder="Elige un año"
       [options]="options()"
-      [(value)]="selected"
+      [value]="selected()"
+      (valueChange)="choose($event)"
       [disabled]="submitting() || refreshing()"
     />
     @if (choice()) {
@@ -31,16 +32,19 @@
         <div livDescriptionItem label="Fin" [value]="endsOn()"></div>
       </dl>
     }
-    @if (isPast()) {
-      <liv-alert status="warning" heading="Es un año pasado">
-        <p>Una vigencia no se puede borrar. Revisa el año antes de continuar.</p>
-        <p>Solo se podrá liquidar cuando estén cargadas las tablas de ese año.</p>
-      </liv-alert>
-    } @else {
-      <liv-alert status="warning" heading="Una vigencia no se puede borrar">
-        Revisa el año antes de continuar.
-      </liv-alert>
-    }
+    <!-- Región viva fija: un lector de pantalla anuncia que la advertencia cambió al elegir otro año. -->
+    <div aria-live="polite">
+      @if (isPast()) {
+        <liv-alert status="warning" heading="Es un año pasado">
+          <p>Una vigencia no se puede borrar. Revisa el año antes de continuar.</p>
+          <p>Solo se podrá liquidar cuando estén cargadas las tablas de ese año.</p>
+        </liv-alert>
+      } @else {
+        <liv-alert status="warning" heading="Una vigencia no se puede borrar">
+          Revisa el año antes de continuar.
+        </liv-alert>
+      }
+    </div>
   </div>
   <liv-button variant="secondary" [disabled]="submitting()" (click)="close()">Cancelar</liv-button>
   <liv-button

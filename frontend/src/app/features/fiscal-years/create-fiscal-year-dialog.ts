@@ -158,6 +158,15 @@ export class CreateFiscalYearDialog {
     });
   }
 
+  /**
+   * La persona eligió un año: lo que un rechazo anterior pedía para la lista nueva ya no vale, porque no se
+   * debe cambiar lo que ella eligió después (H2-18).
+   */
+  protected choose(year: string | null): void {
+    this.afterRejection = 'none';
+    this.selected.set(year);
+  }
+
   protected async submit(): Promise<void> {
     const choice = this.choice();
     if (!choice || this.locked || this.refreshing()) {

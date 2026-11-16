@@ -377,6 +377,10 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
         const dialog = page.querySelector('[role="dialog"]');
         expect(dialog?.querySelector<HTMLSelectElement>('select')?.value).toBe('');
         expect(dialog?.querySelector('dl')).toBeNull();
+        const create = Array.from(dialog?.querySelectorAll('button') ?? []).find((candidate) =>
+          candidate.textContent?.trim().endsWith('Crear vigencia'),
+        );
+        expect(create?.disabled).toBe(true);
         expect(await violations(page)).toEqual([]);
       });
 
