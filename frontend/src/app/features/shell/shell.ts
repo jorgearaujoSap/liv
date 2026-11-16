@@ -117,18 +117,18 @@ export class Shell implements OnInit {
     );
   }
 
-  /** La pantalla actual es esta opción. */
+  /** La pantalla actual es esta opción o una ruta hija suya: `/opcion/1.4/2026` es de la opción `1.4`. */
   protected isCurrent(href: string | undefined): boolean {
-    return href !== undefined && this.path() === href;
+    return href !== undefined && isSameOrChildPath(this.path(), href);
   }
 
   /**
    * La pantalla actual está dentro de esta rama: `/opcion/1.4` es del módulo `1`, y `/opcion/1.5.3` es del
-   * módulo `1` y de su grupo `1.5`.
+   * módulo `1` y de su grupo `1.5`; las rutas hijas (`/opcion/1.4/2026`) cuentan como su opción.
    */
   protected isInModule(code: string): boolean {
     const own = optionPath(code);
-    return this.path() === own || this.path().startsWith(`${own}.`);
+    return isSameOrChildPath(this.path(), own) || this.path().startsWith(`${own}.`);
   }
 
   protected isExpanded(code: string): boolean {
@@ -159,16 +159,22 @@ export class Shell implements OnInit {
 /** Forma de un número de opción: `1`, `1.5` o `1.5.9`. */
 const OPTION_CODE = /^[0-9]+(\.[0-9]+)*$/;
 
+/** `path` es `base` o una ruta hija suya (`base/…`); `/opcion/1.40` no es hija de `/opcion/1.4`. */
+function isSameOrChildPath(path: string, base: string): boolean {
+  return path === base || path.startsWith(`${base}/`);
+}
+
 /**
- * Las ramas que contienen una opción del menú: de `/opcion/1.5.3`, `1` y `1.5`. Una ruta que no es de una
- * opción (`/`, `/opcion/abc`, `/opcion/1..2`) no abre nada.
+ * Las ramas que contienen una opción del menú: de `/opcion/1.5.3`, `1` y `1.5`; una ruta hija de la opción
+ * (`/opcion/1.5.3/2026`) cuenta como la opción. Una ruta que no es de una opción (`/`, `/opcion/abc`,
+ * `/opcion/1..2`) no abre nada.
  */
 function branchesOf(path: string): string[] {
   const prefix = `/${OPTION_ROUTE}/`;
   if (!path.startsWith(prefix)) {
     return [];
   }
-  const code = path.slice(prefix.length);
+  const code = path.slice(prefix.length).split('/')[0];
   if (!OPTION_CODE.test(code)) {
     return [];
   }
