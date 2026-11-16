@@ -487,6 +487,34 @@ describe('Crear vigencia (007-04 a 007-08, 007-22)', () => {
   });
 
   describe('lo que pidió un rechazo no pisa una elección posterior (H2-18)', () => {
+    it('tras un V-01 con la relectura fallida, una lista que cambia después no cambia el año que sigue elegido', async () => {
+      service.create.mockRejectedValue(v01(2025));
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      await submit();
+      fixture.componentRef.setInput('refreshing', true);
+      await settle();
+      fixture.componentRef.setInput('refreshFailed', true);
+      fixture.componentRef.setInput('refreshing', false);
+      await settle();
+      fixture.componentRef.setInput('years', [option(2026, 'CURRENT'), option(2025, 'PAST')]);
+      await settle();
+
+      expect(chosen()).toBe('2025');
+    });
+
+    it('sin un rechazo, una lista con otro contenido que sigue incluyendo el año elegido lo conserva', async () => {
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      fixture.componentRef.setInput('years', [option(2026, 'CURRENT'), option(2025, 'PAST')]);
+      await settle();
+
+      expect(chosen()).toBe('2025');
+      expect(text(host)).toContain('Inicio 1 de enero de 2025');
+    });
+
     it('tras un V-01 con la relectura fallida, el año que la persona elige después se conserva cuando la lista cambia', async () => {
       service.create.mockRejectedValue(v01(2026));
       render(FROM_2027_TO_2024);

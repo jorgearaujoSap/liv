@@ -128,16 +128,9 @@ export class FiscalYears {
     }
     const blocked = list.createBlocked;
     if (blocked) {
-      const min = asYear(blocked.minYear);
-      const max = asYear(blocked.maxYear);
-      return blocked.reason === 'ALL_CREATED' &&
-        min !== undefined &&
-        max !== undefined &&
-        min <= max
-        ? `Ya existen todas las vigencias que se pueden crear: de ${min} a ${max}.`
-        : NO_YEARS_AVAILABLE;
+      return allCreatedReason(blocked) ?? NO_YEARS_AVAILABLE;
     }
-    return list.creatableYears.length === 0 ? NO_YEARS_AVAILABLE : undefined;
+    return this.creatableYears().length === 0 ? NO_YEARS_AVAILABLE : undefined;
   });
 
   /** La acción de crear queda inhabilitada cuando el backend dice que no hay años disponibles. */
@@ -318,4 +311,19 @@ function yearRange(years: readonly unknown[]): { first: number; last: number } |
   }
   const numbers = valid as number[];
   return { first: Math.min(...numbers), last: Math.max(...numbers) };
+}
+
+/**
+ * El motivo de `ALL_CREATED` con su rango (007-23), o `undefined` si el motivo es otro o los años no son años de
+ * la tabla nacional y van en orden: entonces la pantalla usa el texto general.
+ */
+function allCreatedReason(
+  blocked: NonNullable<FiscalYearList['createBlocked']>,
+): string | undefined {
+  const min = asYear(blocked.minYear);
+  const max = asYear(blocked.maxYear);
+  if (blocked.reason !== 'ALL_CREATED' || min === undefined || max === undefined || min > max) {
+    return undefined;
+  }
+  return `Ya existen todas las vigencias que se pueden crear: de ${min} a ${max}.`;
 }

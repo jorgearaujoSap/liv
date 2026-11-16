@@ -112,6 +112,8 @@ export class CreateFiscalYearDialog {
   protected readonly selected = linkedSignal<readonly CreatableYear[], string | null>({
     source: this.years,
     computation: (years, previous) => {
+      // Consume lo que pidió el rechazo: `selected` se evalúa al llegar la lista (o, si la relectura falló, al
+      // terminarla, en el `effect` del constructor), nunca dos veces con el mismo modo.
       const mode = this.afterRejection;
       this.afterRejection = 'none';
       return pickYear(years, previous?.value ?? null, mode);
@@ -152,9 +154,16 @@ export class CreateFiscalYearDialog {
   constructor() {
     effect(() => {
       this.years();
-      if (!this.refreshing()) {
-        untracked(() => this.focusListIfPending());
+      if (this.refreshing()) {
+        return;
       }
+      untracked(() => {
+        // Terminó la relectura (con años nuevos o sin ellos, si falló): se aplica lo que pidió el rechazo con los
+        // años que haya, y se olvida, para que una lista posterior no cambie lo que la persona elija después.
+        this.selected();
+        this.afterRejection = 'none';
+        this.focusListIfPending();
+      });
     });
   }
 
@@ -209,6 +218,7 @@ export class CreateFiscalYearDialog {
     }
     this.focusListWhenReloaded = false;
     afterNextRender(
+      // El `<select>` nativo que pinta `liv-select`: la librería no tiene un método para dar el foco.
       () => this.host.nativeElement.querySelector<HTMLElement>('liv-select select')?.focus(),
       { injector: this.injector },
     );
