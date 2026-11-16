@@ -16,7 +16,8 @@ class AuditLogEntryTest {
 
   @Test
   @Tag("007-20")
-  @DisplayName("007-20 · El Entry copia previousValues y newValues: cambiar el origen no los altera")
+  @DisplayName(
+      "007-20 · El Entry copia previousValues y newValues: cambiar el origen no los altera")
   void entryCopiesItsValues() {
     var previous = new HashMap<String, Object>(Map.of("status", "PLANEADA"));
     var current = new HashMap<String, Object>(Map.of("status", "EN_PREPARACION"));

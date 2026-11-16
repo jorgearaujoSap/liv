@@ -296,8 +296,29 @@ class FiscalYearAuditTest extends PlatformWebTest {
         .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> record.statusChanged(withoutNew))
         .isInstanceOf(NullPointerException.class);
-    assertThat(AuditRows.byCorrelationNow(withoutPrevious.correlationId())).isEmpty();
-    assertThat(AuditRows.byCorrelationNow(withoutNew.correlationId())).isEmpty();
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName(
+      "007-20 · Un evento de vigencia sin administración no se guarda como fila de plataforma")
+  void anEventWithoutAdministrationIsNotAPlatformRow() {
+    String correlation = UUID.randomUUID().toString();
+
+    assertThatThrownBy(() ->
+            record.created(
+                new FiscalYearCreated(
+                    UUID.randomUUID(),
+                    null,
+                    null,
+                    UUID.randomUUID(),
+                    2026,
+                    null,
+                    "PLANEADA",
+                    OCCURRED_AT,
+                    correlation)))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(AuditRows.byCorrelationNow(correlation)).isEmpty();
   }
 
   @Test
