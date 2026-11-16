@@ -4,7 +4,7 @@
 > **Documentos relacionados:** `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_Homologacion_y_Reglas_de_Liquidacion.md` · `03_Configuracion_Jurisdiccion_y_Tablas_2026.md` · `04_Cuenta_Corriente_y_Recaudo.md` · `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (versión 2.2) · `config_jurisdiccion_52356_2026.yaml` (sección `cartera`)
 > **Tablas del ERD:** `portfolio.opening_balance_batch`, `portfolio.opening_balance_row`, `portfolio.opening_balance_event`, `portfolio.opening_balance_error`, `portfolio.opening_balance_application`, `portfolio.interest_rate`, `portfolio.interest_calculation`, `portfolio.interest_calculation_detail`, `portfolio.penalty_assessment`, `portfolio.prescription_event`, `portfolio.prescription_evaluation`, `portfolio.portfolio_cutoff`, `portfolio.collection_portfolio_snapshot`, `tax.penalty_rule`; escribe en `ledger.tax_obligation` y `ledger.tax_account_movement` (Doc. 04).
 > **Alcance:** apertura de cartera histórica, tasas e intereses de mora, sanciones, prescripción de la acción de cobro, cortes de cartera y antigüedad, con consultas y exportación a Excel.
-> **Versión:** 0.1 — borrador funcional para validación
+> **Versión:** 0.2 — borrador funcional para validación. Agrega el pendiente 28 de §11 (un año con saldos migrados y vigencia en LIV), por la feature 007, enmienda 4: una administración puede crear vigencias de 2002 al año siguiente al año en curso y liquidarlas en LIV (Doc. 01 v0.6 §5). La versión 0.1 era el borrador inicial
 > **Fuera de alcance:** cobro persuasivo y coactivo (Módulo 6) y medidas cautelares (Módulo 7). Este módulo solo **registra** los eventos de cobro que interrumpen la prescripción; los actos de cobro se producen en el Módulo 6.
 
 ---
@@ -459,6 +459,7 @@ El ERD 2.2 deja abierta una decisión que este documento no resuelve: varias tab
 | 25 | Nombres de los eventos de suspensión: los `eventos_suspension` de la configuración (`REVOCATORIA_ART_567`, `RESTABLECIMIENTO_ART_567`, `CONTENCIOSO_ART_835`) frente a los tipos `SUSPENSION_INICIO` y `SUSPENSION_FIN` de §6.2 | Feature del Módulo 5, con jurídica |
 | 26 | Aislamiento por `administration_id` y RLS de las ocho tablas de `portfolio` que ya existían (ERD 2.2, «Aislamiento pendiente») | Feature del Módulo 5, con TI |
 | 27 | Controles que el ERD 2.2 no tiene: aprobador distinto del cargador en `portfolio.opening_balance_batch` y PDF de soporte obligatorio para aprobar una tasa en `portfolio.interest_rate` (CA‑5.01) | Feature del Módulo 5, con TI |
+| 28 | Un año con saldos migrados en la 5.1 que también tiene vigencia en LIV (una administración puede crear vigencias de 2002 al año siguiente al año en curso: Doc. 01 §5, V‑05): cuál de los dos orígenes prevalece. CH‑02 (§3.2) y OB‑01 (Doc. 04) ya impiden la obligación doble, pero no dicen cuál origen manda ni qué ve el contribuyente | Feature del Módulo 5, con Hacienda y jurídica |
 
 ---
 
