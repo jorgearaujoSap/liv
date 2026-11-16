@@ -69,7 +69,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       const host = await render(withRows);
 
       expect(text(host.querySelector('h1'))).toBe('Vigencias fiscales');
-      expect(text(host)).toContain('Administración › 1.4 Vigencias fiscales');
+      expect(text(host)).toContain('Administración 1.4 Vigencias fiscales');
       expect(text(host)).toContain(
         'Cada vigencia es un año fiscal: en ella se cargan las tablas base y se habilita la liquidación.',
       );
@@ -79,21 +79,14 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       const host = await render(withRows);
 
       expect(rows(host)).toEqual([
-        [
-          '2027',
-          '1 de enero de 2027',
-          '31 de diciembre de 2027',
-          'Planeada',
-          'No habilitada',
-          'Ver detalle',
-        ],
+        ['2027', '1 de enero de 2027', '31 de diciembre de 2027', 'Planeada', 'No habilitada', ''],
         [
           '2026',
           '1 de enero de 2026',
           '31 de diciembre de 2026',
           'En preparación',
           'No habilitada',
-          'Ver detalle',
+          '',
         ],
       ]);
     });
@@ -235,7 +228,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(create?.getAttribute('aria-disabled')).toBe('true');
       expect(text(host)).toContain('Ya existe la vigencia 2027, la última que se puede crear.');
       const reasonId = create?.getAttribute('aria-describedby') ?? '';
-      expect(text(host.querySelector(`#${CSS.escape(reasonId)}`))).toBe(
+      expect(text(host.querySelector(`[id="${reasonId}"]`))).toBe(
         'Ya existe la vigencia 2027, la última que se puede crear.',
       );
     });
@@ -307,6 +300,102 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(text((fixture.nativeElement as HTMLElement).querySelector('h2'))).toBe(
         'No pudimos cargar las vigencias',
       );
+    });
+  });
+
+  // Lo que el backend puede mandar fuera de lo documentado: la pantalla no inventa textos ni se rompe.
+  describe('datos fuera de lo documentado', () => {
+    it('un estado que coincide con una propiedad de Object se muestra tal cual', async () => {
+      const odd = { ...fiscalYear(2026), status: 'constructor' } as unknown as FiscalYear;
+      const host = await render({ ...withRows, items: [odd] });
+
+      expect(rows(host)[0][3]).toBe('constructor');
+    });
+
+    it('un motivo de bloqueo con un año que no es entero cae en el texto general', async () => {
+      const host = await render({
+        ...withRows,
+        creatableYears: [],
+        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: '2027' as unknown as number },
+      });
+
+      expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+      expect(text(host)).toContain('No hay años disponibles para crear una vigencia.');
+      expect(text(host)).not.toContain('undefined');
+    });
+
+    it('con permiso pero sin ningún año que ofrecer, la acción queda inhabilitada con su motivo', async () => {
+      const host = await render({ ...withRows, canCreate: true, creatableYears: [] });
+
+      expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+      expect(text(host)).toContain('No hay años disponibles para crear una vigencia.');
+    });
+
+    it('sin vigencias y con la creación bloqueada, el estado vacío no pide crear la primera', async () => {
+      const host = await render({
+        items: [],
+        canCreate: true,
+        creatableYears: [],
+        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+      });
+
+      expect(text(host)).not.toContain('Crea la primera vigencia de tu administración');
+      expect(button(host, 'Crear la primera vigencia')?.getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('un año que no es entero no se vuelve un enlace', async () => {
+      const odd = { ...fiscalYear(2026), year: 2026.5 };
+      const host = await render({ ...withRows, items: [odd] });
+
+      expect(host.querySelector('tbody a')).toBeNull();
+    });
+  });
+
+  // Una respuesta que llega tarde no pisa a una más nueva (el orden de las lecturas).
+  describe('lecturas desordenadas', () => {
+    const deferred = () => {
+      let resolve: (list: FiscalYearList) => void = () => undefined;
+      let reject: (error: unknown) => void = () => undefined;
+      const promise = new Promise<FiscalYearList>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    };
+    const start = () => {
+      const first = deferred();
+      const second = deferred();
+      service.list.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+      const fixture = TestBed.createComponent(FiscalYears);
+      fixture.detectChanges();
+      const screen = fixture.componentInstance as unknown as { load(): Promise<unknown> };
+      const retry = screen.load();
+      return { fixture, first, second, retry, host: fixture.nativeElement as HTMLElement };
+    };
+
+    it('la respuesta de una lectura anterior no pisa la de la última', async () => {
+      const { fixture, first, second, retry, host } = start();
+
+      second.resolve({ ...withRows, items: [fiscalYear(2030)] });
+      await retry;
+      first.resolve({ ...withRows, items: [fiscalYear(2020)] });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(rows(host).map((row) => row[0])).toEqual(['2030']);
+    });
+
+    it('el fallo de una lectura anterior no tapa la lista de la última', async () => {
+      const { fixture, first, second, retry, host } = start();
+
+      second.resolve(withRows);
+      await retry;
+      first.reject(new Error('500'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(rows(host)).toHaveLength(2);
+      expect(host.querySelector('h2')).toBeNull();
     });
   });
 });
