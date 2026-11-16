@@ -13,3 +13,8 @@
 div:has(> table) {
   @apply overflow-x-auto;
 }
+
+/* La región de estado solo es para los lectores de pantalla. */
+p[role='status'] {
+  @apply sr-only;
+}

@@ -1,0 +1,47 @@
+<liv-dialog
+  [open]="true"
+  heading="Crear vigencia"
+  description="Elige el año de la vigencia nueva. Va del 1 de enero al 31 de diciembre de ese año."
+  icon="plus"
+  tone="primary"
+  size="lg"
+  [dismissible]="!submitting()"
+  (closeRequested)="close()"
+>
+  <div livDialogBody>
+    @for (alert of alerts(); track alert.id) {
+      <liv-alert status="error" [heading]="alert.heading">{{ alert.message }}</liv-alert>
+    }
+    @if (refreshFailed()) {
+      <liv-alert status="warning">
+        No pudimos actualizar la lista de vigencias. Los años que se ofrecen pueden no estar al día.
+      </liv-alert>
+    }
+    <liv-radio-group legend="Año de la vigencia" [(value)]="selected" [disabled]="submitting()">
+      @for (option of years(); track option.year) {
+        <liv-radio-option
+          [value]="'' + option.year"
+          [label]="'' + option.year"
+          [description]="relationLabel(option.relation)"
+        />
+      }
+    </liv-radio-group>
+    <dl>
+      <div livDescriptionItem label="Inicio" [value]="startsOn()"></div>
+      <div livDescriptionItem label="Fin" [value]="endsOn()"></div>
+    </dl>
+    <liv-alert status="warning" heading="Una vigencia no se puede borrar">
+      Una vez creada, los años anteriores a la más antigua quedan como históricos y no se podrán
+      crear. Revisa el año antes de continuar.
+    </liv-alert>
+  </div>
+  <liv-button variant="secondary" [disabled]="submitting()" (click)="close()">Cancelar</liv-button>
+  <liv-button
+    [loading]="submitting() || refreshing()"
+    [loadingLabel]="busyLabel()"
+    [disabled]="!choice()"
+    (click)="submit()"
+  >
+    Crear vigencia
+  </liv-button>
+</liv-dialog>
