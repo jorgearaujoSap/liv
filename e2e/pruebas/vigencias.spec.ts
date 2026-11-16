@@ -3,46 +3,61 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { entrarComo, guardarSesionConSegundoFactor, infraccionesDeAccesibilidad } from '../support/acceso';
 import { SESION_ADMIN_B, SESION_ADMIN_IPIALES, TOTP_SECRETO, TOTP_SECRETO_B, USUARIOS_E2E } from '../support/entorno';
 import {
+  aniosDePrueba,
   comprobarAdministracionesSinVigencias,
   crearVigenciaPorApi,
+  etiquetaDeAnio,
   fechaCorta,
   fechaLarga,
   leerVigencias,
   postPorApi,
+  postPorApiConRespuesta,
   tabHasta,
-  type ListaDeVigencias,
+  type AnioCreable,
+  type AniosDePrueba,
 } from '../support/vigencias';
 
 /**
- * Opción 1.4 · Vigencias fiscales (feature 007). Diseño: LIV-Diseño, sección 1.4 (66:1966); los textos son los de sus
- * *frames*: lista (66:1967 a 66:3493), crear (67:3040, 67:3163), mensajes de rechazo (67:3284), vigencia de un año
- * pasado (75:4479) y detalle (68:3460, 68:3846, 68:4235).
+ * Opción 1.4 · Vigencias fiscales (feature 007, enmienda 4). Diseño: LIV-Diseño, sección 1.4 (66:1966); los textos son
+ * los de sus *frames*: estado vacío (66:2793), sin años disponibles (66:2513), crear (67:3040), crear un año pasado
+ * (82:5802), crear con el rechazo V‑01 (67:3163), mensajes de rechazo (67:3284), detalle (68:3460, 68:3846, 68:4235) y
+ * el componente `Select` (81:629).
  *
  * Todo va en un solo archivo porque las pruebas dependen unas de otras: crean vigencias, que la API no borra, y
- * corren en el orden de este archivo (`preparar.ts` comprueba que las administraciones de prueba parten sin
- * vigencias). Los años no salen del calendario de la prueba, sino de `creatableYears` de la API: el servidor decide
- * cuáles se pueden crear. Las capturas enmascaran los años y las fechas, que cambian con el calendario.
+ * corren en el orden de este archivo (`comprobarAdministracionesSinVigencias`, en el `beforeAll`, comprueba que las
+ * administraciones de prueba parten sin vigencias). Los años no salen del calendario de la prueba: se toman una sola vez de `creatableYears`, la lista que
+ * da el servidor, por su relación con el año en curso y su posición (`aniosDePrueba`). Las capturas enmascaran los
+ * años y las fechas, que cambian con el calendario.
  *
- * Los rechazos V‑02 (007-06 y 007-07) y V‑05 (007-08) no se pueden provocar desde la pantalla, que solo ofrece los años
- * que la API acepta: los demuestran las pruebas del backend. Aquí se demuestra que la pantalla no ofrece otros años y
- * que el botón se inhabilita sin años que crear.
+ * Los rechazos V‑05 (007-07) no se pueden provocar desde la pantalla, que solo ofrece los años que la API acepta: se
+ * prueban por la API, sin crear nada. V‑02 ya no rechaza (enmienda 4): 007-06 comprueba que se crean años en cualquier
+ * orden y con huecos.
  */
 
 const RUTA = '/opcion/1.4';
-type AnioCreable = ListaDeVigencias['creatableYears'][number];
-
-/**
- * Etiqueta de cada año del diálogo según su relación con el año en curso (`relation` del contrato). Los textos son los
- * del frontend (`create-fiscal-year-dialog.ts`); Figma trae los de `PAST` (75:4479) y `NEXT` (67:3040), no el de `CURRENT`.
- */
-const DESCRIPCION_DE_RELACION: Record<string, string> = {
-  PAST: 'Año anterior al año en curso',
-  CURRENT: 'Año en curso',
-  NEXT: 'Año siguiente al año en curso',
-};
+const OPCION_VACIA = 'Elige un año';
 
 function dialogo(page: Page): Locator {
   return page.getByRole('dialog', { name: 'Crear vigencia' });
+}
+
+/** La lista desplegable de años del diálogo (`Select`, un `<select>` nativo). */
+function selectorDeAnio(page: Page): Locator {
+  return dialogo(page).getByRole('combobox', { name: 'Año de la vigencia' });
+}
+
+/** Lo que dice cada opción de la lista: la opción vacía y, después, los años en el orden en que los da el servidor. */
+function textosDeOpciones(anios: AnioCreable[]): string[] {
+  return [OPCION_VACIA, ...anios.map(etiquetaDeAnio)];
+}
+
+async function elegirAnio(page: Page, anio: AnioCreable): Promise<void> {
+  await selectorDeAnio(page).selectOption({ label: etiquetaDeAnio(anio) });
+}
+
+/** «Crear vigencia» dentro del diálogo; el de la página es `botonCrearVigencia`, con el mismo nombre accesible. */
+function botonConfirmarCreacion(page: Page): Locator {
+  return dialogo(page).getByRole('button', { name: 'Crear vigencia' });
 }
 
 function botonCrearPrimera(page: Page): Locator {
@@ -85,9 +100,9 @@ function datosConFecha(page: Page): Locator[] {
   return [
     page.getByRole('cell').filter({ hasText: /\d{4}/ }),
     page.locator('dd').filter({ hasText: /\d{4}/ }),
-    dialogo(page).getByRole('group'),
+    selectorDeAnio(page),
     page.getByText(/^Crea la primera vigencia de tu administración/),
-    page.getByText(/^Ya existe la vigencia \d{4}/),
+    page.getByText(/^Ya existen todas las vigencias que se pueden crear/),
   ];
 }
 
@@ -157,36 +172,43 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
   test.describe.configure({ mode: 'serial' });
   test.use({ storageState: SESION_ADMIN_IPIALES });
 
-  let primera: AnioCreable;
-  let segunda: AnioCreable;
+  // Se toman una sola vez, de la lista de la administración vacía (007-03), y no se vuelven a leer.
+  let anios: AniosDePrueba;
+  let ofrecidos: AnioCreable[];
 
   test.beforeAll(async ({ browser }) => {
     await guardarSesionConSegundoFactor(browser, USUARIOS_E2E.totp, TOTP_SECRETO, SESION_ADMIN_IPIALES);
   });
 
-  test('007-03 · Sin vigencias, ve el estado vacío con los años que ofrece el servidor y la acción para crear la primera', async ({
+  test('007-03 · Sin vigencias, ve el estado vacío con el rango de años que ofrece el servidor y la acción para crear la primera', async ({
     page,
   }) => {
     await page.goto(RUTA);
     const lista = await leerVigencias(page);
     expect(lista.items).toEqual([]);
     expect(lista.canCreate).toBe(true);
-    // 007-08: la primera vigencia solo puede ser la del año en curso o la siguiente.
-    expect(lista.creatableYears.map((year) => year.relation)).toEqual(['CURRENT', 'NEXT']);
-    [primera, segunda] = lista.creatableYears;
+    // Contrato 1.1.0: del más reciente (el año siguiente) al más antiguo, sin repetir ninguno.
+    expect(lista.creatableYears.map((year) => year.relation).slice(0, 2)).toEqual(['NEXT', 'CURRENT']);
+    expect(lista.creatableYears.slice(2).every((year) => year.relation === 'PAST')).toBe(true);
+    const numeros = lista.creatableYears.map((year) => year.year);
+    expect(numeros).toEqual([...numeros].sort((a, b) => b - a));
+    anios = aniosDePrueba(lista);
+    ofrecidos = lista.creatableYears;
+    // El primer año que se puede crear es fijo (V‑05): no depende del calendario de la prueba.
+    expect(anios.minimo.year).toBe(2002);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Vigencias fiscales' })).toBeVisible();
     await expect(page.getByText('Aún no hay vigencias')).toBeVisible();
+    // El rango sale del último y del primer elemento de la lista, sin enumerar los años.
     const descripcion = page.getByText(/^Crea la primera vigencia de tu administración/);
-    await expect(descripcion).toContainText(`año en curso (${primera.year})`);
-    await expect(descripcion).toContainText(`año siguiente (${segunda.year})`);
+    await expect(descripcion).toContainText(`cualquier año de ${anios.minimo.year} a ${anios.siguiente.year}`);
     await expect(botonCrearPrimera(page)).toBeVisible();
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
     await sinFoco(page);
     await expect(page).toHaveScreenshot('vigencias-vacia.png', { fullPage: true, mask: datosConFecha(page) });
   });
 
-  test('007-08 · El diálogo de crear ofrece solo el año en curso y el siguiente, con sus fechas y la advertencia de que no se borra', async ({
+  test('007-22 · El diálogo de crear ofrece los años del servidor en una lista, con el año en curso elegido, sus fechas y la advertencia de que no se borra', async ({
     page,
   }) => {
     await page.goto(RUTA);
@@ -195,68 +217,79 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     const crear = dialogo(page);
     await expect(crear).toBeVisible();
     await expect(crear).toContainText('Va del 1 de enero al 31 de diciembre de ese año.');
-    const radios = crear.getByRole('radio');
-    await expect(radios).toHaveCount(2);
-    // Los radios no tienen otro localizador que su orden: es el orden de `creatableYears`, el que se está comprobando.
-    for (const [indice, anio] of [primera, segunda].entries()) {
-      await expect(radios.nth(indice)).toHaveAccessibleName(String(anio.year));
-      await expect(radios.nth(indice)).toHaveAccessibleDescription(DESCRIPCION_DE_RELACION[anio.relation]);
-    }
-    // La primera viene elegida y sus fechas se derivan del año.
-    await expect(radios.nth(0)).toBeChecked();
-    await expect(crear.getByText(fechaLarga(primera.startsOn))).toBeVisible();
-    await expect(crear.getByText(fechaLarga(primera.endsOn))).toBeVisible();
-    await expect(crear.getByText('Una vigencia no se puede borrar')).toBeVisible();
-    await expect(crear.getByText(/los años anteriores a la más antigua quedan como históricos/)).toBeVisible();
+    const selector = selectorDeAnio(page);
+    await expect(selector).toBeVisible();
+    // La opción vacía y, después, un año por cada uno de `creatableYears`, en el orden y con el texto del servidor.
+    await expect(selector.locator('option')).toHaveText(textosDeOpciones(ofrecidos));
+    // El año en curso viene elegido y sus fechas se derivan de él.
+    await expect(selector.locator('option:checked')).toHaveText(etiquetaDeAnio(anios.actual));
+    await expect(crear.getByText(fechaLarga(anios.actual.startsOn))).toBeVisible();
+    await expect(crear.getByText(fechaLarga(anios.actual.endsOn))).toBeVisible();
+    await expect(crear.getByText('Una vigencia no se puede borrar', { exact: true })).toBeVisible();
+    await expect(crear.getByText('Revisa el año antes de continuar.', { exact: true })).toBeVisible();
+    // La advertencia de los años históricos salió con la enmienda 4.
+    await expect(crear.getByText(/históricos/)).toHaveCount(0);
+    await expect(botonConfirmarCreacion(page)).toBeEnabled();
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
     await sinFoco(page);
     await expect(page).toHaveScreenshot('vigencias-crear.png', { fullPage: true, mask: datosConFecha(page) });
   });
 
-  test('007-21 · Teclado del grupo de años en el navegador real: las flechas cambian la opción, Tab entra solo a la marcada y el diálogo atrapa el foco', async ({
+  test('007-21 · Teclado del diálogo en el navegador real: el foco inicial está en la lista de años, Enter al abrir no crea nada, Tab da la vuelta dentro del diálogo y Escape devuelve el foco', async ({
     page,
   }) => {
+    const peticionesPost: string[] = [];
+    page.on('request', (peticion) => {
+      if (peticion.method() === 'POST') {
+        peticionesPost.push(peticion.url());
+      }
+    });
     await page.goto(RUTA);
     const abrir = botonCrearPrimera(page);
     await abrir.click();
     const crear = dialogo(page);
-    const [primeraOpcion, segundaOpcion] = [crear.getByRole('radio').nth(0), crear.getByRole('radio').nth(1)];
+    const selector = selectorDeAnio(page);
     const cancelar = crear.getByRole('button', { name: 'Cancelar' });
-    const confirmar = crear.getByRole('button', { name: 'Crear vigencia' });
+    const confirmar = botonConfirmarCreacion(page);
 
-    // Al abrir, el foco está en la única parada del grupo: la opción marcada.
-    await expect(primeraOpcion).toBeFocused();
+    // Al abrir, el foco está en la lista de años y nunca en «Crear vigencia».
+    await expect(selector).toBeFocused();
 
-    await page.keyboard.press('ArrowDown');
-    await expect(segundaOpcion).toBeChecked();
-    await expect(segundaOpcion).toBeFocused();
-    await page.keyboard.press('ArrowUp');
-    await expect(primeraOpcion).toBeChecked();
-    await expect(primeraOpcion).toBeFocused();
+    // Enter al abrir no crea nada: el diálogo sigue abierto y no sale ninguna petición POST.
+    await page.keyboard.press('Enter');
+    // Pausa fija: sin ella la comprobación de «no pasó nada» se cumpliría antes de que una petición tardía saliera.
+    await page.waitForTimeout(300);
+    await expect(crear).toBeVisible();
+    await expect(selector).toBeFocused();
+    expect(peticionesPost).toEqual([]);
+    // Según la plataforma, Enter sobre la lista cerrada abre la de opciones del sistema (en el Chromium de Windows con
+    // el que se probó, sí), que se queda con la siguiente tecla: se cierra devolviendo el foco a la lista, para probar
+    // el recorrido del teclado sin esa ventana abierta.
+    await selector.evaluate((lista) => lista.blur());
+    await selector.focus();
+    await expect(selector).toBeFocused();
 
-    // Tab sale del grupo sin pasar por la otra opción, y Mayús+Tab vuelve a la marcada.
+    // Tab recorre Cancelar y Crear vigencia, y la siguiente vuelve a la lista: el diálogo atrapa el foco.
     await page.keyboard.press('Tab');
     await expect(cancelar).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    await expect(primeraOpcion).toBeFocused();
-
-    // El grupo cuenta como una sola parada: Tab recorre Cancelar y Crear, y la siguiente vuelve a la opción marcada.
-    await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
     await expect(confirmar).toBeFocused();
     await page.keyboard.press('Tab');
-    await expect(primeraOpcion).toBeFocused();
+    await expect(selector).toBeFocused();
+
+    // Mayús+Tab da la vuelta al revés.
     await page.keyboard.press('Shift+Tab');
     await expect(confirmar).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(cancelar).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(selector).toBeFocused();
 
-    // Con la segunda marcada, esa es la parada del grupo.
-    await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Shift+Tab');
-    await expect(primeraOpcion).toBeFocused();
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Shift+Tab');
-    await expect(segundaOpcion).toBeFocused();
+    // Elegir con el teclado depende de la plataforma: el valor se cambia con `selectOption` y el teclado se usa solo
+    // para el foco y para Enter.
+    await elegirAnio(page, anios.siguiente);
+    await expect(selector.locator('option:checked')).toHaveText(etiquetaDeAnio(anios.siguiente));
+    expect(peticionesPost).toEqual([]);
 
     // Escape cierra el diálogo y el foco vuelve al botón que lo abrió.
     await page.keyboard.press('Escape');
@@ -264,79 +297,126 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     await expect(abrir).toBeFocused();
   });
 
-  test('007-04 · Crear la primera vigencia la deja Planeada, con la liquidación sin habilitar', async ({ page }) => {
-    await page.goto(RUTA);
-    await botonCrearPrimera(page).click();
-    const crear = dialogo(page);
-    await expect(crear.getByRole('radio').nth(0)).toBeChecked();
-
-    await crear.getByRole('button', { name: 'Crear vigencia' }).click();
-
-    await expect(crear).toHaveCount(0);
-    // La tabla de consulta muestra las fechas como dd/mm/aaaa; la fecha larga es solo para las fechas sueltas.
-    const fila = filaDelAnio(page, primera.year);
-    await expect(fila).toContainText(fechaCorta(primera.startsOn));
-    await expect(fila).toContainText(fechaCorta(primera.endsOn));
-    await expect(fila).toContainText('Planeada');
-    await expect(fila).toContainText('No habilitada');
-    const lista = await leerVigencias(page);
-    expect(lista.items.map((vigencia) => vigencia.year)).toEqual([primera.year]);
-    expect(lista.items[0].assessmentsEnabled).toBe(false);
-  });
-
-  test('007-06 · Con la vigencia N, solo se ofrece N + 1 (el año siguiente) y se puede crear', async ({ page }) => {
-    await page.goto(RUTA);
-    await botonCrearVigencia(page).click();
-
-    const crear = dialogo(page);
-    const radios = crear.getByRole('radio');
-    await expect(radios).toHaveCount(1);
-    await expect(radios.nth(0)).toHaveAccessibleName(String(segunda.year));
-    await expect(radios.nth(0)).toBeChecked();
-    await expect(radios.nth(0)).toHaveAccessibleDescription(/siguiente al año en curso/);
-
-    await crear.getByRole('button', { name: 'Crear vigencia' }).click();
-
-    await expect(crear).toHaveCount(0);
-    // 007-01: de la más reciente a la más antigua.
-    await expect(filasDeVigencias(page)).toHaveCount(2);
-    await expect(filasDeVigencias(page).first()).toContainText(String(segunda.year));
-    await expect(filasDeVigencias(page).last()).toContainText(String(primera.year));
-  });
-
-  test('007-06 · V‑05 · Sin años que crear, «Crear vigencia» queda inhabilitado con su motivo y no se activa con el teclado', async ({
+  test('007-04 · V‑01 · Crear la vigencia del año en curso la deja Planeada, con la liquidación sin habilitar; un año pasado muestra su advertencia', async ({
     page,
   }) => {
     await page.goto(RUTA);
+    await botonCrearPrimera(page).click();
+    const crear = dialogo(page);
+    const selector = selectorDeAnio(page);
+    await expect(selector.locator('option:checked')).toHaveText(etiquetaDeAnio(anios.actual));
+
+    // Con un año pasado elegido, una sola advertencia («Es un año pasado») reemplaza a la general (82:5802).
+    await elegirAnio(page, anios.minimo);
+    await expect(crear.getByText('Es un año pasado', { exact: true })).toBeVisible();
+    await expect(
+      crear.getByText('Una vigencia no se puede borrar. Revisa el año antes de continuar.', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      crear.getByText('Solo se podrá liquidar cuando estén cargadas las tablas de ese año.', { exact: true }),
+    ).toBeVisible();
+    await expect(crear.getByText('Una vigencia no se puede borrar', { exact: true })).toHaveCount(0);
+    await expect(crear.getByText(fechaLarga(anios.minimo.startsOn))).toBeVisible();
+    expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
+
+    // Con el año en curso, vuelve la advertencia general y la de un año pasado desaparece.
+    await elegirAnio(page, anios.actual);
+    await expect(crear.getByText('Es un año pasado', { exact: true })).toHaveCount(0);
+    await expect(crear.getByText('Una vigencia no se puede borrar', { exact: true })).toBeVisible();
+
+    await botonConfirmarCreacion(page).click();
+
+    await expect(crear).toHaveCount(0);
+    // La tabla de consulta muestra las fechas como dd/mm/aaaa; la fecha larga es solo para las fechas sueltas.
+    const fila = filaDelAnio(page, anios.actual.year);
+    await expect(fila).toContainText(fechaCorta(anios.actual.startsOn));
+    await expect(fila).toContainText(fechaCorta(anios.actual.endsOn));
+    await expect(fila).toContainText('Planeada');
+    await expect(fila).toContainText('No habilitada');
     const lista = await leerVigencias(page);
-    expect(lista.creatableYears).toEqual([]);
+    expect(lista.items.map((vigencia) => vigencia.year)).toEqual([anios.actual.year]);
+    expect(lista.items[0].assessmentsEnabled).toBe(false);
+    // Las fechas no se escriben a mano: del 1 de enero al 31 de diciembre del año elegido.
+    expect(lista.items[0].startsOn).toBe(`${anios.actual.year}-01-01`);
+    expect(lista.items[0].endsOn).toBe(`${anios.actual.year}-12-31`);
+  });
 
-    const crear = botonCrearVigencia(page);
-    await expect(crear).toHaveAttribute('aria-disabled', 'true');
-    await expect(crear).toHaveAccessibleDescription(
-      `Ya existe la vigencia ${segunda.year}, la última que se puede crear.`,
-    );
+  test('007-06 · V‑02 · Con una vigencia creada, se crean el año siguiente, el más antiguo y uno del medio, en ese orden y con huecos, sin ningún rechazo', async ({
+    page,
+  }) => {
+    await page.goto(RUTA);
+    const creados: AnioCreable[] = [anios.actual];
+    for (const anio of [anios.siguiente, anios.minimo, anios.intermedio]) {
+      await botonCrearVigencia(page).click();
+      const crear = dialogo(page);
+      const selector = selectorDeAnio(page);
+      // Los años que ya existen no se ofrecen, y sin el año en curso ninguno viene elegido ni se puede enviar.
+      await expect(selector.locator('option')).toHaveText(
+        textosDeOpciones(ofrecidos.filter((ofrecido) => !creados.includes(ofrecido))),
+      );
+      await expect(selector.locator('option:checked')).toHaveText(OPCION_VACIA);
+      await expect(botonConfirmarCreacion(page)).toBeDisabled();
+      await expect(crear.getByText('Inicio', { exact: true })).toHaveCount(0);
+      await expect(crear.getByText('Fin', { exact: true })).toHaveCount(0);
 
-    // El botón sigue recibiendo foco (aria-disabled, no disabled) y ni Enter ni Espacio hacen nada.
-    await tabHasta(page, crear);
-    await page.keyboard.press('Enter');
-    await page.keyboard.press('Space');
-    // Pausa fija: sin ella la comprobación de «no pasó nada» se cumpliría antes de que un diálogo tardío apareciera.
-    await page.waitForTimeout(300);
-    await expect(dialogo(page)).toHaveCount(0);
-    await expect(crear).toBeFocused();
+      await elegirAnio(page, anio);
+      const respuesta = page.waitForResponse(
+        (candidata) => candidata.request().method() === 'POST' && candidata.url().endsWith('/api/v1/fiscal-years'),
+      );
+      await botonConfirmarCreacion(page).click();
+
+      // Ningún rechazo (V‑02 ya no rechaza): la API responde 201 y el diálogo se cierra.
+      expect((await respuesta).status()).toBe(201);
+      await expect(crear).toHaveCount(0);
+      creados.push(anio);
+      // La lista se releyó antes de abrir el siguiente diálogo, para que ofrezca los años que quedan.
+      await expect(filasDeVigencias(page)).toHaveCount(creados.length);
+    }
+
+    // 007-01: de la más reciente a la más antigua, aunque se crearon en otro orden.
+    const esperados = [anios.siguiente, anios.actual, anios.intermedio, anios.minimo].map((anio) => anio.year);
+    const lista = await leerVigencias(page);
+    expect(lista.items.map((vigencia) => vigencia.year)).toEqual(esperados);
+    await expect(filasDeVigencias(page)).toHaveCount(esperados.length);
+    for (const [indice, year] of esperados.entries()) {
+      await expect(filasDeVigencias(page).nth(indice)).toContainText(String(year));
+    }
 
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
     await sinFoco(page);
     await expect(page).toHaveScreenshot('vigencias-lista.png', { fullPage: true, mask: datosConFecha(page) });
   });
 
+  test('V‑05 · 007-07 · Por la API, un año anterior al primero que se puede crear o posterior al último se rechaza con su motivo y su límite, y no cambia nada', async ({
+    page,
+  }) => {
+    await page.goto(RUTA);
+    const antes = (await leerVigencias(page)).items.map((vigencia) => vigencia.year);
+
+    const anterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anios.minimo.year - 1 });
+    expect(anterior.estado, JSON.stringify(anterior)).toBe(422);
+    // El primer año que se puede crear coincide con el último de la lista de la administración vacía.
+    expect(anterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'PAST_LIMIT', minYear: anios.minimo.year });
+
+    const posterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anios.siguiente.year + 1 });
+    expect(posterior.estado, JSON.stringify(posterior)).toBe(422);
+    expect(posterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: anios.siguiente.year });
+
+    // Un año que ya existe da el rechazo de V‑01 y no el de V‑05, aunque sea el límite.
+    const repetido = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anios.minimo.year });
+    expect(repetido.estado).toBe(409);
+    expect(repetido.cuerpo).toMatchObject({ code: 'V-01' });
+
+    const despues = (await leerVigencias(page)).items.map((vigencia) => vigencia.year);
+    expect(despues).toEqual(antes);
+  });
+
   test('007-10 · Abrir la preparación de una vigencia Planeada la pasa a «En preparación»', async ({ page }) => {
     await page.goto(RUTA);
-    await filaDelAnio(page, primera.year).getByRole('link').click();
+    await filaDelAnio(page, anios.actual.year).getByRole('link').click();
 
-    await expect(page).toHaveURL(rutaDelDetalle(primera.year));
-    await expect(page.getByRole('heading', { level: 1, name: `Vigencia ${primera.year}` })).toBeVisible();
+    await expect(page).toHaveURL(rutaDelDetalle(anios.actual.year));
+    await expect(page.getByRole('heading', { level: 1, name: `Vigencia ${anios.actual.year}` })).toBeVisible();
     await expect(datosDeLaVigencia(page)).toContainText('Planeada');
     // Detalle Planeada (68:3846): con la acción de abrir la preparación.
     const abrir = botonAbrirPreparacion(page);
@@ -354,14 +434,14 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     await expect(datosDeLaVigencia(page)).toContainText('En preparación');
     await expect(abrir).toHaveCount(0);
     // La otra vigencia no cambió: abrir una preparación solo toca la que se abre.
-    await page.goto(`${RUTA}/${segunda.year}`);
+    await page.goto(`${RUTA}/${anios.siguiente.year}`);
     await expect(datosDeLaVigencia(page)).toContainText('Planeada');
   });
 
   test('007-11 · La lista de preparación muestra los nueve puntos, el 1 cumplido y los demás pendientes con «Opción aún no disponible»', async ({
     page,
   }) => {
-    await page.goto(`${RUTA}/${primera.year}`);
+    await page.goto(`${RUTA}/${anios.actual.year}`);
 
     const puntos = page.getByRole('region', { name: 'Lista de preparación' }).getByRole('listitem');
     await expect(puntos).toHaveCount(9);
@@ -389,7 +469,7 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
   test('007-12 · V‑03 · «Habilitar liquidación» queda inhabilitado con los puntos que faltan y no se activa con el teclado', async ({
     page,
   }) => {
-    await page.goto(`${RUTA}/${primera.year}`);
+    await page.goto(`${RUTA}/${anios.actual.year}`);
     const habilitar = page.getByRole('button', { name: 'Habilitar liquidación' });
     await expect(habilitar).toHaveAttribute('aria-disabled', 'true');
     await expect(habilitar).toHaveAccessibleDescription('Faltan 6 puntos obligatorios: 2, 3, 4, 5, 8 y 9.');
@@ -403,7 +483,7 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     await expect(habilitar).toBeFocused();
     await expect(datosDeLaVigencia(page)).toContainText('No habilitada');
     const lista = await leerVigencias(page);
-    expect(lista.items.find((vigencia) => vigencia.year === primera.year)?.assessmentsEnabled).toBe(false);
+    expect(lista.items.find((vigencia) => vigencia.year === anios.actual.year)?.assessmentsEnabled).toBe(false);
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
     await conAltoDelDetalle(page);
     await sinFoco(page);
@@ -414,7 +494,7 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
   });
 
   test('007-18 · Una vigencia que no existe en la administración se muestra como «no encontrada»', async ({ page }) => {
-    await page.goto(`${RUTA}/${segunda.year + 5}`);
+    await page.goto(`${RUTA}/${anios.siguiente.year + 5}`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Vigencia no encontrada' })).toBeVisible();
     await expect(page.getByText('No encontramos esa vigencia')).toBeVisible();
@@ -432,10 +512,12 @@ test.describe('1.4 · Roles que consultan pero no crean, en una administración 
       await page.goto(RUTA);
       const lista = await leerVigencias(page);
       expect(lista.canCreate).toBe(false);
-      // Precondición: las pruebas del administrador de Ipiales (arriba) crearon las dos vigencias.
-      expect(lista.items, 'Corre el archivo completo: las pruebas del administrador crean las vigencias').toHaveLength(2);
+      // Precondición: las pruebas del administrador de Ipiales (arriba) crearon sus vigencias; la pantalla se compara con
+      // las de la API.
+      // Las cuatro que creó 007-06: el año siguiente, el en curso, uno del medio y el más antiguo.
+      expect(lista.items, 'Corre el archivo completo: las pruebas del administrador crean las vigencias').toHaveLength(4);
 
-      await expect(filasDeVigencias(page)).toHaveCount(2);
+      await expect(filasDeVigencias(page)).toHaveCount(lista.items.length);
       for (const [indice, vigencia] of lista.items.entries()) {
         await expect(filasDeVigencias(page).nth(indice)).toContainText(String(vigencia.year));
         await expect(filasDeVigencias(page).nth(indice)).toContainText(fechaCorta(vigencia.startsOn));
@@ -443,7 +525,8 @@ test.describe('1.4 · Roles que consultan pero no crean, en una administración 
       }
       await expect(page.getByRole('button', { name: /Crear/ })).toHaveCount(0);
 
-      // La más reciente sigue Planeada (la más antigua se abrió en 007-10): es la que ofrece «Abrir preparación» a quien puede.
+      // La más reciente sigue Planeada (la del año en curso se abrió en 007-10): un rol que puede abrirla vería «Abrir
+      // preparación»; aquí no aparece.
       const planeada = lista.items[0];
       await filaDelAnio(page, planeada.year).getByRole('link').click();
       await expect(datosDeLaVigencia(page)).toContainText('Planeada');
@@ -462,8 +545,11 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
   test.describe.configure({ mode: 'serial' });
   test.use({ storageState: SESION_ADMIN_B });
 
+  // Se toman una sola vez, de la lista de la administración vacía, y no se vuelven a leer.
+  let aniosB: AniosDePrueba;
   let anioDeB: AnioCreable;
   let anioSiguiente: AnioCreable;
+  let ofrecidosB: AnioCreable[];
 
   test.beforeAll(async ({ browser }) => {
     await guardarSesionConSegundoFactor(browser, USUARIOS_E2E.adminB, TOTP_SECRETO_B, SESION_ADMIN_B);
@@ -478,32 +564,58 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     await expect(page.getByText('Aún no hay vigencias')).toBeVisible();
     const lista = await leerVigencias(page);
     expect(lista.items).toEqual([]);
-    [anioDeB, anioSiguiente] = lista.creatableYears;
+    aniosB = aniosDePrueba(lista);
+    ofrecidosB = lista.creatableYears;
     // Ofrece el año en curso, el mismo con el que empezó Ipiales: el año no identifica a la administración.
-    expect(anioDeB.relation).toBe('CURRENT');
+    ({ actual: anioDeB, siguiente: anioSiguiente } = aniosB);
   });
 
-  test('V‑01 · 007-05 · Si otra persona crea el mismo año al mismo tiempo, se rechaza con el mensaje de V‑01 y queda marcado el año que sigue disponible', async ({
+  test('V‑05 · 007-08 · La primera vigencia de una administración puede ser de cualquier año del rango: B crea el más antiguo como primera', async ({
     page,
   }) => {
     await page.goto(RUTA);
     await botonCrearPrimera(page).click();
-    const crear = dialogo(page);
-    await expect(crear.getByRole('radio').nth(0)).toBeChecked();
+    await elegirAnio(page, aniosB.minimo);
+    await expect(dialogo(page).getByText('Es un año pasado', { exact: true })).toBeVisible();
+    const respuesta = page.waitForResponse(
+      (candidata) => candidata.request().method() === 'POST' && candidata.url().endsWith('/api/v1/fiscal-years'),
+    );
+    await botonConfirmarCreacion(page).click();
 
-    // «Otra persona» crea el año marcado mientras el diálogo está abierto (la misma sesión, por la API). Con dos años
-    // disponibles el diálogo sigue abierto después del rechazo; con uno solo se cerraría (plan, paso 9a).
+    expect((await respuesta).status()).toBe(201);
+    await expect(dialogo(page)).toHaveCount(0);
+    await expect(filaDelAnio(page, aniosB.minimo.year)).toContainText('Planeada');
+  });
+
+  test('V‑01 · 007-05 · Si otra persona crea el mismo año al mismo tiempo, se rechaza con el mensaje de V‑01 y, al releer la lista, no queda ningún año elegido', async ({
+    page,
+  }) => {
+    await page.goto(RUTA);
+    // B ya tiene su primera vigencia (007-08): ahora se abre desde la acción de la lista.
+    await botonCrearVigencia(page).click();
+    const crear = dialogo(page);
+    const selector = selectorDeAnio(page);
+    await expect(selector.locator('option:checked')).toHaveText(etiquetaDeAnio(anioDeB));
+
+    // «Otra persona» crea el año elegido mientras el diálogo está abierto (la misma sesión, por la API). Con más años
+    // disponibles el diálogo sigue abierto después del rechazo (plan, paso 9a).
     expect(await crearVigenciaPorApi(page, anioDeB.year)).toBe(201);
-    await crear.getByRole('button', { name: 'Crear vigencia' }).click();
+    await botonConfirmarCreacion(page).click();
 
     const alerta = crear.getByRole('alert');
     await expect(alerta).toContainText('No se creó la vigencia');
-    await expect(alerta).toContainText(new RegExp(`V.01 · La vigencia ${anioDeB.year} ya existe en tu administración`));
+    await expect(alerta).toContainText(
+      new RegExp(`V.01 · La vigencia ${anioDeB.year} ya existe en tu administración`),
+    );
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
-    // La lista se volvió a leer: solo queda el año siguiente, ya marcado.
-    await expect(crear.getByRole('radio')).toHaveCount(1);
-    await expect(crear.getByRole('radio').nth(0)).toBeChecked();
-    await expect(crear.getByRole('radio').nth(0)).toHaveAccessibleName(String(anioSiguiente.year));
+    // La lista se volvió a leer: `anioDeB` ya no está entre las opciones, no queda ningún año elegido (el año en
+    // curso ya existe), «Crear vigencia» está inhabilitado y el foco está en la lista (67:3163).
+    await expect(selector.locator('option')).toHaveText(
+      textosDeOpciones(ofrecidosB.filter((ofrecido) => ofrecido !== anioDeB && ofrecido !== aniosB.minimo)),
+    );
+    await expect(selector.locator('option:checked')).toHaveText(OPCION_VACIA);
+    await expect(botonConfirmarCreacion(page)).toBeDisabled();
+    await expect(selector).toBeFocused();
 
     await crear.getByRole('button', { name: 'Cancelar' }).click();
     await expect(crear).toHaveCount(0);
@@ -514,7 +626,8 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
   }) => {
     await page.goto(RUTA);
 
-    await expect(filasDeVigencias(page)).toHaveCount(1);
+    // Las de B: la más antigua (007-08) y la del año en curso (007-05).
+    await expect(filasDeVigencias(page)).toHaveCount(2);
     await expect(filaDelAnio(page, anioDeB.year)).toContainText('Planeada');
 
     // En Ipiales ese año quedó «En preparación» (007-10): abrir la preparación allá no cambió esta.
@@ -531,7 +644,7 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Vigencia no encontrada' })).toBeVisible();
     await expect(page.getByText('No encontramos esa vigencia')).toBeVisible();
     const lista = await leerVigencias(page);
-    expect(lista.items.map((vigencia) => vigencia.year)).toEqual([anioDeB.year]);
+    expect(lista.items.map((vigencia) => vigencia.year)).toEqual([anioDeB.year, aniosB.minimo.year]);
   });
 
   test('V‑06 · 007-10 · Si otra persona abre la preparación antes, se rechaza con el mensaje de V‑06 y la pantalla se actualiza', async ({
@@ -551,5 +664,50 @@ test.describe('1.4 · ADMIN_SISTEMA de la administración de prueba B', () => {
     await expect(datosDeLaVigencia(page)).toContainText('En preparación');
     await expect(abrir).toHaveCount(0);
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
+  });
+
+  // Va al final de la serie de B porque la deja sin años que crear: las pruebas anteriores no cambian, y
+  // `limpiar-vigencias.sh` borra todo antes de la corrida siguiente.
+  test('V‑05 · 007-23 · Con todas las vigencias creadas, «Crear vigencia» queda inhabilitado con su motivo, no se activa con el teclado y pasa axe', async ({
+    page,
+  }) => {
+    // Crea de uno en uno los años que le faltan a B, de `minimo` a `anioSiguiente`.
+    test.setTimeout(120_000);
+    await page.goto(RUTA);
+    const existentes = new Set((await leerVigencias(page)).items.map((vigencia) => vigencia.year));
+    for (let year = aniosB.minimo.year; year <= anioSiguiente.year; year++) {
+      if (!existentes.has(year)) {
+        expect(await crearVigenciaPorApi(page, year), `crear la vigencia ${year}`).toBe(201);
+      }
+    }
+    await page.goto(RUTA);
+    expect((await leerVigencias(page)).creatableYears).toEqual([]);
+    // La API no ofrece ningún año y crear uno se rechaza con V‑01 (ya existe) o con V‑05 (fuera del rango).
+    const existente = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: aniosB.minimo.year });
+    expect(existente.estado).toBe(409);
+    expect(existente.cuerpo).toMatchObject({ code: 'V-01' });
+    const anterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: aniosB.minimo.year - 1 });
+    expect(anterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'PAST_LIMIT', minYear: aniosB.minimo.year });
+    const posterior = await postPorApiConRespuesta(page, '/api/v1/fiscal-years', { year: anioSiguiente.year + 1 });
+    expect(posterior.cuerpo).toMatchObject({ code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: anioSiguiente.year });
+
+    const crear = botonCrearVigencia(page);
+    await expect(crear).toHaveAttribute('aria-disabled', 'true');
+    await expect(crear).toHaveAccessibleDescription(
+      `Ya existen todas las vigencias que se pueden crear: de ${aniosB.minimo.year} a ${anioSiguiente.year}.`,
+    );
+
+    // El botón sigue recibiendo foco (aria-disabled, no disabled) y ni Enter ni Espacio hacen nada.
+    await tabHasta(page, crear);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
+    // Pausa fija: sin ella la comprobación de «no pasó nada» se cumpliría antes de que un diálogo tardío apareciera.
+    await page.waitForTimeout(300);
+    await expect(dialogo(page)).toHaveCount(0);
+    await expect(crear).toBeFocused();
+
+    expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
+    await sinFoco(page);
+    await expect(page).toHaveScreenshot('vigencias-sin-anios.png', { fullPage: true, mask: datosConFecha(page) });
   });
 });
