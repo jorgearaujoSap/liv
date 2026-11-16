@@ -13,6 +13,56 @@ export interface ListaDeVigencias {
   creatableYears: { year: number; startsOn: string; endsOn: string; relation: string }[];
 }
 
+/** Un año de `creatableYears`, como lo da el servidor. */
+export type AnioCreable = ListaDeVigencias['creatableYears'][number];
+
+/**
+ * Los cuatro años que usan las pruebas de la 1.4, tomados de la lista de una administración sin vigencias. Salen de la
+ * relación (`relation`) y de la posición en la lista, nunca del calendario de la prueba: el servidor decide qué años se
+ * pueden crear.
+ */
+export interface AniosDePrueba {
+  /** El año `CURRENT`. */
+  actual: AnioCreable;
+  /** El año `NEXT`. */
+  siguiente: AnioCreable;
+  /** El último de la lista, el más antiguo que se puede crear. */
+  minimo: AnioCreable;
+  /** Un año `PAST` del medio de la lista, para dejar huecos a los dos lados. */
+  intermedio: AnioCreable;
+}
+
+/**
+ * Toma los cuatro años de la lista de una administración sin vigencias. La lista llega del año más reciente al más
+ * antiguo (contrato 1.1.0): `NEXT`, `CURRENT` y los años `PAST`. Se llama una sola vez por administración, y la lista
+ * no se vuelve a leer para elegir años.
+ */
+export function aniosDePrueba(lista: ListaDeVigencias): AniosDePrueba {
+  const anios = lista.creatableYears;
+  const actual = anios.find((anio) => anio.relation === 'CURRENT');
+  const siguiente = anios.find((anio) => anio.relation === 'NEXT');
+  const pasados = anios.filter((anio) => anio.relation === 'PAST');
+  if (!actual || !siguiente || pasados.length < 3) {
+    throw new Error(
+      'Una administración sin vigencias debe ofrecer el año en curso, el siguiente y al menos tres años pasados: ' +
+        JSON.stringify(anios.map(({ year, relation }) => ({ year, relation }))),
+    );
+  }
+  return { actual, siguiente, minimo: anios[anios.length - 1], intermedio: pasados[Math.floor(pasados.length / 2)] };
+}
+
+/**
+ * Texto de la opción de un año en la lista del diálogo: el número y, para el año en curso y el siguiente, su etiqueta.
+ * Los años pasados van sin etiqueta (Figma 67:3040 y 82:5802; plan, «Diseño de interfaz (E4)»).
+ */
+export function etiquetaDeAnio(anio: AnioCreable): string {
+  const etiqueta: Record<string, string> = {
+    CURRENT: ' · Año en curso',
+    NEXT: ' · Año siguiente al año en curso',
+  };
+  return `${anio.year}${etiqueta[anio.relation] ?? ''}`;
+}
+
 /** Lee la lista de vigencias de la administración de la sesión abierta en `page`, por la API y con su cookie. */
 export async function leerVigencias(page: Page): Promise<ListaDeVigencias> {
   const respuesta = await page.request.get('/api/v1/fiscal-years');
@@ -109,11 +159,17 @@ export function fechaLarga(fecha: string): string {
   });
 }
 
+/** Respuesta de un POST a la API: el estado HTTP y el cuerpo, leído como JSON si lo es y como texto si no. */
+export interface RespuestaDeApi {
+  estado: number;
+  cuerpo: unknown;
+}
+
 /**
  * Envía un POST a la API con la sesión de `page`, con el token anti-CSRF de la cookie `XSRF-TOKEN`, igual que el
- * frontend. Devuelve el estado HTTP, sin interpretar la respuesta.
+ * frontend. Devuelve el estado HTTP y el cuerpo de la respuesta.
  */
-export async function postPorApi(page: Page, ruta: string, cuerpo?: unknown): Promise<number> {
+export async function postPorApiConRespuesta(page: Page, ruta: string, cuerpo?: unknown): Promise<RespuestaDeApi> {
   return page.evaluate(
     async ({ ruta: destino, cuerpo: contenido }) => {
       const cookie = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='));
@@ -128,10 +184,22 @@ export async function postPorApi(page: Page, ruta: string, cuerpo?: unknown): Pr
         },
         body: contenido === undefined ? undefined : JSON.stringify(contenido),
       });
-      return respuesta.status;
+      const texto = await respuesta.text();
+      let leido: unknown = texto;
+      try {
+        leido = texto === '' ? null : (JSON.parse(texto) as unknown);
+      } catch {
+        // Una respuesta que no es JSON (p. ej. un 403 de la pasarela) se devuelve como texto.
+      }
+      return { estado: respuesta.status, cuerpo: leido };
     },
     { ruta, cuerpo },
   );
+}
+
+/** Igual que `postPorApiConRespuesta`, pero devuelve solo el estado HTTP, sin interpretar la respuesta. */
+export async function postPorApi(page: Page, ruta: string, cuerpo?: unknown): Promise<number> {
+  return (await postPorApiConRespuesta(page, ruta, cuerpo)).estado;
 }
 
 /** Crea una vigencia por la API, como lo haría «otra persona» al mismo tiempo (V‑01). */
