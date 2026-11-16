@@ -17,36 +17,37 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
         'V-01 · La vigencia 2027 ya existe en tu administración: es posible que otra persona la haya creado hace un momento. Actualizamos la lista.',
       ],
       [
-        'V-02 GAP · 007-06',
-        problem(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 }),
-        'V-02 · No se puede saltar un año: primero debe existir la vigencia 2027.',
+        'V-05 PAST_LIMIT · 007-07',
+        problem(422, { status: 422, code: 'V-05', reason: 'PAST_LIMIT', minYear: 2002 }),
+        'V-05 · No se puede crear una vigencia anterior a 2002, el primer año que se puede crear.',
       ],
       [
-        'V-02 HISTORICAL · 007-07',
-        problem(422, { status: 422, code: 'V-02', reason: 'HISTORICAL', oldestYear: 2026 }),
-        'V-02 · No se pueden crear vigencias anteriores a la más antigua (2026): la carga de vigencias históricas todavía no está autorizada.',
-      ],
-      [
-        'V-05 FIRST_YEAR · 007-08',
-        problem(422, {
-          status: 422,
-          code: 'V-05',
-          reason: 'FIRST_YEAR',
-          currentYear: 2026,
-          nextYear: 2027,
-        }),
-        'V-05 · La primera vigencia de la administración debe ser la del año en curso (2026) o la del año siguiente (2027).',
-      ],
-      [
-        'V-05 FUTURE_LIMIT · H2-6',
+        'V-05 FUTURE_LIMIT · 007-07',
         problem(422, { status: 422, code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: 2027 }),
-        'V-05 · No se puede crear una vigencia posterior al año siguiente al año en curso (2027).',
+        'V-05 · No se puede crear una vigencia posterior al año siguiente al año en curso: el último año que se puede crear es 2027.',
       ],
     ])('%s', (_name, error, message) => {
       expect(creationRejection(error, 2028)).toEqual({
         heading: 'No se creó la vigencia',
         message,
         reload: message.startsWith('V-01'),
+      });
+    });
+
+    // Desde el contrato 1.1.0 el servidor ya no emite estos motivos: si llegara uno, el mensaje es el general.
+    it.each([
+      ['V-02 GAP', { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 }],
+      ['V-02 HISTORICAL', { status: 422, code: 'V-02', reason: 'HISTORICAL', oldestYear: 2026 }],
+      [
+        'V-05 FIRST_YEAR',
+        { status: 422, code: 'V-05', reason: 'FIRST_YEAR', currentYear: 2026, nextYear: 2027 },
+      ],
+    ])('%s ya no se emite: cae en el mensaje general', (_name, body) => {
+      expect(creationRejection(problem(422, body), 2028)).toEqual({
+        heading: 'No se creó la vigencia',
+        message:
+          'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
+        reload: false,
       });
     });
 
@@ -59,7 +60,7 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
 
     it('una regla conocida sin la extensión que necesita cae en el mensaje general', () => {
       const rejection = creationRejection(
-        problem(422, { status: 422, code: 'V-02', reason: 'GAP' }),
+        problem(422, { status: 422, code: 'V-05', reason: 'PAST_LIMIT' }),
         2029,
       );
 
@@ -70,16 +71,16 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
 
     it('un año que no es un entero no se escribe en el mensaje', () => {
       const rejection = creationRejection(
-        problem(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: '2027' }),
+        problem(422, { status: 422, code: 'V-05', reason: 'PAST_LIMIT', minYear: '2002' }),
         2029,
       );
 
-      expect(rejection?.message).not.toContain('2027');
+      expect(rejection?.message).not.toContain('2002');
     });
 
     it('un motivo o un código que no conoce cae en el mensaje general', () => {
       for (const body of [
-        { status: 422, code: 'V-02', reason: 'OTRO', requiredYear: 2027 },
+        { status: 422, code: 'V-05', reason: 'OTRO', minYear: 2002 },
         { status: 422, code: 'V-99' },
         { status: 400, code: 'SYS-400' },
       ]) {
@@ -151,7 +152,7 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
     it('un año fuera de la tabla nacional (1999 a 2100) no se escribe en el mensaje', () => {
       for (const year of [-5, 0, 1998, 2101, 99999]) {
         const rejection = creationRejection(
-          problem(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: year }),
+          problem(422, { status: 422, code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: year }),
           2029,
         );
         expect(rejection?.message).toBe(
