@@ -124,7 +124,7 @@ export class CreateFiscalYearDialog {
   constructor() {
     effect(() => {
       this.years();
-      untracked(() => this.focusSelectionIfPending());
+      untracked(() => this.focusYearIfPending());
     });
   }
 
@@ -164,16 +164,20 @@ export class CreateFiscalYearDialog {
 
   /**
    * La lista nueva puede cambiar el año marcado (el que ya existía deja de estar): el foco va al año marcado
-   * para que se lea cuál es, y no se queda en «Crear vigencia», donde un Enter crearía otro año sin avisar.
+   * para que se lea cuál es, y no se queda en «Crear vigencia», donde un Enter crearía otro año sin avisar. Si la
+   * lista nueva no deja ningún año marcado, el foco va al primer radio del grupo.
    */
-  private focusSelectionIfPending(): void {
+  private focusYearIfPending(): void {
     if (!this.refocusOnNextYears) {
       return;
     }
     this.refocusOnNextYears = false;
     afterNextRender(
-      () =>
-        this.host.nativeElement.querySelector<HTMLElement>('input[type="radio"]:checked')?.focus(),
+      () => {
+        const radio = (selector: string) =>
+          this.host.nativeElement.querySelector<HTMLElement>(selector);
+        (radio('input[type="radio"]:checked') ?? radio('input[type="radio"]'))?.focus();
+      },
       { injector: this.injector },
     );
   }
