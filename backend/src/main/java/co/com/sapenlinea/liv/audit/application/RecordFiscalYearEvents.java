@@ -6,13 +6,14 @@ import co.com.sapenlinea.liv.tax.FiscalYearCreated;
 import co.com.sapenlinea.liv.tax.FiscalYearStatusChanged;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 /**
  * The audit of the fiscal years of an administration (007-20, plan step 7): every creation and
  * change of state, on the entity {@code tax.administration_fiscal_year} and the id of its row, with
- * the state before (none when it is created), the state after, the year, its user, administration,
+ * the state before (never when it is created: the event of a creation has none), the state after, the year, its user, administration,
  * instant and correlation id. The listener of {@code tax} calls it after the commit, without a user
  * or a request: it needs no permission.
  *
@@ -39,7 +40,7 @@ public class RecordFiscalYearEvents {
         event.userId(),
         event.id(),
         event.year(),
-        event.previousStatus(),
+        null,
         event.newStatus(),
         event.occurredAt(),
         event.correlationId());
@@ -54,7 +55,7 @@ public class RecordFiscalYearEvents {
         event.userId(),
         event.id(),
         event.year(),
-        event.previousStatus(),
+        Objects.requireNonNull(event.previousStatus(), "previousStatus"),
         event.newStatus(),
         event.occurredAt(),
         event.correlationId());
@@ -85,6 +86,6 @@ public class RecordFiscalYearEvents {
             correlationId,
             null,
             previousStatus == null ? null : Map.of("status", previousStatus),
-            Map.of("year", year, "status", newStatus)));
+            Map.of("year", year, "status", Objects.requireNonNull(newStatus, "newStatus"))));
   }
 }
