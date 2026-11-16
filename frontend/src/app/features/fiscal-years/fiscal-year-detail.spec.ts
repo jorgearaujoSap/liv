@@ -109,6 +109,14 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
     );
   const alertOf = (host: HTMLElement) => host.querySelector('liv-alert');
 
+  /** Nodos que una prueba agrega al documento (para probar el foco): se quitan siempre al terminar. */
+  const attached: HTMLElement[] = [];
+  const attach = (element: HTMLElement) => {
+    document.body.append(element);
+    attached.push(element);
+  };
+  afterEach(() => attached.splice(0).forEach((element) => element.remove()));
+
   beforeEach(() => {
     service = new FakeFiscalYears();
     params = new BehaviorSubject(convertToParamMap({ year: '2026' }));
@@ -321,22 +329,15 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       expect(button(host, 'Abrir preparación')).toBeDefined();
     });
 
-    it('sin la acción no se ofrece, ni en una vigencia Planeada ni en las demás', async () => {
-      for (const planned of [true, false]) {
-        TestBed.resetTestingModule();
-        TestBed.configureTestingModule({
-          providers: [
-            provideRouter([]),
-            { provide: FiscalYearsService, useValue: service },
-            { provide: ActivatedRoute, useValue: { paramMap: params } },
-          ],
-        });
+    it.each([true, false])(
+      'sin la acción no se ofrece (vigencia Planeada: %s)',
+      async (planned) => {
         service.get.mockResolvedValue({ ...detail(2027, planned), availableActions: [] });
         const { host } = await render('2027');
 
         expect(button(host, 'Abrir preparación')).toBeUndefined();
-      }
-    });
+      },
+    );
 
     it('un valor desconocido de `availableActions` se ignora', async () => {
       service.get.mockResolvedValue({
@@ -396,7 +397,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       service.get.mockResolvedValueOnce(detail(2027, false));
       service.openPreparation.mockResolvedValue({} as FiscalYear);
       const { fixture, host } = await render('2027');
-      document.body.append(host);
+      attach(host);
       const open = button(host, 'Abrir preparación') as HTMLButtonElement;
       open.focus();
 
@@ -404,7 +405,25 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       await settle(fixture);
 
       expect(document.activeElement).toBe(host.querySelector('h1'));
-      host.remove();
+    });
+
+    it('si la persona ya movió el foco fuera de la pantalla, no se lo quita', async () => {
+      service.get.mockResolvedValueOnce(detail(2027, true));
+      service.get.mockResolvedValueOnce(detail(2027, false));
+      let finish: (value: FiscalYear) => void = () => undefined;
+      service.openPreparation.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      const { fixture, host } = await render('2027');
+      attach(host);
+      const outside = document.createElement('button');
+      document.body.append(outside);
+      attached.push(outside);
+
+      (button(host, 'Abrir preparación') as HTMLButtonElement).click();
+      outside.focus();
+      finish({} as FiscalYear);
+      await settle(fixture);
+
+      expect(document.activeElement).toBe(outside);
     });
 
     describe('rechazos', () => {
@@ -442,22 +461,15 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
         expect(text(alertOf(host))).toContain('La vigencia 2027 ya no está Planeada');
       });
 
-      it('un error del servidor o el tiempo agotado: no se sabe si se abrió, y se vuelve a leer', async () => {
-        for (const error of [problem(500, {}), new TimeoutError(10_000)]) {
-          TestBed.resetTestingModule();
-          TestBed.configureTestingModule({
-            providers: [
-              provideRouter([]),
-              { provide: FiscalYearsService, useValue: (service = new FakeFiscalYears()) },
-              { provide: ActivatedRoute, useValue: { paramMap: params } },
-            ],
-          });
+      it.each([problem(500, {}), new TimeoutError(10_000)])(
+        'un error del servidor o el tiempo agotado: no se sabe si se abrió, y se vuelve a leer',
+        async (error) => {
           const { host } = await openWith(error);
 
           expect(text(alertOf(host))).toContain('No sabemos si se abrió la preparación');
           expect(service.get).toHaveBeenCalledTimes(2);
-        }
-      });
+        },
+      );
 
       it('otro rechazo da el mensaje general y no relee', async () => {
         const { host } = await openWith(problem(400, { code: 'OTRO' }));
@@ -614,6 +626,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       await settle(fixture);
 
       expect(text(host.querySelector('h1'))).toBe('Vigencia 2027');
+      expect(facts(host)[0]).toBe('Año 2027');
     });
 
     it('de un año válido a uno que no lo es muestra «no encontrada» sin llamar a la API', async () => {
@@ -625,6 +638,187 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
 
       expect(service.get).toHaveBeenCalledTimes(1);
       expect(text(host)).toContain('No encontramos esa vigencia');
+    });
+
+    it('una lectura que sigue en curso no pisa el «no encontrada» de un año no válido', async () => {
+      let resolveOld: (value: FiscalYearDetail) => void = () => undefined;
+      service.get.mockReturnValueOnce(new Promise((resolve) => (resolveOld = resolve)));
+      const { fixture, host } = await render('2026');
+
+      setYear('abc');
+      await settle(fixture);
+      resolveOld(detail(2026, false));
+      await settle(fixture);
+
+      expect(text(host)).toContain('No encontramos esa vigencia');
+      expect(host.querySelector('[livChecklistItem]')).toBeNull();
+    });
+  });
+
+  describe('cambiar de año o salir mientras se abre la preparación', () => {
+    const pendingOpen = () => {
+      let finish: (value: FiscalYear) => void = () => undefined;
+      let fail: (reason: unknown) => void = () => undefined;
+      service.openPreparation.mockReturnValue(
+        new Promise<FiscalYear>((resolve, reject) => {
+          finish = resolve;
+          fail = reject;
+        }),
+      );
+      return { finish, fail };
+    };
+    const startOpening = async () => {
+      service.get.mockImplementation((year) => Promise.resolve(detail(year, true)));
+      const view = await render('2027');
+      (button(view.host, 'Abrir preparación') as HTMLButtonElement).click();
+      view.fixture.detectChanges();
+      return view;
+    };
+
+    it('la respuesta de la apertura del año anterior no pisa la pantalla del año nuevo', async () => {
+      const open = pendingOpen();
+      const { fixture, host } = await startOpening();
+
+      setYear('2026');
+      await settle(fixture);
+      open.finish({} as FiscalYear);
+      await settle(fixture);
+
+      expect(text(host.querySelector('h1'))).toBe('Vigencia 2026');
+      expect(facts(host)[0]).toBe('Año 2026');
+      expect(text(host.querySelector('[role="status"]'))).toBe('');
+      expect(service.get.mock.calls.map(([year]) => year)).toEqual([2027, 2026]);
+    });
+
+    it('el rechazo de la apertura del año anterior no deja su alerta en la pantalla nueva', async () => {
+      const open = pendingOpen();
+      const { fixture, host } = await startOpening();
+
+      setYear('2026');
+      await settle(fixture);
+      open.fail(problem(409, { code: 'V-06', year: 2027 }));
+      await settle(fixture);
+
+      expect(alertOf(host)).toBeNull();
+      expect(facts(host)[0]).toBe('Año 2026');
+      expect(service.get.mock.calls.map(([year]) => year)).toEqual([2027, 2026]);
+    });
+
+    it('en el año nuevo el botón no queda ocupado por la apertura del anterior', async () => {
+      pendingOpen();
+      const { fixture, host } = await startOpening();
+
+      setYear('2026');
+      await settle(fixture);
+
+      const open = button(host, 'Abrir preparación') as HTMLButtonElement;
+      expect(open.getAttribute('aria-disabled')).toBeNull();
+    });
+
+    it('si la pantalla se destruye con la apertura en curso, no relee ni falla', async () => {
+      const open = pendingOpen();
+      const { fixture } = await startOpening();
+
+      fixture.destroy();
+      open.finish({} as FiscalYear);
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(service.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('dos llamadas seguidas a la acción abren una sola vez', async () => {
+      pendingOpen();
+      const { fixture } = await startOpening();
+      const page = fixture.componentInstance as unknown as { openPreparation(): Promise<void> };
+
+      void page.openPreparation();
+      void page.openPreparation();
+
+      expect(service.openPreparation).toHaveBeenCalledTimes(1);
+    });
+
+    it('si la apertura sale bien y la vigencia no se puede releer, no anuncia un éxito que la pantalla no muestra', async () => {
+      service.get.mockResolvedValueOnce(detail(2027, true));
+      service.get.mockRejectedValue(new Error('500'));
+      service.openPreparation.mockResolvedValue({} as FiscalYear);
+      const { fixture, host } = await render('2027');
+
+      (button(host, 'Abrir preparación') as HTMLButtonElement).click();
+      await settle(fixture);
+
+      expect(text(host.querySelector('[role="status"]'))).toBe(
+        'Se envió la apertura de la preparación, pero no pudimos actualizar la vigencia.',
+      );
+      expect(text(host)).toContain('No pudimos actualizar la vigencia');
+    });
+  });
+
+  describe('datos inesperados del backend', () => {
+    it.each([
+      [
+        'sin `availableActions`',
+        (value: Record<string, unknown>) => delete value['availableActions'],
+      ],
+      ['sin `preparation`', (value: Record<string, unknown>) => delete value['preparation']],
+      [
+        'sin los puntos de la lista',
+        (value: Record<string, unknown>) => {
+          (value['preparation'] as Record<string, unknown>)['items'] = undefined;
+        },
+      ],
+      [
+        'sin `missing`',
+        (value: Record<string, unknown>) => {
+          (value['preparation'] as Record<string, unknown>)['missing'] = undefined;
+        },
+      ],
+      [
+        'de otro año',
+        (value: Record<string, unknown>) => {
+          value['year'] = 2030;
+        },
+      ],
+    ])('una vigencia %s se trata como un error de carga', async (_name, spoil) => {
+      const broken = structuredClone(detail(2026, false)) as unknown as Record<string, unknown>;
+      spoil(broken);
+      service.get.mockResolvedValue(broken as unknown as FiscalYearDetail);
+      const { host } = await render('2026');
+
+      expect(text(host)).toContain('No pudimos cargar la vigencia');
+      expect(button(host, 'Reintentar')).toBeDefined();
+    });
+
+    it('un punto sin `required` no se marca «Opcional» ni sale de los obligatorios', async () => {
+      const unknown = structuredClone(detail(2026, false));
+      delete (unknown.preparation.items[2] as Partial<PreparationItem>).required;
+      service.get.mockResolvedValue(unknown);
+      const { host } = await render();
+
+      expect(text(checklist(host)[2])).not.toContain('Opcional');
+      expect(text(host)).toContain('Los puntos 1 a 5, 8 y 9 son obligatorios; el 6 y el 7 son');
+    });
+
+    it('un punto con observación o con un estado nuevo se muestra, sin llamarlo «Cumplido»', async () => {
+      const unknown = structuredClone(detail(2026, false));
+      unknown.preparation.items[1].status = 'OBSERVED';
+      (unknown.preparation.items[2] as { status: string }).status = 'NUEVO';
+      service.get.mockResolvedValue(unknown);
+      const { host } = await render();
+
+      expect(text(checklist(host)[1])).toContain('Con observación');
+      expect(text(checklist(host)[2])).not.toContain('Cumplido');
+    });
+
+    it('dos puntos con el mismo número se muestran los dos', async () => {
+      const repeated = structuredClone(detail(2026, false));
+      repeated.preparation.items[3].number = 3;
+      service.get.mockResolvedValue(repeated);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { host } = await render();
+
+      expect(checklist(host)).toHaveLength(9);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
   });
 });
