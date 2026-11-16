@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
 import co.com.sapenlinea.liv.shared.RuleViolation;
+import co.com.sapenlinea.liv.tax.FiscalYearCreated;
 import co.com.sapenlinea.liv.tax.application.CreateFiscalYear;
 import co.com.sapenlinea.liv.tax.application.FiscalYears;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,19 +43,17 @@ import org.springframework.transaction.TransactionDefinition;
 /**
  * Each test forces its own interleaving instead of hoping the requests meet (plan, step 6): the
  * real {@code UNIQUE} (the competing row appears after the adapter has decided), the opening that
- * loses the race, the update time against a row created later, and the lock of the creation with
- * its variant without the lock, which shows that the test detects the missing lock. The adapter
- * under test is the real one, connected as {@code liv_app}.
+ * loses the race, the update time against a row created later, and the lock of the creation (two
+ * creations of the same year) with its control without the lock, which shows that the test detects
+ * the missing lock. The adapter under test is the real one, connected as {@code liv_app}.
  */
 @DisplayName("Intercalaciones de la persistencia de las vigencias (007-05, 007-10)")
 class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
 
   private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
 
-  /** 31 December 2026, 23:30 in Bogotá (already 2027 in UTC), and one hour later. */
-  private static final Instant BEFORE_MIDNIGHT = Instant.parse("2027-01-01T04:30:00Z");
-
-  private static final Instant AFTER_MIDNIGHT = Instant.parse("2027-01-01T05:30:00Z");
+  /** A fixed instant in the middle of 2026, so that 2026 is the current year. */
+  private static final Instant IN_2026 = Instant.parse("2026-06-15T12:00:00Z");
 
   private static final long WAIT_SECONDS = 30;
 
@@ -224,7 +225,8 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
    * The port with a pause the test controls: the thread that reads the national table (after the
    * years of the administration) stops there until the test releases it, so the decision is made
    * with data that the other creation can still change. {@code withLock} false empties {@code
-   * lockForCreation}, which shows that the tests detect the missing lock.
+   * lockForCreation}, which shows that the tests detect the missing lock. It counts the reads of
+   * the years and the {@code INSERT}s of each creation.
    */
   private static final class PausingFiscalYears implements FiscalYears {
 
@@ -233,6 +235,12 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     private final boolean pauses;
     final CountDownLatch paused = new CountDownLatch(1);
     final CountDownLatch release = new CountDownLatch(1);
+
+    /** How many times this creation read the years of the administration. */
+    final AtomicInteger reads = new AtomicInteger();
+
+    /** How many times this creation reached the {@code INSERT}. */
+    final AtomicInteger inserts = new AtomicInteger();
 
     PausingFiscalYears(FiscalYears delegate, boolean withLock, boolean pauses) {
       this.delegate = delegate;
@@ -249,6 +257,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
 
     @Override
     public List<RegisteredFiscalYear> findAll(UUID administrationId) {
+      reads.incrementAndGet();
       return delegate.findAll(administrationId);
     }
 
@@ -269,6 +278,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
 
     @Override
     public RegisteredFiscalYear create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
+      inserts.incrementAndGet();
       return delegate.create(fiscalYear, createdBy);
     }
 
@@ -290,72 +300,94 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
   }
 
   private Future<RegisteredFiscalYear> createInAThread(
-      Tenant tenant, FiscalYears port, Instant now, int year) {
+      Tenant tenant, FiscalYears port, List<Object> events, int year) {
     CreateFiscalYear useCase =
-        new CreateFiscalYear(port, event -> {}, Clock.fixed(now, ZoneOffset.UTC), BOGOTA);
+        new CreateFiscalYear(port, events::add, Clock.fixed(IN_2026, ZoneOffset.UTC), BOGOTA);
     return threads.submit(() -> inTransaction(tenant, () -> useCase.create(tenant.user(), year)));
   }
 
+  private static void assertV01(Throwable thrown, int year) {
+    assertThat(thrown)
+        .isInstanceOf(ExecutionException.class)
+        .hasCauseInstanceOf(RuleViolation.class);
+    RuleViolation violation = (RuleViolation) thrown.getCause();
+    assertThat(violation.code()).isEqualTo("V-01");
+    assertThat(violation.type()).isEqualTo(RuleViolation.Type.CONFLICT);
+    assertThat(violation.details()).containsExactlyEntriesOf(Map.of("year", year));
+  }
+
   /**
-   * The creation of 2026 at 23:30 of 31 December (A, pausing after it has read the empty
-   * administration) and the one of 2028 at 00:30 of 1 January (B). With the lock, B waits for A and
-   * then sees {2026}; without it, B runs entirely while A is paused.
+   * Characterization of the lock (it already exists): A takes it, reads the empty administration
+   * and stops; B asks for the same year. B waits in the database, and only then does the test check
+   * that it has not read the years. When A creates and commits, B reads 2026 already created and
+   * the policy answers V-01: B never reaches the {@code INSERT}.
    */
-  private void creationsAcrossMidnight(boolean withLock, Tenant tenant) throws Exception {
-    PausingFiscalYears a = new PausingFiscalYears(fiscalYears, withLock, true);
-    Future<RegisteredFiscalYear> creationA = createInAThread(tenant, a, BEFORE_MIDNIGHT, 2026);
+  @Test
+  @Tag("V-01")
+  @Tag("007-05")
+  @DisplayName(
+      "V-01 · 007-05 · Con el bloqueo, la segunda creación del mismo año espera a la primera y recibe V-01 de la política, sin llegar al INSERT")
+  void theLockMakesTheSecondCreationOfTheSameYearAnswerV01() throws Exception {
+    Tenant tenant = newTenant();
+    List<Object> events = new CopyOnWriteArrayList<>();
+    PausingFiscalYears a = new PausingFiscalYears(fiscalYears, true, true);
+    Future<RegisteredFiscalYear> creationA = createInAThread(tenant, a, events, 2026);
     assertThat(a.paused.await(WAIT_SECONDS, TimeUnit.SECONDS)).as("A read the years").isTrue();
 
-    PausingFiscalYears b = new PausingFiscalYears(fiscalYears, withLock, false);
-    Future<RegisteredFiscalYear> creationB = createInAThread(tenant, b, AFTER_MIDNIGHT, 2028);
-    if (withLock) {
-      // B waits in the database for the lock of A, and keeps waiting while A holds it.
-      LivDatabase.awaitAnApplicationSessionWaitingOnALock("pg_advisory_xact_lock");
-      assertThatThrownBy(() -> creationB.get(1, TimeUnit.SECONDS))
-          .isInstanceOf(TimeoutException.class);
-      assertThat(yearsOf(tenant)).isEmpty();
-    } else {
-      assertThat(creationB.get(WAIT_SECONDS, TimeUnit.SECONDS).fiscalYear().year()).isEqualTo(2028);
-    }
+    PausingFiscalYears b = new PausingFiscalYears(fiscalYears, true, false);
+    Future<RegisteredFiscalYear> creationB = createInAThread(tenant, b, events, 2026);
+    // B waits in the database for the lock of A, and only then is it checked that it read nothing.
+    LivDatabase.awaitAnApplicationSessionWaitingOnALock("pg_advisory_xact_lock");
+    assertThatThrownBy(() -> creationB.get(1, TimeUnit.SECONDS))
+        .isInstanceOf(TimeoutException.class);
+    assertThat(b.reads).as("B no leyó los años mientras A tenía el bloqueo").hasValue(0);
+    assertThat(yearsOf(tenant)).isEmpty();
 
     a.release.countDown();
     assertThat(creationA.get(WAIT_SECONDS, TimeUnit.SECONDS).fiscalYear().year()).isEqualTo(2026);
-    if (withLock) {
-      assertThatThrownBy(() -> creationB.get(WAIT_SECONDS, TimeUnit.SECONDS))
-          .isInstanceOf(ExecutionException.class)
-          .hasCauseInstanceOf(RuleViolation.class)
-          .satisfies(e -> {
-            RuleViolation violation = (RuleViolation) e.getCause();
-            assertThat(violation.code()).isEqualTo("V-02");
-            assertThat(violation.details())
-                .containsExactlyInAnyOrderEntriesOf(Map.of("reason", "GAP", "requiredYear", 2027));
-          });
-    }
-  }
-
-  @Test
-  @Tag("V-02")
-  @Tag("007-05")
-  @DisplayName(
-      "007-05 · El bloqueo: la creación de después de la medianoche espera a la de antes y recibe V-02 GAP")
-  void theLockSerializesTheCreationsAcrossMidnight() throws Exception {
-    Tenant tenant = newTenant();
-
-    creationsAcrossMidnight(true, tenant);
-
+    assertThatThrownBy(() -> creationB.get(WAIT_SECONDS, TimeUnit.SECONDS))
+        .satisfies(thrown -> assertV01(thrown, 2026));
+    assertThat(b.reads).as("B leyó 2026 ya creado").hasValue(1);
+    assertThat(b.inserts).as("B no llegó al INSERT").hasValue(0);
     assertThat(yearsOf(tenant)).containsExactly(2026);
+    assertThat(events)
+        .hasSize(1)
+        .allSatisfy(event -> assertThat(event).isInstanceOf(FiscalYearCreated.class));
   }
 
+  /**
+   * The control, a permanent test: with {@code lockForCreation} empty, B does not wait. It reads
+   * the empty administration, creates 2026 and commits while A is stopped, so it is A, released
+   * later, that reaches the {@code INSERT}, gets {@code 23505} and ends in V-01. It shows in CI
+   * that the test above detects a missing lock.
+   */
   @Test
+  @Tag("V-01")
   @Tag("007-05")
   @DisplayName(
-      "007-05 · La misma prueba con lockForCreation vacío deja {2026, 2028}: la prueba detecta la falta del bloqueo")
-  void withoutTheLockTheTestSeesTheGap() throws Exception {
+      "V-01 · 007-05 · El control sin el bloqueo: B termina mientras A espera, y es A quien recibe V-01 del UNIQUE")
+  void withoutTheLockTheFirstOneLosesAtTheUnique() throws Exception {
     Tenant tenant = newTenant();
+    List<Object> events = new CopyOnWriteArrayList<>();
+    PausingFiscalYears a = new PausingFiscalYears(fiscalYears, false, true);
+    Future<RegisteredFiscalYear> creationA = createInAThread(tenant, a, events, 2026);
+    assertThat(a.paused.await(WAIT_SECONDS, TimeUnit.SECONDS)).as("A read the years").isTrue();
 
-    creationsAcrossMidnight(false, tenant);
+    PausingFiscalYears b = new PausingFiscalYears(fiscalYears, false, false);
+    Future<RegisteredFiscalYear> creationB = createInAThread(tenant, b, events, 2026);
+    // Nothing makes B wait: it reads the empty administration, creates 2026 and commits.
+    assertThat(creationB.get(WAIT_SECONDS, TimeUnit.SECONDS).fiscalYear().year()).isEqualTo(2026);
+    assertThat(b.reads).as("B leyó la administración vacía").hasValue(1);
+    assertThat(b.inserts).hasValue(1);
 
-    assertThat(yearsOf(tenant)).containsExactly(2026, 2028);
+    a.release.countDown();
+    assertThatThrownBy(() -> creationA.get(WAIT_SECONDS, TimeUnit.SECONDS))
+        .satisfies(thrown -> assertV01(thrown, 2026));
+    assertThat(a.inserts).as("A llegó al INSERT y chocó con el UNIQUE").hasValue(1);
+    assertThat(yearsOf(tenant)).containsExactly(2026);
+    assertThat(events)
+        .hasSize(1)
+        .allSatisfy(event -> assertThat(event).isInstanceOf(FiscalYearCreated.class));
   }
 
   @Test
@@ -366,13 +398,14 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     Tenant holder = newTenant();
     Tenant other = newTenant();
     PausingFiscalYears a = new PausingFiscalYears(fiscalYears, true, true);
-    Future<RegisteredFiscalYear> creationA = createInAThread(holder, a, BEFORE_MIDNIGHT, 2026);
+    Future<RegisteredFiscalYear> creationA =
+        createInAThread(holder, a, new CopyOnWriteArrayList<>(), 2026);
     assertThat(a.paused.await(WAIT_SECONDS, TimeUnit.SECONDS)).as("A holds the lock").isTrue();
 
     PausingFiscalYears b = new PausingFiscalYears(fiscalYears, true, false);
     // Another administration does not wait: it finishes while A still holds its own lock.
     assertThat(
-            createInAThread(other, b, BEFORE_MIDNIGHT, 2026)
+            createInAThread(other, b, new CopyOnWriteArrayList<>(), 2026)
                 .get(WAIT_SECONDS, TimeUnit.SECONDS)
                 .fiscalYear()
                 .year())
