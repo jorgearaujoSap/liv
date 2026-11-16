@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 
-import { CLAVE, KEYCLOAK_URL, TOTP_SECRETO } from './entorno';
+import { BASE_URL, CLAVE, KEYCLOAK_URL, TOTP_SECRETO } from './entorno';
 import { codigoTotp } from './totp';
 
 /** Espera la página de acceso de Keycloak (tema `liv`), hasta `timeout` ms si se da. */
@@ -98,6 +98,51 @@ export async function entrarComo(page: Page, usuario: string): Promise<void> {
   await page.goto('/');
   await ingresar(page, usuario);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Hola,');
+}
+
+/**
+ * Entra a LIV con un usuario con segundo factor ya configurado (`e2e.totp` o `e2e.admin.b`) y llega a `ruta`: pide esa
+ * ruta sin sesión y, al entrar, el navegador vuelve a ella (001-01). Con la raíz, espera el saludo de Inicio.
+ */
+export async function entrarConSegundoFactor(
+  page: Page,
+  usuario: string,
+  secreto: string | Buffer,
+  ruta = '/',
+): Promise<void> {
+  await page.goto(ruta);
+  await ingresar(page, usuario);
+  await escribirCodigo(page, await codigoVigente(page, secreto));
+  if (ruta === '/') {
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Hola,');
+  }
+}
+
+/**
+ * Entra con segundo factor una sola vez y guarda la sesión (la cookie del BFF) en `archivo`, para que las pruebas de
+ * un `describe` la reutilicen con `test.use({ storageState })` en lugar de esperar un código TOTP nuevo en cada una.
+ */
+export async function guardarSesionConSegundoFactor(
+  browser: Browser,
+  usuario: string,
+  secreto: string | Buffer,
+  archivo: string,
+): Promise<void> {
+  // `storageState: undefined`: el `browser` de Playwright hereda el `storageState` de `test.use` y el archivo aún no existe.
+  const contexto = await browser.newContext({
+    baseURL: BASE_URL,
+    locale: 'es-CO',
+    timezoneId: 'America/Bogota',
+    viewport: { width: 1440, height: 900 },
+    storageState: undefined,
+  });
+  try {
+    await entrarConSegundoFactor(await contexto.newPage(), usuario, secreto);
+    mkdirSync(dirname(archivo), { recursive: true });
+    await contexto.storageState({ path: archivo });
+  } finally {
+    await contexto.close();
+  }
 }
 
 /** Infracciones de axe (WCAG 2.1 AA) en la página actual; vacío si cumple. */

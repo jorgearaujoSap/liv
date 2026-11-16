@@ -20,18 +20,30 @@ Desde `e2e/`:
 
 Si tu entorno local usa otras direcciones o credenciales de administración de Keycloak, expórtalas antes (las de `backend/dev/.env`): `LIV_E2E_BASE_URL`, `LIV_E2E_KEYCLOAK_URL`, `KEYCLOAK_ADMIN_USER` y `KEYCLOAK_ADMIN_PASSWORD`.
 
-## Qué prueban (feature 001)
+## Qué prueban
 
 | Archivo | Criterios |
 |---|---|
 | `pruebas/acceso.spec.ts` | Vuelta a la ruta pedida (001-01), página de acceso en español y con axe (001-19), «Mostrar contraseña», mensaje único (001-03), usuario desactivado (001-05), rol sin segundo factor (001-08), código TOTP incorrecto y correcto (001-07), configurar el segundo factor en el primer ingreso (001-06) y bloqueo tras 5 fallos (001-04) |
 | `pruebas/sesion.spec.ts` | Ningún *token* en el navegador y la cookie `LIV_SESSION`, `HttpOnly`, `Secure` y `SameSite=Strict` (001-11); salir sin *tokens* en la URL, «atrás» sin datos y otra ruta que vuelve a pedir entrar (001-09); rechazo anti-CSRF (001-12) |
 | `pruebas/sesion-corta.spec.ts` | Aviso de inactividad con «Seguir conectado» y «Cerrar sesión» (001-22) y vencimiento sin actividad (001-10). Solo con la sesión corta (abajo) |
-| `pruebas/estructura.spec.ts` | Cabecera con nombre, administración y rol, y tarjetas iguales (001-02), menú por rol con el tercer nivel (001-15), «Sin permiso» por URL (001-16) y «Próximamente», con axe en cada pantalla |
+| `pruebas/estructura.spec.ts` | Cabecera con nombre, administración y rol, y tarjetas iguales (001-02), menú por rol con el tercer nivel y la opción 1.4 ya abierta (001-15), «Sin permiso» por URL (001-16) y «Próximamente» (con la opción 1.7), con axe en cada pantalla |
+| `pruebas/vigencias.spec.ts` | Feature 007, opción 1.4 · Vigencias fiscales: «Sin permiso» del `LIQUIDADOR` (007-02), estado vacío (007-03), crear la primera y la siguiente, y que el diálogo solo ofrece los años del servidor (007-04, 007-06, 007-08), rechazos V‑01 (007-05) y V‑06 por concurrencia, abrir la preparación y la lista con «Habilitar liquidación» inhabilitado (007-10 a 007-12, V‑03), `CONSULTA` y `CARGADOR_TABLAS` sin acciones, también por la API (007-01, 007-09), aislamiento con `e2e.admin.b` (CA‑12, 007-18, 007-19), teclado del grupo de años del diálogo y de los botones inhabilitados con motivo, y axe con contraste y capturas de las tres pantallas (007-21) |
 
 Lo que todavía no cubren, y queda en otras pruebas:
 - que un código TOTP inválido cuente para el bloqueo (001-07): lo prueba `backend/identity/theme/check.sh`;
 - el 403 de la API en una opción sin permiso (001-16): la feature 001 aún no tiene una API con permiso propio; lo prueban las del backend.
+
+## Vigencias de la feature 007 (comprobación previa)
+
+Las pruebas de `pruebas/vigencias.spec.ts` crean vigencias y la API no las borra (decisión H2‑9 de la feature 007). Por eso:
+
+- Antes de la primera prueba de `vigencias.spec.ts` (un `beforeAll`), se mira por la API, con `dev.consulta` y `dev.consulta.b` (sin TOTP), si el Municipio de Ipiales o la administración de prueba B ya tienen vigencias. Si las tienen, se detienen solo las pruebas de la 1.4, con un mensaje que manda a limpiarlas: las de la 001 corren igual.
+- Quien corre las pruebas las limpia antes con `sh dev/limpiar-vigencias.sh`, desde `backend/` (lo agrega el PR B10 de la feature 007). `e2e/` nunca lo llama: no toca la base de datos, solo usa el sistema por HTTP (ADR 0030).
+- Los años no salen del calendario de la prueba sino de `creatableYears` de la API, y las capturas enmascaran los años y las fechas. Las tablas muestran las fechas como `dd/mm/aaaa` y el diálogo y el detalle, en fecha larga («1 de enero de 2026»).
+- Si tu entorno local usa otros puertos (por ejemplo, el frontend en `4300` porque el `4200` lo usa otro proyecto), exporta `LIV_E2E_BASE_URL` antes de correr las pruebas.
+- Los rechazos V‑02 (007-06 y 007-07) y V‑05 (007-08) no se pueden provocar desde la pantalla, que solo ofrece los años que la API acepta: los demuestran las pruebas del backend.
+- En una segunda corrida sin limpiar, las pruebas de la 1.4 fallan a propósito en ese `beforeAll`: es lo esperado.
 
 ## Aviso de inactividad (sesión corta)
 
@@ -48,7 +60,9 @@ Con los 15 minutos reales, `pruebas/sesion-corta.spec.ts` tardaría más de un c
   - `e2e.totp`: administrador con segundo factor ya configurado. Su secreto TOTP es ficticio y lo conocen las pruebas, que calculan el mismo código de 6 dígitos que daría una aplicación de autenticación (`support/totp.ts`). Keycloak lo valida como siempre.
   - `e2e.bloqueo`: se bloquea a propósito en la prueba de 001-04.
   - `e2e.alta`: administrador sin segundo factor, que lo configura en la prueba de 001-06 con la clave que muestra la página, como haría una persona.
+  - `e2e.admin.b`: `ADMIN_SISTEMA` de la «Administración de prueba B», con otro secreto TOTP ficticio y conocido (`TOTP_SECRETO_B`). Lo usan las pruebas de aislamiento de la 1.4 (CA‑12). No va en el *realm* de desarrollo: `ADMIN_SISTEMA` exige TOTP y la capa de desarrollo no puede llevar uno conocido.
 - No van en la capa de desarrollo del *realm*, porque `keycloak-config-cli` duplicaría el TOTP al reaplicarla. Los usuarios de desarrollo y el segundo factor no cambian.
+- `e2e.totp` y `e2e.admin.b` entran con segundo factor **una sola vez** por archivo de pruebas y guardan su sesión en `resultados/` (`guardarSesionConSegundoFactor`): cada entrada con TOTP puede esperar hasta 30 s por un código nuevo.
 - Si una corrida se interrumpe (Ctrl+C), los usuarios quedan hasta la siguiente, que los borra y crea de nuevo. Para borrarlos antes, en la consola de administración de Keycloak (`http://localhost:8180/admin`, *realm* `liv` › *Users*) busca `e2e.` y bórralos.
 
 ## Capturas de referencia
