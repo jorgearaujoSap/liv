@@ -45,6 +45,7 @@ export {
   ResultStateComponent,
   type ResultStateTone,
 } from './lib/result-state/result-state.component';
+export { SelectComponent, type SelectOption } from './lib/select/select.component';
 export { SideNavComponent } from './lib/side-nav/side-nav.component';
 export { SkeletonComponent, type SkeletonShape } from './lib/skeleton/skeleton.component';
 export {

@@ -4,6 +4,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [0.5.0] — 2026-11-16
+
+Un componente nuevo, `Select`, para la enmienda 4 de la feature 007 (vigencias fiscales, 1.4): el diálogo de crear una vigencia ofrece hasta 26 años, y esa lista es demasiado larga para un `RadioGroup`. No cambia ningún componente existente ni los _tokens_: `RadioGroup` y `RadioOption` se quedan en la librería. Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend instala la versión exacta 0.5.0 y ejecuta su prueba del aviso de sesión con ella (ningún componente existente cambia).
+
+### Agregado
+
+- `Select` (feature 007, enmienda 4, PR 4U; Figma 81:629, con diez variantes: `State` `Default`, `Focus`, `Open`, `Disabled` y `Error` por `Content` `Filled` y `Placeholder`). Lista desplegable de selección única de 44 px y radio de 8 px, sobre el `<select>` nativo, con su `<label>` siempre visible encima (como `TextField`).
+  - **Nativo:** el teclado, el lector de pantalla, el móvil y la lista abierta los da el navegador. No hay un `role="listbox"` propio y la lista abierta no se diseña ni se estiliza. La etiqueta y el `<select>` se enlazan por un `id` propio de cada instancia; el nombre accesible sale de la etiqueta.
+  - **Entradas:** `label` (obligatoria), `value` (`string | null`, con `[(value)]`; `null` es sin elegir), `options` (`SelectOption`, `{ value, label }`, en el orden recibido), `placeholder`, `disabled`, `help` y `error`. `SelectOption` sale por la API pública.
+  - **Placeholder:** el texto de una opción vacía que se muestra mientras el valor es `null` y que no se puede volver a elegir ni aparece en la lista; usa `text/muted` y nunca reemplaza a la etiqueta. Un valor que no está en las opciones se muestra como sin elegir (el valor del enlace no se corrige).
+  - **Help:** opcional, enlazada con `aria-describedby`, en `text/secondary`.
+  - **Error:** con `error` (un mensaje que dice cómo corregir) el control expone `aria-invalid="true"`, el borde y el mensaje pasan a `status/danger` con el icono `circle-alert`, y el mensaje reemplaza a la ayuda y queda enlazado con `aria-describedby`. Un error vacío cuenta como ausente. Inhabilitado, el error no se muestra.
+  - **Open:** se pinta como `Focus` (borde `border/focus` de 1,5 px y `focus/ring`), porque CSS no puede saber si la lista nativa está abierta y el `<select>` conserva el foco mientras tanto.
+  - **Alto contraste (forced-colors):** el foco deja un contorno y el borde de Disabled se pinta con `GrayText`, único color que no sale de un token de `theme.css` (como en `RadioOption`).
+  - **Dentro de un `Dialog`:** el `<select>` es una parada más de la trampa de foco y, con `data-initial-focus` sobre `liv-select`, recibe el primer foco. El `Dialog` no cambia.
+  - Límites:
+    - Los `value` de las opciones deben ser únicos y no vacíos (el vacío es la opción del `placeholder`).
+    - El teclado lo da el navegador y jsdom no lo implementa: se prueba en `e2e/`. Las pruebas de la librería son sintéticas y la comparación con Figma es a mano en Storybook (no hay regresión visual, Q14).
+    - La lista abierta la dibuja el sistema operativo, así que su aspecto varía entre navegadores.
+
 ## [0.4.0] — 2026-11-15
 
 Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR (8a a 8f), y cambios en tres componentes existentes (`Button`, `Dialog` e `Icon`), compatibles salvo lo que dice «Cambiado». Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend ejecuta su prueba del aviso de sesión: el `Dialog` sin cuerpo, `size` ni `tone` no cambia.
@@ -68,7 +88,7 @@ Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR
   - `tr[livTableRow]` (`type` `header` o `body`; sin `type`, la fila de un `<thead>` es el encabezado): Hover pinta `bg/subtle` y Focus dibuja un contorno `border/focus` de 2 px dentro de la fila mientras su enlace tiene el foco del teclado (`:has(:focus-visible)`: un clic con el ratón no lo pinta); un contorno, no una sombra, para que siga visible en alto contraste. La fila no es clicable: solo navega el enlace de la primera celda.
   - `th[livTableCell]` (siempre un encabezado de columna con `scope="col"`) y `td[livTableCell]` con `type` `text` (por omisión), `link`, `badge` o `action`. El `link` dibuja su propio `<a href>` y emite `navigate` con el destino, como `NavItem`: la pantalla navega con su enrutador. Es el único elemento de la fila que recibe el foco. `action` dibuja un chevron decorativo (`aria-hidden`, 20 px) en una columna de 56 px; su encabezado es un `th` con `type="action"`, cuyo texto, obligatorio, solo leen los lectores de pantalla. Un enlace sin destino queda inerte y se pinta como texto. La pantalla valida el destino que emite `navigate`.
   - Sin estado vacío, barra de herramientas ni paginación (la 1.4 usa `ResultState`; entran con la primera consulta 1.6). Las filas de «cargando» las compone la pantalla con `liv-skeleton` dentro de sus celdas. Los selectores solo valen sobre las etiquetas nativas (`table`, `tr`, `th`, `td`), la pantalla importa los tres componentes, todas las filas tienen las mismas columnas y, en un ancho estrecho, envuelve la tabla en un contenedor con desplazamiento horizontal.
-- *Skill* `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
+- _Skill_ `liv-componente` para los agentes (`.claude/skills/`), basada en los componentes de la feature 001, y el servidor MCP del CLI de Angular en modo de solo lectura (`.mcp.json`). No cambia el paquete publicado.
 
 ### Cambiado
 

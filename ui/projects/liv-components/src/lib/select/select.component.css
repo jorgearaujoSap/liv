@@ -1,0 +1,85 @@
+@reference '../tailwind-reference.css';
+
+:host {
+  @apply flex flex-col gap-2;
+}
+
+.select__label {
+  @apply text-label-md text-text-primary;
+}
+
+.select__control {
+  @apply relative box-border h-[44px] rounded-lg border border-solid border-border-strong bg-bg-surface;
+}
+
+/*
+ * El borde de Focus, Open y Error mide 1,5 px en Figma: 1 px de borde más 0,5 px de anillo interior. Open
+ * se pinta como Focus porque CSS no sabe si la lista del sistema está abierta; el `<select>` conserva el
+ * foco mientras tanto. En alto contraste (forced-colors) las sombras desaparecen y `outline-hidden` deja
+ * un contorno.
+ */
+.select__control:has(.select__input:focus) {
+  @apply border-border-focus shadow-focus-ring outline-hidden inset-ring-[0.5px] inset-ring-border-focus;
+}
+
+/* El <select> llena el control, para que todo él abra la lista; el borde lo dibuja el control. */
+.select__input {
+  @apply m-0 box-border h-full w-full appearance-none rounded-lg border-0 bg-transparent py-0 pr-10 pl-3 font-sans text-body-md text-text-primary outline-none;
+}
+
+/* Las opciones de la lista llevan text/primary: con el placeholder mostrado no heredan su text/muted. */
+.select__option {
+  @apply text-text-primary;
+}
+
+:host([data-content='placeholder']) .select__input {
+  @apply text-text-muted;
+}
+
+/* El chevron es decorativo: el clic llega al <select> que tiene debajo. */
+.select__icon {
+  @apply pointer-events-none absolute top-3 right-3 text-text-secondary;
+}
+
+.select__help {
+  @apply m-0 flex items-center gap-1 text-body-sm text-text-secondary;
+}
+
+/* Error */
+
+/* Va después de la regla de foco, con la misma especificidad: en Error con foco el borde sigue rojo. */
+:host([data-state='error']) .select__control {
+  @apply border-status-danger inset-ring-[0.5px] inset-ring-status-danger;
+}
+
+:host([data-state='error']) .select__help {
+  @apply text-status-danger;
+}
+
+/* Disabled */
+
+:host([data-state='disabled']) .select__label,
+:host([data-state='disabled']) .select__input,
+:host([data-state='disabled']) .select__icon {
+  @apply text-text-disabled;
+}
+
+:host([data-state='disabled']) .select__control {
+  @apply border-border-default bg-bg-subtle;
+}
+
+:host([data-state='disabled']) .select__input {
+  @apply cursor-not-allowed;
+}
+
+/*
+ * Alto contraste: el navegador reemplaza los colores por los del sistema y el borde de «deshabilitado»
+ * (border/default) dejaría de distinguirse del de un control activo. Se usa `GrayText`, el color del
+ * sistema para lo inhabilitado; es el único color que no sale de un token de theme.css (como en
+ * `RadioOption`). El texto del <select> inhabilitado ya lo pinta el navegador con `GrayText`.
+ */
+@media (forced-colors: active) {
+  :host([data-state='disabled']) .select__control {
+    border-color: GrayText;
+  }
+}
