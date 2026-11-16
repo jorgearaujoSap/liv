@@ -1,5 +1,6 @@
 package co.com.sapenlinea.liv.tax.api;
 
+import co.com.sapenlinea.liv.tax.api.contract.model.CreateBlocked;
 import co.com.sapenlinea.liv.tax.api.contract.model.CreateFiscalYearRequest;
 import co.com.sapenlinea.liv.tax.api.contract.model.FiscalYearList;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -20,6 +21,7 @@ import tools.jackson.databind.annotation.JsonDeserialize;
  *
  * <ul>
  *   <li>{@code createBlocked} is optional: when there is no reason it is omitted, not written as
+ *       {@code null}. So is its {@code minYear}: the contract allows it to be absent, but not
  *       {@code null}.
  *   <li>The {@code year} of the request is an integer: {@code "2026"}, {@code 2026.5} and {@code
  *       2026.0} are not turned into 2026 (they would answer 201, which the contract does not
@@ -34,10 +36,11 @@ class TaxJsonConfiguration {
     return builder ->
         builder
             .addMixIn(FiscalYearList.class, OmitAbsentFields.class)
+            .addMixIn(CreateBlocked.class, OmitAbsentFields.class)
             .addMixIn(CreateFiscalYearRequest.class, StrictYear.class);
   }
 
-  /** Omits the optional fields of the list that have no value ({@code createBlocked}). */
+  /** Omits the optional fields that have no value ({@code createBlocked}, {@code minYear}). */
   @JsonInclude(JsonInclude.Include.NON_NULL)
   abstract static class OmitAbsentFields {}
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import co.com.sapenlinea.liv.platform.PlatformWebTest;
+import co.com.sapenlinea.liv.tax.api.contract.model.CreateBlocked;
 import co.com.sapenlinea.liv.tax.api.contract.model.CreateFiscalYearRequest;
 import co.com.sapenlinea.liv.tax.api.contract.model.FiscalYearList;
 import java.util.List;
@@ -15,8 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The JSON rules that {@code tax.yaml} asks for, with the mapper of the application: the year of
- * the request is an integer and an absent {@code createBlocked} is omitted. That they stay inside
- * these DTO is fixed by {@code JacksonScopeTest}.
+ * the request is an integer, and an absent {@code createBlocked} or an absent {@code minYear} of it
+ * is omitted. That they stay inside these DTO is fixed by {@code JacksonScopeTest}.
  */
 @DisplayName("Reglas de JSON de las vigencias, de tax.yaml (007)")
 class TaxJsonConfigurationTest extends PlatformWebTest {
@@ -34,6 +35,21 @@ class TaxJsonConfigurationTest extends PlatformWebTest {
     FiscalYearList list = new FiscalYearList(List.of(), true, List.of());
 
     assertThat(mapper.writeValueAsString(list)).doesNotContain("createBlocked");
+  }
+
+  @Test
+  @DisplayName(
+      "V-05 · 007-23 · createBlocked omite minYear cuando no hay y no lo escribe null; con él, lo escribe")
+  void createBlockedOmitsAnAbsentMinYear() {
+    // Solo prueba la omisión de lo que falta; qué motivo lleva minYear lo decide el servidor.
+    CreateBlocked withoutMin = new CreateBlocked("OTHER_REASON", 2027);
+    CreateBlocked withMin = new CreateBlocked("ALL_CREATED", 2027);
+    withMin.setMinYear(2002);
+
+    assertThat(mapper.writeValueAsString(withoutMin))
+        .doesNotContain("minYear")
+        .contains("\"maxYear\":2027");
+    assertThat(mapper.writeValueAsString(withMin)).contains("\"minYear\":2002");
   }
 
   @Test
