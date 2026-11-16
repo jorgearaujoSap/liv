@@ -9,11 +9,7 @@
   @apply flex items-start justify-between gap-6;
 }
 
-/* La tabla no se acorta ni se desplaza sola: en un ancho estrecho, su contenedor se desplaza en horizontal. */
+/* La tabla no se acorta ni se desplaza sola (Table, liv-components): su contenedor se desplaza en horizontal. */
 div:has(> table) {
   @apply overflow-x-auto;
-}
-
-table {
-  @apply min-w-[720px];
 }

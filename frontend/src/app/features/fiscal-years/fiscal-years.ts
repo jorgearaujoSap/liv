@@ -26,6 +26,8 @@ const STATUSES: Readonly<Record<string, { label: string; tone: BadgeTone }>> = {
   CERRADA: { label: 'Cerrada', tone: 'neutral' },
 };
 
+const NO_YEARS_AVAILABLE = 'No hay años disponibles para crear una vigencia.';
+
 /** Cuántas filas de marcadores se dibujan mientras carga (las del diseño). */
 const SKELETON_ROWS = [1, 2, 3];
 
@@ -34,7 +36,8 @@ type View = 'loading' | 'ready' | 'error';
 /** Una fila de la tabla, lista para mostrar: textos ya formateados y el destino de su enlace. */
 interface Row {
   readonly year: number;
-  readonly href: string;
+  /** El destino del enlace del año; `undefined` si el año no es un entero, y entonces se muestra como texto. */
+  readonly href: string | undefined;
   readonly startsOn: string;
   readonly endsOn: string;
   readonly status: string;
@@ -83,15 +86,23 @@ export class FiscalYears {
   protected readonly isEmpty = computed(() => this.rows().length === 0);
   protected readonly canCreate = computed(() => this.list()?.canCreate === true);
 
-  /** Por qué no se puede crear, si hay permiso y ningún año disponible; sin motivo, la acción está activa. */
+  /**
+   * Por qué no se puede crear, con permiso y cuando el backend bloquea la creación o no ofrece ningún año; sin
+   * motivo, la acción está activa. El año del motivo solo se escribe si es un entero (`Number.isInteger`): si
+   * no, cae en el texto general.
+   */
   protected readonly blockedReason = computed(() => {
-    const blocked = this.list()?.createBlocked;
-    if (!blocked) {
+    const list = this.list();
+    if (!list?.canCreate) {
       return undefined;
     }
-    return blocked.reason === 'FUTURE_LIMIT'
-      ? `Ya existe la vigencia ${blocked.maxYear}, la última que se puede crear.`
-      : 'No hay años disponibles para crear una vigencia.';
+    const blocked = list.createBlocked;
+    if (blocked) {
+      return blocked.reason === 'FUTURE_LIMIT' && Number.isInteger(blocked.maxYear)
+        ? `Ya existe la vigencia ${blocked.maxYear}, la última que se puede crear.`
+        : NO_YEARS_AVAILABLE;
+    }
+    return list.creatableYears.length === 0 ? NO_YEARS_AVAILABLE : undefined;
   });
 
   /** La acción de crear queda inhabilitada cuando el backend dice que no hay años disponibles. */
@@ -100,6 +111,10 @@ export class FiscalYears {
   protected readonly emptyDescription = computed(() => {
     if (!this.canCreate()) {
       return 'Tu administración todavía no tiene vigencias fiscales. Solo el administrador del sistema puede crearlas.';
+    }
+    const blocked = this.blockedReason();
+    if (blocked) {
+      return blocked;
     }
     const options = (this.list()?.creatableYears ?? []).map((candidate) =>
       describeCreatableYear(candidate),
@@ -134,12 +149,14 @@ export class FiscalYears {
   }
 
   private toRow(item: FiscalYear): Row {
-    const known = STATUSES[item.status];
+    const known = Object.hasOwn(STATUSES, item.status) ? STATUSES[item.status] : undefined;
     return {
       year: item.year,
-      href: `/${OPTION_ROUTE}/1.4/${item.year}`,
-      startsOn: formatBusinessDate(item.startsOn) ?? 'Sin fecha',
-      endsOn: formatBusinessDate(item.endsOn) ?? 'Sin fecha',
+      // Solo un entero forma una ruta: lo demás se muestra como texto, sin enlace.
+      href: Number.isInteger(item.year) ? `/${OPTION_ROUTE}/1.4/${item.year}` : undefined,
+      // Fecha larga explícita: en la lista de vigencias manda el diseño (Figma 66:1967, H2-13).
+      startsOn: formatBusinessDate(item.startsOn, 'long') ?? 'Sin fecha',
+      endsOn: formatBusinessDate(item.endsOn, 'long') ?? 'Sin fecha',
       status: known?.label ?? item.status,
       tone: known?.tone ?? 'neutral',
       liquidation: item.assessmentsEnabled ? 'Habilitada' : 'No habilitada',

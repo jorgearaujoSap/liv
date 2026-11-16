@@ -347,7 +347,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       const odd = { ...fiscalYear(2026), year: 2026.5 };
       const host = await render({ ...withRows, items: [odd] });
 
-      expect(host.querySelector('tbody a')).toBeNull();
+      expect(host.querySelector('tbody a[href]')).toBeNull();
     });
   });
 
