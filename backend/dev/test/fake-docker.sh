@@ -4,7 +4,7 @@
 # «docker compose -f dev/compose.yaml -p liv-backend-dev exec -T postgres psql …». Cualquier otra orden la rechaza con el código 99 y
 # queda anotada, para que la prueba falle. Guarda en $FAKE_DOCKER_STORE:
 #   llamadas   cada llamada recibida, una por línea (los saltos de línea de los argumentos, como espacios)
-#   entorno    el valor de COMPOSE_PROJECT_NAME y de COMPOSE_FILE en cada llamada
+#   entorno    el valor de COMPOSE_PROJECT_NAME, COMPOSE_FILE y COMPOSE_ENV_FILES en cada llamada
 # Interruptores (archivos vacíos en $FAKE_DOCKER_STORE) para simular fallos:
 #   sin-contenedor   «ps -q» no encuentra el contenedor de PostgreSQL (el entorno no está levantado)
 #   ps-falla         «ps» falla, como cuando falta dev/.env
@@ -13,7 +13,7 @@ set -u
 almacen=$FAKE_DOCKER_STORE
 printf '%s\n' "$*" | tr '\n' ' ' | sed 's/ $//' >> "$almacen/llamadas"
 echo >> "$almacen/llamadas"
-printf 'COMPOSE_PROJECT_NAME=%s COMPOSE_FILE=%s\n' "${COMPOSE_PROJECT_NAME-sin-definir}" "${COMPOSE_FILE-sin-definir}" >> "$almacen/entorno"
+printf 'COMPOSE_PROJECT_NAME=%s COMPOSE_FILE=%s COMPOSE_ENV_FILES=%s\n' "${COMPOSE_PROJECT_NAME-sin-definir}" "${COMPOSE_FILE-sin-definir}" "${COMPOSE_ENV_FILES-sin-definir}" >> "$almacen/entorno"
 
 rechazar() { echo "fake-docker: $1" >&2; exit 99; }
 

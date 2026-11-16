@@ -14,14 +14,14 @@
 #   - la base no es la de desarrollo: la guarda va en la misma sentencia que el borrado, así que si falla no se borra
 #     nada. La base de desarrollo es la que tiene la administración de prueba B de dev/seed (UUID fijo).
 # Límites, para quien lo use: no detecta un contexto de Docker remoto fijado con «docker context use» (solo el de la
-# variable DOCKER_CONTEXT), ni un COMPOSE_ENV_FILES; en ese caso la única defensa es la guarda
+# variable DOCKER_CONTEXT), ; en ese caso la única defensa es la guarda
 # de la base, que reconoce cualquier base con la semilla de desarrollo. dev/seed y el perfil dev son solo del equipo
 # local: no los uses en ningún otro entorno.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
 # Las variables de Compose del entorno cambiarían el proyecto o el archivo al que apunta -f.
-unset COMPOSE_PROJECT_NAME COMPOSE_FILE
+unset COMPOSE_PROJECT_NAME COMPOSE_FILE COMPOSE_ENV_FILES
 
 rechaza() { echo "limpiar-vigencias: $1" >&2; exit 1; }
 
@@ -39,7 +39,7 @@ contenedor=$(docker compose -f dev/compose.yaml -p liv-backend-dev ps -q postgre
   || rechaza "el contenedor de PostgreSQL de desarrollo no está levantado. Levanta el entorno primero (ver dev/README.md)."
 
 # Una sola sentencia (una transacción): la guarda y el borrado se aplican juntos o no se aplica nada. Sin comentarios
-# de SQL (--): el texto se manda como una sola línea.
+# de SQL (--): el docker falso de la prueba aplana las líneas, y un -- taparía el resto.
 sql=$(cat <<'SQL'
 SET LOCAL lock_timeout = '5s';
 DO $guarda$

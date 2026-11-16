@@ -85,21 +85,30 @@ verificar "ps busca el contenedor postgres" contiene "$llamadas" 'compose -f dev
 verificar "la ejecución es «exec -T postgres psql -U postgres -d liv»" \
   contiene "$llamadas" 'compose -f dev/compose.yaml -p liv-backend-dev exec -T postgres psql -U postgres -d liv '
 verificar "psql se detiene en el primer error" contiene "$llamadas" 'ON_ERROR_STOP=1'
-verificar "no fija ninguna variable de Compose" contiene "$entorno" 'COMPOSE_PROJECT_NAME=sin-definir COMPOSE_FILE=sin-definir'
+verificar "no fija ninguna variable de Compose" contiene "$entorno" 'COMPOSE_PROJECT_NAME=sin-definir COMPOSE_FILE=sin-definir COMPOSE_ENV_FILES=sin-definir'
 verificar "no se conecta por puerto ni por dirección" \
   test "$(sed 's/ -p liv-backend-dev / /' "$llamadas" | grep -cE ' (-h|-p|--host|--port)( |$)|PGPORT|PGHOST')" -eq 0
 
 linea=$(grep ' exec ' "$llamadas")
 sql=$(printf '%s' "${linea#* -c }" | tr -s ' ')
-verificar "pasa una sola sentencia con -c" test "$sql" != "$linea"
+verificar "pasa la sentencia con -c" test "${linea#* -c }" != "$linea"
+verificar "pasa una sola sentencia: un solo -c (cada -c de psql sería otra transacción)" \
+  test "$(printf '%s' "$linea" | grep -o ' -c ' | wc -l)" -eq 1
+verificar "el SQL no lleva comentarios --" test "$(printf '%s' "$sql" | grep -c -- '--')" -eq 0
+verificar "el SQL empieza por el límite de espera del bloqueo (SET LOCAL lock_timeout, antes del DELETE)" \
+  test "${sql#"SET LOCAL lock_timeout = '5s'; "}" != "$sql"
 verificar "termina en el borrado, sin condición (DELETE FROM tax.administration_fiscal_year;)" \
   test "${sql%DELETE FROM tax.administration_fiscal_year;}" != "$sql"
 verificar "tiene un solo DELETE" test "$(printf '%s' "$sql" | grep -oiw 'DELETE' | wc -l)" -eq 1
-for prohibida in TRUNCATE DROP ALTER INSERT UPDATE CREATE GRANT REVOKE COPY VACUUM COMMIT ROLLBACK; do
+for prohibida in TRUNCATE DROP ALTER INSERT UPDATE CREATE GRANT REVOKE COPY VACUUM COMMIT ROLLBACK ABORT SAVEPOINT; do
   verificar "no usa $prohibida" test "$(printf '%s' "$sql" | grep -ciw "$prohibida")" -eq 0
 done
 verificar "el único BEGIN es el del bloque de la guarda (no parte la transacción)" \
   test "$(printf '%s' "$sql" | grep -oiw 'BEGIN' | wc -l)" -eq 1
+verificar "no abre otra transacción (START TRANSACTION)" test "$(printf '%s' "$sql" | grep -ci 'START TRANSACTION')" -eq 0
+fuera_de_la_guarda="${sql%%DO \$guarda\$*}${sql#*\$guarda\$;}"
+verificar "fuera del bloque de la guarda no hay END (un END; cerraría la transacción)" \
+  test "$(printf '%s' "$fuera_de_la_guarda" | grep -ciw 'END')" -eq 0
 tablas=$(printf '%s' "$sql" | grep -oE '[a-z_]+\.[a-z_]+' | sort -u | tr '\n' ' ')
 verificar "solo nombra tax.administration_fiscal_year y core.tax_administration (la guarda): $tablas" \
   test "$tablas" = 'core.tax_administration tax.administration_fiscal_year '
@@ -151,12 +160,12 @@ verificar "con argumentos, sale distinto de 0" test "$codigo" -ne 0
 verificar "con argumentos, no llama a docker" test "$(numero_de_llamadas)" -eq 0
 
 echo "Robustez:"
-variables_extra='COMPOSE_PROJECT_NAME=otro COMPOSE_FILE=otro.yaml'
+variables_extra='COMPOSE_PROJECT_NAME=otro COMPOSE_FILE=otro.yaml COMPOSE_ENV_FILES=otro.env'
 directorio=/
 escenario otro-directorio
 verificar "desde otro directorio y con COMPOSE_* en el entorno, funciona" test "$codigo" -eq 0
-verificar "ignora COMPOSE_PROJECT_NAME y COMPOSE_FILE del entorno" \
-  test "$(grep -c 'COMPOSE_PROJECT_NAME=sin-definir COMPOSE_FILE=sin-definir' "$entorno")" -eq 2
+verificar "ignora COMPOSE_PROJECT_NAME, COMPOSE_FILE y COMPOSE_ENV_FILES del entorno" \
+  test "$(grep -c 'COMPOSE_PROJECT_NAME=sin-definir COMPOSE_FILE=sin-definir COMPOSE_ENV_FILES=sin-definir' "$entorno")" -eq 2
 verificar "sin puerto fijo: el script no nombra puertos ni direcciones" \
   test "$(grep -v '^ *#' "$script" | sed 's/ -p liv-backend-dev / /' | grep -cE '543[0-9]|localhost|127\.0\.0\.1|POSTGRES_PORT|PGPORT|PGHOST| -h | -p |--port|--host')" -eq 0
 verificar "el script no lee ni imprime contraseñas" \
