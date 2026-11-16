@@ -28,8 +28,11 @@ const CREATION_FAILED =
   'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.';
 const CREATION_UNKNOWN_HEADING = 'No sabemos si se creó la vigencia';
 const CREATION_UNKNOWN =
-  'No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.';
+  'No pudimos confirmar el resultado. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.';
 const PREPARATION_HEADING = 'No se abrió la preparación';
+const PREPARATION_UNKNOWN_HEADING = 'No sabemos si se abrió la preparación';
+const PREPARATION_UNKNOWN =
+  'No pudimos confirmar el resultado. Es posible que la preparación sí se haya abierto: revisa la vigencia antes de intentarlo de nuevo.';
 const PREPARATION_FAILED =
   'No pudimos abrir la preparación. Intenta de nuevo; si continúa, avisa al administrador del sistema.';
 
@@ -51,8 +54,11 @@ export function creationRejection(
   }
   const problem = problemOf(error);
   const code = problem?.['code'];
-  if (problem && code === 'V-01') {
-    const year = asYear(problem['year']) ?? requestedYear;
+  // Por contrato, un 409 de la creación es V-01 (el año ya existe), aunque el cuerpo no lo traiga.
+  const isConflict =
+    code === 'V-01' || (error instanceof HttpErrorResponse && error.status === 409);
+  if (isConflict) {
+    const year = asYear(problem?.['year']) ?? requestedYear;
     return {
       heading: CREATION_HEADING,
       reload: true,
@@ -89,6 +95,10 @@ export function openPreparationRejection(
       refresh: true,
       message: `V-06 · La vigencia ${shown} ya no está Planeada: otra persona acaba de cambiarla. Actualizamos la pantalla.`,
     };
+  }
+  // Sin respuesta, o con un error del servidor, la transición pudo haber ocurrido.
+  if (isOutcomeUnknown(error)) {
+    return { heading: PREPARATION_UNKNOWN_HEADING, refresh: true, message: PREPARATION_UNKNOWN };
   }
   return { heading: PREPARATION_HEADING, refresh: false, message: PREPARATION_FAILED };
 }
@@ -130,7 +140,7 @@ function isHandledByInterceptor(error: unknown): boolean {
 }
 
 /** Si no se sabe si la operación llegó a hacerse: no hubo respuesta o el servidor falló. */
-function isOutcomeUnknown(error: unknown): boolean {
+export function isOutcomeUnknown(error: unknown): boolean {
   if (error instanceof TimeoutError) {
     return true;
   }

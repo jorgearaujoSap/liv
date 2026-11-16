@@ -10,7 +10,7 @@
       reasonAlign="end"
       [disabled]="createDisabled()"
       [disabledReason]="blockedReason()"
-      (click)="creating.set(true)"
+      (click)="startCreating()"
     >
       Crear vigencia
     </liv-button>
@@ -22,6 +22,10 @@
   <liv-alert status="warning">
     No pudimos actualizar la lista de vigencias. Recarga la pantalla para verla al día.
   </liv-alert>
+}
+
+@if (pageRejection(); as rejection) {
+  <liv-alert status="error" [heading]="rejection.heading">{{ rejection.message }}</liv-alert>
 }
 
 @if (view() === 'error') {
@@ -46,7 +50,7 @@
         leadingIcon="plus"
         [disabled]="createDisabled()"
         [disabledReason]="blockedReason()"
-        (click)="creating.set(true)"
+        (click)="startCreating()"
       >
         Crear la primera vigencia
       </liv-button>
@@ -106,8 +110,9 @@
   <app-create-fiscal-year-dialog
     [years]="creatableYears()"
     [refreshing]="reloading()"
+    [refreshFailed]="refreshFailed()"
     (created)="onCreated($event)"
-    (staleList)="onStaleList()"
-    (closed)="creating.set(false)"
+    (staleList)="onStaleList($event)"
+    (closed)="closeDialog()"
   />
 }

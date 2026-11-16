@@ -99,7 +99,7 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       expect(creationRejection(error, 2027)).toEqual({
         heading: 'No sabemos si se creó la vigencia',
         message:
-          'No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
+          'No pudimos confirmar el resultado. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
         reload: true,
       });
     });
@@ -215,7 +215,7 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       expect(openPreparationRejection(error, 2026)).toEqual({
         heading: 'No sabemos si se abrió la preparación',
         message:
-          'No recibimos respuesta del servidor. Es posible que la preparación sí se haya abierto: revisa la vigencia antes de intentarlo de nuevo.',
+          'No pudimos confirmar el resultado. Es posible que la preparación sí se haya abierto: revisa la vigencia antes de intentarlo de nuevo.',
         refresh: true,
       });
     });

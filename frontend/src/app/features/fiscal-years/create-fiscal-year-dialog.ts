@@ -1,12 +1,17 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  ElementRef,
   inject,
+  Injector,
   input,
   linkedSignal,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import {
   AlertComponent,
@@ -19,7 +24,7 @@ import {
 } from 'liv-components';
 
 import type { CreatableYear, FiscalYear } from '../../api/tax/models';
-import { creationRejection } from './fiscal-year-rejections';
+import { creationRejection, isOutcomeUnknown, type Rejection } from './fiscal-year-rejections';
 import { FiscalYearsService } from './fiscal-years.service';
 
 /** Qué dice la etiqueta de un año según su relación con el año en curso; una relación que no conoce no lleva. */
@@ -34,6 +39,16 @@ interface RejectionAlert {
   readonly id: number;
   readonly heading: string;
   readonly message: string;
+}
+
+/** Lo que el diálogo avisa cuando la lista que se muestra pudo quedar vieja (V-01, o no se sabe si se creó). */
+export interface StaleList {
+  /** El año que se intentó crear. */
+  readonly year: number;
+  /** No se sabe si la vigencia se creó (tiempo agotado, caída o error del servidor); si no, fue un V-01. */
+  readonly unknown: boolean;
+  /** El mensaje que se mostró, por si la pantalla debe conservarlo al cerrar el diálogo. */
+  readonly rejection: Rejection;
 }
 
 /**
@@ -61,15 +76,19 @@ interface RejectionAlert {
 })
 export class CreateFiscalYearDialog {
   private readonly fiscalYears = inject(FiscalYearsService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   /** Los años que se pueden crear, como los manda el backend. */
   readonly years = input.required<readonly CreatableYear[]>();
   /** La pantalla está releyendo la lista: la creación espera para no ofrecer años que ya no están. */
   readonly refreshing = input(false);
+  /** La última relectura de la lista falló: los años que se ofrecen pueden no estar al día. */
+  readonly refreshFailed = input(false);
   /** La vigencia quedó creada. */
   readonly created = output<FiscalYear>();
   /** La lista que se muestra pudo quedar vieja: V-01, o no se sabe si la vigencia se creó. */
-  readonly staleList = output<void>();
+  readonly staleList = output<StaleList>();
   /** La persona canceló o cerró el diálogo con Escape. */
   readonly closed = output<void>();
 
@@ -81,8 +100,12 @@ export class CreateFiscalYearDialog {
   protected readonly choice = computed(() =>
     this.years().find((candidate) => String(candidate.year) === this.selected()),
   );
-  protected readonly startsOn = computed(() => formatBusinessDate(this.choice()?.startsOn) ?? '');
-  protected readonly endsOn = computed(() => formatBusinessDate(this.choice()?.endsOn) ?? '');
+  protected readonly startsOn = computed(
+    () => formatBusinessDate(this.choice()?.startsOn, 'long') ?? '',
+  );
+  protected readonly endsOn = computed(
+    () => formatBusinessDate(this.choice()?.endsOn, 'long') ?? '',
+  );
 
   protected readonly submitting = signal(false);
   protected readonly busyLabel = computed(() =>
@@ -91,6 +114,17 @@ export class CreateFiscalYearDialog {
   protected readonly alerts = signal<readonly RejectionAlert[]>([]);
   /** Cuenta los intentos solo para dar a cada alerta un `id` nuevo; no se muestra, así que no es una señal. */
   private attempts = 0;
+  /** Cerrojo del envío: tras crear queda puesto (el diálogo se va a cerrar) y solo un rechazo lo libera. */
+  private locked = false;
+  /** Tras un rechazo que pide releer la lista, el foco va al año marcado cuando lleguen los años nuevos. */
+  private refocusOnNextYears = false;
+
+  constructor() {
+    effect(() => {
+      this.years();
+      untracked(() => this.focusSelectionIfPending());
+    });
+  }
 
   protected relationLabel(relation: string): string {
     return Object.hasOwn(RELATION_LABELS, relation) ? RELATION_LABELS[relation] : '';
@@ -98,15 +132,18 @@ export class CreateFiscalYearDialog {
 
   protected async submit(): Promise<void> {
     const choice = this.choice();
-    if (!choice || this.submitting() || this.refreshing()) {
+    if (!choice || this.locked || this.refreshing()) {
       return;
     }
+    this.locked = true;
+    this.refocusOnNextYears = false;
     this.submitting.set(true);
     this.alerts.set([]);
     let created: FiscalYear;
     try {
       created = await this.fiscalYears.create(choice.year);
     } catch (error) {
+      this.locked = false;
       this.reject(error, choice.year);
       return;
     } finally {
@@ -123,6 +160,22 @@ export class CreateFiscalYearDialog {
     }
   }
 
+  /**
+   * La lista nueva puede cambiar el año marcado (el que ya existía deja de estar): el foco va al año marcado
+   * para que se lea cuál es, y no se queda en «Crear vigencia», donde un Enter crearía otro año sin avisar.
+   */
+  private focusSelectionIfPending(): void {
+    if (!this.refocusOnNextYears) {
+      return;
+    }
+    this.refocusOnNextYears = false;
+    afterNextRender(
+      () =>
+        this.host.nativeElement.querySelector<HTMLElement>('input[type="radio"]:checked')?.focus(),
+      { injector: this.injector },
+    );
+  }
+
   private reject(error: unknown, year: number): void {
     const rejection = creationRejection(error, year);
     if (!rejection) {
@@ -132,7 +185,12 @@ export class CreateFiscalYearDialog {
       { id: ++this.attempts, heading: rejection.heading, message: rejection.message },
     ]);
     if (rejection.reload) {
-      this.staleList.emit();
+      this.refocusOnNextYears = true;
+      this.staleList.emit({
+        year,
+        unknown: isOutcomeUnknown(error),
+        rejection: { heading: rejection.heading, message: rejection.message },
+      });
     }
   }
 }

@@ -633,6 +633,36 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(rows(host)).toHaveLength(1);
     });
 
+    it('mientras se relee la lista no se abre un diálogo nuevo con los años viejos', async () => {
+      service.create.mockRejectedValue(conflict());
+      const host = await open();
+      let arrive: (list: FiscalYearList) => void = () => undefined;
+      service.list.mockReturnValueOnce(
+        new Promise<FiscalYearList>((resolve) => (arrive = resolve)),
+      );
+
+      inDialog(host, 'Crear vigencia')?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      TestBed.tick();
+      inDialog(host, 'Cancelar')?.click();
+      TestBed.tick();
+      expect(dialog(host)).toBeNull();
+
+      button(host, 'Crear vigencia')?.click();
+      TestBed.tick();
+      expect(dialog(host)).toBeNull();
+
+      arrive({
+        ...creatable,
+        items: [fiscalYear(2027), fiscalYear(2026)],
+        creatableYears: [year2028],
+      });
+      await TestBed.inject(ApplicationRef).whenStable();
+      TestBed.tick();
+      expect(dialog(host)).toBeNull();
+    });
+
     it('un tiempo agotado cuya relectura trae el año pedido lo da por creado: cierra y anuncia', async () => {
       service.create.mockRejectedValue(new TimeoutError(10_000));
       const host = await open();

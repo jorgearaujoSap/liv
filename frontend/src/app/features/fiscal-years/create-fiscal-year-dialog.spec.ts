@@ -390,7 +390,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       await submit();
 
       expect(text(alerts()[0])).toBe(
-        'No sabemos si se creó la vigencia No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
+        'No sabemos si se creó la vigencia No pudimos confirmar el resultado. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
       );
       expect(stale).toHaveBeenCalledTimes(1);
       expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2027, unknown: true }));

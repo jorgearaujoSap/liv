@@ -12,6 +12,11 @@
     @for (alert of alerts(); track alert.id) {
       <liv-alert status="error" [heading]="alert.heading">{{ alert.message }}</liv-alert>
     }
+    @if (refreshFailed()) {
+      <liv-alert status="warning">
+        No pudimos actualizar la lista de vigencias. Los años que se ofrecen pueden no estar al día.
+      </liv-alert>
+    }
     <liv-radio-group legend="Año de la vigencia" [(value)]="selected" [disabled]="submitting()">
       @for (option of years(); track option.year) {
         <liv-radio-option
