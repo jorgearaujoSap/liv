@@ -5,6 +5,7 @@ import { SESION_ADMIN_B, SESION_ADMIN_IPIALES, TOTP_SECRETO, TOTP_SECRETO_B, USU
 import {
   comprobarAdministracionesSinVigencias,
   crearVigenciaPorApi,
+  fechaCorta,
   fechaLarga,
   leerVigencias,
   postPorApi,
@@ -31,13 +32,13 @@ const RUTA = '/opcion/1.4';
 type AnioCreable = ListaDeVigencias['creatableYears'][number];
 
 /**
- * Etiqueta de cada año del diálogo según su relación con el año en curso (`relation` del contrato). Figma no trae el
- * texto de `CURRENT`: se exige que diga «en curso» sin ser la de un año anterior ni la de uno siguiente.
+ * Etiqueta de cada año del diálogo según su relación con el año en curso (`relation` del contrato). Los textos son los
+ * del frontend (`create-fiscal-year-dialog.ts`); Figma trae los de `PAST` (75:4479) y `NEXT` (67:3040), no el de `CURRENT`.
  */
-const DESCRIPCION_DE_RELACION: Record<string, RegExp> = {
-  PAST: /anterior al año en curso/i,
-  CURRENT: /^(?!.*(siguiente|anterior)).*en curso/i,
-  NEXT: /siguiente al año en curso/i,
+const DESCRIPCION_DE_RELACION: Record<string, string> = {
+  PAST: 'Año anterior al año en curso',
+  CURRENT: 'Año en curso',
+  NEXT: 'Año siguiente al año en curso',
 };
 
 function dialogo(page: Page): Locator {
@@ -95,9 +96,26 @@ function datosConFechaDelDetalle(page: Page): Locator[] {
   return [...datosConFecha(page), page.locator('liv-page-header')];
 }
 
-/** Suelta el foco para que el anillo de un control enfocado por una prueba no quede en la captura de referencia. */
+/**
+ * El detalle mide 1180 px de alto en Figma (68:3460 y 68:3846) y con los datos reales llega a ~1250. La aplicación llena
+ * la ventana y desplaza dentro de ella, así que una captura de página completa con 900 px corta la lista: se captura
+ * con una ventana más alta, que muestra todo el detalle.
+ */
+async function conAltoDelDetalle(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 1300 });
+}
+
+/**
+ * Deja la página como la recién abierta para la captura de referencia: sin el foco que le dio una prueba (el anillo
+ * saldría en la captura) y sin el desplazamiento que el foco provoca dentro de la ventana de la aplicación.
+ */
 async function sinFoco(page: Page): Promise<void> {
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    document.querySelectorAll('*').forEach((elemento) => {
+      elemento.scrollTop = 0;
+    });
+  });
 }
 
 // Si las administraciones de prueba ya tienen vigencias, se detienen estas pruebas y no las de la 001 (H2‑9).
@@ -255,9 +273,10 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     await crear.getByRole('button', { name: 'Crear vigencia' }).click();
 
     await expect(crear).toHaveCount(0);
+    // La tabla de consulta muestra las fechas como dd/mm/aaaa; la fecha larga es solo para las fechas sueltas.
     const fila = filaDelAnio(page, primera.year);
-    await expect(fila).toContainText(fechaLarga(primera.startsOn));
-    await expect(fila).toContainText(fechaLarga(primera.endsOn));
+    await expect(fila).toContainText(fechaCorta(primera.startsOn));
+    await expect(fila).toContainText(fechaCorta(primera.endsOn));
     await expect(fila).toContainText('Planeada');
     await expect(fila).toContainText('No habilitada');
     const lista = await leerVigencias(page);
@@ -323,6 +342,7 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     const abrir = botonAbrirPreparacion(page);
     await expect(abrir).toBeVisible();
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
+    await conAltoDelDetalle(page);
     await sinFoco(page);
     await expect(page).toHaveScreenshot('vigencias-detalle-planeada.png', {
       fullPage: true,
@@ -385,6 +405,7 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     const lista = await leerVigencias(page);
     expect(lista.items.find((vigencia) => vigencia.year === primera.year)?.assessmentsEnabled).toBe(false);
     expect(await infraccionesDeAccesibilidad(page)).toEqual([]);
+    await conAltoDelDetalle(page);
     await sinFoco(page);
     await expect(page).toHaveScreenshot('vigencias-detalle.png', {
       fullPage: true,
@@ -417,8 +438,8 @@ test.describe('1.4 · Roles que consultan pero no crean, en una administración 
       await expect(filasDeVigencias(page)).toHaveCount(2);
       for (const [indice, vigencia] of lista.items.entries()) {
         await expect(filasDeVigencias(page).nth(indice)).toContainText(String(vigencia.year));
-        await expect(filasDeVigencias(page).nth(indice)).toContainText(fechaLarga(vigencia.startsOn));
-        await expect(filasDeVigencias(page).nth(indice)).toContainText(fechaLarga(vigencia.endsOn));
+        await expect(filasDeVigencias(page).nth(indice)).toContainText(fechaCorta(vigencia.startsOn));
+        await expect(filasDeVigencias(page).nth(indice)).toContainText(fechaCorta(vigencia.endsOn));
       }
       await expect(page.getByRole('button', { name: /Crear/ })).toHaveCount(0);
 

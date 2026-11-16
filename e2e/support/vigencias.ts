@@ -91,7 +91,15 @@ export async function comprobarAdministracionesSinVigencias(browser: Browser): P
   writeFileSync(marca, '');
 }
 
-/** Fecha de negocio (`2026-01-01`) como la escribe el diseño: «1 de enero de 2026». No depende del reloj ni de la zona. */
+/** Fecha de negocio (`2026-01-01`) como se muestra en las tablas de consulta: «01/01/2026». */
+export function fechaCorta(fecha: string): string {
+  return fecha.split('-').reverse().join('/');
+}
+
+/**
+ * Fecha de negocio (`2026-01-01`) como la escribe el diseño en las fechas sueltas (diálogo, detalle): «1 de enero de
+ * 2026». No depende del reloj ni de la zona.
+ */
 export function fechaLarga(fecha: string): string {
   return new Date(`${fecha}T00:00:00Z`).toLocaleDateString('es-CO', {
     day: 'numeric',

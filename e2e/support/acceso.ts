@@ -128,11 +128,13 @@ export async function guardarSesionConSegundoFactor(
   secreto: string | Buffer,
   archivo: string,
 ): Promise<void> {
+  // `storageState: undefined`: el `browser` de Playwright hereda el `storageState` de `test.use` y el archivo aún no existe.
   const contexto = await browser.newContext({
     baseURL: BASE_URL,
     locale: 'es-CO',
     timezoneId: 'America/Bogota',
     viewport: { width: 1440, height: 900 },
+    storageState: undefined,
   });
   try {
     await entrarConSegundoFactor(await contexto.newPage(), usuario, secreto);
