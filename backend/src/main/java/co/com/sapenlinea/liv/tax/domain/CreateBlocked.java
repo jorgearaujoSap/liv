@@ -20,5 +20,9 @@ public record CreateBlocked(Reason reason, int minYear, int maxYear) {
 
   public CreateBlocked {
     Objects.requireNonNull(reason, "reason");
+    if (minYear > maxYear) {
+      throw new IllegalArgumentException(
+          "The range is inverted: " + minYear + " is after " + maxYear);
+    }
   }
 }

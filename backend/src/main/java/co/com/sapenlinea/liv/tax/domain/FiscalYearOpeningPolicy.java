@@ -122,9 +122,11 @@ public final class FiscalYearOpeningPolicy {
    * thing missing.
    */
   public Optional<CreateBlocked> createBlocked() {
+    // An empty range (a current year before 2001) has no year to have: it is not "all created".
     boolean hasEveryYear =
-        IntStream.rangeClosed(FIRST_CREATABLE_YEAR, maxYear())
-            .allMatch(administrationYears::contains);
+        maxYear() >= FIRST_CREATABLE_YEAR
+            && IntStream.rangeClosed(FIRST_CREATABLE_YEAR, maxYear())
+                .allMatch(administrationYears::contains);
     if (hasEveryYear) {
       return Optional.of(
           new CreateBlocked(CreateBlocked.Reason.ALL_CREATED, FIRST_CREATABLE_YEAR, maxYear()));
