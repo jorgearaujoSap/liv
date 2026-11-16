@@ -94,7 +94,10 @@ export class CreateFiscalYearDialog {
   /** La persona canceló o cerró el diálogo con Escape. */
   readonly closed = output<void>();
 
-  /** El año marcado, como texto (el valor de un radio): conserva el actual si sigue disponible y, si no, el año en curso o el siguiente. */
+  /**
+   * El año marcado, como texto (el valor de un radio): conserva el actual si sigue disponible y, si no, marca el
+   * año en curso o el siguiente (`pickYear`).
+   */
   protected readonly selected = linkedSignal<readonly CreatableYear[], string | null>({
     source: this.years,
     computation: (years, previous) => pickYear(years, previous?.value),

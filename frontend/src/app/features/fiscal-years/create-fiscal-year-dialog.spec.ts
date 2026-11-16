@@ -211,6 +211,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       expect(text(host)).not.toContain('Fin 31 de diciembre');
     });
 
+    // El foco inicial lo pone `liv-dialog` (la primera parada de Tab): esta prueba protege que siga siendo el grupo.
     it('con solo años pasados, el foco inicial va al grupo y no a «Crear vigencia»', () => {
       render([option(2025, 'PAST'), option(2024, 'PAST')]);
 
