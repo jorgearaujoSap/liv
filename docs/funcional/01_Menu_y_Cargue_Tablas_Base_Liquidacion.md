@@ -3,7 +3,7 @@
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Documento base:** `ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (80 tablas desde su versión 2.3, esquemas `core`, `documents`, `valuation`, `tax`, `ledger`, `portfolio`, `collection`, `enforcement`, `audit`)
 > **Alcance de esta entrega:** (1) lógica de negocio general y mapa de menú, (2) detalle de **Administración → Cargue de tablas base por vigencia**, (3) consultas con filtros y exportación a Excel del proceso de cargue.
-> **Versión:** 0.5 — la vigencia fiscal pasa a ser **por administración** (feature 007, opción 1.4; decisión 3 de su H1 y enmiendas 1 a 3 de su H2): el año sigue nacional en `tax.fiscal_year` y el estado y `assessments_enabled` pasan a `tax.administration_fiscal_year`. Cambian el encabezado (80 tablas del ERD 2.3), §1, §3, §5 (modelo, reglas V‑01, V‑02 y V‑04, reglas nuevas V‑05 y V‑06, orden de evaluación al crear y permisos de acción), §6.1, §8 y §11, y se agrega el §13 con los cambios que esto aplica a otros documentos. La versión 0.4 hizo que el menú 5 (§3) remitiera al Doc. 05 con su opción 5.6, y que el documento base pasara a las 79 tablas del ERD 2.2 (feature 005). La versión 0.3 agregó la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
+> **Versión:** 0.6 — una administración puede crear vigencias de **2002 al año siguiente al año en curso, en cualquier orden** (feature 007, enmienda 4; H1 y H2 del 2026-11-16): para liquidar años pasados en LIV, no solo para la cartera histórica. Cambian §5 (V‑02 deja de rechazar y V‑05 pasa a ser un rango, con el orden de evaluación) y §11 (el pendiente 5 queda resuelto para la creación y se agrega el pendiente 9), y se agrega la versión 0.6 al §13. Son propuestas pendientes de revisión jurídica. La versión 0.5 — la vigencia fiscal pasa a ser **por administración** (feature 007, opción 1.4; decisión 3 de su H1 y enmiendas 1 a 3 de su H2): el año sigue nacional en `tax.fiscal_year` y el estado y `assessments_enabled` pasan a `tax.administration_fiscal_year`. Cambian el encabezado (80 tablas del ERD 2.3), §1, §3, §5 (modelo, reglas V‑01, V‑02 y V‑04, reglas nuevas V‑05 y V‑06, orden de evaluación al crear y permisos de acción), §6.1, §8 y §11, y se agrega el §13 con los cambios que esto aplica a otros documentos. La versión 0.4 hizo que el menú 5 (§3) remitiera al Doc. 05 con su opción 5.6, y que el documento base pasara a las 79 tablas del ERD 2.2 (feature 005). La versión 0.3 agregó la matriz de permisos de consulta del menú (§4.1), aprobada en H2 de la feature 001 (2026-11-01). La versión 0.2 la ajustó con la estructura real de las tablas 2026 y la configuración por jurisdicción (Doc. 03)
 
 ---
 
@@ -175,26 +175,23 @@ stateDiagram-v2
 **Reglas**
 
 - V‑01: una administración tiene una sola vigencia por año (`UNIQUE (administration_id, fiscal_year)`; si dos personas crean el mismo año a la vez, se crea una sola y la otra se rechaza con V‑01). La vigencia se crea en `PLANEADA`, con `assessments_enabled = false`, y sus fechas son el 1 de enero y el 31 de diciembre del año (`starts_on` y `ends_on` del año nacional, fijadas por `CHECK`; no se escriben a mano). Si una norma exigiera otras fechas, se cambia con una migración y una versión de este documento; hoy no se conoce ninguna.
-- V‑02: dentro de una administración no se puede saltar un año.
-  - Si la vigencia más reciente es N, solo se puede crear la N+1; un año posterior se rechaza con el motivo `GAP` y dice cuál debe crearse primero.
-  - Un año anterior a la vigencia más antigua es una vigencia histórica: se rechaza con el motivo `HISTORICAL` mientras la carga de vigencias históricas no esté autorizada (§11, pendiente 5).
-  - Estos dos motivos suponen que la administración ya tiene vigencias; si no tiene ninguna, solo rige V‑05 `FIRST_YEAR`.
+- V‑02 (v0.6): el **orden de creación es libre**. Dentro del rango de V‑05, una administración puede crear cualquier año que no tenga: antes de su vigencia más antigua, después de la más reciente o entre dos, y se admiten huecos. V‑02 ya no rechaza nada y conserva su número para poder rastrear la regla. Un año pasado se crea en `PLANEADA` y sigue el mismo ciclo que cualquier otro (preparación, habilitación y liquidación); crearlo no carga sus tablas ni habilita su liquidación. Lo crea el `ADMIN_SISTEMA` (`tax.fiscal-year.create`), sin otra firma, y queda en la auditoría: el control que compensa es la doble firma de la habilitación de la feature de la opción 1.5.1 (V‑03), de modo que ningún año se liquida sin dos personas.
 - V‑03: `assessments_enabled = true` solo si el checklist 1.5.1 está completo.
 - V‑04: una vigencia `CERRADA` no admite nuevos catálogos; correcciones posteriores requieren reapertura justificada y auditada. Quién cierra, cuándo y a qué estado vuelve una reapertura está pendiente (§11, pendiente 7).
-- V‑05 (nueva, v0.5): límites del año que se puede crear.
-  - La **primera** vigencia de una administración solo puede ser el año en curso o el siguiente: otro año se rechaza con el motivo `FIRST_YEAR` y dice cuáles se admiten. Quien crea como primera vigencia el año siguiente ya no podrá crear después el año en curso, porque sería anterior a la más antigua (V‑02 `HISTORICAL`).
-  - Nunca se puede crear un año posterior al **siguiente al año en curso**: se rechaza con el motivo `FUTURE_LIMIT` y dice cuál es el último año que se puede crear. El límite existe porque una vigencia no se borra: sin él se encadenarían años futuros sin forma de corregirlos.
-  - Las dos son reglas de este documento y no de la configuración de jurisdicción, porque no cambian entre jurisdicciones.
+- V‑05 (v0.5; cambiada en la v0.6): límites del año que se puede crear. Es un **rango**, igual para la primera vigencia de una administración y para las demás: de **2002 al año siguiente al año en curso**.
+  - Un año anterior a 2002 se rechaza con el motivo `PAST_LIMIT` y dice cuál es el primer año que se puede crear.
+  - Un año posterior al **siguiente al año en curso** se rechaza con el motivo `FUTURE_LIMIT` y dice cuál es el último año que se puede crear. El límite existe porque una vigencia no se borra: sin él se encadenarían años futuros sin forma de corregirlos.
+  - **2002 es un límite operativo del producto**, decidido por el responsable funcional el 2026-11-16 (feature 007, enmienda 4, decisión E4‑1): es la primera vigencia que admite LIV. No es un valor tributario ni el año modelo de las tablas del Ministerio (Doc. 03 §3), no fija plazos, tarifas ni vencimientos, y por eso no va en la configuración de jurisdicción ni requiere un ADR sobre la constitución. Se aprobó además como **excepción explícita** a la prohibición de escribir valores tributarios en el código (`AGENTS.md` §4.5), por si se entendiera como una fecha tributaria. Es igual para todas las jurisdicciones: si una necesitara años anteriores, se cambia con una versión de este documento y otra del backend.
+  - Es una regla de este documento y no de la configuración de jurisdicción, porque no cambia entre jurisdicciones.
   - El año en curso es el de la hora oficial de Colombia (zona `America/Bogota`, que la aplicación toma de su configuración): cerca del 31 de diciembre, el reloj de otra zona daría otro año.
+  - Que un año se pueda crear no quiere decir que se pueda liquidar: la prescripción, la firmeza y la competencia de la administración ese año siguen abiertas (Doc. 02 §12, pendiente 7).
 - V‑06 (nueva, v0.5): una transición que el diagrama no permite desde el estado actual se rechaza con V‑06 y el estado actual, sin cambiar nada. La opción 1.4 implementa una sola transición, `PLANEADA` → `EN_PREPARACION`, la de «Abrir preparación»; esa acción desde cualquier otro estado da V‑06 (la flecha `LISTA` → `EN_PREPARACION` es de «Nueva versión de tabla», no de esa acción), también cuando otra persona la abrió un instante antes. La reapertura de V‑04 no está en el diagrama: la define la feature de la opción 1.5.1 (pendiente 7).
 - **Orden de evaluación al crear**, de modo que cada caso da un solo motivo: el primero que falla es el que se responde.
   1. V‑01 (el año ya existe).
-  2. V‑02 `HISTORICAL`.
-  3. V‑05 `FIRST_YEAR`.
-  4. V‑02 `GAP`.
-  5. V‑05 `FUTURE_LIMIT`.
+  2. V‑05 `PAST_LIMIT`.
+  3. V‑05 `FUTURE_LIMIT`.
 
-  Por ejemplo, 2029 en una administración cuya vigencia más reciente es 2026 da `GAP`, que dice qué crear primero.
+  Por ejemplo, con el año en curso 2026 y la vigencia 2026 ya creada: 2001 da `PAST_LIMIT`; 2026 da V‑01; y 2028 da `FUTURE_LIMIT`.
 
 **Permisos de acción de la opción 1.4** (aprobados en H2 de la feature 007, decisión H2‑3). Como los de §4.1, viven en `platform.role_permission`, y la prueba que compara esa tabla con la esperada los incluirá (migración de la feature 007): documento y prueba deben mantenerse iguales.
 
@@ -564,13 +561,16 @@ Detectados al diseñar este módulo (no rompen el ERD, lo complementan):
 2. Fuente normativa y forma de carga de **rangos y tarifas** por vigencia en la jurisdicción (nacional vs. departamental/distrital).
 3. Tratamiento de **vehículos sin referencia en la tabla** (homologación por similar, `similar_valuation_id`): se diseñará en el módulo 2.6.
 4. Umbrales de las advertencias `R009`, `R012` (valores por defecto propuestos; parametrizables en 1.8).
-5. Si se admite carga de **vigencias históricas** (años anteriores) para cartera, y quién la autoriza. La feature de la opción 5.1 (apertura de cartera histórica, Fase 5) decide si se admiten y lo resuelve antes de cargarlas (la primera vigencia de cartera, `cartera_historica.vigencias_desde`, está en `PENDIENTE` en la configuración de Ipiales). Mientras tanto, V‑02 rechaza un año anterior a la vigencia más antigua (`HISTORICAL`, §5).
+5. **Vigencias de años anteriores.**
+   - **Resuelto para la creación (feature 007, enmienda 4, v0.6):** se admiten vigencias de 2002 al año siguiente al año en curso, para liquidarlas en LIV, y las crea el `ADMIN_SISTEMA` como cualquier otra (V‑02 y V‑05, §5). El control que compensa es la doble firma de la habilitación (V‑03). Es una propuesta pendiente de revisión jurídica.
+   - **Sigue abierto para la cartera:** desde qué vigencia se migran saldos y cómo se relaciona con las vigencias de LIV (si un año tiene saldos migrados y vigencia en LIV, cuál origen prevalece: pendiente 28 del Doc. 05). Lo decide la feature de la opción 5.1 (apertura de cartera histórica, Fase 5) antes de cargarlos; la primera vigencia de cartera, `cartera_historica.vigencias_desde`, está en `PENDIENTE` en la configuración de Ipiales.
 6. Tecnología de exportación (generación servidor con librería xlsx en streaming) y política de retención de los archivos exportados.
 7. **Cierre y reapertura de la vigencia (V‑04):** quién cierra una vigencia y cuándo, a qué estado vuelve una reapertura y quién la autoriza. Se le pregunta al responsable funcional y lo necesita la feature de la opción 1.5.1, que implementa el cierre.
 8. **Estado de la vigencia y catálogos nacionales:** con el estado por administración, lo decide la feature de cada opción 1.5.x:
    - qué estados admiten cargar cada tabla (V‑04, §6.2);
    - cómo se lee «vigencia no cerrada» para un catálogo o una tabla nacional (`administration_id` nulo);
    - si publicar una versión nacional devuelve a *En preparación* la vigencia *Lista* de cada administración.
+9. **Retiro de una vigencia que no se puede liquidar (v0.6, E4‑7):** una vigencia no se borra y el diagrama de §5 no tiene anulación; con años de 2002 en adelante, una vigencia puede resultar no liquidable (por ejemplo, si jurídica descarta un rango por la prescripción, la firmeza o la competencia; Doc. 02 §12, pendiente 7) y quedaría para siempre en *Planeada* o *En preparación*. Se aceptan esas vigencias permanentes por ahora. Cómo se retira una, sin borrarla, lo decide la feature de la opción 1.5.1, junto con el cierre y la reapertura (pendiente 7).
 
 ---
 
@@ -582,6 +582,17 @@ Detectados al diseñar este módulo (no rompen el ERD, lo complementan):
 ---
 
 ## 13. Cambios aplicados a otros documentos
+
+**Versión 0.6** (feature 007, enmienda 4: vigencias de 2002 al año siguiente al año en curso, en cualquier orden):
+
+| Documento | Sección | Cambio |
+|---|---|---|
+| ERD | Encabezado y descripción de `tax.fiscal_year` (versión 2.4) | El modelo no cambia (80 tablas): la descripción dice que V‑05 fija el límite inferior del año que se puede crear, y una nota dice que el comentario de la migración `V202611131000` quedó desactualizado y no se edita porque está aplicada |
+| 02 | Encabezado (versión 0.4) y §12, pendiente 7 | No hay prerrequisito nuevo (`LQ‑P01` a `LQ‑P04` y §B.3 no cambian). El responsable funcional decidió el 2026-11-16 que se liquidan vigencias anteriores sin exigir un concepto jurídico previo (la pregunta de origen del pendiente 7), como propuesta pendiente de revisión jurídica. El pendiente no se reduce: la prescripción, la firmeza y la competencia, los intereses y las sanciones, las tasas de usura, el año con una obligación migrada y la imputación a la más antigua primero siguen abiertos, sin bloquear nada en la feature 007 |
+| 05 | Encabezado (versión 0.2) y §11, pendiente 28 | Pendiente nuevo: un año con saldos migrados en la 5.1 y vigencia en LIV, cuál origen prevalece (CH‑02 y OB‑01 ya impiden la obligación doble) |
+| `AGENTS.md` | §3.1 | ERD, versión 2.4; Doc. 05, borrador (v0.2) |
+
+No cambian el Doc. 03, el Doc. 04 (su efecto, la imputación a la más antigua primero, va como pendiente del Doc. 02), los YAML de `anexos/`, el glosario ni la constitución.
 
 **Versión 0.5** (feature 007, que lleva al repositorio las vigencias fiscales por administración):
 
