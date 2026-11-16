@@ -293,9 +293,13 @@ class FiscalYearAuditTest extends PlatformWebTest {
             UUID.randomUUID().toString());
 
     assertThatThrownBy(() -> record.statusChanged(withoutPrevious))
-        .isInstanceOf(NullPointerException.class);
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("previousStatus");
     assertThatThrownBy(() -> record.statusChanged(withoutNew))
-        .isInstanceOf(NullPointerException.class);
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("newStatus");
+    assertThat(AuditRows.byCorrelationNow(withoutPrevious.correlationId())).isEmpty();
+    assertThat(AuditRows.byCorrelationNow(withoutNew.correlationId())).isEmpty();
   }
 
   @Test
