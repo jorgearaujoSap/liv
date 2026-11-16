@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: LIV · tax
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     API pública del módulo tax (doc. 01 §10, ADR 0005). Contract-first: el backend genera sus
     interfaces desde este archivo y el frontend usa una copia fijada en frontend/api-spec/.
@@ -15,6 +15,13 @@ info:
     Su maxLength es un límite fijo: subirlo también es un cambio incompatible. Los códigos de
     regla (V-01, V-02, V-05 y V-06) se escriben con el guion ASCII, no con el de no separación del
     Doc. 01.
+    Versión 1.1.0: una vigencia se puede crear desde el primer año que se puede crear (V-05 del
+    Doc. 01; lo informa minYear) hasta el año siguiente al año en curso, en cualquier orden (V-02
+    ya no rechaza). Es compatible con la 1.0.0:
+    agrega valores de motivo (PAST_LIMIT y ALL_CREATED) y una extensión opcional (minYear), y deja
+    de emitir motivos sin quitarlos del esquema. Cambia el comportamiento de creatableYears, que
+    pasa a venir del más reciente al más antiguo y a traer hasta un año por cada uno de ese
+    primer año al siguiente al año en curso, en lugar de cero a dos.
 tags:
   - name: FiscalYears
     description: Vigencias fiscales de la administración y su preparación.
@@ -30,8 +37,8 @@ paths:
         Requiere tax.fiscal-year.read. Las vigencias van de la más reciente a la más antigua. Si la
         administración no tiene ninguna, items viene vacío y la pantalla ofrece creatableYears.
         canCreate dice si el usuario tiene tax.fiscal-year.create: sin él, la pantalla no muestra la
-        acción. creatableYears son los años que la creación aceptaría hoy (V-01, V-02 y V-05), así
-        que la lista nunca ofrece un año que la creación rechace; viene vacío sin canCreate.
+        acción. creatableYears son los años que la creación acepta hoy (V-01 y V-05), así que la
+        lista nunca ofrece un año que la creación rechace; viene vacío sin canCreate.
         createBlocked viene solo con permiso y sin ningún año disponible, con su motivo.
       responses:
         '200':
@@ -51,8 +58,9 @@ paths:
       description: >-
         Requiere tax.fiscal-year.create. La vigencia nace PLANEADA, con assessmentsEnabled en falso
         y las fechas del año calendario. Una vigencia no se puede borrar. Las reglas se evalúan en
-        este orden y el primero que falla es el que se responde: V-01, V-02 HISTORICAL, V-05
-        FIRST_YEAR, V-02 GAP y V-05 FUTURE_LIMIT (Doc. 01 §5).
+        este orden y el primero que falla es el que se responde: V-01, V-05 PAST_LIMIT y V-05
+        FUTURE_LIMIT (Doc. 01 §5). Desde 1.1.0, V-02 y el motivo FIRST_YEAR de V-05 ya no se
+        emiten.
       requestBody:
         required: true
         content:
@@ -195,11 +203,9 @@ components:
               - $ref: '#/components/schemas/YearExtensions'
     CreationRejected:
       description: >-
-        Una regla de V-02 o de V-05 rechaza el año. code V-02 con reason GAP (extensión
-        requiredYear, el año que debe crearse primero) o HISTORICAL (oldestYear, la vigencia más
-        antigua); code V-05 con reason FIRST_YEAR (currentYear y nextYear, los únicos años
-        admitidos para la primera vigencia) o FUTURE_LIMIT (maxYear, el último año que se puede
-        crear).
+        V-05 rechaza el año: code V-05 con reason PAST_LIMIT (extensión minYear, el primer año que
+        se puede crear) o FUTURE_LIMIT (maxYear, el último año que se puede crear). Desde 1.1.0,
+        V-02 (GAP y HISTORICAL) y FIRST_YEAR ya no se emiten.
       content:
         application/problem+json:
           schema:
@@ -267,8 +273,14 @@ components:
         creatableYears:
           type: array
           description: >-
-            Años que la creación aceptaría ahora, de cero a dos y siempre dentro de la tabla
-            nacional. Vacío sin canCreate y cuando createBlocked viene.
+            Años que la creación acepta ahora, del más reciente al más antiguo y en el orden en
+            que la pantalla los muestra. Van del primer año que se puede crear (V-05; lo informa
+            minYear) al año siguiente al año en curso, sin
+            los que la administración ya tiene y siempre dentro de la tabla nacional: cada año hay
+            uno más. Si la administración no tiene vigencias y la tabla nacional trae todos los
+            años del rango, el primero es el último año que se puede crear y el último es el
+            primer año que se puede crear.
+            Vacío sin canCreate y cuando createBlocked viene.
           items:
             $ref: '#/components/schemas/CreatableYear'
         createBlocked:
@@ -288,22 +300,25 @@ components:
           maxLength: 32
           description: >-
             Relación del año con el año en curso de la hora oficial de Colombia. Valores
-            documentados: PAST (un año pasado que sigue pendiente, por ejemplo 2027 cuando la más
-            reciente es 2026 y estamos en 2028), CURRENT (el año en curso) y NEXT (el siguiente).
-            Pueden agregarse otros.
+            documentados: PAST (un año anterior al año en curso), CURRENT (el año en curso) y NEXT
+            (el siguiente). Pueden agregarse otros.
     CreateBlocked:
       type: object
       description: >-
         Hay permiso para crear pero ningún año disponible. La pantalla inhabilita la acción con
-        este motivo.
+        este motivo. minYear es opcional en el esquema (con otro motivo puede faltar), pero
+        viene siempre con ALL_CREATED.
       required: [reason, maxYear]
       properties:
         reason:
           type: string
           maxLength: 32
           description: >-
-            Motivo. Valor documentado: FUTURE_LIMIT (ya existe la vigencia del último año que se
-            puede crear, V-05). Pueden agregarse otros.
+            Motivo. Valores documentados: ALL_CREATED (ya existen todas las vigencias de minYear a
+            maxYear, V-05) y FUTURE_LIMIT (ya existe la vigencia del último año que se puede
+            crear; no se emite desde 1.1.0). Pueden agregarse otros.
+        minYear:
+          $ref: '#/components/schemas/Year'
         maxYear:
           $ref: '#/components/schemas/Year'
     FiscalYearDetail:
@@ -419,15 +434,21 @@ components:
     CreationRejectionExtensions:
       type: object
       description: >-
-        Extensiones del Problem de V-02 y V-05; viene solo la que corresponde al motivo, y reason
-        siempre.
+        Extensiones del Problem de V-05; viene solo la que corresponde al motivo, y reason siempre.
+        Los motivos GAP, HISTORICAL y FIRST_YEAR ya no se emiten desde 1.1.0, así que sus
+        extensiones están obsoletas: requiredYear y oldestYear (V-02) y currentYear y nextYear
+        (V-05). Se quedan en el esquema para no quitar una propiedad (Q08), y como Year, sin
+        deprecated: true, porque ese atributo obligaría a repetir el rango del año en cada una.
       required: [reason]
       properties:
         reason:
           type: string
           maxLength: 32
           description: >-
-            Valores documentados: GAP y HISTORICAL (V-02), FIRST_YEAR y FUTURE_LIMIT (V-05).
+            Valores documentados: PAST_LIMIT (extensión minYear) y FUTURE_LIMIT (maxYear), de V-05.
+            GAP, HISTORICAL y FIRST_YEAR ya no se emiten desde 1.1.0.
+        minYear:
+          $ref: '#/components/schemas/Year'
         requiredYear:
           $ref: '#/components/schemas/Year'
         oldestYear:

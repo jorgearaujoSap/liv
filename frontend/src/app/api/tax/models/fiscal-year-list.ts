@@ -12,7 +12,7 @@ export interface FiscalYearList {
   canCreate: boolean;
 
   /**
-   * Años que la creación aceptaría ahora, de cero a dos y siempre dentro de la tabla nacional. Vacío sin canCreate y cuando createBlocked viene.
+   * Años que la creación acepta ahora, del más reciente al más antiguo y en el orden en que la pantalla los muestra. Van del primer año que se puede crear (V-05; lo informa minYear) al año siguiente al año en curso, sin los que la administración ya tiene y siempre dentro de la tabla nacional: cada año hay uno más. Si la administración no tiene vigencias y la tabla nacional trae todos los años del rango, el primero es el último año que se puede crear y el último es el primer año que se puede crear. Vacío sin canCreate y cuando createBlocked viene.
    */
   creatableYears: Array<CreatableYear>;
   createBlocked?: CreateBlocked;

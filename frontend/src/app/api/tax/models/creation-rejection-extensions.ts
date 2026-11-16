@@ -4,16 +4,17 @@
 import { Year } from '../models/year';
 
 /**
- * Extensiones del Problem de V-02 y V-05; viene solo la que corresponde al motivo, y reason siempre.
+ * Extensiones del Problem de V-05; viene solo la que corresponde al motivo, y reason siempre. Los motivos GAP, HISTORICAL y FIRST_YEAR ya no se emiten desde 1.1.0, así que sus extensiones están obsoletas: requiredYear y oldestYear (V-02) y currentYear y nextYear (V-05). Se quedan en el esquema para no quitar una propiedad (Q08), y como Year, sin deprecated: true, porque ese atributo obligaría a repetir el rango del año en cada una.
  */
 export interface CreationRejectionExtensions {
   currentYear?: Year;
   maxYear?: Year;
+  minYear?: Year;
   nextYear?: Year;
   oldestYear?: Year;
 
   /**
-   * Valores documentados: GAP y HISTORICAL (V-02), FIRST_YEAR y FUTURE_LIMIT (V-05).
+   * Valores documentados: PAST_LIMIT (extensión minYear) y FUTURE_LIMIT (maxYear), de V-05. GAP, HISTORICAL y FIRST_YEAR ya no se emiten desde 1.1.0.
    */
   reason: string;
   requiredYear?: Year;

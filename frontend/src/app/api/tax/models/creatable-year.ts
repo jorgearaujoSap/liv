@@ -7,7 +7,7 @@ export interface CreatableYear {
   endsOn: BusinessDate;
 
   /**
-   * Relación del año con el año en curso de la hora oficial de Colombia. Valores documentados: PAST (un año pasado que sigue pendiente, por ejemplo 2027 cuando la más reciente es 2026 y estamos en 2028), CURRENT (el año en curso) y NEXT (el siguiente). Pueden agregarse otros.
+   * Relación del año con el año en curso de la hora oficial de Colombia. Valores documentados: PAST (un año anterior al año en curso), CURRENT (el año en curso) y NEXT (el siguiente). Pueden agregarse otros.
    */
   relation: string;
   startsOn: BusinessDate;
