@@ -6,12 +6,13 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import axe from 'axe-core';
 import { vi } from 'vitest';
 
-import type { FiscalYear, FiscalYearList } from '../api/tax/models';
+import type { FiscalYear, FiscalYearDetail, FiscalYearList } from '../api/tax/models';
 import { buildMenu } from '../core/navigation/menu-presentation';
 import { IdleService, type SessionWarning } from '../core/session/idle.service';
 import { ComingSoon } from './errors/coming-soon';
 import { Forbidden } from './errors/forbidden';
 import { LoadError } from './errors/load-error';
+import { FiscalYearDetailPage } from './fiscal-years/fiscal-year-detail';
 import { FiscalYears } from './fiscal-years/fiscal-years';
 import { FiscalYearsService } from './fiscal-years/fiscal-years.service';
 import { Home } from './home/home';
@@ -40,9 +41,46 @@ const fiscalYear = (year: number, status: FiscalYear['status']): FiscalYear => (
   assessmentsEnabled: false,
 });
 
+/** Los nueve puntos de la lista de preparación: el 1 cumplido y los demás pendientes («Opción aún no disponible»). */
+const preparationItems = (planned: boolean): FiscalYearDetail['preparation']['items'] =>
+  [
+    ['FISCAL_YEAR_IN_PREPARATION', true],
+    ['VALUATION_RESOLUTION', true],
+    ['VALUATION_CATALOG_PUBLISHED', true],
+    ['TAX_RATES', true],
+    ['TAX_CALENDAR', true],
+    ['TAX_BENEFITS', false],
+    ['PENALTY_RULES', false],
+    ['SAMPLE_ASSESSMENT', true],
+    ['JURISDICTION_CONFIG_PUBLISHED', true],
+  ].map(([code, required], index) => ({
+    code: code as string,
+    number: index + 1,
+    option: `1.5.${index}`,
+    required: required as boolean,
+    status: index === 0 && !planned ? 'MET' : 'PENDING',
+    reason: index === 0 ? (planned ? 'FISCAL_YEAR_PLANNED' : 'MET') : 'OPTION_NOT_AVAILABLE',
+  }));
+
+const fiscalYearDetail = (year: number, planned: boolean): FiscalYearDetail => ({
+  year,
+  startsOn: `${year}-01-01`,
+  endsOn: `${year}-12-31`,
+  status: planned ? 'PLANEADA' : 'EN_PREPARACION',
+  assessmentsEnabled: false,
+  availableActions: planned ? ['OPEN_PREPARATION'] : [],
+  preparation: {
+    items: preparationItems(planned),
+    missing: planned ? [1, 2, 3, 4, 5, 8, 9] : [2, 3, 4, 5, 8, 9],
+    canEnable: false,
+  },
+});
+
 class FakeFiscalYears {
   readonly list = vi.fn<() => Promise<FiscalYearList>>();
   readonly create = vi.fn<(year: number) => Promise<FiscalYear>>();
+  readonly get = vi.fn<(year: number) => Promise<FiscalYearDetail>>();
+  readonly openPreparation = vi.fn<(year: number) => Promise<FiscalYear>>();
 }
 
 class FakeIdle {
@@ -81,6 +119,7 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
               { path: 'sin-permiso', component: Forbidden },
               { path: 'proximamente', component: ComingSoon },
               { path: 'opcion/1.4', component: FiscalYears },
+              { path: 'opcion/1.4/:year', component: FiscalYearDetailPage },
             ],
           },
           { path: 'error', component: LoadError },
@@ -321,6 +360,71 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
         expect(page.querySelector('liv-alert[role="alert"]')).not.toBeNull();
         expect(await violations(page)).toEqual([]);
       });
+    });
+  });
+
+  // 007-21: el detalle de la vigencia y su lista de preparación pasan axe.
+  describe('Detalle de la vigencia (007-21)', () => {
+    it('En preparación, con «Habilitar liquidación» inhabilitado con su motivo', async () => {
+      fiscalYears.get.mockResolvedValue(fiscalYearDetail(2026, false));
+      const page = await open('/opcion/1.4/2026');
+
+      expect(page.querySelector('h1')?.textContent).toContain('Vigencia 2026');
+      expect(page.querySelectorAll('ol li')).toHaveLength(9);
+      expect(page.querySelector('button[aria-disabled="true"][aria-describedby]')).not.toBeNull();
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('Planeada, con «Abrir preparación»', async () => {
+      fiscalYears.get.mockResolvedValue(fiscalYearDetail(2027, true));
+      const page = await open('/opcion/1.4/2027');
+
+      expect(page.textContent).toContain('Abrir preparación');
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('con el rechazo V-06 encima de los datos', async () => {
+      fiscalYears.get.mockResolvedValue(fiscalYearDetail(2027, true));
+      fiscalYears.openPreparation.mockRejectedValue(
+        new HttpErrorResponse({ status: 409, error: { status: 409, code: 'V-06', year: 2027 } }),
+      );
+      const page = await open('/opcion/1.4/2027');
+      (
+        Array.from(page.querySelectorAll('button')).find(
+          (candidate) => candidate.textContent?.trim() === 'Abrir preparación',
+        ) as HTMLButtonElement
+      ).click();
+      await TestBed.inject(ApplicationRef).whenStable();
+      TestBed.tick();
+
+      expect(page.querySelector('liv-alert[role="alert"]')).not.toBeNull();
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('no encontrada', async () => {
+      const page = await open('/opcion/1.4/abc');
+
+      expect(page.textContent).toContain('No encontramos esa vigencia');
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('con error', async () => {
+      fiscalYears.get.mockRejectedValue(new Error('500'));
+      const page = await open('/opcion/1.4/2026');
+
+      expect(page.textContent).toContain('No pudimos cargar la vigencia');
+      expect(await violations(page)).toEqual([]);
+    });
+
+    it('cargando', async () => {
+      fiscalYears.get.mockReturnValue(new Promise<FiscalYearDetail>(() => undefined));
+      const harness = await RouterTestingHarness.create();
+      await harness.navigateByUrl('/opcion/1.4/2026');
+      harness.detectChanges();
+      const page = harness.fixture.nativeElement as HTMLElement;
+
+      expect(page.querySelector('[aria-busy="true"]')).not.toBeNull();
+      expect(await violations(page)).toEqual([]);
     });
   });
 });
