@@ -54,11 +54,13 @@ export interface StaleList {
 /**
  * Diálogo de creación de una vigencia (007-04 a 007-08). Las opciones son los años que el backend dice que se
  * pueden crear (`years`, de `creatableYears`), con sus fechas y su etiqueta; la pantalla no calcula ninguno.
- * Mientras abre hay siempre un año marcado, y el foco inicial va a él y no a «Crear vigencia»: crear no se puede
- * deshacer y no debe bastar con pulsar Enter al abrir. Los rechazos de la API se muestran en una alerta con el código de
- * la regla; ante un V-01 (otra persona creó el año antes) o un resultado que no se conoce avisa con `staleList` para que la lista se vuelva a
- * leer, y las `years` nuevas dejan marcado el primer año que siga disponible. Diseño: Figma LIV-Diseño, 67:3040
- * (el diálogo), 67:3163 (con un rechazo), 67:3284 (los mensajes) y 75:4479 (la etiqueta de un año pasado).
+ * Al abrir queda marcado el año en curso o, si no viene, el siguiente (nunca uno pasado), y el foco inicial va a él
+ * y no a «Crear vigencia»: crear no se puede deshacer y no debe bastar con pulsar Enter al abrir. Los rechazos de
+ * la API se muestran en una alerta con el código de la regla; ante un V-01 (otra persona creó el año antes) o un
+ * resultado que no se conoce avisa con `staleList` para que la lista se vuelva a leer, y las `years` nuevas
+ * conservan el año marcado si sigue disponible y, si no, marcan el año en curso o el siguiente. Diseño: Figma
+ * LIV-Diseño, 67:3040 (el diálogo), 67:3163 (con un rechazo), 67:3284 (los mensajes) y 75:4479 (la etiqueta de un
+ * año pasado).
  */
 @Component({
   selector: 'app-create-fiscal-year-dialog',
@@ -92,7 +94,10 @@ export class CreateFiscalYearDialog {
   /** La persona canceló o cerró el diálogo con Escape. */
   readonly closed = output<void>();
 
-  /** El año marcado, como texto (el valor de un radio): conserva el actual si sigue disponible y, si no, el primero. */
+  /**
+   * El año marcado, como texto (el valor de un radio): conserva el actual si sigue disponible y, si no, marca el
+   * año en curso o el siguiente (`pickYear`).
+   */
   protected readonly selected = linkedSignal<readonly CreatableYear[], string | null>({
     source: this.years,
     computation: (years, previous) => pickYear(years, previous?.value),
@@ -122,7 +127,7 @@ export class CreateFiscalYearDialog {
   constructor() {
     effect(() => {
       this.years();
-      untracked(() => this.focusSelectionIfPending());
+      untracked(() => this.focusYearIfPending());
     });
   }
 
@@ -162,16 +167,20 @@ export class CreateFiscalYearDialog {
 
   /**
    * La lista nueva puede cambiar el año marcado (el que ya existía deja de estar): el foco va al año marcado
-   * para que se lea cuál es, y no se queda en «Crear vigencia», donde un Enter crearía otro año sin avisar.
+   * para que se lea cuál es, y no se queda en «Crear vigencia», donde un Enter crearía otro año sin avisar. Si la
+   * lista nueva no deja ningún año marcado, el foco va al primer radio del grupo.
    */
-  private focusSelectionIfPending(): void {
+  private focusYearIfPending(): void {
     if (!this.refocusOnNextYears) {
       return;
     }
     this.refocusOnNextYears = false;
     afterNextRender(
-      () =>
-        this.host.nativeElement.querySelector<HTMLElement>('input[type="radio"]:checked')?.focus(),
+      () => {
+        const radio = (selector: string) =>
+          this.host.nativeElement.querySelector<HTMLElement>(selector);
+        (radio('input[type="radio"]:checked') ?? radio('input[type="radio"]'))?.focus();
+      },
       { injector: this.injector },
     );
   }
@@ -195,7 +204,11 @@ export class CreateFiscalYearDialog {
   }
 }
 
-/** El año que queda marcado: el que ya estaba, si sigue disponible, y si no el primero (o ninguno sin años). */
+/**
+ * El año que queda marcado: el que ya estaba, si sigue disponible; si no, el año en curso; si no viene, el
+ * siguiente; y si tampoco, ninguno. Nunca un año pasado por omisión, ni por su posición en la lista (riesgo 6 de
+ * la spec: el contrato 1.1.0 manda del más reciente al más antiguo). Regla transitoria hasta el diálogo con `Select`.
+ */
 function pickYear(
   years: readonly CreatableYear[],
   previous: string | null | undefined,
@@ -203,5 +216,8 @@ function pickYear(
   if (years.some((candidate) => String(candidate.year) === previous)) {
     return previous ?? null;
   }
-  return years.length > 0 ? String(years[0].year) : null;
+  const preferred =
+    years.find((candidate) => candidate.relation === 'CURRENT') ??
+    years.find((candidate) => candidate.relation === 'NEXT');
+  return preferred ? String(preferred.year) : null;
 }

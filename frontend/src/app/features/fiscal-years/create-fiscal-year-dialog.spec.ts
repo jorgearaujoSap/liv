@@ -169,6 +169,160 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     });
   });
 
+  // Riesgo 6 de la spec: con el contrato 1.1.0 la lista llega del año más reciente al más antiguo y el diálogo
+  // nunca debe marcar por omisión un año `PAST`.
+  describe('el año marcado nunca es un año pasado (riesgo 6)', () => {
+    it('con el orden del contrato 1.1.0 (siguiente, en curso, pasados) queda marcado el año en curso', () => {
+      render([
+        option(2027, 'NEXT'),
+        option(2026, 'CURRENT'),
+        option(2025, 'PAST'),
+        option(2024, 'PAST'),
+      ]);
+
+      expect(checked()?.value).toBe('2026');
+      expect(text(host)).toContain('Inicio 1 de enero de 2026');
+    });
+
+    it('con el orden del contrato 1.0.0 (en curso, siguiente) queda marcado el año en curso', () => {
+      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
+
+      expect(checked()?.value).toBe('2026');
+    });
+
+    it('sin año en curso, con el siguiente y años pasados, queda marcado el siguiente', () => {
+      render([option(2027, 'NEXT'), option(2025, 'PAST'), option(2024, 'PAST')]);
+
+      expect(checked()?.value).toBe('2027');
+    });
+
+    it('no marca un año pasado por estar primero en la lista', () => {
+      render([option(2025, 'PAST'), option(2027, 'NEXT')]);
+
+      expect(checked()?.value).toBe('2027');
+    });
+
+    it('con solo años pasados no marca ninguno: «Crear vigencia» queda inhabilitado y no se muestran fechas', () => {
+      render([option(2025, 'PAST'), option(2024, 'PAST')]);
+
+      expect(checked()).toBeUndefined();
+      expect(button('Crear vigencia')?.disabled).toBe(true);
+      expect(text(host)).not.toContain('Inicio 1 de enero');
+      expect(text(host)).not.toContain('Fin 31 de diciembre');
+    });
+
+    // El foco inicial lo pone `liv-dialog` (la primera parada de Tab): esta prueba protege que siga siendo el grupo.
+    it('con solo años pasados, el foco inicial va al grupo y no a «Crear vigencia»', () => {
+      render([option(2025, 'PAST'), option(2024, 'PAST')]);
+
+      expect(document.activeElement).toBe(radios()[0]);
+      expect(document.activeElement).not.toBe(button('Crear vigencia'));
+    });
+
+    it('con solo años pasados, enviar no pide nada', async () => {
+      render([option(2025, 'PAST')]);
+
+      await submit();
+
+      expect(service.create).not.toHaveBeenCalled();
+    });
+
+    it('una relación que no conoce no se marca por omisión', () => {
+      render([option(2026, 'OTRA'), option(2027, 'NEXT')]);
+
+      expect(checked()?.value).toBe('2027');
+    });
+
+    it('si la persona marcó un año pasado y sigue disponible, se queda marcado', async () => {
+      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
+      radios()[1].click();
+      await settle();
+
+      fixture.componentRef.setInput('years', [option(2026, 'CURRENT'), option(2025, 'PAST')]);
+      await settle();
+
+      expect(checked()?.value).toBe('2025');
+    });
+
+    it('si el año marcado ya no está, pasa al año en curso y no a un año pasado', async () => {
+      render([option(2027, 'NEXT'), option(2026, 'CURRENT'), option(2025, 'PAST')]);
+      radios()
+        .find((radio) => radio.value === '2025')
+        ?.click();
+      await settle();
+      expect(checked()?.value).toBe('2025');
+
+      fixture.componentRef.setInput('years', [
+        option(2027, 'NEXT'),
+        option(2024, 'PAST'),
+        option(2026, 'CURRENT'),
+      ]);
+      await settle();
+
+      expect(checked()?.value).toBe('2026');
+    });
+
+    it('si el año marcado ya no está y solo quedan el siguiente y años pasados, pasa al siguiente', async () => {
+      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
+
+      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2027, 'NEXT')]);
+      await settle();
+
+      expect(checked()?.value).toBe('2027');
+    });
+
+    it('si el año marcado ya no está y solo quedan años pasados, no queda ninguno marcado', async () => {
+      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
+
+      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2024, 'PAST')]);
+      await settle();
+
+      expect(checked()).toBeUndefined();
+      expect(button('Crear vigencia')?.disabled).toBe(true);
+    });
+
+    it('V-01 · 007-05: al releer la lista, solo con el siguiente, queda marcado el siguiente', async () => {
+      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
+      render([option(2026, 'CURRENT'), option(2027, 'NEXT'), option(2025, 'PAST')]);
+
+      await submit();
+      fixture.componentRef.setInput('years', [option(2027, 'NEXT')]);
+      await settle();
+
+      expect(checked()?.value).toBe('2027');
+      expect(document.activeElement).toBe(checked());
+    });
+
+    it('V-01 · 007-05: al releer la lista, con el siguiente y años pasados, queda marcado el siguiente', async () => {
+      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
+      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
+
+      await submit();
+      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2027, 'NEXT')]);
+      await settle();
+
+      expect(checked()?.value).toBe('2027');
+    });
+  });
+
+  describe('el foco al releer sin ningún año marcado (riesgo 6 y V-01 · 007-05)', () => {
+    it('el foco va al primer radio del grupo y no se queda en «Crear vigencia»', async () => {
+      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
+      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
+
+      await submit();
+      // Tras el rechazo, el foco queda en «Crear vigencia»: es de donde la relectura lo tiene que sacar.
+      button('Crear vigencia')?.focus();
+      // La lista nueva ya no trae el año en curso ni el siguiente: no hay año que marcar.
+      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2024, 'PAST')]);
+      await settle();
+
+      expect(checked()).toBeUndefined();
+      expect(button('Crear vigencia')?.disabled).toBe(true);
+      expect(document.activeElement).toBe(radios()[0]);
+    });
+  });
+
   describe('crear (007-04)', () => {
     it('pide la creación del año marcado, como número, y avisa con la vigencia creada', async () => {
       service.create.mockResolvedValue(CREATED);

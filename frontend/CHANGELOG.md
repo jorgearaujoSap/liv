@@ -44,6 +44,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- Diálogo «Crear vigencia», año marcado (feature 007, enmienda 4, PR 4F0 · T39; riesgo 6 de la spec): al abrir y al releer la lista queda marcado el año que ya estaba, si sigue disponible; si no, el año en curso (`CURRENT`); si no viene, el siguiente (`NEXT`); y si tampoco, ninguno. Nunca un año pasado (`PAST`) por omisión ni por su posición en la lista. Compatible con los contratos 1.0.0 y 1.1.0; es una regla transitoria hasta el diálogo con `Select`. Sin año marcado, «Crear vigencia» queda inhabilitado.
+- Diálogo «Crear vigencia», foco al releer la lista (feature 007, enmienda 4, PR 4F0 · T40; V-01 · 007-05): si la lista nueva no deja ningún año marcado, el foco va al primer radio del grupo y no se queda en «Crear vigencia».
 - Regla de ESLint de las plantillas de las pantallas: `<table>`, `<tr>`, `<th>` y `<td>` se permiten solo con `livTable`, `livTableRow` y `livTableCell` (el `Table` de `liv-components` 0.4.0 es una tabla HTML real); sin el atributo siguen rechazados. Ajuste aprobado por la persona (`AGENTS.md` raíz §4.5), con sus pruebas en `scripts/lint-rules.test.mjs`.
 - Fechas (H2-13, T28): `AGENTS.md` («Localización») y la *skill* `liv-pantalla` admiten la fecha larga («1 de enero de 2026») para fechas sueltas, piden `dd/mm/aaaa` en las tablas de consulta y en las exportaciones, y dicen que el formateador sale de `liv-components` (`formatBusinessDate`).
 - `liv-components` 0.3.1 → 0.4.0 (versión exacta): `Table`, `Panel`, `ChecklistItem`, `DescriptionItem`, `RadioGroup`, `Button` con `disabledReason` y `Dialog` con cuerpo, tamaño y tono. El aviso de sesión no cambia: la prueba del `Dialog` por omisión pasa igual.
