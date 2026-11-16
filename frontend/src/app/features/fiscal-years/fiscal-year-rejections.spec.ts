@@ -46,7 +46,7 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       expect(creationRejection(error, 2028)).toEqual({
         heading: 'No se creó la vigencia',
         message,
-        conflict: message.startsWith('V-01'),
+        reload: message.startsWith('V-01'),
       });
     });
 
@@ -54,7 +54,7 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       const rejection = creationRejection(problem(409, { status: 409, code: 'V-01' }), 2027);
 
       expect(rejection?.message).toContain('La vigencia 2027 ya existe');
-      expect(rejection?.conflict).toBe(true);
+      expect(rejection?.reload).toBe(true);
     });
 
     it('una regla conocida sin la extensión que necesita cae en el mensaje general', () => {
@@ -91,28 +91,66 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
 
     it.each([
       ['un 500 sin cuerpo', problem(500, null)],
-      ['un cuerpo de texto', problem(502, '<html>Bad Gateway</html>')],
+      ['un 502 con un cuerpo de texto', problem(502, '<html>Bad Gateway</html>')],
+      ['un 503', problem(503, { status: 503 })],
+      ['un sin respuesta (estado 0)', problem(0, null)],
       ['un tiempo agotado', new TimeoutError(10_000)],
+    ])('%s: no se sabe si se creó, se dice y se pide releer la lista', (_name, error) => {
+      expect(creationRejection(error, 2027)).toEqual({
+        heading: 'No sabemos si se creó la vigencia',
+        message:
+          'No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
+        reload: true,
+      });
+    });
+
+    it.each([
+      ['un 400', problem(400, { status: 400, code: 'SYS-400' })],
       ['un error cualquiera', new Error('red')],
-    ])('%s cae en el mensaje general', (_name, error) => {
+    ])('%s cae en el mensaje general, sin releer la lista', (_name, error) => {
       expect(creationRejection(error, 2027)).toEqual({
         heading: 'No se creó la vigencia',
         message:
           'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
-        conflict: false,
+        reload: false,
       });
     });
 
-    it('un 403 no tiene mensaje propio: el interceptor lleva a «Sin permiso» (H2-14)', () => {
+    it('un 403 que no es el anti-CSRF no tiene mensaje: el interceptor lleva a «Sin permiso» (H2-14)', () => {
       expect(
         creationRejection(problem(403, { status: 403, code: '001-16' }), 2027),
       ).toBeUndefined();
+      expect(creationRejection(problem(403, null), 2027)).toBeUndefined();
     });
 
-    it('un 401 tampoco: el interceptor lleva a iniciar sesión', () => {
-      expect(
-        creationRejection(problem(401, { status: 401, code: '001-14' }), 2027),
-      ).toBeUndefined();
+    it('un 403 anti-CSRF (001-12) no lo atiende el interceptor: se dice que no se creó', () => {
+      expect(creationRejection(problem(403, { status: 403, code: '001-12' }), 2027)).toEqual({
+        heading: 'No se creó la vigencia',
+        message:
+          'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
+        reload: false,
+      });
+    });
+
+    it('un 401 tampoco queda mudo: si no se pudo ir a iniciar sesión, se dice que no se creó', () => {
+      expect(creationRejection(problem(401, { status: 401, code: '001-14' }), 2027)).toEqual({
+        heading: 'No se creó la vigencia',
+        message:
+          'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
+        reload: false,
+      });
+    });
+
+    it('un año fuera de la tabla nacional (1999 a 2100) no se escribe en el mensaje', () => {
+      for (const year of [-5, 0, 1998, 2101, 99999]) {
+        const rejection = creationRejection(
+          problem(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: year }),
+          2029,
+        );
+        expect(rejection?.message).toBe(
+          'No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
+        );
+      }
     });
 
     it('no usa el texto libre del servidor', () => {
@@ -160,8 +198,16 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       });
     });
 
-    it('un 403 no tiene mensaje propio', () => {
-      expect(openPreparationRejection(problem(403, { status: 403 }), 2026)).toBeUndefined();
+    it('un 403 que no es el anti-CSRF no tiene mensaje propio', () => {
+      expect(
+        openPreparationRejection(problem(403, { status: 403, code: '001-16' }), 2026),
+      ).toBeUndefined();
+    });
+
+    it('un 403 anti-CSRF tiene el mensaje general', () => {
+      expect(
+        openPreparationRejection(problem(403, { status: 403, code: '001-12' }), 2026)?.message,
+      ).toContain('No pudimos abrir la preparación');
     });
   });
 });

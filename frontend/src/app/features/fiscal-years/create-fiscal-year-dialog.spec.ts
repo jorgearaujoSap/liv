@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 
 import type { CreatableYear, FiscalYear } from '../../api/tax/models';
+import { TimeoutError } from '../../core/http/with-timeout';
 import { CreateFiscalYearDialog } from './create-fiscal-year-dialog';
 import { FiscalYearsService } from './fiscal-years.service';
 
@@ -311,14 +312,14 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     it('un V-01 pide a la pantalla que vuelva a leer la lista, sin cerrar el diálogo', async () => {
       service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
       render([option(2027, 'NEXT'), option(2028, 'NEXT')]);
-      const conflict = vi.fn();
+      const stale = vi.fn();
       const closed = vi.fn();
-      fixture.componentInstance.conflict.subscribe(conflict);
+      fixture.componentInstance.staleList.subscribe(stale);
       fixture.componentInstance.closed.subscribe(closed);
 
       await submit();
 
-      expect(conflict).toHaveBeenCalledTimes(1);
+      expect(stale).toHaveBeenCalledTimes(1);
       expect(closed).not.toHaveBeenCalled();
     });
 
@@ -340,16 +341,16 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
         rejected(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 }),
       );
       render();
-      const conflict = vi.fn();
-      fixture.componentInstance.conflict.subscribe(conflict);
+      const stale = vi.fn();
+      fixture.componentInstance.staleList.subscribe(stale);
 
       await submit();
 
-      expect(conflict).not.toHaveBeenCalled();
+      expect(stale).not.toHaveBeenCalled();
     });
 
-    it('un error del servidor dice que no se creó y deja reintentar', async () => {
-      service.create.mockRejectedValue(rejected(500, null));
+    it('un error de la petición dice que no se creó y deja reintentar', async () => {
+      service.create.mockRejectedValue(rejected(400, { status: 400, code: 'SYS-400' }));
       render();
 
       await submit();
@@ -360,13 +361,84 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       expect(button('Crear vigencia')?.getAttribute('aria-disabled')).not.toBe('true');
     });
 
-    it('un 403 no muestra un mensaje propio: lo atiende el interceptor, que lleva a «Sin permiso» (H2-14)', async () => {
+    it('un 403 de permiso no muestra un mensaje propio: lo atiende el interceptor, que lleva a «Sin permiso» (H2-14)', async () => {
       service.create.mockRejectedValue(rejected(403, { status: 403, code: '001-16' }));
       render();
 
       await submit();
 
       expect(alerts()).toHaveLength(0);
+    });
+
+    it('un 403 anti-CSRF (001-12) no lo atiende el interceptor: se dice que no se creó', async () => {
+      service.create.mockRejectedValue(rejected(403, { status: 403, code: '001-12' }));
+      render();
+
+      await submit();
+
+      expect(alerts()).toHaveLength(1);
+      expect(text(alerts()[0])).toContain('No se creó la vigencia');
+    });
+
+    it('un tiempo agotado dice que no se sabe si se creó y pide releer la lista', async () => {
+      service.create.mockRejectedValue(new TimeoutError(10_000));
+      render();
+      const stale = vi.fn();
+      fixture.componentInstance.staleList.subscribe(stale);
+
+      await submit();
+
+      expect(text(alerts()[0])).toBe(
+        'No sabemos si se creó la vigencia No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
+      );
+      expect(stale).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('estado del diálogo', () => {
+    it('al abrir, el foco va al año marcado y no a la acción que no se puede deshacer', () => {
+      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
+
+      expect(document.activeElement).toBe(checked());
+    });
+
+    it('un segundo envío mientras se envía no repite la petición, aunque el clic llegue', async () => {
+      service.create.mockReturnValue(new Promise<FiscalYear>(() => undefined));
+      render();
+      const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
+
+      void dialog.submit();
+      void dialog.submit();
+
+      expect(service.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('sin ningún año que elegir, la acción está inhabilitada y no pide nada', async () => {
+      render([]);
+      const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
+
+      await dialog.submit();
+
+      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+      expect(service.create).not.toHaveBeenCalled();
+    });
+
+    it('mientras la pantalla relee la lista, la acción está inhabilitada', async () => {
+      render([option(2027, 'NEXT')]);
+
+      fixture.componentRef.setInput('refreshing', true);
+      await settle();
+      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+
+      fixture.componentRef.setInput('refreshing', false);
+      await settle();
+      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).not.toBe('true');
+    });
+
+    it('una relación que coincide con una propiedad de Object se muestra sin etiqueta', () => {
+      render([option(2026, 'constructor')]);
+
+      expect(text(host.querySelector('liv-radio-option'))).toBe('2026');
     });
   });
 });
