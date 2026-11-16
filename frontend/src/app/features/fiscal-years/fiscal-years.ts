@@ -23,7 +23,7 @@ import {
   TableRowComponent,
 } from 'liv-components';
 
-import type { CreatableYear, FiscalYear, FiscalYearList } from '../../api/tax/models';
+import type { FiscalYear, FiscalYearList } from '../../api/tax/models';
 import { OPTION_ROUTE } from '../../core/app-paths';
 import { CreateFiscalYearDialog, type StaleList } from './create-fiscal-year-dialog';
 import type { Rejection } from './fiscal-year-rejections';
@@ -128,8 +128,10 @@ export class FiscalYears {
     }
     const blocked = list.createBlocked;
     if (blocked) {
-      return blocked.reason === 'FUTURE_LIMIT' && Number.isInteger(blocked.maxYear)
-        ? `Ya existe la vigencia ${blocked.maxYear}, la última que se puede crear.`
+      return blocked.reason === 'ALL_CREATED' &&
+        Number.isInteger(blocked.minYear) &&
+        Number.isInteger(blocked.maxYear)
+        ? `Ya existen todas las vigencias que se pueden crear: de ${blocked.minYear} a ${blocked.maxYear}.`
         : NO_YEARS_AVAILABLE;
     }
     return list.creatableYears.length === 0 ? NO_YEARS_AVAILABLE : undefined;
@@ -146,11 +148,12 @@ export class FiscalYears {
     if (blocked) {
       return blocked;
     }
-    const options = (this.list()?.creatableYears ?? []).map((candidate) =>
-      describeCreatableYear(candidate),
-    );
-    return options.length > 0
-      ? `Crea la primera vigencia de tu administración: puede ser ${options.join(' o ')}.`
+    const years = this.creatableYears();
+    // La lista va del año más reciente al más antiguo (contrato 1.1.0): los extremos son el rango.
+    const latest = years.at(0)?.year;
+    const earliest = years.at(-1)?.year;
+    return Number.isInteger(latest) && Number.isInteger(earliest)
+      ? `Crea la primera vigencia de tu administración. Puedes crear cualquier año de ${earliest} a ${latest}.`
       : 'Crea la primera vigencia de tu administración.';
   });
 
@@ -298,19 +301,5 @@ export class FiscalYears {
       tone: known?.tone ?? 'neutral',
       liquidation: item.assessmentsEnabled ? 'Habilitada' : 'No habilitada',
     };
-  }
-}
-
-/** Cómo se nombra un año que se puede crear: la relación y el año salen de lo que manda el backend. */
-function describeCreatableYear(candidate: CreatableYear): string {
-  switch (candidate.relation) {
-    case 'CURRENT':
-      return `la del año en curso (${candidate.year})`;
-    case 'NEXT':
-      return `la del año siguiente (${candidate.year})`;
-    case 'PAST':
-      return `la de un año pasado (${candidate.year})`;
-    default:
-      return `la de ${candidate.year}`;
   }
 }
