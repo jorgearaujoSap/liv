@@ -22,6 +22,36 @@ test.describe('Inicio y estructura general', () => {
     await expect(page).toHaveScreenshot('inicio-consulta.png', { fullPage: true });
   });
 
+  test('001-02 · Solo el área de trabajo se desplaza: la página no tiene su propia barra ni espacio debajo', async ({
+    page,
+  }) => {
+    await entrarComo(page, 'dev.consulta');
+
+    // Un contenido más alto que la ventana, con al final un elemento de posición absoluta, como el aviso oculto
+    // (`sr-only`) de cada `liv-button`: su bloque contenedor es la página, y `overflow` del área de trabajo no lo recorta.
+    const medidas = await page.evaluate(() => {
+      const trabajo = document.querySelector('main') as HTMLElement;
+      const relleno = document.createElement('div');
+      relleno.style.height = `${window.innerHeight * 2}px`;
+      const final = document.createElement('div');
+      final.style.marginTop = `${window.innerHeight * 1.5}px`;
+      const oculto = document.createElement('span');
+      oculto.style.cssText = 'position:absolute;width:1px;height:1px';
+      final.append(oculto);
+      relleno.append(final);
+      trabajo.append(relleno);
+      const pagina = document.documentElement;
+      return {
+        altoPagina: pagina.scrollHeight,
+        altoVentana: window.innerHeight,
+        trabajoSeDesplaza: trabajo.scrollHeight > trabajo.clientHeight,
+      };
+    });
+
+    expect(medidas.trabajoSeDesplaza).toBe(true);
+    expect(medidas.altoPagina).toBe(medidas.altoVentana);
+  });
+
   test('001-02 · Las tarjetas de módulos miden todas lo mismo, como en Figma', async ({ page }) => {
     await entrarComo(page, 'dev.consulta');
 
