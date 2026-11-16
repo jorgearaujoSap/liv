@@ -1,0 +1,49 @@
+<label class="select__label" [for]="selectId">{{ label() }}</label>
+<div class="select__control">
+  <select
+    class="select__input"
+    [id]="selectId"
+    [disabled]="disabled()"
+    [attr.aria-invalid]="errorText() ? 'true' : null"
+    [attr.aria-describedby]="message() ? messageId : null"
+    (change)="onChange($event)"
+  >
+    <!--
+      `selected` va como propiedad (la elección en vivo) y como atributo (la elección por omisión): al
+      restablecer un formulario, el navegador vuelve a la opción del atributo, que es la del modelo.
+    -->
+    <option
+      class="select__option"
+      value=""
+      disabled
+      hidden
+      [selected]="shownValue() === null"
+      [attr.selected]="shownValue() === null ? '' : null"
+    >
+      {{ placeholder() }}
+    </option>
+    <!--
+      Por posición: con `track option.value`, reordenar quita y reinserta la opción elegida y el
+      navegador cambia la elección mostrada.
+    -->
+    @for (option of options(); track $index) {
+      <option
+        class="select__option"
+        [value]="option.value"
+        [selected]="option.value === shownValue()"
+        [attr.selected]="option.value === shownValue() ? '' : null"
+      >
+        {{ option.label }}
+      </option>
+    }
+  </select>
+  <liv-icon class="select__icon" name="chevron-down" [size]="20" />
+</div>
+@if (message(); as text) {
+  <p class="select__help" [id]="messageId">
+    @if (errorText()) {
+      <liv-icon name="circle-alert" [size]="16" />
+    }
+    <span>{{ text }}</span>
+  </p>
+}

@@ -4,6 +4,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [0.5.0] — 2026-11-16
+
+Un componente nuevo, `Select`, para la enmienda 4 de la feature 007 (vigencias fiscales, 1.4): el diálogo de crear una vigencia ofrece hasta 26 años, y esa lista es demasiado larga para un `RadioGroup`. No cambia ningún componente existente ni los _tokens_: `RadioGroup` y `RadioOption` se quedan en la librería. Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend instala la versión exacta 0.5.0 y ejecuta su prueba del aviso de sesión con ella (ningún componente existente cambia).
+
+### Agregado
+
+- `Select` (feature 007, enmienda 4, PR 4U; Figma 81:629, con diez variantes: `State` `Default`, `Focus`, `Open`, `Disabled` y `Error` por `Content` `Filled` y `Placeholder`). Lista desplegable de selección única de 44 px y radio de 8 px, sobre el `<select>` nativo, con su `<label>` siempre visible encima (como `TextField`).
+  - **Nativo:** el teclado, el lector de pantalla, el móvil y la lista abierta los da el navegador. No hay un `role="listbox"` propio y la lista abierta no se diseña ni se estiliza. La etiqueta y el `<select>` se enlazan por un `id` propio de cada instancia; el nombre accesible sale de la etiqueta.
+  - **Entradas:** `label` (obligatoria), `value` (`string | null`, con `[(value)]`; `null` es sin elegir), `options` (`SelectOption`, `{ value, label }`, en el orden recibido), `placeholder`, `disabled`, `help` y `error`. `SelectOption` sale por la API pública.
+  - **Placeholder:** el texto de una opción vacía que se muestra mientras el valor es `null` y que no se puede volver a elegir y, en los navegadores que respetan `hidden` en una opción (no Safari), tampoco aparece en la lista; usa `text/muted` y nunca reemplaza a la etiqueta. Un valor que no está en las opciones se muestra como sin elegir, pero el valor del enlace no se corrige: quien use el control decide si hay elección por pertenencia a las opciones, no por `value !== null`.
+  - **Help:** opcional, enlazada con `aria-describedby`, en `text/secondary`.
+  - **Error:** con `error` (un mensaje que dice cómo corregir) el control expone `aria-invalid="true"`, el borde y el mensaje pasan a `status/danger` con el icono `circle-alert`, y el mensaje reemplaza a la ayuda y queda enlazado con `aria-describedby`. Un error vacío cuenta como ausente. Inhabilitado, el error no se muestra.
+  - **Open:** se pinta como `Focus` (borde `border/focus` de 1,5 px y `focus/ring`), porque CSS no puede saber si la lista nativa está abierta y el `<select>` conserva el foco mientras tanto.
+  - **Alto contraste (forced-colors):** el foco deja un contorno y el borde de Disabled se pinta con `GrayText`, único color que no sale de un token de `theme.css` (como en `RadioOption`).
+  - **Dentro de un `Dialog`:** el `<select>` es una parada más de la trampa de foco y, con `data-initial-focus` sobre `liv-select`, recibe el primer foco. El `Dialog` no cambia.
+  - Límites:
+    - Los `value` de las opciones deben ser únicos y no vacíos (el vacío es la opción del `placeholder`).
+    - No tiene `required`, `name` ni un método `focus()`, y el mensaje de `error` no es una región viva: no se anuncia al aparecer (como en `TextField`). La parada de foco es el `<select>` interno.
+    - Con Escape, el navegador puede cerrar a la vez la lista y el `Dialog` que la contiene: se comprueba en `e2e/`.
+    - El teclado lo da el navegador y jsdom no lo implementa: se prueba en `e2e/`. Las pruebas de la librería son sintéticas y la comparación con Figma es a mano en Storybook (no hay regresión visual, Q14).
+    - La lista abierta la dibuja el sistema operativo, así que su aspecto varía entre navegadores.
+
 ## [0.4.0] — 2026-11-15
 
 Componentes de la feature 007 (vigencias fiscales, 1.4), en una serie de seis PR (8a a 8f), y cambios en tres componentes existentes (`Button`, `Dialog` e `Icon`), compatibles salvo lo que dice «Cambiado». Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend ejecuta su prueba del aviso de sesión: el `Dialog` sin cuerpo, `size` ni `tone` no cambia.
