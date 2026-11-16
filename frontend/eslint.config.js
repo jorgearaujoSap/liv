@@ -143,9 +143,26 @@ module.exports = defineConfig([
         {
           // Angular nombra un `<svg>` como `:svg:svg`; el HTML no distingue mayúsculas, el nombre sí.
           selector:
-            'Element[name=/^(:svg:)?(button|a|input|select|textarea|table|img|svg|dialog|form|details|summary|iframe|label)$/i]',
+            'Element[name=/^(:svg:)?(button|a|input|select|textarea|img|svg|dialog|form|details|summary|iframe|label)$/i]',
           message:
             'Los controles vienen de liv-components (liv-button, liv-text-field, liv-nav-item…); si falta uno, primero va en la librería.',
+        },
+        // `Table` de liv-components vive en una tabla HTML real: `<table livTable>` con filas `<tr livTableRow>`
+        // y celdas `<th livTableCell>` o `<td livTableCell>`. Cada etiqueta solo se permite con su atributo.
+        {
+          selector: "Element[name=/^table$/i]:not(:has(> TextAttribute[name='livTable']))",
+          message:
+            'Los controles vienen de liv-components: la tabla es `<table livTable>`; una `<table>` sin ese atributo es una tabla hecha a mano.',
+        },
+        {
+          selector: "Element[name=/^tr$/i]:not(:has(> TextAttribute[name='livTableRow']))",
+          message:
+            'Los controles vienen de liv-components: la fila de la tabla es `<tr livTableRow>`; un `<tr>` sin ese atributo es una fila hecha a mano.',
+        },
+        {
+          selector: "Element[name=/^(th|td)$/i]:not(:has(> TextAttribute[name='livTableCell']))",
+          message:
+            'Los controles vienen de liv-components: la celda de la tabla es `<th livTableCell>` o `<td livTableCell>`; sin ese atributo es una celda hecha a mano.',
         },
         {
           // Un contenedor con rol interactivo es un control hecho a mano.
