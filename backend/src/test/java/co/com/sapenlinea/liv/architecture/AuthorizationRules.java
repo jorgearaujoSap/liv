@@ -63,7 +63,12 @@ final class AuthorizationRules {
               + "co.com.sapenlinea.liv.core.SessionDenied)",
           "co.com.sapenlinea.liv.audit.application.RecordSessionEvents.provisioned("
               + "co.com.sapenlinea.liv.core.UserProvisioned)",
-          "co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.importNew()");
+          "co.com.sapenlinea.liv.audit.application.ImportIdentityProviderEvents.importNew()",
+          // Listeners of the events of tax (007, B7): no user, no request.
+          "co.com.sapenlinea.liv.audit.application.RecordFiscalYearEvents.created("
+              + "co.com.sapenlinea.liv.tax.FiscalYearCreated)",
+          "co.com.sapenlinea.liv.audit.application.RecordFiscalYearEvents.statusChanged("
+              + "co.com.sapenlinea.liv.tax.FiscalYearStatusChanged)");
 
   /** Methods that run in another thread or without a request: a permission would always fail. */
   private static final List<String> DETACHED_METHODS =

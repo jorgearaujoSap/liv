@@ -96,6 +96,7 @@ class IdentityProviderImportTest extends PlatformWebTest {
     importer.importNew();
 
     AuditRows.Row row = only(AuditRows.ofProviderEvent("user:" + id));
+    assertThat(row.previousValues()).isNull();
     assertThat(row.administrationId()).isNull();
     assertThat(row.userId()).isNull();
     assertThat(row.entityName()).isEqualTo("identity_provider");
@@ -333,6 +334,7 @@ class IdentityProviderImportTest extends PlatformWebTest {
     importer.importNew();
 
     AuditRows.Row minimal = only(AuditRows.ofProviderEvent("user:" + rejected));
+    assertThat(minimal.previousValues()).isNull();
     assertThat(minimal.administrationId()).isNull();
     assertThat(minimal.userId()).isNull();
     assertThat(minimal.newValues()).isEqualTo(Map.of("result", "FAILURE"));

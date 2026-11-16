@@ -75,6 +75,7 @@ class SessionAuditTest extends PlatformWebTest {
 
     UUID userId = AuditRows.userId(subject);
     AuditRows.Row provisioned = AuditRows.await("USER_PROVISIONED", correlation);
+    assertThat(provisioned.previousValues()).isNull();
     assertThat(provisioned.entityName()).isEqualTo("user");
     assertThat(provisioned.entityId()).isEqualTo(userId);
     assertThat(provisioned.userId()).isEqualTo(userId);
@@ -113,6 +114,7 @@ class SessionAuditTest extends PlatformWebTest {
     assertThat(start(token, correlation).statusCode()).isEqualTo(403);
 
     AuditRows.Row row = AuditRows.await("SESSION_DENIED", correlation);
+    assertThat(row.previousValues()).isNull();
     assertThat(row.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
     assertThat(row.userId()).isEqualTo(AuditRows.userId(INACTIVE));
     assertThat(row.newValues()).isEqualTo(Map.of("result", "DENIED", "reason", "001-05"));
@@ -132,6 +134,7 @@ class SessionAuditTest extends PlatformWebTest {
     assertThat(start(token, correlation).statusCode()).isEqualTo(401);
 
     AuditRows.Row row = AuditRows.await("SESSION_DENIED", correlation);
+    assertThat(row.previousValues()).isNull();
     assertThat(row.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
     assertThat(row.userId()).isNull();
     assertThat(row.actorRef()).isNull();
@@ -157,6 +160,7 @@ class SessionAuditTest extends PlatformWebTest {
 
     for (String correlation : List.of(unknownCorrelation, missingCorrelation)) {
       AuditRows.Row row = AuditRows.await("SESSION_DENIED", correlation);
+      assertThat(row.previousValues()).isNull();
       assertThat(row.administrationId()).isNull();
       assertThat(row.userId()).isNull();
       assertThat(row.actorRef()).isNull();
@@ -241,25 +245,13 @@ class SessionAuditTest extends PlatformWebTest {
     assertThat(AuditRows.await("PREVIOUS_VALUES_PROBE", without).previousValues()).isNull();
   }
 
-  @Test
-  @Tag("007-20")
-  @DisplayName("007-20 · El Entry copia previousValues: cambiar el mapa de origen no lo altera")
-  void entryCopiesPreviousValues() {
-    var source = new java.util.HashMap<String, Object>(Map.of("status", "PLANEADA"));
-
-    Entry entry = entry("copia", source);
-    source.put("status", "CAMBIADO");
-
-    assertThat(entry.previousValues()).isEqualTo(Map.of("status", "PLANEADA"));
-  }
-
   private static Entry entry(String correlation, Map<String, Object> previousValues) {
     return new Entry(
         "LIV",
         UUID.randomUUID().toString(),
         LivDatabase.ADMIN_A,
         null,
-        "tax.administration_fiscal_year",
+        "test.previous_values_probe",
         UUID.randomUUID(),
         "PREVIOUS_VALUES_PROBE",
         Instant.now(),

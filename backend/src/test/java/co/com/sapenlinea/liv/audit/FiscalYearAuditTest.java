@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
@@ -116,10 +117,11 @@ class FiscalYearAuditTest extends PlatformWebTest {
     String correlation = UUID.randomUUID().toString();
     UUID rowId = UUID.randomUUID();
     UUID userId = AuditRows.userId(ACTIVE);
+    UUID eventId = UUID.randomUUID();
 
     inTransaction(
         new FiscalYearCreated(
-            UUID.randomUUID(),
+            eventId,
             LivDatabase.ADMIN_A,
             userId,
             rowId,
@@ -131,6 +133,7 @@ class FiscalYearAuditTest extends PlatformWebTest {
 
     AuditRows.Row row = AuditRows.await("FISCAL_YEAR_CREATED", correlation);
     assertThat(row.source()).isEqualTo("LIV");
+    assertThat(row.sourceEventId()).isEqualTo(eventId.toString());
     assertThat(row.entityName()).isEqualTo(ENTITY);
     assertThat(row.entityId()).isEqualTo(rowId);
     assertThat(row.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
@@ -148,10 +151,11 @@ class FiscalYearAuditTest extends PlatformWebTest {
     String correlation = UUID.randomUUID().toString();
     UUID rowId = UUID.randomUUID();
     UUID userId = AuditRows.userId(ACTIVE);
+    UUID eventId = UUID.randomUUID();
 
     inTransaction(
         new FiscalYearStatusChanged(
-            UUID.randomUUID(),
+            eventId,
             LivDatabase.ADMIN_A,
             userId,
             rowId,
@@ -162,6 +166,7 @@ class FiscalYearAuditTest extends PlatformWebTest {
             correlation));
 
     AuditRows.Row row = AuditRows.await("FISCAL_YEAR_STATUS_CHANGED", correlation);
+    assertThat(row.sourceEventId()).isEqualTo(eventId.toString());
     assertThat(row.entityName()).isEqualTo(ENTITY);
     assertThat(row.entityId()).isEqualTo(rowId);
     assertThat(row.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
@@ -214,16 +219,94 @@ class FiscalYearAuditTest extends PlatformWebTest {
 
   @Test
   @Tag("007-20")
-  @DisplayName("007-20 · Un evento cuya auditoría falla una vez se audita en la reentrega")
-  void failedDeliveryIsRedelivered() {
+  @DisplayName(
+      "007-20 · Dos cambios de la misma fila con distinto eventId son dos filas de auditoría")
+  void sameRowAndOperationWithAnotherEventIdIsAnotherAuditRow() {
     String correlation = UUID.randomUUID().toString();
-    // Only the event of this test fails, once: others still in flight are left alone.
-    doThrow(new DataAccessResourceFailureException("base de datos caída"))
-        .doCallRealMethod()
-        .when(log)
-        .append(argThat(entry -> correlation.equals(entry.correlationId())));
+    UUID rowId = UUID.randomUUID();
+    UUID userId = AuditRows.userId(ACTIVE);
 
-    inTransaction(
+    for (int change = 0; change < 2; change++) {
+      record.statusChanged(
+          new FiscalYearStatusChanged(
+              UUID.randomUUID(),
+              LivDatabase.ADMIN_A,
+              userId,
+              rowId,
+              2026,
+              "PLANEADA",
+              "EN_PREPARACION",
+              OCCURRED_AT,
+              correlation));
+    }
+
+    assertThat(AuditRows.byCorrelation(correlation)).hasSize(2);
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName("007-20 · Una creación nunca lleva estado anterior, aunque el evento lo traiga")
+  void aCreationNeverHasAPreviousState() {
+    String correlation = UUID.randomUUID().toString();
+
+    record.created(
+        new FiscalYearCreated(
+            UUID.randomUUID(),
+            LivDatabase.ADMIN_A,
+            AuditRows.userId(ACTIVE),
+            UUID.randomUUID(),
+            2026,
+            "PLANEADA",
+            "PLANEADA",
+            OCCURRED_AT,
+            correlation));
+
+    assertThat(AuditRows.await("FISCAL_YEAR_CREATED", correlation).previousValues()).isNull();
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName("007-20 · Un cambio sin estado anterior o sin estado nuevo no se audita a medias")
+  void aChangeNeedsBothStates() {
+    UUID userId = AuditRows.userId(ACTIVE);
+    var withoutPrevious =
+        new FiscalYearStatusChanged(
+            UUID.randomUUID(),
+            LivDatabase.ADMIN_A,
+            userId,
+            UUID.randomUUID(),
+            2026,
+            null,
+            "EN_PREPARACION",
+            OCCURRED_AT,
+            UUID.randomUUID().toString());
+    var withoutNew =
+        new FiscalYearStatusChanged(
+            UUID.randomUUID(),
+            LivDatabase.ADMIN_A,
+            userId,
+            UUID.randomUUID(),
+            2026,
+            "PLANEADA",
+            null,
+            OCCURRED_AT,
+            UUID.randomUUID().toString());
+
+    assertThatThrownBy(() -> record.statusChanged(withoutPrevious))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> record.statusChanged(withoutNew))
+        .isInstanceOf(NullPointerException.class);
+    assertThat(AuditRows.byCorrelationNow(withoutPrevious.correlationId())).isEmpty();
+    assertThat(AuditRows.byCorrelationNow(withoutNew.correlationId())).isEmpty();
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName("007-20 · Una creación cuya auditoría falla una vez se audita en la reentrega")
+  void failedCreationIsRedelivered() {
+    String correlation = UUID.randomUUID().toString();
+
+    redeliveredAfterOneFailure(
         new FiscalYearCreated(
             UUID.randomUUID(),
             LivDatabase.ADMIN_A,
@@ -233,7 +316,46 @@ class FiscalYearAuditTest extends PlatformWebTest {
             null,
             "PLANEADA",
             OCCURRED_AT,
-            correlation));
+            correlation),
+        correlation);
+
+    assertThat(AuditRows.await("FISCAL_YEAR_CREATED", correlation).userId())
+        .isEqualTo(AuditRows.userId(ACTIVE));
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName(
+      "007-20 · Un cambio de estado cuya auditoría falla una vez se audita en la reentrega")
+  void failedStatusChangeIsRedelivered() {
+    String correlation = UUID.randomUUID().toString();
+
+    redeliveredAfterOneFailure(
+        new FiscalYearStatusChanged(
+            UUID.randomUUID(),
+            LivDatabase.ADMIN_A,
+            AuditRows.userId(ACTIVE),
+            UUID.randomUUID(),
+            2026,
+            "PLANEADA",
+            "EN_PREPARACION",
+            OCCURRED_AT,
+            correlation),
+        correlation);
+
+    assertThat(AuditRows.await("FISCAL_YEAR_STATUS_CHANGED", correlation).previousValues())
+        .isEqualTo(Map.of("status", "PLANEADA"));
+  }
+
+  /** The audit fails once for this event: it waits in the outbox, and the redelivery writes it. */
+  private void redeliveredAfterOneFailure(Object event, String correlation) {
+    // Only the event of this test fails, once: others still in flight are left alone.
+    doThrow(new DataAccessResourceFailureException("base de datos caída"))
+        .doCallRealMethod()
+        .when(log)
+        .append(argThat(entry -> correlation.equals(entry.correlationId())));
+
+    inTransaction(event);
     // The first delivery fails: the event waits in the outbox, not in the audit.
     assertThat(
             AuditRows.awaitCount(
@@ -244,9 +366,6 @@ class FiscalYearAuditTest extends PlatformWebTest {
     assertThat(AuditRows.byCorrelationNow(correlation)).isEmpty();
 
     redelivery.run();
-
-    assertThat(AuditRows.await("FISCAL_YEAR_CREATED", correlation).userId())
-        .isEqualTo(AuditRows.userId(ACTIVE));
   }
 
   private void inTransaction(Object event) {
