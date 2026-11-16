@@ -3,7 +3,7 @@
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
 **Estado:** aprobado (H2) — 2026-11-13, por la persona que dirige el trabajo, con las correcciones de los dos altos de la verificación acotada (véase «H2» y «Revisión»)
-**Enmienda 4:** plan en borrador, H2 pendiente (véase «Enmienda 4 · Años de 2002 al año siguiente al año en curso»).
+**Enmienda 4:** plan aprobado (H2) el 2026-11-16, por la misma persona (véase «Enmienda 4 · Años de 2002 al año siguiente al año en curso»).
 _(borrador → aprobado (H2))_
 
 ## H2
@@ -627,7 +627,17 @@ flowchart LR
 
 _Plan de la enmienda 4 de la spec («Enmienda 4», H1 del 2026-11-16, decisiones E4‑1 a E4‑7). Lo que esta sección no cambia sigue como lo aprobó la H2 del 2026-11-13. Los pasos y las decisiones de la H2 siguen la numeración del plan: pasos 12 a 20 y decisiones H2‑16 a H2‑20._
 
-**Estado:** borrador. Falta la H2 de la enmienda. El diseño de Figma está aprobado (2026-11-16, «Diseño de interfaz (E4)»).
+**Estado:** aprobado (H2) el 2026-11-16 (véase «H2 (E4)»). El diseño de Figma está aprobado (2026-11-16, «Diseño de interfaz (E4)»).
+
+### H2 (E4)
+
+La persona que dirige el trabajo aprobó la H2 de la enmienda 4 el 2026-11-16, sobre el commit bba0833 (#204), con las decisiones H2‑16 a H2‑20 (véase «Decisiones de la H2 (E4)»):
+- siguió las recomendaciones en H2‑17, H2‑18 y H2‑19;
+- en H2‑16 decidió que el bloqueo de la creación se queda, y el paso 17 sale del plan;
+- en H2‑20 decidió que liquidar una vigencia de un año pasado no exige un concepto jurídico: sale `LQ‑P05` y cambia E4‑6;
+- después, el mismo día y sobre la revisión de las correcciones de la H2 (sin un commit nuevo todavía), decidió que el pendiente 7 del Doc. 02 no se reduce, con sus criterios como guía, y aprobó el texto nuevo de 82:5802.
+
+H2‑18 y H2‑20 cambian la spec: 007-22 y E4‑6 se ajustaron en `spec.md`, y la persona firmó de nuevo su H1 en esta H2, como en H2‑6. Las correcciones que dejaron estas decisiones se revisaron aparte («Revisión (E4)», revisión de la H2).
 
 ### Enfoque (E4)
 
@@ -639,7 +649,7 @@ _Plan de la enmienda 4 de la spec («Enmienda 4», H1 del 2026-11-16, decisiones
   - agrega valores de motivo y extensiones opcionales;
   - documenta el orden de `creatableYears`;
   - deja de emitir motivos sin quitarlos del esquema.
-- **La pantalla sigue sin calcular años.** La lista de años, su orden, su relación con el año en curso, el rango del estado vacío y el motivo del bloqueo salen del servidor. La pantalla solo aplica la regla de E4‑3: elige el año `CURRENT` si viene en la lista, y si no, ninguno.
+- **La pantalla sigue sin calcular años.** La lista de años, su orden, su relación con el año en curso, el rango del estado vacío y el motivo del bloqueo salen del servidor. La pantalla solo aplica la regla de E4‑3: elige el año `CURRENT` si viene en la lista, y si no, ninguno. Después de un resultado que no se conoce, conserva el año intentado si sigue en la lista, y si no, ninguno (H2‑18).
 - **El diálogo cambia el `RadioGroup` por un `Select` nuevo** de `liv-components` 0.5.0 (E4‑2).
 - **El orden de integración evita el riesgo 6 de la spec:** en `main` nunca hay un *frontend* que elija por omisión un año pasado. Para eso, un cambio pequeño del *frontend* va antes que el *backend* (paso 14). Después, la regla nueva, el diálogo y las pruebas de navegador se integran seguidos, ya aprobados los tres (H2‑19).
 - **Primero los documentos, como en el resto de la feature:** el motivo `PAST_LIMIT` del contrato sale del Doc. 01 v0.6. `ALL_CREATED` es el motivo de la API para 007-23, como lo era `FUTURE_LIMIT` para el botón inhabilitado, y no es una regla del Doc. 01.
@@ -653,14 +663,14 @@ _Plan de la enmienda 4 de la spec («Enmienda 4», H1 del 2026-11-16, decisiones
 | 14 | 4F0 · Año elegido sin años pasados | `frontend/` | `liv-pantalla` | H2 de la enmienda | Normal |
 | 15 | 4B1 · Contrato 1.1.0 | `backend/` | `liv-endpoint`, paso 1 | 13; se integra cuando el 16 está aprobado | Crítico (`backend/contracts/**`) |
 | 16 | 4B2 · La regla nueva | `backend/` | `liv-endpoint` | Se apila sobre la rama del 15 y se aprueba allí; se integra con el 14 y el 15 ya integrados y el 19 y el 20 aprobados | Crítico (`backend/**/liv/tax/**`) |
-| 17 | 4B3 · Sin el bloqueo de creación | `backend/` | `liv-endpoint` | 16 y H2‑16 | Crítico (`backend/**/liv/tax/**`) |
+| 17 | — | — | — | Sale del plan: el bloqueo se queda (H2‑16) | — |
 | 18 | 4U · `Select` y 0.5.0 | `ui/` | `liv-componente` | 12 (el `Select` aprobado) | Crítico (`ui/**`) |
-| 19 | 4F · El diálogo con `Select` | `frontend/` | `liv-pantalla` | 12, 14, la *release* `contract-tax-v1.1.0` (sale al integrar el 15), 0.5.0 publicada en npm y, si H2‑18 cambia 007-22, el criterio firmado de nuevo; se integra justo después del 16 | Normal |
+| 19 | 4F · El diálogo con `Select` | `frontend/` | `liv-pantalla` | 12, 14, la *release* `contract-tax-v1.1.0` (sale al integrar el 15), 0.5.0 publicada en npm y 007-22 como quedó en H2‑18; se integra justo después del 16 | Normal |
 | 20 | 4E · Pruebas de navegador | `e2e/` | `liv-prueba-e2e` | Se integra justo después del 19 | Normal |
 
 #### 12 · Diseño en Figma — ✅ aprobado el 2026-11-16
 
-Lo hizo otra sesión con la *skill* `liv-figma`, y la persona lo aprobó el 2026-11-16. Los nodos están en «Diseño de interfaz (E4)». Era requisito de dos pasos:
+Lo hizo otra sesión con la *skill* `liv-figma`, y la persona lo aprobó el 2026-11-16. En la H2 de ese día, al decidir H2‑20, la persona aprobó además un texto nuevo para el segundo párrafo de 82:5802: «Solo se podrá liquidar cuando estén cargadas las tablas de ese año.». La sesión de Figma cambió el nodo el mismo día. Los nodos están en «Diseño de interfaz (E4)». Era requisito de dos pasos:
 - del 18: el componente `Select` aprobado en `02 Componentes`;
 - del 19: el diálogo, el estado vacío y el motivo del botón inhabilitado, aprobados en `03 Pantallas`.
 
@@ -675,9 +685,20 @@ Los cambios que la spec propone en «Cambios propuestos a los documentos funcion
   - el ejemplo nuevo del orden de evaluación usa 2026 como año en curso, la vigencia 2026 creada y tres solicitudes: 2001 da `V‑05` `PAST_LIMIT`, 2026 da `V‑01` y 2028 da `V‑05` `FUTURE_LIMIT`;
   - V‑05 registra el motivo y la fecha de 2002 (E4‑1) y la excepción explícita a `AGENTS.md` §4.5.
 - **Doc. 02 v0.4:**
-  - el prerrequisito nuevo es **`LQ‑P05`** (hoy existen `LQ‑P01` a `LQ‑P04`), con el enunciado de E4‑6 y nada más: no se liquida un año pasado sin un concepto jurídico sobre la prescripción del cobro (Doc. 05 §6), la firmeza y la competencia de la administración ese año (`competencia.modalidades`, Doc. 03 §9.5);
-  - **su alcance no se decide aquí** (H2‑20): qué cuenta como «año pasado» y desde cuándo, y cómo se registra el concepto y quién lo da, van como puntos abiertos del pendiente 7 del §12, para la feature del motor (Fase 2) con jurídica. Entre esos puntos va, como pregunta, si una corrección de una vigencia hecha después de su año (`LQ‑P04`) necesita el concepto;
-  - el pendiente 7 nombra además, como pide el riesgo 3 de la spec, las tasas de usura desde la fecha límite de cada año pasado que se liquide en LIV: el pendiente 7 del Doc. 05 solo pide las de los años que se migran con `RECALCULAR`.
+  - **no hay prerrequisito nuevo** (H2‑20): la persona decidió el 2026-11-16 que liquidar una vigencia de un año pasado no exige un concepto jurídico previo. Se liquida con los mismos prerrequisitos que cualquier vigencia, `LQ‑P01` a `LQ‑P04` del §B.3, y sus tablas las exige la habilitación de la 1.5.1 (V‑03);
+  - **el pendiente 7 del §12 no se reduce.** Su pregunta, «si se liquidan vigencias anteriores con este motor», queda respondida: sí, sin concepto jurídico previo. Siguen abiertas, sin bloquear nada en esta feature, para la feature del motor (Fase 2) y el Módulo 5 (Doc. 05 §6):
+    - **la prescripción, la firmeza y la competencia de la administración ese año** (`competencia.modalidades`, Doc. 03 §9.5). El pendiente recoge, como guía, los criterios que aportó la persona el 2026-11-16. Son una propuesta pendiente de revisión jurídica (`AGENTS.md` §8), no reglas aprobadas:
+      - **plazo:** la acción de cobro prescribe por regla general a los 5 años (art. 817 ET, aplicable a los impuestos territoriales por el art. 59 de la Ley 788 de 2002; el impuesto es el de la Ley 488 de 1998, arts. 138 a 150);
+      - **inicio del término:** no es necesariamente el 1 de enero de la vigencia. Depende del supuesto: el vencimiento para declarar o pagar, la presentación extemporánea, una corrección o la ejecutoria del acto de determinación;
+      - **interrupción y suspensión** (art. 818 ET): la notificación válida del mandamiento de pago interrumpe el término, y desde ella corre uno nuevo de 5 años. Expedir el mandamiento no basta;
+      - **sin declaración:** según la propuesta, la administración puede tener que adelantar antes una determinación oficial (aforo), con sus propios términos (la firmeza). La liquidación de aforo ejecutoriada es título ejecutivo, y su término de cobro corre desde la ejecutoria. Por eso no siempre una vigencia prescribe sola a los 5 años;
+      - **quién la declara:** la autoridad competente, de oficio o a petición del contribuyente (art. 817 ET), después de revisar declaraciones, facturas o liquidaciones oficiales, fechas de ejecutoria, mandamientos notificados, facilidades de pago y demás eventos;
+      - **en LIV:** cada vigencia de cada obligación se evalúa por separado. Los datos que sugirió la persona (fecha de inicio del término, vencimiento estimado, título ejecutivo, fecha de notificación del mandamiento, estado y acto de la prescripción, con su historia en `prescription_event` y `prescription_evaluation`) quedan como referencia para el Módulo 5 (Doc. 05 §6, Fase 5). Esos datos no se agregan al ERD en esta enmienda;
+      - **dos diferencias con el Doc. 05 §6.1, que quedan como preguntas** para la feature del Módulo 5 con jurídica, sin decidirlas aquí: el Doc. 05 deriva la exigibilidad y la fecha de prescripción, sin guardarlas, y la propuesta sugiere guardar la fecha de inicio y el vencimiento; y la presentación extemporánea y la corrección, como inicio del término, no son valores de `cartera.prescripcion.inicio_termino` (hoy `FECHA_EJECUTORIA_FACTURA`, `FECHA_LIMITE_PAGO` o `FECHA_PRESENTACION_DECLARACION`), así que agregarlas sería un cambio de la configuración, con CJ16;
+    - los intereses de mora desde la fecha límite de ese año y las sanciones;
+    - las tasas de usura desde esa fecha, como pide el riesgo 3 de la spec: el pendiente 7 del Doc. 05 solo pide las de los años que se migran con `RECALCULAR`;
+    - qué hace el motor con un año que ya tiene una obligación migrada;
+    - el efecto de la imputación a la más antigua primero (Doc. 04 §5).
 - **Doc. 05 v0.2:** el pendiente nuevo va con el siguiente número libre del §11.
 - **ERD 2.4:**
   - la descripción de `tax.fiscal_year` dice que V‑05 fija el límite inferior;
@@ -794,7 +815,11 @@ Las demás pruebas que cambian:
   - 007-23: una administración nueva con los años de 2002 a `currentYear() + 1`, que inserta el dueño de los objetos, da `createBlocked` con `ALL_CREATED`, `minYear` y `maxYear`.
 - **`ErrorResponsesTest` y `RuleViolationTest`:** usan `GAP` como ejemplo; pasan a `PAST_LIMIT`, para no dejar de ejemplo un motivo que ya no existe.
 - **`FakeFiscalYears`:** solo si guarda algo de la regla vieja.
-- **`JpaFiscalYearsRacesTest`:** las dos pruebas de la medianoche (`theLockSerializesTheCreationsAcrossMidnight` y `withoutTheLockTheTestSeesTheGap`) esperan `V‑02` `GAP`, y esa premisa se pierde. **Se quitan.** Que {2026, 2028} sea válido ya lo prueba la política, y repetirlo con dos relojes no probaría nada de concurrencia. El bloqueo se queda hasta el paso 17, solo con `theLockIsOfTheAdministration`.
+- **`JpaFiscalYearsRacesTest`:** las dos pruebas de la medianoche (`theLockSerializesTheCreationsAcrossMidnight` y `withoutTheLockTheTestSeesTheGap`) esperan `V‑02` `GAP`, y esa premisa se pierde. No pueden quedarse como están. Como el bloqueo se queda (H2‑16), **se reemplazan por dos pruebas de caracterización del bloqueo con el mismo año**, con las etiquetas `V-01` y `007-05`. Pasan en verde desde el principio, porque el bloqueo ya existe; por eso no van entre las pruebas en rojo:
+  - **con el bloqueo** (`withLock` verdadero): A toma el bloqueo y se detiene. La prueba espera a que B esté detenida en `pg_advisory_xact_lock` (`LivDatabase.awaitAnApplicationSessionWaitingOnALock`) y solo entonces comprueba, con un espía en `findAll`, que B no leyó los años. Al soltar A, A crea y confirma, y B lee 2026 ya creado y recibe el `V‑01` de la política, sin llegar al `INSERT`. Queda una sola fila y se publica un solo `FiscalYearCreated`, contado con un publicador espía en lugar del vacío del arnés;
+  - **el control sin el bloqueo** (`withLock` falso), una prueba permanente, como hoy `withoutTheLockTheTestSeesTheGap`: mientras A está detenida, B no espera nada. La prueba espera a que B termine (`creationB.get` con su tiempo límite): B lee la administración vacía, crea 2026 y confirma, y el espía registra su lectura. Al soltar A, **A** intenta crear, recibe el `23505` y termina en `V‑01`. Queda una sola fila y un solo `FiscalYearCreated`. Esta prueba demuestra en CI que la prueba con el bloqueo detecta su falta.
+
+  Que {2026, 2028} sea válido ya lo prueba la política. `theLockIsOfTheAdministration`, `theRealUniqueBecomesV01` y lo que `CreateFiscalYearTest` comprueba del bloqueo no cambian.
 - **La *skill* `liv-endpoint`:** su tabla dice que `FiscalYearOpeningPolicy` aplica V‑01, V‑02 y V‑05; pasa a V‑01 y V‑05.
 
 **Qué cambia en el código:**
@@ -818,40 +843,9 @@ Las demás pruebas que cambian:
 
 **Revisión:** la adversarial con dos `liv-revisor-critico` y las cuatro lentes de `liv-revision-4r`.
 
-#### 17 · Sin el bloqueo de creación (`backend/`, PR 4B3) — si la H2 aprueba H2‑16
+#### 17 · Sale del plan (H2‑16)
 
-**Por qué se quita.** El bloqueo por administración (`pg_advisory_xact_lock`, paso 6) solo protegía V‑02 `GAP` al cruzar la medianoche. Con el orden libre, ninguna regla depende de otras filas:
-- un año repetido lo rechaza el `UNIQUE`, y el adaptador traduce su `23505` a `V‑01`;
-- el rango lo decide cada petición con su reloj, y los dos resultados posibles son válidos.
-
-Si se queda, cuesta una consulta nativa en cada creación, un método del puerto y una prueba que ya no demuestra nada.
-
-**Es un `refactor:`.** No cambia ningún criterio: con el bloqueo, 007-05 ya se cumple. Por eso no hay una prueba que falle antes, sino una **prueba de caracterización** del diseño sin bloqueo (007-05 bajo concurrencia, como pide la spec), que va en el mismo *commit* que la quita. Está en `JpaFiscalYearsRacesTest`:
-- dos `CreateFiscalYear` del mismo año, en dos transacciones reales en paralelo sobre el adaptador real;
-- un espía las detiene a las dos después de leer los años, cuando las dos ven el año libre, y luego las suelta;
-- una crea la vigencia y la otra recibe `RuleViolation` `V‑01`, de tipo `CONFLICT` y con `{year}`, nunca `DataIntegrityViolationException`;
-- en la tabla queda una sola fila, y se publica un solo `FiscalYearCreated`, que es lo que escucha la auditoría (007-20). Para contarlo, la prueba usa un publicador espía en lugar del vacío que usa hoy el arnés.
-
-Con el bloqueo puesto, esta prueba no podría correr: la segunda creación esperaría el bloqueo antes de leer y nunca llegaría al punto de espera.
-
-**Qué se quita:**
-- `lockForCreation` del puerto `FiscalYears`, de `AdministrationFiscalYearRepository` y de `JpaFiscalYears`, con `CREATION_LOCK_SPACE`;
-- la llamada en `CreateFiscalYear`;
-- su doble en `FakeFiscalYears` y en el espía de las pruebas;
-- en `CreateFiscalYearTest`, el `"lock"` del orden de llamadas y `lockedAdministrations()`;
-- `theLockIsOfTheAdministration` (las pruebas de la medianoche ya salieron en el paso 16).
-
-**Qué se queda:**
-- `theRealUniqueBecomesV01`;
-- `READ_COMMITTED`, con su comentario ajustado: ya no lo justifica el bloqueo, y es el nivel por omisión.
-
-**También en este PR:** la tabla del puerto en la *skill* `backend/.claude/skills/liv-endpoint/SKILL.md`, que nombra `lockForCreation`.
-
-**Si la H2 no lo aprueba,** el paso no existe y el bloqueo se queda. Como el paso 16 quita las pruebas de la medianoche, este paso agrega en su lugar una prueba del bloqueo con el mismo año: B espera el bloqueo de A y después recibe V‑01. Así sigue habiendo una prueba que falla si se quita el bloqueo.
-
-**Registro:** el `CHANGELOG.md` del *backend*, en «Sin publicar».
-
-**Revisión:** la adversarial con dos `liv-revisor-critico` y las cuatro lentes de `liv-revision-4r`.
+La H2 decidió que el bloqueo de la creación se queda (H2‑16). El número se conserva para que las referencias de la revisión se puedan rastrear. Lo que cambia en las pruebas del bloqueo está en el paso 16.
 
 #### 18 · `Select` en `liv-components` 0.5.0 (`ui/`, PR 4U)
 
@@ -897,16 +891,19 @@ El componente está aprobado en Figma (paso 12; conjunto 81:629). Estos son los 
 
 #### 19 · El diálogo con `Select` (`frontend/`, PR 4F)
 
-Necesita las dos versiones publicadas (`contract-tax-v1.1.0` y `liv-components` 0.5.0) y el diseño aprobado. Se desarrolla en paralelo con los pasos 15 a 17, con el servicio simulado en sus pruebas. Adopta el contrato cuando sale la *release*, al integrar el 15, y entonces se aprueba. Se integra **justo después del 16** y nunca antes (H2‑19).
+Necesita las dos versiones publicadas (`contract-tax-v1.1.0` y `liv-components` 0.5.0) y el diseño aprobado. Se desarrolla en paralelo con los pasos 15 y 16, con el servicio simulado en sus pruebas. Adopta el contrato cuando sale la *release*, al integrar el 15, y entonces se aprueba. Se integra **justo después del 16** y nunca antes (H2‑19).
 
 - **Adopción:** `api-spec/versions.json` con `tax` 1.1.0 y su `sha256`, `npm run api:update` (regenera `creation-rejection-extensions.ts`, `fiscal-year-list.ts` y `create-blocked.ts`), y `liv-components` `0.5.0` exacta en `package.json` y `package-lock.json`.
 - **`create-fiscal-year-dialog` (007-04, 007-22):**
   - el `Select`, con la etiqueta «Año de la vigencia» y la opción vacía «Elige un año»;
   - las opciones en el orden de `creatableYears`, con el texto del diseño: el número y, para `CURRENT` y `NEXT`, su etiqueta. Un año `PAST` lleva solo el número, así que sale la etiqueta de `PAST` (E4‑4);
-  - el año elegido: `CURRENT` si viene en la lista, y si no, ninguno, al abrir y al releer la lista después de un V‑01. Después de un resultado que no se conoce, lo que decida H2‑18;
+  - el año elegido: `CURRENT` si viene en la lista, y si no, ninguno, al abrir y al releer la lista después de un V‑01. Después de un resultado que no se conoce (sin respuesta, tiempo agotado o error del servidor: `isOutcomeUnknown`), el año intentado si sigue en la lista, y si no, ninguno (H2‑18);
+  - el `Select` está inhabilitado mientras se envía y **mientras se relee la lista**, así que «el año intentado» es siempre el que se envió: la persona no puede cambiarlo en ese tiempo. Hoy el `RadioGroup` solo se inhabilita mientras se envía (`[disabled]="submitting()"`). Es la variante `Disabled` del `Select` (81:629), así que no es un componente ni un estado nuevo;
+  - mientras el `Select` está inhabilitado, el foco no se pierde: se queda en el diálogo y vuelve al `Select` cuando termina la relectura. Si la relectura falla, se conserva el año intentado y el `Select` vuelve a estar habilitado;
+  - el caso «si ya no está, ninguno» es una defensa del diálogo: cuando el año intentado aparece entre las vigencias, la página cierra el diálogo y anuncia la creación (`onStaleList`), como hoy, y esa prueba de `fiscal-years.spec.ts` se queda;
   - sin año elegido, «Crear vigencia» inhabilitado y sin fechas: los dos `DescriptionItem` no se muestran;
   - el foco inicial en el `Select` (`data-initial-focus`), nunca en «Crear vigencia», y de nuevo en el `Select` después de releer la lista;
-  - la advertencia nueva del diseño (67:3040). Si el año elegido es `PAST`, la reemplaza la de 82:5802, «Es un año pasado», que suma en dos párrafos el aviso de que no se borra y el de E4‑6. Lo decide `relation`, no un cálculo de fechas;
+  - la advertencia nueva del diseño (67:3040). Si el año elegido es `PAST`, la reemplaza la de 82:5802, «Es un año pasado», que suma en dos párrafos el aviso de que no se borra y el de que solo se podrá liquidar con sus tablas cargadas (E4‑6, tal como quedó en H2‑20). Lo decide `relation`, no un cálculo de fechas;
   - la lista de vigencias no cambia: va completa, aunque tenga 26 filas o más, sin paginación (decisión de la persona en el diseño).
 - **`fiscal-year-rejections`:**
   - el mensaje de `V‑05` `PAST_LIMIT` con `minYear`;
@@ -919,7 +916,8 @@ Necesita las dos versiones publicadas (`contract-tax-v1.1.0` y `liv-components` 
   - `create-fiscal-year-dialog.spec.ts`:
     - la etiqueta, la opción vacía, y el orden y el texto de las opciones;
     - `CURRENT` elegido, y ninguno sin `CURRENT`, también después de un V‑01;
-    - después de un resultado que no se conoce, la regla de H2‑18;
+    - después de un resultado que no se conoce, con `TimeoutError`, con `status` 0 y con 503: el año intentado sigue elegido si sigue en la lista, y si ya no está, no queda ninguno (H2‑18);
+    - el `Select` inhabilitado mientras se relee la lista, el foco que vuelve a él y la relectura fallida, que conserva el año intentado;
     - las fechas solo con un año elegido;
     - el botón inhabilitado sin año;
     - el foco inicial en el `Select`, y que Enter al abrir no crea nada;
@@ -976,7 +974,7 @@ Sale la etiqueta de `PAST` de `DESCRIPCION_DE_RELACION`.
 Lo hace el orquestador sobre la rama `docs/007-cierre`, sin integrarla antes:
 - reabre los criterios que dice la spec («Lo que se vuelve a verificar»), agrega 007-22 y 007-23 y los marca con las pruebas de los pasos 14 a 20;
 - agrega las tareas de la enmienda a `tasks.md`, y actualiza `ESTADO.md` y el *roadmap*;
-- en «Ajustes de la H3» de esa rama, el bloqueo de creación queda reemplazado por el paso 17, si la H2 lo aprueba.
+- en «Ajustes de la H3» de esa rama, el bloqueo de creación se queda (H2‑16), con la prueba nueva del paso 16.
 
 Esta sección se insertó antes de «Revisión» para no chocar con los cambios de esa rama, que tocan el bloque «H2», el paso 6, la tabla de cambios de Figma y el final del archivo.
 
@@ -999,8 +997,7 @@ Esta sección se insertó antes de «Revisión» para no chocar con los cambios 
   | Amenaza | Control |
   |---|---|
   | Crear por error un año pasado, en una lista de 26 años y sin poder borrarlo | Ningún año pasado viene elegido (E4‑3). La advertencia y las fechas del año elegido se ven antes de confirmar. La creación queda auditada (007-20) |
-  | Liquidar un año prescrito o sin competencia | No hay forma de liquidar en esta feature. `LQ‑P05` (Doc. 02 v0.4) y la doble firma de la 1.5.1 lo impedirán |
-  | Una creación concurrente del mismo año sin el bloqueo (paso 17) | El `UNIQUE` de la base de datos y la traducción del `23505` a `V‑01`, con su prueba de dos transacciones en paralelo |
+  | Liquidar un año prescrito, en firme o sin competencia | Sin control en esta feature, que no liquida. El riesgo de liquidar un año prescrito, en firme o sin competencia está abierto y se resuelve en la Fase 2 y el Módulo 5 (pendiente 7 del Doc. 02) |
   | Inferir años de otra administración por la lista que se ofrece | No cambia: `creatableYears` sale de los años de la propia administración y de la tabla nacional (CA‑12) |
 
 ### Diseño de interfaz (E4)
@@ -1025,7 +1022,7 @@ Esta sección se insertó antes de «Revisión» para no chocar con los cambios 
 | Pantalla | Nodo | Qué muestra |
 |---|---|---|
 | Crear vigencia | [67:3040](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=67-3040) | El `Select` con el año en curso elegido, sus fechas y la advertencia, que ya no habla de años históricos |
-| Crear vigencia, año pasado | [82:5802](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=82-5802) | Con un año pasado elegido, **una sola advertencia**, «Es un año pasado», con dos párrafos: que una vigencia no se borra y que solo se podrá liquidar con sus tablas cargadas y el concepto jurídico (007-04, E4‑6). Reemplaza la advertencia general, no se suma a ella |
+| Crear vigencia, año pasado | [82:5802](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=82-5802) | Con un año pasado elegido, **una sola advertencia**, «Es un año pasado», con dos párrafos: que una vigencia no se borra y «Solo se podrá liquidar cuando estén cargadas las tablas de ese año.» (007-04; E4‑6, tal como quedó en H2‑20). El nodo se cambió el 2026-11-16, después de H2‑20, y la persona aprobó el texto en esa H2. Reemplaza la advertencia general, no se suma a ella |
 | Con el rechazo `V‑01` | [67:3163](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=67-3163) | Después de releer la lista, sin año elegido («Elige un año») y con «Crear vigencia» inhabilitado |
 | Mensajes de rechazo | [67:3284](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=67-3284) | Salen `V‑02` `GAP` y `HISTORICAL` y `V‑05` `FIRST_YEAR`. Entra `V‑05` `PAST_LIMIT`, que cita el primer año, y `FUTURE_LIMIT` cita el último. La persona decidió mostrar los mensajes de `PAST_LIMIT` y `FUTURE_LIMIT`, aunque la pantalla casi no permita llegar a ellos. Se quedan `V‑01` y `V‑06` |
 | Estado vacío del administrador | [66:2793](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=66-2793) | «… Puedes crear cualquier año de 2002 a 2027.» (007-03) |
@@ -1050,7 +1047,6 @@ flowchart LR
   P13 --> P15[15 · Contrato 1.1.0]
   P15 --> P16[16 · Regla nueva]
   P14 -->|integrado antes| P16
-  P16 --> P17[17 · Sin bloqueo]
   P15 -->|release contract-tax-v1.1.0| P19[19 · Diálogo con Select]
   P18 -->|npm 0.5.0| P19
   P12 --> P19
@@ -1058,7 +1054,6 @@ flowchart LR
   P16 -->|integrado justo antes| P19
   P19 -->|integrado justo antes| P20[20 · e2e]
   P20 --> C[Cierre]
-  P17 --> C
 ```
 
 - **Orden de integración:**
@@ -1066,8 +1061,7 @@ flowchart LR
   2. el 18, que la persona publica en npm;
   3. con el 16 aprobado sobre la rama del 15, el 15, que publica la *release*;
   4. cuando el 19 la haya adoptado y el 19 y el 20 estén aprobados, **seguidos y el mismo día**: el 16, el 19 y el 20;
-  5. el 17, después del 16, en cualquier momento antes del cierre;
-  6. el cierre.
+  5. el cierre.
 
   Así la ventana de H2‑19 dura lo que tardan esas integraciones, y en ella el *frontend* es el del paso 14 y las pruebas de navegador de `main` están en rojo.
 - **Paralelismo (tres sesiones de trabajo a la vez como máximo; la de Figma del paso 12 ya terminó):**
@@ -1080,7 +1074,7 @@ flowchart LR
   |---|---|
   | `backend/contracts/openapi/tax.yaml` y la *release* `contract-tax-v1.1.0` | 15 |
   | `FiscalYearOpeningPolicy`, `CreateBlocked`, `FiscalYearsController` y sus pruebas | 16 |
-  | El puerto `FiscalYears`, `JpaFiscalYears`, `JpaFiscalYearsRacesTest` y la *skill* `liv-endpoint` | 16 y 17, en serie |
+  | El puerto `FiscalYears`, `JpaFiscalYears`, `JpaFiscalYearsRacesTest` y la *skill* `liv-endpoint` | 16 |
   | `frontend/src/app/features/fiscal-years/` | 14 y 19, en serie: el 19 parte del 14 integrado |
   | `frontend/api-spec/`, `frontend/package.json` y `package-lock.json` | 19 |
   | La versión de `liv-components` y su publicación en npm, que hace la persona | 18 |
@@ -1097,21 +1091,21 @@ Son decisiones técnicas de este plan. Las que necesitan a la persona están en 
 - **`ALL_CREATED` en el `enum` del dominio, en lugar de `FUTURE_LIMIT`.** Con el rango completo, la única forma de no poder crear es tenerlo todo creado. El contrato conserva `FUTURE_LIMIT` documentado para no quitar un valor.
 - **El rango del estado vacío sale de los extremos de `creatableYears`.** En una administración sin vigencias, la lista es el rango completo y su orden está en el contrato. Se descartó agregar `minYear` y `maxYear` a `FiscalYearList`: serían dos propiedades más, que solo hacen falta cuando ya no queda ningún año, y para ese caso `createBlocked` ya las trae.
 - **Las extensiones obsoletas se quedan como `$ref: Year`,** con la nota en la descripción del objeto (paso 15). Se descartó `deprecated: true`, porque obliga a copiar el rango del año y a relajar una prueba del contrato.
-- **El paso 17 es un `refactor:`,** con una prueba de caracterización en el mismo *commit*: con el bloqueo, ningún criterio falla.
+- **El bloqueo se queda (H2‑16),** con dos pruebas de caracterización del mismo año, con el bloqueo y sin él, en lugar de las de la medianoche (paso 16).
 - **`RadioGroup` se queda en `liv-components`.** Quitarlo es un cambio incompatible, y no hay motivo para hacerlo ahora.
-- **El cambio previo del *frontend* (paso 14) es mínimo:** qué año viene marcado y adónde va el foco al releer. La regla definitiva de E4‑3 (ninguno al releer si falta `CURRENT`) y el diseño nuevo van en el paso 19, con Figma aprobado.
+- **El cambio previo del *frontend* (paso 14) es mínimo:** qué año viene marcado y adónde va el foco al releer. La regla definitiva de E4‑3, con la precisión de H2‑18, y el diseño nuevo van en el paso 19, con Figma aprobado.
 
 ### Decisiones de la H2 (E4)
 
-_Lo que la persona decide en la H2 de la enmienda, además del plan en sí, con la recomendación de este plan._
+_Lo que la persona decidió en la H2 de la enmienda, además del plan en sí. La columna «Resultado» dice cómo, y si siguió la recomendación de este plan._
 
-| # | Decisión | Recomendación |
+| # | Decisión | Resultado |
 |---|---|---|
-| H2‑16 | **Quitar el bloqueo por administración de la creación** (paso 17). Sin V‑02, ya no protege ninguna regla: V‑01 lo protege el `UNIQUE`, con una prueba de dos transacciones en paralelo sin bloqueo | **Quitarlo.** Si se queda, es código sin regla que lo justifique y una prueba que no demuestra nada. *Alternativa:* dejarlo, sin el paso 17. Como el paso 16 quita las pruebas de la medianoche, en ese caso se agrega una prueba del bloqueo con el mismo año (paso 17, «Si la H2 no lo aprueba»): sin ella, quitar esas pruebas dejaría el bloqueo sin probar (`AGENTS.md` §4.5) |
-| H2‑17 | **El significado del contrato 1.1.0.** openapi-diff no ve dos cambios de comportamiento: `creatableYears` pasa de «de cero a dos» años a hasta 26, uno más cada año, y su orden se invierte y queda documentado. ¿Se aceptan como versión menor, sin la etiqueta `contrato-incompatible`? | **Sí.** Lo pedía la H1 («compatible»). Los dos clientes son del repositorio: el *frontend*, que el paso 14 neutraliza, y `e2e/`, que el paso 20 adapta y se integra seguido. *Alternativa:* 2.0.0 con la etiqueta, que obliga al *frontend* a adoptarla de golpe y no reduce el riesgo |
-| H2‑18 | **El año elegido después de un resultado que no se conoce** (tiempo agotado o error del servidor). El diálogo vuelve a leer la lista, y con la regla literal de 007-22 el año que la persona eligió, quizá uno pasado que sigue libre, se cambiaría sin aviso por el año en curso: el clic siguiente crearía otra vigencia que no se borra (riesgo 4 de la spec). Si la vigencia sí se creó, el año intentado ya no viene, y con la regla literal quedaría elegido el año en curso, con el mismo riesgo. Las opciones, **solo después de un resultado que no se conoce**: (a) conservar el año intentado si sigue en la lista, y si no, ninguno; (b) ninguno, siempre; (c) la regla literal | **(a).** Si el año intentado sigue libre, la persona lo reintenta sin volver a buscarlo. Si no, no queda elegido ningún año que ella no eligió, y la alerta le pide revisar la lista. Al abrir y después de un V‑01, la regla de E4‑3 no cambia. **Cambia el texto de 007-22,** así que la persona firma de nuevo la H1 de ese criterio, como en H2‑6. Este plan no edita la spec: se lo reporta al orquestador |
-| H2‑19 | **La ventana entre el paso 16 y los pasos 19 y 20.** Con el *backend* nuevo y el *frontend* del paso 14, la 1.4 local muestra: hasta 26 radios; la advertencia de los años históricos, ya falsa; un estado vacío que enumera los años; fechas vacías cuando no hay año marcado; el texto general ante `ALL_CREATED`; y la etiqueta de un año pasado. Además, las pruebas de navegador de `main` están en rojo hasta el paso 20. Ningún año pasado viene elegido. ¿Se acepta, con la regla de integrar el 15, el 16, el 19 y el 20 seguidos el mismo día, ya aprobados los cuatro, y de no versionar ni desplegar el *backend* entre ellos? | **Sí.** No hay producción, y la ventana dura lo que tardan esas integraciones. El riesgo que importaba (un clic que crea un año pasado elegido de antemano) lo quita el paso 14. *Alternativa:* un PR de `e2e/` antes del 16 que acepte los dos *backends*. No se recomienda, porque varias pruebas de hoy (dos años exactos, el bloqueo de `FUTURE_LIMIT`) no se pueden escribir para los dos |
-| H2‑20 | **El alcance de `LQ‑P05`** (paso 13). E4‑6 dice «un año pasado», sin decir pasado respecto de qué. Si fuera «anterior al año en curso al liquidar», una corrección de la vigencia 2026 hecha en 2027 (`LQ‑P04`) ya necesitaría el concepto jurídico | **No decidirlo ahora.** `LQ‑P05` lleva solo el enunciado de E4‑6, y su alcance y cómo se registra el concepto quedan como puntos abiertos del pendiente 7 del Doc. 02, para la feature del motor con jurídica. Así un documento de nivel 1 no fija una interpretación que nadie decidió. *Alternativa:* decidirlo ya, por ejemplo «las vigencias cuyo año ya era pasado cuando se crearon» |
+| H2‑16 | **El bloqueo por administración de la creación** (el paso 17 proponía quitarlo). Sin V‑02, ya no protege ninguna regla, y V‑01 lo protege el `UNIQUE` | **Se queda.** La persona no siguió la recomendación de quitarlo. El paso 17 sale del plan, y el paso 16 reemplaza las dos pruebas de la medianoche, que pierden su premisa, por dos pruebas de caracterización del bloqueo con el mismo año, que fallan si se quita (`AGENTS.md` §4.5: no se desactivan ni se debilitan pruebas) |
+| H2‑17 | **El significado del contrato 1.1.0.** openapi-diff no ve dos cambios de comportamiento: `creatableYears` pasa de «de cero a dos» años a hasta 26, uno más cada año, y su orden se invierte y queda documentado | ✅ **Versión menor 1.1.0, compatible, sin la etiqueta `contrato-incompatible`,** como se recomendaba. Los dos clientes son del repositorio: el *frontend*, que el paso 14 neutraliza, y `e2e/`, que el paso 20 adapta y se integra seguido |
+| H2‑18 | **El año elegido después de un resultado que no se conoce** (sin respuesta, tiempo agotado o error del servidor). Con la regla literal de 007-22, el diálogo cambiaba sin aviso el año que la persona eligió por el año en curso, y el clic siguiente creaba otra vigencia que no se borra (riesgo 4 de la spec) | ✅ **Se conserva el año intentado si sigue en la lista; si no, ninguno,** como se recomendaba (opción a). Al abrir y después de un V‑01, la regla de E4‑3 no cambia. 007-22 se ajustó en `spec.md`, y la persona firmó su H1 en esta misma H2 |
+| H2‑19 | **La ventana entre el paso 16 y los pasos 19 y 20.** Con el *backend* nuevo y el *frontend* del paso 14, la 1.4 local muestra: hasta 26 radios; la advertencia de los años históricos, ya falsa; un estado vacío que enumera los años; fechas vacías cuando no hay año marcado; el texto general ante `ALL_CREATED`; y la etiqueta de un año pasado. Las pruebas de navegador de `main` están en rojo hasta el paso 20. Ningún año pasado viene elegido | ✅ **Se acepta,** como se recomendaba: el 16, el 19 y el 20 se integran seguidos el mismo día, con los tres aprobados, sin versionar ni desplegar el *backend* entre ellos |
+| H2‑20 | **El prerrequisito `LQ‑P05`** que proponía el paso 13 para E4‑6, y su alcance | **Liquidar una vigencia de un año pasado no exige un concepto jurídico.** La persona fue más allá de la recomendación (dejar el alcance abierto): sale `LQ‑P05`, y E4‑6 cambia en `spec.md` con esta decisión. Un año pasado se liquida con los mismos prerrequisitos que cualquier vigencia (`LQ‑P01` a `LQ‑P04`, y las tablas por la habilitación de la 1.5.1). Después, el mismo 2026-11-16 y sobre la revisión de estas correcciones, la persona decidió que el pendiente 7 del Doc. 02 **no se reduce**: la prescripción, la firmeza y la competencia siguen abiertas, con los criterios que ella aportó como guía (paso 13). En Figma, la advertencia de un año pasado (82:5802) pierde la mención a jurídica |
 
 ### Riesgos (E4)
 
@@ -1121,16 +1115,15 @@ _Lo que la persona decide en la H2 de la enmienda, además del plan en sí, con 
 | Las pruebas de navegador de `main` quedan en rojo después del paso 16 | La misma integración seguida del 16, el 19 y el 20 (H2‑19). El 19 y el 20 se validan juntos con la rama del 16 antes de integrar |
 | La *release* 1.1.0 describe una regla que la revisión del paso 16 obliga a cambiar | El 15 se integra solo con el 16 aprobado (paso 15) |
 | Después de un resultado que no se conoce, el diálogo cambia sin aviso el año elegido por el año en curso | H2‑18 |
-| `LQ‑P05` fija sin decisión qué es un «año pasado» y obliga al motor | H2‑20: solo el enunciado de E4‑6, y el alcance queda abierto en el pendiente 7 del Doc. 02 |
 | openapi-diff da por incompatible algún cambio del contrato | Ninguno quita ni cambia un tipo: valores en cadenas abiertas, propiedades opcionales nuevas y descripciones. El PR cita la salida de `compare.sh`, y si no da compatible, se detiene y se escala a la persona |
 | El significado del contrato cambia sin que Q08 lo vea | La tabla de compatibilidad del paso 15, en el PR, y H2‑17 |
-| Quitar el bloqueo deja V‑01 sin protección bajo concurrencia | La prueba de caracterización del paso 17 (dos transacciones en paralelo, sin bloqueo, una fila y un evento) y `theRealUniqueBecomesV01`, que se queda |
+| Las pruebas de la medianoche pierden su premisa y el bloqueo queda sin probar | Las dos pruebas de caracterización del paso 16, con el bloqueo y sin él: fallan si se quita |
 | Las pruebas de la API dependen del calendario | Todos los años de `FiscalYearsApiTest` se calculan con `currentYear()` (paso 16) |
 | 2002 se lee como un valor tributario en el código | La constante cita V‑05, E4‑1 y la excepción de §4.5, y tiene su prueba. El Doc. 01 v0.6 lo registra con la fecha y el motivo (riesgo 1 de la spec) |
 | El `Select` nativo se ve distinto en cada sistema operativo, y la lista abierta no se puede pintar | Se implementa el control cerrado, y `Open` se pinta como `Focus`. La lista la da el sistema, que es accesible por defecto |
 | El teclado del `<select>` cambia entre plataformas en `e2e/` | Las pruebas de navegador comprueban el foco y Enter, y eligen con `selectOption` (paso 20) |
 | Las pruebas de navegador crean vigencias de años pasados que no se borran | `limpiar-vigencias.sh` antes de cada corrida y la comprobación previa de `vigencias.spec.ts` (H2‑9) |
-| Los años pasados quedan en *En preparación* para siempre (riesgos 2 y 3 de la spec) | Fuera del alcance de la enmienda: `LQ‑P05`, el pendiente 9 del Doc. 01 y lo que hereden las features 1.5.3, 1.5.9 y 5.2 |
+| Los años pasados quedan en *En preparación* para siempre (riesgos 2 y 3 de la spec) | Fuera del alcance de la enmienda: el pendiente 9 del Doc. 01 y lo que hereden las features 1.5.3, 1.5.9 y 5.2 |
 | Choques con la rama `docs/007-cierre` | Esta sección no toca las partes del plan que esa rama cambia. El orquestador concilia las marcas y las tareas al cerrar |
 
 ### Trazabilidad de los criterios (E4)
@@ -1139,7 +1132,7 @@ _Lo que la persona decide en la H2 de la enmienda, además del plan en sí, con 
 |---|---|
 | 007-03 | `ListFiscalYearsTest` y `FiscalYearsApiTest`, con la lista completa y su orden (16); `fiscal-years.spec.ts`, con el rango (19); e2e y la captura `vigencias-vacia` (20) |
 | V‑01 · 007-04 | `FiscalYearsApiTest` (16); `create-fiscal-year-dialog.spec.ts`, con la advertencia y la de un año pasado (19); e2e (20) |
-| V‑01 · 007-05 | `FiscalYearOpeningPolicyTest`, con V‑01 antes que V‑05 (16); `theRealUniqueBecomesV01` y la prueba nueva de dos transacciones sin bloqueo (17); `create-fiscal-year-dialog.spec.ts`, sin año elegido al releer (19); e2e de la administración B (20) |
+| V‑01 · 007-05 | `FiscalYearOpeningPolicyTest`, con V‑01 antes que V‑05 (16); `theRealUniqueBecomesV01` y las dos pruebas de caracterización del bloqueo con el mismo año (16); `create-fiscal-year-dialog.spec.ts`, sin año elegido al releer (19); e2e de la administración B (20) |
 | V‑02 · 007-06 | `FiscalYearOpeningPolicyTest`, en cualquier orden, con {2026, 2028} válido y sin ningún `V-02` de 1999 a 2100 (16); e2e con `siguiente`, `minimo` e `intermedio` (20) |
 | V‑05 · 007-07 | `FiscalYearOpeningPolicyTest`, con `PAST_LIMIT` y `FUTURE_LIMIT` y la constante 2002 (16); `CreateFiscalYearTest`, con la frontera del año (16); `FiscalYearsApiTest` (16); `fiscal-year-rejections.spec.ts` (19); e2e por la API (20) |
 | V‑05 · 007-08 | `FiscalYearOpeningPolicyTest` y `ListFiscalYearsTest`, con 26 años sin vigencias (16) |
@@ -1194,9 +1187,40 @@ _Lo que la persona decide en la H2 de la enmienda, además del plan en sí, con 
 - **Descartados:** ninguno.
 - **Resultado:** la segunda ronda no dejó hallazgos críticos ni altos, y sus medios y bajos están corregidos. La *skill* `liv-revision-adversarial` permite dos rondas, así que estas correcciones no tuvieron una tercera; las comprobará la revisión adversarial del código de cada paso.
 
-- [x] Revisión adversarial independiente del plan de la enmienda ejecutada (dos rondas); hallazgos resueltos o justificados.
+**Revisión de la H2, ronda 1 (2026-11-16), solo sobre lo que cambiaron las decisiones H2‑16 a H2‑20.** Dos revisores ciegos de nivel alto (`liv-revisor-critico`) y la lente de legibilidad. Hallazgos: el revisor A, 0 críticos, 1 alto, 4 medios y 5 bajos; el revisor B, 0 críticos, 2 altos, 5 medios y 3 bajos.
+
+- **Confirmados por los dos:**
+  - **el pendiente 7 del Doc. 02 se reducía con un supuesto** (alto de los dos): sacaba la prescripción, la firmeza y la competencia, que la persona no había decidido. Lo decidió la persona: el pendiente no se reduce, y recoge como guía sus criterios (paso 13). La tabla de amenazas dice que el riesgo está abierto y sin control en esta feature;
+  - el nodo 82:5802 no tenía quién lo cambiara (alto del revisor B; medio del revisor A): la sesión de Figma lo cambió el 2026-11-16 y la persona lo aprobó en la H2. Queda en el paso 12;
+  - la prueba nueva del bloqueo estaba poco especificada y sin control permanente: ahora son dos pruebas de caracterización, con `withLock` verdadero y falso, y la comprobación del espía va después de que B espera el bloqueo;
+  - la justificación nueva de 007-22 era falsa después de un V‑01: ahora se limita al resultado que no se conoce;
+  - el registro de la H2 citaba una ronda que no constaba: es esta;
+  - lo que se le atribuía a `LQ‑P01`: ahora son `LQ‑P01` a `LQ‑P04`, y las tablas, por la habilitación de la 1.5.1;
+  - restos desactualizados de la spec: el encabezado del plan, E4‑3, la tabla de cambios (4c), «Lo que se vuelve a verificar», E4‑7 (b) y las referencias al «paso 1» del plan;
+  - la sangría de una fila de la tabla de amenazas.
+- **De un solo revisor, verificados y corregidos:**
+  - «año intentado» era ambiguo si la persona cambiaba la elección mientras se relee la lista: ahora el `Select` se inhabilita también mientras se relee (paso 19);
+  - los casos de un resultado que no se conoce no coincidían con el código (`isOutcomeUnknown`): ahora 007-22 dice «sin respuesta, tiempo agotado o error del servidor», y el paso 19 prueba `TimeoutError`, `status` 0 y 503;
+  - el caso «si ya no está, ninguno» no se alcanza desde la página, que cierra el diálogo: ahora el paso 19 lo trata como una defensa del diálogo;
+  - el «Enfoque» y «Decisiones (E4)» describían E4‑3 sin la precisión de H2‑18.
+- **Descartados:** ninguno.
+
+**Revisión de la H2, ronda 2 (2026-11-16), solo sobre lo corregido.** Los mismos dos revisores y la lente de legibilidad. Hallazgos: el revisor A, 0 críticos, 0 altos, 2 medios y 6 bajos; el revisor B, 0 críticos, 0 altos, 1 medio y 7 bajos. Resolvieron los hallazgos de la ronda 1.
+
+- **Confirmados por los dos, y corregidos:**
+  - los criterios de la persona se apartan en dos puntos del Doc. 05 §6.1 (fechas guardadas o derivadas, y supuestos de inicio que no son valores de `inicio_termino`): el paso 13 los deja como preguntas para el Módulo 5, sin decidirlos;
+  - restos de `LQ‑P01` solo y del «paso 1» en la spec, «una prueba» del bloqueo donde ahora son dos, el texto de H2‑18 y del «Enfoque», y el registro de la H2 sin la segunda decisión de la persona.
+- **De un solo revisor, verificados y corregidos:**
+  - la prueba de control sin el bloqueo describía mal lo que pasa (revisor A, verificado con el arnés): sin el bloqueo, B termina mientras A está detenida y es A quien recibe `V‑01`;
+  - en la prueba con el bloqueo, el `V‑01` sale de la política, no del `INSERT`;
+  - el foco y la relectura fallida con el `Select` inhabilitado, y que ese estado es la variante `Disabled` del componente;
+  - la competencia en la tabla de amenazas, y «el ERD no cambia», que chocaba con el ERD 2.4 del mismo paso.
+- **Descartados:** ninguno.
+- **Resultado:** la segunda ronda no dejó hallazgos críticos ni altos, y sus medios y bajos están corregidos.
+
+- [x] Revisión adversarial independiente del plan de la enmienda ejecutada (dos rondas del plan y dos de las correcciones de la H2); hallazgos resueltos o justificados.
 - [x] «Diseño de interfaz (E4)» completada con los nodos aprobados el 2026-11-16.
-- [ ] Aprobación H2 de la enmienda.
+- [x] Aprobación H2 de la enmienda: la persona que dirige el trabajo, 2026-11-16, sobre el commit bba0833.
 
 ## Revisión
 
