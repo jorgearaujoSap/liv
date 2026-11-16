@@ -320,6 +320,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       await submit();
 
       expect(stale).toHaveBeenCalledTimes(1);
+      expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2027, unknown: false }));
       expect(closed).not.toHaveBeenCalled();
     });
 
@@ -392,6 +393,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
         'No sabemos si se creó la vigencia No recibimos respuesta del servidor. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
       );
       expect(stale).toHaveBeenCalledTimes(1);
+      expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2027, unknown: true }));
     });
   });
 
@@ -439,6 +441,73 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       render([option(2026, 'constructor')]);
 
       expect(text(host.querySelector('liv-radio-option'))).toBe('2026');
+    });
+
+    it('tras un V-01 y la lista nueva, el foco va al año marcado y no queda en la acción de crear', async () => {
+      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
+      render([option(2027, 'NEXT'), option(2028, 'NEXT')]);
+
+      await submit();
+      fixture.componentRef.setInput('years', [option(2028, 'NEXT')]);
+      await settle();
+
+      expect(checked()?.value).toBe('2028');
+      expect(document.activeElement).toBe(checked());
+    });
+
+    it('creada la vigencia, un segundo envío no repite la petición aunque el diálogo siga abierto', async () => {
+      service.create.mockResolvedValue(CREATED);
+      render();
+      const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
+
+      await dialog.submit();
+      await dialog.submit();
+
+      expect(service.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('un rechazo libera el envío: se puede volver a intentar', async () => {
+      service.create.mockRejectedValueOnce(rejected(400, { status: 400, code: 'SYS-400' }));
+      service.create.mockResolvedValueOnce(CREATED);
+      render();
+
+      await submit();
+      await submit();
+
+      expect(service.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('con la relectura en curso, enviar no pide nada', async () => {
+      render();
+      fixture.componentRef.setInput('refreshing', true);
+      await settle();
+      const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
+
+      await dialog.submit();
+
+      expect(service.create).not.toHaveBeenCalled();
+    });
+
+    it('si la relectura falló, el diálogo lo dice dentro, donde se lee', async () => {
+      render();
+      expect(text(host)).not.toContain('No pudimos actualizar la lista');
+
+      fixture.componentRef.setInput('refreshFailed', true);
+      await settle();
+
+      expect(text(host.querySelector('[role="dialog"]'))).toContain(
+        'No pudimos actualizar la lista de vigencias. Los años que se ofrecen pueden no estar al día.',
+      );
+    });
+
+    it('«Cancelar» está inhabilitado mientras se envía', async () => {
+      service.create.mockReturnValue(new Promise<FiscalYear>(() => undefined));
+      render();
+
+      button('Crear vigencia')?.click();
+      fixture.detectChanges();
+
+      expect(button('Cancelar')?.disabled).toBe(true);
     });
   });
 });

@@ -141,6 +141,13 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       });
     });
 
+    it('un 409 sin el código V-01 en el cuerpo se trata como V-01: el año ya existe', () => {
+      const rejection = creationRejection(problem(409, null), 2027);
+
+      expect(rejection?.message).toContain('V-01 · La vigencia 2027 ya existe');
+      expect(rejection?.reload).toBe(true);
+    });
+
     it('un año fuera de la tabla nacional (1999 a 2100) no se escribe en el mensaje', () => {
       for (const year of [-5, 0, 1998, 2101, 99999]) {
         const rejection = creationRejection(
@@ -189,12 +196,27 @@ describe('mensajes de rechazo de las vigencias (007-05 a 007-08, 007-10)', () =>
       expect(rejection?.message).toContain('La vigencia 2026 ya no está Planeada');
     });
 
-    it('otro error cae en el mensaje general, sin volver a leer la vigencia', () => {
-      expect(openPreparationRejection(problem(500, null), 2026)).toEqual({
+    it('un error de la petición cae en el mensaje general, sin volver a leer la vigencia', () => {
+      expect(
+        openPreparationRejection(problem(400, { status: 400, code: 'SYS-400' }), 2026),
+      ).toEqual({
         heading: 'No se abrió la preparación',
         message:
           'No pudimos abrir la preparación. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
         refresh: false,
+      });
+    });
+
+    it.each([
+      ['un 500', problem(500, null)],
+      ['un estado 0', problem(0, null)],
+      ['un tiempo agotado', new TimeoutError(10_000)],
+    ])('%s: no se sabe si se abrió, se dice y se pide releer la vigencia', (_name, error) => {
+      expect(openPreparationRejection(error, 2026)).toEqual({
+        heading: 'No sabemos si se abrió la preparación',
+        message:
+          'No recibimos respuesta del servidor. Es posible que la preparación sí se haya abierto: revisa la vigencia antes de intentarlo de nuevo.',
+        refresh: true,
       });
     });
 
