@@ -88,7 +88,7 @@
       </liv-panel>
       <liv-panel heading="Lista de preparación" [description]="checklistIntro()">
         <ol role="list">
-          @for (point of points(); track point.key) {
+          @for (point of points(); track $index) {
             <li
               livChecklistItem
               [status]="point.status"

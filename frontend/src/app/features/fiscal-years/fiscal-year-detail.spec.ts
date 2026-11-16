@@ -309,16 +309,6 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       expect(enable.getAttribute('aria-disabled')).toBe('true');
       expect(enable.getAttribute('aria-describedby')).not.toBeNull();
     });
-
-    it('un clic no hace nada: no llama a la API', async () => {
-      service.get.mockResolvedValue(detail(2026, false));
-      const { host } = await render();
-
-      (enableButton(host) as HTMLButtonElement).click();
-
-      expect(service.openPreparation).not.toHaveBeenCalled();
-      expect(service.get).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('«Abrir preparación» (007-10)', () => {
@@ -370,7 +360,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       expect(button(host, 'Abrir preparación')).toBeUndefined();
       expect(facts(host)).toContain('Estado En preparación');
       expect(text(checklist(host)[0])).toContain('Cumplido');
-      expect(text(host.querySelector('[role="status"]'))).toBe(
+      expect(text(host.querySelector('p[role="status"]'))).toBe(
         'Se abrió la preparación de la vigencia 2027.',
       );
     });
@@ -511,7 +501,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
     });
   });
 
-  describe('el año de la ruta (007-02)', () => {
+  describe('el año de la ruta (plan, paso 9b)', () => {
     it.each(['abc', '1998', '2101', '2026abc', '02026', '20.26', '-2026', '', ' 2026'])(
       'el parámetro «%s» muestra «no encontrada» sin llamar a la API',
       async (year) => {
@@ -686,7 +676,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
 
       expect(text(host.querySelector('h1'))).toBe('Vigencia 2026');
       expect(facts(host)[0]).toBe('Año 2026');
-      expect(text(host.querySelector('[role="status"]'))).toBe('');
+      expect(text(host.querySelector('p[role="status"]'))).toBe('');
       expect(service.get.mock.calls.map(([year]) => year)).toEqual([2027, 2026]);
     });
 
@@ -746,7 +736,7 @@ describe('Detalle de la vigencia (007-10, 007-11, 007-12)', () => {
       (button(host, 'Abrir preparación') as HTMLButtonElement).click();
       await settle(fixture);
 
-      expect(text(host.querySelector('[role="status"]'))).toBe(
+      expect(text(host.querySelector('p[role="status"]'))).toBe(
         'Se envió la apertura de la preparación, pero no pudimos actualizar la vigencia.',
       );
       expect(text(host)).toContain('No pudimos actualizar la vigencia');

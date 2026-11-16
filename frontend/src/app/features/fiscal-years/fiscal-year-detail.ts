@@ -81,7 +81,6 @@ type ReadResult = 'applied' | 'failed' | 'stale';
 
 /** Un punto de la lista, listo para mostrar. */
 interface Point {
-  readonly key: number;
   readonly number: string | undefined;
   readonly heading: string;
   readonly status: ChecklistItemStatus;
@@ -136,6 +135,12 @@ export class FiscalYearDetailPage {
   /** Número de la última lectura pedida: la respuesta de una anterior no pisa la de una más nueva. */
   private latestRead = 0;
   private attempts = 0;
+  /**
+   * Cuenta los cambios de año: una operación iniciada para un año no puede escribir en la pantalla de otro.
+   * `destroyed` evita escribir o pedir un dibujo cuando la persona ya salió (p. ej. tras un 403).
+   */
+  private generation = 0;
+  private destroyed = false;
 
   /** Se está abriendo la preparación: el botón queda ocupado. */
   protected readonly opening = signal(false);
@@ -193,13 +198,17 @@ export class FiscalYearDetailPage {
   );
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => (this.destroyed = true));
     this.route.paramMap
-      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .pipe(takeUntilDestroyed(destroyRef))
       .subscribe((params) => this.show(parseYear(params.get('year'))));
   }
 
   /** Muestra la vigencia de un año nuevo: un año fuera de la tabla nacional es «no encontrada», sin llamar a la API. */
   private show(year: number | undefined): void {
+    this.generation++;
+    this.opening.set(false);
     this.year.set(year);
     this.detail.set(undefined);
     this.alerts.set([]);
@@ -232,6 +241,10 @@ export class FiscalYearDetailPage {
       if (read !== this.latestRead) {
         return 'stale';
       }
+      if (!isUsable(detail, year)) {
+        // Una respuesta sin lo que la pantalla necesita (o de otro año) es un error de carga, no una pantalla rota.
+        throw new Error('Respuesta de la vigencia incompleta');
+      }
       this.detail.set(detail);
       this.view.set('ready');
       return 'applied';
@@ -247,11 +260,13 @@ export class FiscalYearDetailPage {
   }
 
   /** Vuelve a leer la vigencia sin mostrar «cargando»; si falla, se conserva lo que hay y se avisa. */
-  private async reload(year: number): Promise<void> {
+  private async reload(year: number): Promise<ReadResult> {
     this.refreshFailed.set(false);
-    if ((await this.read(year, true)) === 'failed') {
+    const result = await this.read(year, true);
+    if (result === 'failed') {
       this.refreshFailed.set(true);
     }
+    return result;
   }
 
   /**
@@ -263,14 +278,27 @@ export class FiscalYearDetailPage {
     if (year === undefined || this.opening()) {
       return;
     }
+    const generation = this.generation;
     this.opening.set(true);
     this.alerts.set([]);
     this.notice.set('');
     try {
       await this.fiscalYears.openPreparation(year);
-      await this.reload(year);
-      this.notice.set(`Se abrió la preparación de la vigencia ${year}.`);
+      if (!this.isCurrent(generation)) {
+        return;
+      }
+      const result = await this.reload(year);
+      if (this.isCurrent(generation)) {
+        this.notice.set(
+          result === 'failed'
+            ? 'Se envió la apertura de la preparación, pero no pudimos actualizar la vigencia.'
+            : `Se abrió la preparación de la vigencia ${year}.`,
+        );
+      }
     } catch (error) {
+      if (!this.isCurrent(generation)) {
+        return;
+      }
       const rejection = openPreparationRejection(error, year);
       if (rejection) {
         this.alerts.set([
@@ -281,9 +309,16 @@ export class FiscalYearDetailPage {
         }
       }
     } finally {
-      this.opening.set(false);
-      this.focusTitleIfLost();
+      if (this.isCurrent(generation)) {
+        this.opening.set(false);
+        this.focusTitleIfLost();
+      }
     }
+  }
+
+  /** La pantalla sigue mostrando la vigencia para la que se inició una operación (no cambió el año ni se salió). */
+  private isCurrent(generation: number): boolean {
+    return !this.destroyed && generation === this.generation;
   }
 
   protected backToList(): void {
@@ -292,14 +327,15 @@ export class FiscalYearDetailPage {
 
   /**
    * Si la acción que tenía el foco ya no existe (la preparación se abrió o alguien más la abrió), el foco se
-   * perdería en el documento: pasa al título de la pantalla.
+   * perdería en el documento: pasa al título de la pantalla. Si la persona lo llevó a otra parte (el menú, la
+   * cabecera), no se le quita.
    */
   private focusTitleIfLost(): void {
     afterNextRender(
       () => {
         const root = this.host.nativeElement;
         const active = root.ownerDocument.activeElement;
-        if (!active || !root.contains(active) || active === root.ownerDocument.body) {
+        if (!active || active === root.ownerDocument.body || !active.isConnected) {
           const title = root.querySelector<HTMLElement>('h1');
           title?.setAttribute('tabindex', '-1');
           title?.focus();
@@ -308,6 +344,16 @@ export class FiscalYearDetailPage {
       { injector: this.injector },
     );
   }
+}
+
+/** La respuesta trae lo que la pantalla usa y es de la vigencia pedida. */
+function isUsable(detail: FiscalYearDetail, year: number): boolean {
+  return (
+    detail.year === year &&
+    Array.isArray(detail.availableActions) &&
+    Array.isArray(detail.preparation?.items) &&
+    Array.isArray(detail.preparation.missing)
+  );
 }
 
 /** El año de la ruta: un entero escrito sin ceros ni signos, de la tabla nacional; si no, `undefined`. */
@@ -323,12 +369,12 @@ function toPoint(item: PreparationItem): Point {
   const integer = Number.isInteger(item.number);
   const title = Object.hasOwn(POINT_TITLES, item.code) ? POINT_TITLES[item.code] : undefined;
   return {
-    key: item.number,
     number: integer ? `${item.number}.` : undefined,
     heading: title ?? (integer ? `Punto ${item.number}` : 'Punto'),
     status: item.status === 'MET' ? 'met' : item.status === 'OBSERVED' ? 'observed' : 'pending',
     reason: describeReason(item),
-    optional: !item.required,
+    // Solo un `required` en falso es opcional: si falta el dato, el punto se trata como obligatorio.
+    optional: item.required === false,
   };
 }
 
@@ -375,8 +421,12 @@ function describeRanges(numbers: readonly number[]): string {
 
 /** La frase de obligatorios y opcionales, armada con `required` de cada punto. */
 function describeRequirements(items: readonly PreparationItem[]): string {
-  const required = sortedNumbers(items.filter((item) => item.required).map((item) => item.number));
-  const optional = sortedNumbers(items.filter((item) => !item.required).map((item) => item.number));
+  const required = sortedNumbers(
+    items.filter((item) => item.required !== false).map((item) => item.number),
+  );
+  const optional = sortedNumbers(
+    items.filter((item) => item.required === false).map((item) => item.number),
+  );
   const sentences: string[] = [];
   if (required.length === 0) {
     sentences.push('Ningún punto es obligatorio');
