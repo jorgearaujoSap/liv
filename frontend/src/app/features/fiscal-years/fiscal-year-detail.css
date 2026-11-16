@@ -18,14 +18,14 @@ div[aria-busy='true'] {
   @apply flex flex-col gap-8;
 }
 
-/* Los marcadores de «cargando» y los datos se apilan o se reparten dentro de su panel. */
-liv-panel:has(liv-skeleton) {
-  @apply flex flex-col gap-4;
+/* Los marcadores de «cargando» se apilan separados 16 px; el contenido de un panel mide al menos 48 px, como en Figma. */
+div[aria-busy='true'] liv-panel div {
+  @apply flex min-h-12 flex-col gap-4;
 }
 
 /* Los cinco datos de la vigencia van en fila, separados 64 px, como en Figma. */
 dl {
-  @apply m-0 flex flex-wrap gap-x-16 gap-y-4;
+  @apply m-0 flex min-h-12 flex-wrap gap-x-16 gap-y-4;
 }
 
 /* La lista de preparación: sin viñetas ni relleno del navegador, para que los puntos queden alineados con el panel. */
@@ -33,9 +33,9 @@ ol {
   @apply m-0 list-none p-0;
 }
 
-/* «Habilitar liquidación» queda 16 px bajo la lista (8 px del panel y 8 px propios); el motivo va debajo del botón. */
-liv-panel:has(ol) > div {
-  @apply pt-2;
+/* «Habilitar liquidación» queda 24 px bajo la lista, como en Figma (16 px de separación y 8 px propios). */
+ol + div {
+  @apply mt-4 pt-2;
 }
 
 /* La región de estado solo es para los lectores de pantalla. */

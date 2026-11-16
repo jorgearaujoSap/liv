@@ -29,14 +29,18 @@
   @case ('loading') {
     <div aria-busy="true">
       <liv-panel heading="Cargando los datos…">
-        @for (row of skeletons.data; track row) {
-          <liv-skeleton width="100%" />
-        }
+        <div>
+          @for (row of skeletons.data; track row) {
+            <liv-skeleton width="100%" />
+          }
+        </div>
       </liv-panel>
       <liv-panel heading="Cargando la lista de preparación…">
-        @for (row of skeletons.checklist; track row) {
-          <liv-skeleton width="100%" />
-        }
+        <div>
+          @for (row of skeletons.checklist; track row) {
+            <liv-skeleton width="100%" />
+          }
+        </div>
       </liv-panel>
     </div>
   }
