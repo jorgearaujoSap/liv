@@ -1,4 +1,7 @@
-import { chromium, type Locator, type Page } from '@playwright/test';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+import { test, type Browser, type Locator, type Page } from '@playwright/test';
 
 import { entrarComo } from './acceso';
 import { BASE_URL } from './entorno';
@@ -38,40 +41,54 @@ const OBSERVADORES = [
  * vigencia no se puede borrar por la API. Devuelve una frase por cada administración que ya tiene vigencias, con sus
  * años; vacío si las dos están limpias.
  */
-export async function administracionesConVigencias(): Promise<string[]> {
-  const navegador = await chromium.launch();
-  try {
-    const encontradas: string[] = [];
-    for (const { usuario, administracion } of OBSERVADORES) {
-      const contexto = await navegador.newContext({ baseURL: BASE_URL });
-      try {
-        const page = await contexto.newPage();
-        await entrarComo(page, usuario);
-        if (!(await apiDeVigenciasDesplegada(page))) {
-          // Sin la API no puede haber vigencias de una corrida anterior; las pruebas de la 1.4 fallarán por su criterio.
-          return [];
-        }
-        const { items } = await leerVigencias(page);
-        if (items.length > 0) {
-          encontradas.push(`${administracion} (${items.map((vigencia) => vigencia.year).join(', ')})`);
-        }
-      } finally {
-        await contexto.close();
+async function administracionesConVigencias(browser: Browser): Promise<string[]> {
+  const encontradas: string[] = [];
+  for (const { usuario, administracion } of OBSERVADORES) {
+    const contexto = await browser.newContext({ baseURL: BASE_URL, locale: 'es-CO', timezoneId: 'America/Bogota' });
+    try {
+      const page = await contexto.newPage();
+      await entrarComo(page, usuario);
+      if (!(await apiDeVigenciasDesplegada(page))) {
+        // Sin la API no puede haber vigencias de una corrida anterior; las pruebas de la 1.4 fallarán por su criterio.
+        return [];
       }
+      const { items } = await leerVigencias(page);
+      if (items.length > 0) {
+        encontradas.push(`${administracion} (${items.map((vigencia) => vigencia.year).join(', ')})`);
+      }
+    } finally {
+      await contexto.close();
     }
-    return encontradas;
-  } finally {
-    await navegador.close();
   }
+  return encontradas;
 }
 
-/** Mensaje que detiene `preparar.ts` si quedan vigencias de una corrida anterior. */
-export function mensajeDeVigenciasPrevias(administraciones: string[]): string {
+/** Mensaje que detiene las pruebas de la 1.4 si quedan vigencias de una corrida anterior. */
+function mensajeDeVigenciasPrevias(administraciones: string[]): string {
   return (
     `Ya hay vigencias fiscales en ${administraciones.join(' y en ')}. Las pruebas de la opción 1.4 crean las suyas y ` +
     'una vigencia no se puede borrar por la API: limpia las del entorno local con ' +
     'sh dev/limpiar-vigencias.sh (desde backend/) y vuelve a correr las pruebas.'
   );
+}
+
+/**
+ * Se llama en el `beforeAll` de `vigencias.spec.ts`: detiene solo las pruebas de la 1.4 (las de la 001 corren igual)
+ * si las administraciones de prueba ya tienen vigencias. Se hace una vez por corrida: si un fallo reinicia el proceso
+ * de las pruebas, el `beforeAll` vuelve a correr cuando las vigencias ya son las de esta corrida, y lo avisa un
+ * archivo de `resultados/`, que Playwright vacía al empezar cada corrida.
+ */
+export async function comprobarAdministracionesSinVigencias(browser: Browser): Promise<void> {
+  const marca = join(test.info().project.outputDir, '.vigencias-comprobadas');
+  if (existsSync(marca)) {
+    return;
+  }
+  const conVigencias = await administracionesConVigencias(browser);
+  if (conVigencias.length > 0) {
+    throw new Error(mensajeDeVigenciasPrevias(conVigencias));
+  }
+  mkdirSync(dirname(marca), { recursive: true });
+  writeFileSync(marca, '');
 }
 
 /** Fecha de negocio (`2026-01-01`) como la escribe el diseño: «1 de enero de 2026». No depende del reloj ni de la zona. */

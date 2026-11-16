@@ -38,11 +38,11 @@ Lo que todavía no cubren, y queda en otras pruebas:
 
 Las pruebas de `pruebas/vigencias.spec.ts` crean vigencias y la API no las borra (decisión H2‑9 de la feature 007). Por eso:
 
-- Antes de las pruebas, `preparar.ts` mira por la API, con `dev.consulta` y `dev.consulta.b`, si el Municipio de Ipiales o la administración de prueba B ya tienen vigencias. Si las tienen, se detiene con un mensaje que manda a limpiarlas.
+- Antes de la primera prueba de `vigencias.spec.ts` (un `beforeAll`), se mira por la API, con `dev.consulta` y `dev.consulta.b` (sin TOTP), si el Municipio de Ipiales o la administración de prueba B ya tienen vigencias. Si las tienen, se detienen solo las pruebas de la 1.4, con un mensaje que manda a limpiarlas: las de la 001 corren igual.
 - Quien corre las pruebas las limpia antes con `sh dev/limpiar-vigencias.sh`, desde `backend/` (lo agrega el PR B10 de la feature 007). `e2e/` nunca lo llama: no toca la base de datos, solo usa el sistema por HTTP (ADR 0030).
 - Los años no salen del calendario de la prueba sino de `creatableYears` de la API, y las capturas enmascaran los años y las fechas.
 - Los rechazos V‑02 (007-06 y 007-07) y V‑05 (007-08) no se pueden provocar desde la pantalla, que solo ofrece los años que la API acepta: los demuestran las pruebas del backend.
-- En una segunda corrida sin limpiar, `preparar.ts` falla a propósito: es lo esperado.
+- En una segunda corrida sin limpiar, las pruebas de la 1.4 fallan a propósito en ese `beforeAll`: es lo esperado.
 
 ## Aviso de inactividad (sesión corta)
 

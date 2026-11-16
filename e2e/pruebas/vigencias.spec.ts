@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { entrarComo, guardarSesionConSegundoFactor, infraccionesDeAccesibilidad } from '../support/acceso';
 import { SESION_ADMIN_B, SESION_ADMIN_IPIALES, TOTP_SECRETO, TOTP_SECRETO_B, USUARIOS_E2E } from '../support/entorno';
 import {
+  comprobarAdministracionesSinVigencias,
   crearVigenciaPorApi,
   fechaLarga,
   leerVigencias,
@@ -98,6 +99,11 @@ function datosConFechaDelDetalle(page: Page): Locator[] {
 async function sinFoco(page: Page): Promise<void> {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 }
+
+// Si las administraciones de prueba ya tienen vigencias, se detienen estas pruebas y no las de la 001 (H2‑9).
+test.beforeAll(async ({ browser }) => {
+  await comprobarAdministracionesSinVigencias(browser);
+});
 
 test.describe('1.4 · Sin permiso de consulta y rol de consulta sin vigencias', () => {
   test('007-02 · Un rol sin permiso de consulta (LIQUIDADOR) abre la 1.4 por su URL y ve «Sin permiso»', async ({
