@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-14
+> **Última actualización:** 2026-11-16
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -10,8 +10,8 @@
 
 | Tema | Estado |
 |---|---|
-| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). Sigue la **Fase 1 — Tablas base y configuración**: la primera feature la elige la persona |
-| Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.3.1 publicada en npm con 18 componentes, y pruebas de navegador en local. Todavía sin funcionalidad de negocio |
+| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16; la siguiente la elige la persona |
+| Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.5.0 publicada en npm, y pruebas de navegador en local. Primera funcionalidad de negocio: la opción 1.4 (vigencias fiscales, feature 007), con su esquema `tax`, su API, su auditoría y sus pantallas |
 | Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
 | Arquitectura (00–05) | ✅ **Aprobada** el 2026-11-01: ADR 0001–0020 aceptados sin ajustes (Java 21 LTS en lugar de 25); ADR 0021 (backend con Maven y la base del equipo) y ADR 0022 (librería como proyecto `ui/` publicado en npm) aceptados el mismo día |
 | Diseño en Figma | 🔄 Estilos, hoja de fundamentos, variables de espaciado y radios, 40 iconos (`plus` y `circle` con la feature 007) y logotipo hechos; 20 componentes y 15 pantallas de la feature 001 (versión 2, rediseñada) aprobados por el responsable funcional (2026-11-01) |
@@ -21,33 +21,7 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
-**Orquestador activo: feature 007 · Vigencias fiscales (1.4)** (desde el 2026-11-12). La 006 · Pruebas *golden* en rojo (F0‑11) se cerró el 2026-11-12 y con ella la Fase 0.
-
-| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
-|---|---|---|---|---|---|
-| Spec (H1) | raíz | `f007-diseno`, PR #176 (borrador) | — | ✅ Aprobada el 2026-11-12; firmada de nuevo con las enmiendas 1 a 3 de la H2 | — |
-| Diseño en Figma (paso 0) | Figma | `f007-figma` | Spec (H1) | ✅ Aprobado el 2026-11-12 (componentes nuevos, modificaciones de `Button`, `Dialog` e `Icon`, 3 pantallas) | — |
-| Plan (H2) | raíz | `f007-diseno`, PR #176 | Diseño | ✅ Aprobado el 2026-11-13 (H2‑1 a H2‑15) | — |
-| Ajustes de diseño de la H2 (H2‑11, H2‑12, H2‑14) | Figma | `f007-figma` | Plan (H2) | ✅ Aprobados el 2026-11-12 | — |
-| Tareas | raíz | `f007-tareas`, PR #178 | Plan (H2) | ✅ 35 tareas | — |
-| D1 · Documentos (T1, T2) | raíz | `f007-d1-docs`, PR #180 | Tareas | ✅ Integrado | — |
-| D2 · ADR 0035 (T3, T4) | raíz | `f007-d2-adr`, PR #179 y #181 | Tareas | ✅ Aceptado | — |
-| B3 · Base de datos (T5, T6) | `backend/` | `f007-b3-bd`, PR #189 | D1 | ✅ Integrado el 2026-11-14 | — |
-| B3b · Permisos de `INSERT` por columna y `CHECK` de la traza (H2‑4) | `backend/` | `f007-b3-bd` | B3 | 🔄 En curso | — |
-| B4 · Contrato `tax.yaml` 1.0.0 (T7) | `backend/` | `f007-b4-contrato`, PR #183 | D1 | ✅ Integrado | — |
-| B5a · Dominio (T8, T9) | `backend/` | PR #185 | D2 | ✅ Integrado | — |
-| B5b · Lista de preparación (T10) | `backend/` | PR #184 | D2 | ✅ Integrado | — |
-| B6 · Aplicación, persistencia y API (T11 a T15) | `backend/` | — | B3b, B4, B5a, B5b | ⏳ Después de B3b, sola en `backend/` | — |
-| B7 · Auditoría (T16, T17) | `backend/` | — | B6 | ⏳ Pendiente | — |
-| UI 8a · `Table` (T18) | `ui/` | `f007-ui-8a`, PR #187 | — | ✅ Integrado, con 2 ajustes de la H3 (nombre por `caption` o `aria-label`; foco de la fila con `:has(:focus-visible)`) | — |
-| UI 8b · `ChecklistItem`, `DescriptionItem`, `Panel` y fechas (T19, T20) | `ui/` | `f007-ui-8b`, PR #186 | — | ✅ Integrado | — |
-| UI 8c · `RadioGroup` (T21) | `ui/` | `f007-ui-8c`, PR #182 | — | ✅ Integrado | — |
-| UI 8d · Iconos `plus` y `circle` (T22) | `ui/` | `f007-ui-8d`, PR #188 | — | ✅ Integrado (40 iconos) | — |
-| UI 8e · `Button` con `disabledReason` (T23) | `ui/` | `f007-ui-8e` | — | 🔄 En curso | — |
-| UI 8f · `Dialog` y versión 0.4.0 (T24) | `ui/` | — | 8a a 8e | ⏳ Pendiente; actualiza `THIRD_PARTY_NOTICES.md` a 40 iconos | Publicar `liv-components` 0.4.0 en npm |
-| F9a y F9b · Frontend (T25 a T30) | `frontend/` | — | B6, 0.4.0 publicada | ⏳ Pendiente | — |
-| B10 · Menú y limpieza (T31, T32) | `backend/` | — | B6 | ⏳ Pendiente | — |
-| E11 · Pruebas de navegador (T33 a T35) | `e2e/` | — | F9b, B10 | ⏳ Pendiente | — |
+**Ninguna feature en curso.** La feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16, con la enmienda 4 incluida. Sus 57 tareas y sus 18 criterios están hechos, en los PR #176 a #212 y el de este cierre. La siguiente feature de la Fase 1 la elige la persona del *roadmap*.
 
 ---
 
@@ -55,11 +29,11 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 
 | Documento | Estado | Versión |
 |---|---|---|
-| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Desde la feature 005 (2026-11-11): Doc. 01 0.4, Doc. 02 0.2, Doc. 03 0.5, Doc. 04 0.3 (2026-11-12, pendientes 8 y 9 de la feature 006), Doc. 05 0.1 y ERD 2.2 (79 tablas) |
+| `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Doc. 01 0.6, Doc. 02 0.4, Doc. 05 0.2 y ERD 2.4 (80 tablas), por la feature 007 (2026-11-16); Doc. 03 0.5 (feature 005) y Doc. 04 0.3 (2026-11-12, pendientes 8 y 9 de la feature 006) |
 | `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` · `Formatos_Intercambio_Recaudo.xlsx` | ✅ Existente | Esquema 1.1 desde la feature 005 |
 | `README.md` | ✅ Creado: mapa del repositorio | — |
 | `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.1 (2026-11-11) |
-| `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.2 (2026-11-11) |
+| `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.4 (2026-11-16, glosario de la feature 007) |
 | `docs/arquitectura/02_Seguridad.md` | ✅ Aprobado | 1.0 |
 | `docs/arquitectura/03_Escalabilidad_y_Operacion.md` | ✅ Aprobado | 1.1 (2026-11-11) |
 | `docs/arquitectura/04_Calidad_Testing_y_CI.md` | ✅ Aprobado | 1.0 |
@@ -156,7 +130,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - la marca «Latest» de la *release* `jsonschema-config-jurisdiccion-v1.1` en GitHub no la causan los *scripts* de `publish` (ya pasan `--latest=false`, y sus pruebas lo exigen): es el criterio por fecha de GitHub, que marca la más reciente cuando ninguna está fijada. Nada en el repositorio usa `releases/latest`. Opciones, sin aplicar y a decisión de la persona: dejarlo así, o fijar una *release* a propósito con `gh release edit <etiqueta> --latest` (p. ej. la primera `backend-vX.Y.Z`);
    - verificar contra la fuente oficial la UVT 2026, las tasas de usura y la fórmula de intereses (pendientes del Doc. 05 §11, jurídica).
 5. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
-6. `liv-components` (el frontend usa la 0.3.1):
+6. `liv-components` (el frontend usa la 0.5.0):
    - decidir los tres puntos abiertos de T05 (bitácora del 2026-11-02): el estilo de texto de la etiqueta de sección, el recorte de textos y las opciones deshabilitadas del menú;
    - usar en el frontend el tercer nivel del menú (`NavItem` con `Subgroup` y `Nested`, desde la 0.3.0) cuando haya opciones 1.5.x y 1.6.x;
    - **backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
@@ -180,11 +154,49 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - la CSP con *nonce* del frontend y la prueba visual del panel de marca;
    - las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
 
+11. Seguimiento de la feature 007 (vigencias), sin fecha:
+   - **Arreglo del *layout* (barra exterior y espacio vacío):** #213 (`frontend/`, flujo directo) espera la H3. Su prueba de navegador va en #214, en borrador, y se corre con el entorno desde `main`.
+   - **`dev.admin.sistema`:** es del desarrollador y su segundo factor no se reinicia. Las validaciones usan los usuarios `e2e.*` o uno propio. Falta escribirlo en `backend/dev/README.md` (flujo directo, `backend/`).
+   - **ERD, regla 3:** debe decir que la RLS de `tax.administration_fiscal_year` solo admite *Planeada* → *En preparación*; la 1.5.1 impone las demás transiciones, por ejemplo con un disparador.
+   - **La *skill* `liv-migracion`:** todavía muestra el `INSERT` sobre toda la tabla y debe mostrar el `INSERT` por columnas de B3b.
+   - **Propuesta para `platform`:** que la autorización compruebe que el `CurrentUser` que recibe un caso de uso es el de la petición.
+   - **`liv-components`:** `Panel` necesita un nombre accesible propio, aparte de su título; `ChecklistItem` dibuja su propio círculo en lugar de usar `liv-icon`; la descripción del conjunto `Icon` en Figma (40 iconos) y los ejemplos de `Table` en `02 Componentes` siguen con fecha larga.
+   - **`e2e/`:** agregar Firefox y WebKit; el foco de `Table` y la trampa del `Dialog` solo se probaron en Chromium. La regresión visual Q14 sigue siendo revisión manual en Storybook.
+   - **Constitución:** `spec/constitution/mission.md` y `roadmap.md` citan el «Doc. 05 v0.1»; ya es v0.2. Cambiar la constitución exige un ADR: decide la persona.
+   - **Prescripción y firmeza de las vigencias pasadas:** el pendiente 7 del Doc. 02 sigue abierto, con los criterios que aportó la persona (art. 817 y 818 ET, aforo), para la Fase 2 y el Módulo 5.
+   - **Entorno local en este equipo:** LIV va en API 8090, BFF 8081 y frontend 4300, PostgreSQL 5434 y Keycloak 8180, con `LIV_BFF_BASE_URL=http://localhost:4300` en `backend/dev/.env`, porque Contravencional usa 4200, 8080 y 5433. `tools/dev/iniciar.sh` y `detener.sh` siguen pensados para 4200 y 8080.
+
 ---
 
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-16
+
+- **Feature 007 · Vigencias fiscales (1.4) cerrada** (orquestador), con la enmienda 4. La enmienda 4 permite crear cualquier vigencia de 2002 al año siguiente al año en curso, en cualquier orden, para liquidarla en LIV. Pasó por:
+  - la spec, con H1 (#203);
+  - Figma, aprobado el 2026-11-16;
+  - el plan, con H2 (#204);
+  - las tareas T36 a T57 (#205);
+  - siete PR: 4D (#206, Doc. 01 v0.6, Doc. 02 v0.4, Doc. 05 v0.2 y ERD 2.4), 4F0 (#207), 4U (#208, `Select` y `liv-components` 0.5.0, que publicó la persona), 4B1 (#209, contrato `tax` 1.1.0), 4B2 (#210), 4F (#212) y 4E (#211, 39 pruebas de navegador en verde en Chromium).
+- **Decisiones de la persona en la enmienda 4:**
+  - 2002 es un límite operativo del producto, sin ADR, aprobado como excepción de §4.5;
+  - el bloqueo de creación se queda (H2‑16);
+  - la persona decidió (H2‑20) que liquidar una vigencia anterior no espera un concepto jurídico. Es una decisión de producto pendiente de revisión jurídica, como todo el sistema; el pendiente 7 del Doc. 02 sigue abierto para la prescripción, la firmeza y la competencia.
+- **Cierre:**
+  - los 18 criterios de `spec.md`, marcados con sus pruebas; 007-13 a 007-17 pasan a la 1.5.1;
+  - las 57 tareas, marcadas;
+  - la sección «Ajustes de la H3» de `plan.md`;
+  - el glosario de `docs/arquitectura/01` §15, versión 1.4;
+  - la feature, en «Hecho» del *roadmap*.
+- **Aprobaciones explícitas de la persona (§4.5) en toda la feature:**
+  - los permisos por columna de `liv_app` (B3b);
+  - los métodos de auditoría en `OPEN_USE_CASES` (B7);
+  - la excepción de *lint* para `table[livTable]` (F9a);
+  - el límite 2002 en el código (E4‑1).
+- **Defecto del *layout* encontrado al probar:** la página medía más que la ventana por los avisos `sr-only` de `liv-button`. El arreglo va en #213 y su prueba en #214, en borrador.
+- **El segundo factor de `dev.admin.sistema`:** una sesión de validación lo reinició y obligó a la persona a registrarlo de nuevo. Desde ahora ninguna sesión lo toca.
 
 ### 2026-11-14
 

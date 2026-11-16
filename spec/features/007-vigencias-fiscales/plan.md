@@ -18,7 +18,7 @@ El 2026-11-13 aprobó la H2 aceptando las correcciones de los dos altos de esa v
 El detalle de cada decisión está en «Decisiones de la H2». Lo que queda después de la H2:
 - **En Figma:**
   - ✅ hechos y aprobados por la persona el 2026-11-13: la propiedad `Tone` de `Dialog` (H2‑11), el componente `RadioGroup` (H2‑12) y quitar el mensaje «Sin permiso» del diálogo (H2‑14). Están en «Diseño de interfaz»;
-  - ⏳ **pendiente de aprobación:** la etiqueta de un año pasado en el diálogo de creación (`relation: PAST`, por ejemplo «Año anterior al año en curso»), que salió de la verificación acotada y no está en el *frame* 67:3040. Se diseña ahora y es requisito del PR que la use (9a).
+  - ✅ la etiqueta de un año pasado en el diálogo de creación (`relation: PAST`), que salió de la verificación acotada: *frame* 75:4479, aprobado el 2026-11-13. La enmienda 4 lo retiró a `99 Archivo`.
 - **Los dos altos de la verificación acotada** están corregidos en el plan y se comprobarán en la revisión adversarial del código del paso 6 (véase «Revisión»).
 
 ## Enfoque
@@ -260,7 +260,7 @@ Después de los pasos 3, 4 y 5.
     - Primero el bloqueo por administración, en la transacción del caso de uso: una operación del puerto, `lockForCreation(administrationId)`, que ejecuta `SELECT 1 FROM pg_advisory_xact_lock(:espacio, hashtext(:administrationId))` como consulta nativa. La forma con `SELECT 1` evita leer una columna `void`.
     - Después se leen los años, se decide y se guarda con `saveAndFlush` dentro del adaptador.
     - El bloqueo hace falta: sin él, dos creaciones que cruzan la medianoche del 31 de diciembre pueden ver la administración vacía con relojes de años distintos y dejar {2026, 2028}, un hueco que no se puede borrar.
-    - Si el `INSERT` viola el `UNIQUE` (otra creación que no pasó por el bloqueo), el adaptador lo reconoce por el SQLState `23505` y por el nombre de la restricción que da `PSQLException.getServerErrorMessage().getConstraint()`, que no depende del idioma del servidor, y lo traduce allí mismo a `V‑01` (007-05), nunca a un 500.
+    - Si el `INSERT` viola el `UNIQUE` (otra creación que no pasó por el bloqueo), el adaptador lo reconoce por el SQLState `23505`, que no depende del idioma del servidor (ajuste de la H3: basta el SQLState, véase «Ajustes de la H3»), y lo traduce allí mismo a `V‑01` (007-05), nunca a un 500.
   - **Apertura.**
     - Primero se lee la fila. Si no existe en la administración, `shared.NotFound`.
     - Después, un `UPDATE … SET status, updated_by, updated_at WHERE id = ? AND status = 'PLANEADA'` explícito, con `@Modifying(flushAutomatically = true, clearAutomatically = true)`, que devuelve las filas afectadas.
@@ -519,7 +519,7 @@ Al final, con el sistema levantado y `backend/dev/limpiar-vigencias.sh` ejecutad
 | `RadioGroup` (H2‑12), el grupo de opciones del año como componente | [73:514](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=73-514) | ✅ Aprobado. Requisito del PR 8c |
 | `Tone` de `Dialog` (H2‑11) | [73:482](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=73-482) | ✅ Aprobado. Requisito del PR 8f |
 | Sin el mensaje «Sin permiso» del diálogo (H2‑14) | [67:3284](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o?node-id=67-3284) | ✅ Aprobado |
-| Etiqueta de un año pasado (`relation: PAST`) en el diálogo de creación | — | ⏳ Se diseña ahora y se aprueba después. Requisito del PR 9a: sin ella, ese PR no se abre |
+| Etiqueta de un año pasado (`relation: PAST`) en el diálogo de creación | 75:4479 | ✅ Aprobado el 2026-11-13; retirado por la enmienda 4 |
 
 **Composiciones sin componente propio** (el diseño las arma con *auto layout*): el encabezado (`PageHeader` + `Button`), el estado centrado (`ResultState`), el grupo de opciones del año (que pasa a ser el componente `RadioGroup`, H2‑12), las fechas del diálogo (dos `DescriptionItem`) y el fondo del diálogo. En Figma, `Panel` se desacopla en las pantallas porque Figma no tiene espacios de contenido.
 
@@ -1221,6 +1221,32 @@ _Lo que la persona decidió en la H2 de la enmienda, además del plan en sí. La
 - [x] Revisión adversarial independiente del plan de la enmienda ejecutada (dos rondas del plan y dos de las correcciones de la H2); hallazgos resueltos o justificados.
 - [x] «Diseño de interfaz (E4)» completada con los nodos aprobados el 2026-11-16.
 - [x] Aprobación H2 de la enmienda: la persona que dirige el trabajo, 2026-11-16, sobre el commit bba0833.
+
+## Ajustes de la H3 (implementación)
+
+Decisiones que la persona tomó al revisar los PR de la implementación, del 2026-11-13 al 2026-11-16, y desviaciones de los archivos declarados en `tasks.md` que se aceptaron. Cambian o precisan lo aprobado en la H2; el detalle está en la descripción de cada PR.
+
+| PR | Ajuste | Motivo |
+|---|---|---|
+| B3b (#192) | Migración nueva: `liv_app` inserta solo `administration_id`, `fiscal_year` y `created_by` en `tax.administration_fiscal_year`, y un `CHECK` exige `updated_by` y `updated_at` en *En preparación*. La persona lo aprobó como cambio de permisos (`AGENTS.md` §4.5) | B3 (#189) concedía el `INSERT` sobre toda la tabla y no tenía el `CHECK`, frente a lo aprobado en H2‑4 |
+| B6 · 6a2 (#195) | Migración nueva con `CHECK (updated_at IS NULL OR updated_at >= created_at)`. El adaptador fija `updated_at` con `clock_timestamp()` | `now()` es la hora de inicio de la transacción y podía quedar antes de un `created_at` posterior |
+| B6 · 6a2 (#195) | El `UNIQUE` (administración, año) se reconoce solo por el SQLState `23505`, sin reflexión ni cambios en `backend/pom.xml`. `FiscalYearSchemaTest` fija que es el único `UNIQUE` que un `INSERT` de `liv_app` puede violar | Leer el nombre de la restricción exigía reflexión o cambiar el ámbito del driver |
+| B6 | Se cortó en tres PR: 6a1 (#194, T11 y T12, con los casos de uso aún sin `@Service`), 6a2 (#195, T13, que los activa, con `FiscalYearsBeansTest`) y 6b (#196, T14 y T15) | Tamaño: unas 2.250 líneas antes del corte |
+| B6 | `BusinessYear` no es un *bean*: cada caso de uso lo construye con el `Clock` y `liv.business-zone`. `RegisteredFiscalYear` pasó del puerto al dominio. Archivos de prueba extra: `FakeFiscalYears`, `GetFiscalYearTest`, `OpenFiscalYearPreparationTest`, `UseCasePermissionsTest`, `LivDatabase` y `FlywayProfilesTest`, y `JpaFiscalYearsTest` se partió en cinco clases | Reglas de `AuthorizationRulesTest` y tamaño de las clases de prueba |
+| B6 · 6b (#196) | La coerción estricta de escalares y la omisión de nulos se aplican solo a los DTO de `tax`, con *mixins*; `application.yml` no cambia | Un cambio global habría alterado las respuestas de la 001 y del *outbox* |
+| B6 · 6b, B7 y B10 | 6b (#196) y B10 (#199) se integraron antes que B7 (#201) y F9b (#202), con la regla de no desplegar ni versionar el backend mientras tanto. Lo creado en local entre ambas integraciones no quedó en la auditoría | Orden de integración; no hay producción |
+| B7 (#201) | Los dos métodos de `RecordFiscalYearEvents` entran en `AuthorizationRules.OPEN_USE_CASES`. La persona lo aprobó como cambio de autorización (§4.5). `OpenUseCaseCallersTest` fija que solo los invoca el registro de eventos. Archivos extra: `AuthorizationRules`, `IdentityProviderImportTest` y `AuditLogEntryTest` | Son escuchas internas, sin usuario que autorizar |
+| 8a (#187) | `Table`: nombre accesible por `caption` o `aria-label`; contorno de foco de la fila con `:has(:focus-visible)`; solo navega el enlace del año; el borde inferior doble queda como en Figma | Revisión del PR |
+| 8e (#191) | `Button` con motivo se ajusta al ancho de su contenido, como en Figma, y exporta `ButtonReasonAlign` por `public-api.ts` | Revisión del PR |
+| 8f (#193) | `THIRD_PARTY_NOTICES.md` pasa a 40 iconos; T24 tocó además los dos README y `public-api.ts` | `plus` y `circle` derivan de Feather (MIT) |
+| F9a · A (#198) | Excepción de *lint*, aprobada por la persona (§4.5): `<table>`, `<tr>`, `<th>` y `<td>` se permiten en las pantallas solo con `livTable`, `livTableRow` y `livTableCell` | `Table` es una tabla HTML real |
+| F9a · B (#200) | Las fechas de la tabla de 1.4 van en `dd/mm/aaaa`, como piden la constitución y la arquitectura 01 §11; la fecha larga (H2‑13) queda para las fechas sueltas. Figma se ajustó. Hay dos textos nuevos sin diseño: el aviso de relectura fallida y la alerta de V‑01 sin años | La constitución manda sobre la feature |
+| F9b (#202) | Los paneles de «cargando» del detalle se titulan «Cargando los datos…» y «Cargando la lista de preparación…». Figma (68:4474) se ajustó | axe (`landmark-unique`) rechaza dos regiones con el mismo nombre, y `Panel` 0.4.0 no permite un nombre accesible aparte del título |
+| E11 (#197) | La comprobación previa de vigencias sobrantes va en un `beforeAll` de `vigencias.spec.ts`, no en `globalSetup`. Las pruebas corren solo en Chromium | Así la 001 no se detiene por datos de la 1.4 |
+| E4 · 4B1 (#209) | Un *mixin* en `TaxJsonConfiguration`, con su prueba, para no escribir `"minYear": null` cuando la creación está bloqueada: dos archivos que T41 no declaraba. 4B1 se integró antes de que 4B2 estuviera aprobado | Defecto encontrado en la revisión. El orden no tuvo efecto, porque 4F0 (#207) ya protegía el frontend |
+| E4 · 4B2 (#210) | Un solo PR, de unas 75 líneas de producción; el resto son pruebas reescritas. Para 007-23, la prueba de la API crea los años de 2002 al siguiente con la propia API (26 POST), sin tocar `LivDatabase`. El bloqueo de creación se queda (H2‑16), con las dos pruebas de caracterización de T44 | Tamaño y H2‑16 |
+| E4 · 4F (#212) | Un solo PR de más de 400 líneas, con las cuatro lentes; unas 250 líneas son de producción | Cortarlo no aportaba nada, porque se integra completo |
+| E4 · 4E (#211) | En Chromium de Windows, Enter sobre la lista cerrada abre la lista del sistema, así que 007-21 la cierra antes del recorrido con Tab. H2‑18 y la elección con flechas se prueban en las pruebas unitarias de #212 | Comportamiento del navegador |
 
 ## Revisión
 

@@ -24,6 +24,12 @@ _Features completadas, en orden de implementación._
 
   Fue la primera feature con el orquestador.
 - ✅ **[006 · Pruebas *golden* en rojo](../features/006-pruebas-golden/spec.md)** — hecha el 2026-11-12. Entregable F0‑11, el último del cierre de la Fase 0 (ADR 0031). Los ejemplos numéricos de los Docs. 02, 03 y 04 quedan como 24 casos *golden* en el *backend* (L1 a L15 de liquidación y C1 a C9 de cuenta corriente). Son *fixtures* YAML con su esquema y pruebas en rojo con `@Disabled` y su *issue*: #171 para el motor, que entra en la Fase 2, y #173 para la cuenta corriente, en la Fase 4. Pruebas en verde cuidan los *fixtures* y la comparación. CA‑4.07 y el método del redondeo «al peso» quedaron como pendientes 8 y 9 del Doc. 04 §14 (v0.3).
+- ✅ **[007 · Vigencias fiscales](../features/007-vigencias-fiscales/spec.md)** — hecha el 2026-11-16. Es la primera feature de la Fase 1 y la primera de negocio. La opción 1.4 sirve para:
+  - consultar las vigencias de la administración;
+  - crear cualquier año de 2002 al año siguiente al año en curso, en cualquier orden (V‑01, V‑02 y V‑05, enmienda 4);
+  - abrir la preparación de una vigencia (V‑06), con su lista de nueve puntos (Doc. 01 §6.1).
+
+  Hoy solo se verifica el punto 1 de la lista: los demás muestran «Opción aún no disponible» hasta que existan sus opciones. Incluye el esquema `tax` con RLS y permisos por columna, el contrato `tax.yaml` 1.1.0, la auditoría de creación y apertura, `liv-components` 0.4.0 y 0.5.0 y las pruebas de navegador. La habilitación con doble firma, *Lista* y el cierre pasan a la 1.5.1. Los ajustes de la H3 están en su `plan.md`.
 - ✅ **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031): *walking skeleton* en local con las pruebas de navegador en verde, CI de cada proyecto obligatorio en `main` y F0‑02, F0‑10 y F0‑11 hechos. Los entregables y sus pendientes, que no bloquean el cierre, siguen en `ESTADO.md` §3.
 
 ## Siguiente 🔜
@@ -31,16 +37,15 @@ _Features completadas, en orden de implementación._
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
 - ⏳ **T24 de la feature 001, antes de producción** — imágenes publicadas, `infra/` con TLS, el e2e en CI (F0‑12 completo), la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue. No se despliega a producción sin ella (ADR 0030).
-- 🔜 **Fase 1 — Tablas base y configuración:** la primera feature la elige la persona, del *backlog* de abajo.
+- 🔜 **Fase 1 — Tablas base y configuración:** la 007 (1.4) está hecha; la siguiente la elige la persona, del *backlog* de abajo.
 
 ## Backlog / ideas 💡
 
 _Sin comprometer ni ordenar del todo. El número `NNN` se asigna al crear la carpeta de la feature. Agrupadas por fase de `docs/arquitectura/00` §8._
 
 **Fase 1 — Tablas base y configuración**
-- **Vigencias fiscales** (1.4) — apertura de vigencia y habilitación de la liquidación con doble firma.
 - **Normas y soportes** (1.3) — registro de normas con su PDF.
-- **Cargue de tablas de avalúos** (1.5.1–1.5.4) — importación XLSX del Ministerio con validación, aprobación y publicación.
+- **Cargue de tablas de avalúos** (1.5.1–1.5.4) — importación XLSX del Ministerio con validación, aprobación y publicación. La 1.5.1 trae además, desde la 007, la habilitación de la liquidación con doble firma, el estado *Lista* y el cierre de la vigencia (007-13 a 007-17).
 - **Tarifas, calendario, beneficios y sanciones** (1.5.5–1.5.8).
 - **Configuración de jurisdicción** (1.5.9) — carga, validación CJ01–CJ16 y publicación del YAML. Al publicar, guarda la versión del validador y la del esquema (decisión 6 de la H3 de R3a, feature 005). Incluye el validador de los anexos en la raíz y su CI, que la feature 004 dejó para aquí (pasos 4 y 5 de su plan, criterio 004‑13).
 - **Consultas y exportación de tablas base** (1.6.1–1.6.7), incluido el reporte SIBGA.
