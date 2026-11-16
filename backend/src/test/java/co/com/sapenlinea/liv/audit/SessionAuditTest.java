@@ -3,6 +3,8 @@ package co.com.sapenlinea.liv.audit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
+import co.com.sapenlinea.liv.audit.application.AuditLog;
+import co.com.sapenlinea.liv.audit.application.AuditLog.Entry;
 import co.com.sapenlinea.liv.audit.application.RecordSessionEvents;
 import co.com.sapenlinea.liv.core.SessionDenied;
 import co.com.sapenlinea.liv.core.SessionStarted;
@@ -35,6 +37,7 @@ class SessionAuditTest extends PlatformWebTest {
   private static final String SESSIONS = "/internal/v1/sessions";
 
   @Autowired RecordSessionEvents record;
+  @Autowired AuditLog log;
   @Autowired ApplicationContext context;
 
   @Test
@@ -52,6 +55,7 @@ class SessionAuditTest extends PlatformWebTest {
     assertThat(row.entityName()).isEqualTo("session");
     assertThat(row.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
     assertThat(row.userId()).isEqualTo(AuditRows.userId(ACTIVE));
+    assertThat(row.previousValues()).isNull();
     assertThat(row.newValues()).isEqualTo(Map.of("result", "SUCCESS"));
     assertThat(row.occurredAt()).isCloseTo(Instant.now(), within(1, ChronoUnit.MINUTES));
     assertThat(row.actorRef()).isNull();
@@ -94,6 +98,7 @@ class SessionAuditTest extends PlatformWebTest {
     AuditRows.Row row = AuditRows.await("SESSION_ENDED", correlation);
     assertThat(row.administrationId()).isEqualTo(LivDatabase.ADMIN_A);
     assertThat(row.userId()).isEqualTo(AuditRows.userId(ACTIVE));
+    assertThat(row.previousValues()).isNull();
     assertThat(row.newValues()).isEqualTo(Map.of("result", "SUCCESS", "reason", reason));
   }
 
@@ -218,6 +223,50 @@ class SessionAuditTest extends PlatformWebTest {
   @DisplayName("001-18 · El outbox trabaja con PostgreSQL sin consultar la base al arrancar")
   void outboxDatabaseTypeIsFixed() {
     assertThat(context.getBean("databaseType")).hasToString("POSTGRES");
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName("007-20 · La auditoría escribe previous_values cuando viene y lo deja nulo si no")
+  void previousValuesAreWrittenOnlyWhenTheyCome() {
+    String withPrevious = UUID.randomUUID().toString();
+    String without = UUID.randomUUID().toString();
+
+    log.append(entry(withPrevious, Map.of("status", "PLANEADA")));
+    log.append(entry(without, null));
+
+    AuditRows.Row changed = AuditRows.await("PREVIOUS_VALUES_PROBE", withPrevious);
+    assertThat(changed.previousValues()).isEqualTo(Map.of("status", "PLANEADA"));
+    assertThat(changed.newValues()).isEqualTo(Map.of("status", "EN_PREPARACION"));
+    assertThat(AuditRows.await("PREVIOUS_VALUES_PROBE", without).previousValues()).isNull();
+  }
+
+  @Test
+  @Tag("007-20")
+  @DisplayName("007-20 · El Entry copia previousValues: cambiar el mapa de origen no lo altera")
+  void entryCopiesPreviousValues() {
+    var source = new java.util.HashMap<String, Object>(Map.of("status", "PLANEADA"));
+
+    Entry entry = entry("copia", source);
+    source.put("status", "CAMBIADO");
+
+    assertThat(entry.previousValues()).isEqualTo(Map.of("status", "PLANEADA"));
+  }
+
+  private static Entry entry(String correlation, Map<String, Object> previousValues) {
+    return new Entry(
+        "LIV",
+        UUID.randomUUID().toString(),
+        LivDatabase.ADMIN_A,
+        null,
+        "tax.administration_fiscal_year",
+        UUID.randomUUID(),
+        "PREVIOUS_VALUES_PROBE",
+        Instant.now(),
+        correlation,
+        null,
+        previousValues,
+        Map.of("status", "EN_PREPARACION"));
   }
 
   private HttpResponse<String> start(String userToken, String correlation) {
