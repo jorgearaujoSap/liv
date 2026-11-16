@@ -4,7 +4,7 @@
 
 **Enmienda 4 · en reapertura:** vigencias de 2002 al año siguiente al año en curso, en cualquier orden (007-03, 007-04, 007-06 a 007-08 y 007-21 a 007-23).
 - **H1:** aprobada el 2026-11-16 por la misma persona como responsable funcional, sobre el commit e118aef, con las siete recomendaciones (véase «Enmienda 4»).
-- **Plan:** el de la enmienda 4 aún no está escrito ni aprobado (H2).
+- **Plan:** aprobado (H2) el 2026-11-16 por la misma persona, sobre el commit bba0833 (#204). En esa H2 cambiaron 007-22 (H2‑18) y la decisión E4‑6 (H2‑20), y la persona firmó de nuevo su H1.
 
 _(propuesta → aprobada (H1) → en curso → hecha)_
 
@@ -41,7 +41,7 @@ _Cada criterio se comprueba con sí/no y tiene su número propio `007-xx`. Si ve
 
 **B. Creación de la vigencia**
 
-- [ ] **V‑01 · 007-04** — Dado un `ADMIN_SISTEMA`, cuando crea la vigencia de un año, entonces la vigencia queda en estado *Planeada*, sin la liquidación habilitada, con inicio el 1 de enero y fin el 31 de diciembre de ese año. Las fechas no se escriben a mano (decisión 6). Antes de crearla, la pantalla advierte que una vigencia no se puede borrar y pide revisar el año. Si el año es pasado, advierte además que solo se podrá liquidar cuando estén cargadas las tablas de ese año y jurídica confirme que se puede liquidar (decisión E4‑6). El texto exacto es el del diseño aprobado en Figma (enmienda 4). _Prueba:_ pendiente
+- [ ] **V‑01 · 007-04** — Dado un `ADMIN_SISTEMA`, cuando crea la vigencia de un año, entonces la vigencia queda en estado *Planeada*, sin la liquidación habilitada, con inicio el 1 de enero y fin el 31 de diciembre de ese año. Las fechas no se escriben a mano (decisión 6). Antes de crearla, la pantalla advierte que una vigencia no se puede borrar y pide revisar el año. Si el año es pasado, advierte además que solo se podrá liquidar cuando estén cargadas las tablas de ese año (decisión E4‑6, cambiada en la H2 del 2026-11-16). El texto exacto es el del diseño aprobado en Figma (enmienda 4). _Prueba:_ pendiente
 - [ ] **V‑01 · 007-05** — Dada una vigencia que ya existe en la administración, cuando un `ADMIN_SISTEMA` intenta crear otra del mismo año, entonces se rechaza con un mensaje que cita V‑01 y no cambia nada. Si dos personas crean el mismo año al mismo tiempo, se crea una sola vigencia y la otra recibe ese rechazo. _Prueba:_ pendiente
 - [ ] **V‑02 · 007-06** — Dada una administración con vigencias, cuando un `ADMIN_SISTEMA` crea un año que no tiene, entre 2002 y el año siguiente al año en curso, entonces la vigencia se crea. Da igual si el año es anterior a la vigencia más antigua, posterior a la más reciente (aunque queden años sin crear entre las dos) o uno de los que faltan entre dos vigencias. El orden es libre y se admiten huecos. Por ejemplo, en 2026 y con solo la vigencia 2026, se pueden crear 2002, 2015 y 2027, en ese orden o en cualquier otro. Ningún rechazo cita V‑02 (enmienda 4). _Prueba:_ pendiente
 - [ ] **V‑05 · 007-07** — Dado un `ADMIN_SISTEMA`, con vigencias o sin ellas, cuando intenta crear un año que no existe en su administración y que es anterior a 2002, entonces se rechaza con un mensaje que cita V‑05 y dice cuál es el primer año que se puede crear. Si el año es posterior al año siguiente al año en curso, se rechaza con un mensaje que cita V‑05 y dice cuál es el último. En los dos casos no cambia nada. Un año que ya existe da el rechazo de V‑01 (007-05). Un año fuera de la tabla nacional (1999 a 2100) sigue siendo una solicitud mal formada, como en el contrato aprobado (enmienda 4). _Prueba:_ pendiente
@@ -51,7 +51,8 @@ _Cada criterio se comprueba con sí/no y tiene su número propio `007-xx`. Si ve
   - El año se elige en una lista desplegable sobre un `<select>` nativo, con la etiqueta accesible «Año de la vigencia». Sin año elegido, la lista muestra una opción vacía, «Elige un año», que no se puede enviar.
   - La lista ofrece los años que la creación aceptaría, y solo esos: de 2002 al año siguiente al año en curso, sin los que ya existen. Van en el orden en que los da el servidor, del más reciente al más antiguo, y la pantalla no calcula años.
   - El año en curso dice «Año en curso» y el siguiente, «Año siguiente al año en curso»; los años pasados solo muestran su número.
-  - Si el año en curso se puede crear, viene elegido; si no, ninguno viene elegido. La regla es la misma al abrir el diálogo y cada vez que se relee la lista, por ejemplo después de un rechazo de V‑01 (007-05).
+  - Si el año en curso se puede crear, viene elegido; si no, ninguno viene elegido. La regla es la misma al abrir el diálogo y al releer la lista después de un rechazo de V‑01 (007-05).
+  - Si no se sabe si la creación ocurrió (sin respuesta, tiempo agotado o error del servidor), al releer la lista sigue elegido el año intentado si todavía está entre los que se pueden crear. Si ya no está, ninguno viene elegido. Así, en ese caso, el diálogo no cambia por su cuenta el año que la persona eligió (H2‑18 del plan; la persona firmó de nuevo la H1 de este punto el 2026-11-16).
   - Sin año elegido, «Crear vigencia» está inhabilitado y el diálogo no muestra fechas. Con un año elegido, muestra su inicio y su fin.
   - El foco inicial va a la lista, nunca a «Crear vigencia», para que Enter no cree nada al abrir.
 
@@ -114,7 +115,7 @@ _Aprobadas el 2026-11-12 por la persona que dirige el trabajo, como responsable 
 
 _La pidió el 2026-11-16 la persona que dirige el trabajo, como responsable funcional, al probar la opción 1.4: «debe permitirme adicionar una vigencia desde el año 2002 hasta el año actual + 1». En esta spec, «el año actual + 1» se escribe «el año siguiente al año en curso», como en V‑05. La enmienda cambia dos reglas aprobadas (V‑02 y V‑05) y toca el pendiente 5 del Doc. 01 §11. Se reabre la feature 007: no es una feature nueva._
 
-_**H1:** la persona que dirige el trabajo, como responsable funcional, la aprobó el 2026-11-16 sobre el commit e118aef, con las siete recomendaciones (véase «Decisiones de la H1 de la enmienda 4»). Los cambios a los documentos funcionales van en el paso 1 del plan de la enmienda, que necesita su propia H2._
+_**H1:** la persona que dirige el trabajo, como responsable funcional, la aprobó el 2026-11-16 sobre el commit e118aef, con las siete recomendaciones (véase «Decisiones de la H1 de la enmienda 4»). Los cambios a los documentos funcionales van en el paso 13 del plan de la enmienda. En la H2 del 2026-11-16 cambiaron 007-22 y E4‑6, con la H1 firmada de nuevo._
 
 **Respuestas de la persona a las preguntas de aclaración**
 
@@ -131,7 +132,7 @@ _**H1:** la persona que dirige el trabajo, como responsable funcional, la aprob�
 |---|---|---|---|
 | 4a | 007-06 | V‑02 deja de rechazar: el orden es libre y se admiten huecos. Salen los motivos `GAP` y `HISTORICAL` | La persona necesita crear años pasados para liquidarlos, en el orden en que reúna sus tablas |
 | 4b | 007-07, 007-08 | V‑05 pasa a ser un rango, de 2002 al año siguiente al año en curso, igual para la primera vigencia y las demás. Sale `FIRST_YEAR`, entra `PAST_LIMIT` para un año anterior a 2002 y `FUTURE_LIMIT` se queda | El límite inferior lo pide la persona. El superior se queda por el motivo de la enmienda 1 (H2‑6): una vigencia no se borra, y sin él se encadenarían años futuros |
-| 4c | 007-03, 007-04, 007-22, 007-23 | El diálogo ofrece hasta 26 años en 2026, y uno más cada año, en una lista desplegable. La advertencia ya no habla de años históricos y avisa que un año pasado puede no ser liquidable. El estado vacío dice el rango. La acción se inhabilita cuando ya existen todas las vigencias | Un grupo de opciones (`RadioGroup`) no sirve para 26 años, y la advertencia aprobada dejaría de ser cierta |
+| 4c | 007-03, 007-04, 007-22, 007-23 | El diálogo ofrece hasta 26 años en 2026, y uno más cada año, en una lista desplegable. La advertencia ya no habla de años históricos y, para un año pasado, avisa que solo se podrá liquidar con las tablas de ese año cargadas. El estado vacío dice el rango. La acción se inhabilita cuando ya existen todas las vigencias | Un grupo de opciones (`RadioGroup`) no sirve para 26 años, y la advertencia aprobada dejaría de ser cierta |
 | 4d | 007-21 | El diálogo cambia de diseño, y sus pruebas de navegador también | Las pantallas deben coincidir con Figma |
 
 **Criterios.** Los criterios reescritos (007-03, 007-04, 007-06 a 007-08 y 007-21) y los nuevos (007-22 y 007-23) están en «Criterios de aceptación», con la marca «(enmienda 4)». El texto anterior queda en el historial de Git.
@@ -139,7 +140,7 @@ _**H1:** la persona que dirige el trabajo, como responsable funcional, la aprob�
 **Lo que se vuelve a verificar.** En `main` todos los criterios siguen en `[ ]`. Las marcas `[x]` están en la rama de cierre `docs/007-cierre`, sin integrar. Al retomar el cierre:
 - vuelven a `[ ]` los criterios que cambian: 007-03, 007-04, 007-06, 007-07, 007-08 y 007-21;
 - se agregan 007-22 y 007-23;
-- 007-05, 007-09 a 007-12, 007-18 y 007-19 no cambian de texto, pero sus pruebas sí, porque las de navegador eligen los años de la lista que da el servidor y el bloqueo de creación concurrente puede cambiar. Se vuelven a marcar con las pruebas nuevas;
+- 007-05, 007-09 a 007-12, 007-18 y 007-19 no cambian de texto, pero sus pruebas sí, porque las de navegador eligen los años de la lista que da el servidor y las del bloqueo de creación concurrente cambian (el bloqueo se queda, H2‑16 del plan). Se vuelven a marcar con las pruebas nuevas;
 - 007-01, 007-02 y 007-20 no cambian: un año pasado se consulta, se audita y se aísla igual que los demás.
 
 **Qué hace la enmienda y qué no**
@@ -162,7 +163,8 @@ _**H1:** la persona que dirige el trabajo, como responsable funcional, la aprob�
 2. **Vigencias que no se pueden borrar y quizá no se puedan liquidar.**
    - **Por qué:** un año de 2002 liquidado en 2026 puede estar prescrito para el cobro (cinco años, Doc. 05 §6.1) o fuera del término para liquidar de oficio. Además, la administración debe haber tenido competencia sobre el impuesto ese año: las modalidades de `competencia.modalidades` se configuran en la configuración de jurisdicción de cada año (Doc. 03 §9.5).
    - **Qué pasa:** si jurídica descarta un rango, sus vigencias se quedan para siempre en *Planeada* o *En preparación*, porque el diagrama del Doc. 01 §5 no tiene anulación.
-   - **Mitigación:** la advertencia de 007-04 y las decisiones E4‑6 y E4‑7.
+   - **Mitigación:** la advertencia de 007-04 y la decisión E4‑7. En la H2 del 2026-11-16, la persona decidió que liquidar un año pasado no exige un concepto jurídico (E4‑6).
+   - **Riesgo residual, abierto:** liquidar un año prescrito, en firme o sin competencia. Se resuelve en la Fase 2 y en el Módulo 5, con el pendiente 7 del Doc. 02. Esta feature no lo controla.
 3. **Las tablas de un año pasado pueden no caber en las opciones 1.5.x.**
    - **Formatos:** las opciones 1.5.x se diseñan sobre la estructura real de las tablas de 2026 (Doc. 03 §3) y sus reglas `R0xx` y `F0xx`. Las resoluciones de años anteriores pueden tener otro formato.
    - **Configuración:** la configuración de cada año pasado debe pasar CJ01 a CJ16, también CJ15 y CJ16, que se aplican a toda publicación nueva.
@@ -177,19 +179,19 @@ _**H1:** la persona que dirige el trabajo, como responsable funcional, la aprob�
 
 **Decisiones de la H1 de la enmienda 4**
 
-_Aprobadas el 2026-11-16 por la persona que dirige el trabajo, como responsable funcional, con las siete recomendaciones (`AGENTS.md` §4.3, excepción del equipo de una persona), sobre el commit e118aef. Cada decisión conserva las alternativas que se descartaron._
+_Aprobadas el 2026-11-16 por la persona que dirige el trabajo, como responsable funcional, con las siete recomendaciones (`AGENTS.md` §4.3, excepción del equipo de una persona), sobre el commit e118aef. En la H2 del 2026-11-16 la persona cambió E4‑6 (H2‑20) y precisó E4‑3 para el caso de un resultado que no se conoce (H2‑18), con la H1 firmada de nuevo. Cada decisión conserva las alternativas que se descartaron._
 
 | # | Tema | Decisión | Alternativas descartadas |
 |---|---|---|---|
 | E4‑1 | El año mínimo 2002 | **Decisión de producto:** 2002 es la primera vigencia que admite LIV, un límite operativo de V‑05 como el «+1» de H2‑6, y no un valor tributario ni el año modelo de las tablas. Es una constante del dominio con el código de la regla y una prueba que la fija, y el Doc. 01 la registra con esta fecha y su motivo. La persona la aprobó también como **excepción explícita** a la prohibición de escribir valores tributarios en el código (`AGENTS.md` §4.5), por si 2002 se entendiera como una fecha tributaria. El 2026-11-16 decidió además que **no hace falta un ADR sobre la constitución:** 2002 no fija plazos, tarifas ni vencimientos, solo acota qué años puede crear LIV, como el «+1». El plan registra la excepción de `AGENTS.md` §4.5 junto a la constante (riesgo 1) | (b) Una propiedad de la aplicación: se cambia sin compilar, pero sigue siendo igual para todas. (c) La configuración de jurisdicción: permite variar por jurisdicción, pero la persona la descartó, y la configuración de un año se publica para una vigencia que ya debe existir |
 | E4‑2 | El control del diálogo | **Una lista desplegable:** un componente nuevo `Select` en `liv-components`, que envuelve el `<select>` nativo y su etiqueta. Se diseña primero en `02 Componentes` de Figma, se implementa en su propio cambio de `ui/` y se publica en 0.5.0 antes del PR del frontend (`AGENTS.md` §6.2). Sirve también para los filtros de las consultas 1.6 | (b) `TextField` para escribir el año: no se ven los años libres y hacen falta más mensajes. (c) Seguir con `RadioGroup`: la lista es larga y crece cada año |
-| E4‑3 | El orden y el año elegido | **Del más reciente al más antiguo,** en el orden que da el servidor. Viene elegido el año en curso; si ya existe, ninguno, también al releer la lista (007-22) | (b) Que no venga elegido ninguno nunca. (c) Del más antiguo al más reciente, como hasta ahora, que elegiría 2002 |
+| E4‑3 | El orden y el año elegido | **Del más reciente al más antiguo,** en el orden que da el servidor. Viene elegido el año en curso; si ya existe, ninguno, también al releer la lista después de un V‑01. **Precisada en la H2 del 2026-11-16 (H2‑18):** si no se sabe si la creación ocurrió, al releer sigue elegido el año intentado si todavía se puede crear, y si no, ninguno (007-22) | (b) Que no venga elegido ninguno nunca. (c) Del más antiguo al más reciente, como hasta ahora, que elegiría 2002 |
 | E4‑4 | `relation` y sus etiquetas | **`relation` no cambia** en el contrato (`PAST`, `CURRENT` y `NEXT`). Solo el año en curso («Año en curso») y el siguiente («Año siguiente al año en curso») llevan etiqueta; los años pasados, solo su número. Se retira la etiqueta de un año pasado (nodo 75:4479 de Figma) | (b) Cada año pasado con «Año pasado»: se repetiría 24 veces |
 | E4‑5 | Orden libre y quién crea | **Se puede crear un año pasado aunque existan años posteriores,** con huecos. Basta el `ADMIN_SISTEMA` con `tax.fiscal-year.create`, sin otra firma, y queda en la auditoría. El control que compensa es la doble firma de la habilitación de la 1.5.1 (007-14 y 007-15): ningún año se liquida sin dos personas. El pendiente 5 del Doc. 01 §11 queda resuelto para la creación, y lo que dice de la cartera pasa a la 5.1 | (b) Una segunda firma (`APROBADOR_TABLAS`) para crear años pasados: exige un flujo y un permiso nuevos (§4.5) |
-| E4‑6 | Si un año pasado se puede liquidar | **No se decide ahora si un año pasado se puede liquidar:** lo decide la feature del motor (Fase 2). Mientras tanto, se propone para revisión jurídica un prerrequisito nuevo de la liquidación en el Doc. 02 (un `LQ‑P` nuevo, en el paso 1 del plan), que impide liquidar un año pasado sin un concepto jurídico sobre la prescripción, la firmeza y la competencia de la administración ese año. Resuelve en parte el pendiente 7 del Doc. 02 | (b) Limitar desde ahora el año mínimo por la prescripción (por ejemplo, el año en curso − 5): contradice el pedido y sería una regla tributaria de cada jurisdicción |
-| E4‑7 | Vigencias de años no liquidables | **Se aceptan vigencias permanentes,** con un pendiente nuevo del Doc. 01 §11: cómo se retira una vigencia que no se puede liquidar, sin borrarla. Lo decide la feature 1.5.1, junto con el cierre (pendiente 7) | (b) Mientras no se resuelva E4‑6, admitir solo los años que no hayan prescrito: contradice el pedido |
+| E4‑6 | Si un año pasado se puede liquidar | **Cambiada en la H2 del 2026-11-16 (H2‑20 del plan), con la H1 firmada de nuevo por la persona:** liquidar una vigencia de un año pasado **no exige un concepto jurídico**. Se liquida con los mismos prerrequisitos que cualquier vigencia (`LQ‑P01` a `LQ‑P04` del Doc. 02 §B.3), y sus tablas las exige la habilitación de la 1.5.1 (V‑03). No hay prerrequisito nuevo en el Doc. 02. La prescripción, la firmeza y la competencia de la administración ese año **siguen abiertas** en el pendiente 7 del Doc. 02. Son preguntas para la feature del motor (Fase 2) y el Módulo 5 (Doc. 05 §6), y no bloquean nada en esta feature. *Decisión de la H1, reemplazada en la H2:* un `LQ‑P` nuevo que impedía liquidar un año pasado sin un concepto jurídico sobre la prescripción, la firmeza y la competencia | (b) Limitar desde ahora el año mínimo por la prescripción (por ejemplo, el año en curso − 5): contradice el pedido y sería una regla tributaria de cada jurisdicción |
+| E4‑7 | Vigencias de años no liquidables | **Se aceptan vigencias permanentes,** con un pendiente nuevo del Doc. 01 §11: cómo se retira una vigencia que no se puede liquidar, sin borrarla. Lo decide la feature 1.5.1, junto con el cierre (pendiente 7) | (b) Admitir solo los años que no hayan prescrito: contradice el pedido |
 
-**Cambios propuestos a los documentos funcionales.** Este PR no los edita (`AGENTS.md` §4.5): van en el paso 1 del plan de la enmienda, como propuestas pendientes de revisión jurídica (§8).
+**Cambios propuestos a los documentos funcionales.** Este PR no los edita (`AGENTS.md` §4.5): van en el paso 13 del plan de la enmienda, como propuestas pendientes de revisión jurídica (§8).
 
 - **Doc. 01 v0.6:**
   - *Encabezado:* la versión 0.6 cita la enmienda 4 de la feature 007.
@@ -205,10 +207,11 @@ _Aprobadas el 2026-11-16 por la persona que dirige el trabajo, como responsable 
   - *§11, pendiente nuevo:* cómo se retira una vigencia que no se puede liquidar (E4‑7).
   - *§13:* la entrada de la versión 0.6, con los cambios a otros documentos.
 - **Doc. 02 v0.4:**
-  - *§B.3:* el prerrequisito nuevo de E4‑6 (concepto jurídico sobre la prescripción, la firmeza y la competencia antes de liquidar un año pasado), como propuesta pendiente de revisión jurídica. Si un año pasado se puede liquidar lo decide la feature del motor (Fase 2).
-  - *§12, pendiente 7:* se propone como resuelto en parte, porque la persona pide liquidar vigencias anteriores con el motor. Queda por decidir con jurídica cómo se liquida un año pasado:
+  - *§B.3:* sin cambios. Por E4‑6, tal como quedó en la H2 del 2026-11-16, no hay prerrequisito nuevo: un año pasado se liquida con `LQ‑P01` a `LQ‑P04`, como cualquier vigencia, y sus tablas las exige la habilitación de la 1.5.1 (V‑03).
+  - *§12, pendiente 7:* se propone dar por respondida su pregunta («si se liquidan vigencias anteriores con este motor»): sí, sin concepto jurídico previo (E4‑6). El pendiente **no se reduce**. Siguen abiertas, para la feature del motor (Fase 2) y el Módulo 5 (Doc. 05 §6), sin bloquear nada en esta feature:
+    - la prescripción, la firmeza y la competencia de la administración ese año, con los criterios que aportó la persona (paso 13 del plan), como propuesta pendiente de revisión jurídica;
     - los intereses de mora desde su fecha límite y las sanciones;
-    - qué años ya no se pueden liquidar ni cobrar (Doc. 05 §6);
+    - las tasas de usura desde esa fecha (riesgo 3);
     - qué hace el motor con un año que ya tiene una obligación migrada;
     - el efecto de la imputación a la más antigua primero (Doc. 04 §5).
 - **Doc. 05 v0.2, §11:** un pendiente nuevo, el de un año con saldos migrados en la 5.1 y vigencia en LIV: cuál de los dos orígenes prevalece. CH‑02 y OB‑01 ya impiden la obligación doble.
