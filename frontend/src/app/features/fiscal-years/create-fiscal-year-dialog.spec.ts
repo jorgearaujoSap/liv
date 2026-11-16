@@ -304,6 +304,24 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     });
   });
 
+  describe('el foco al releer sin ningún año marcado (riesgo 6 y V-01 · 007-05)', () => {
+    it('el foco va al primer radio del grupo y no se queda en «Crear vigencia»', async () => {
+      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
+      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
+
+      await submit();
+      // Tras el rechazo, el foco queda en «Crear vigencia»: es de donde la relectura lo tiene que sacar.
+      button('Crear vigencia')?.focus();
+      // La lista nueva ya no trae el año en curso ni el siguiente: no hay año que marcar.
+      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2024, 'PAST')]);
+      await settle();
+
+      expect(checked()).toBeUndefined();
+      expect(button('Crear vigencia')?.disabled).toBe(true);
+      expect(document.activeElement).toBe(radios()[0]);
+    });
+  });
+
   describe('crear (007-04)', () => {
     it('pide la creación del año marcado, como número, y avisa con la vigencia creada', async () => {
       service.create.mockResolvedValue(CREATED);
