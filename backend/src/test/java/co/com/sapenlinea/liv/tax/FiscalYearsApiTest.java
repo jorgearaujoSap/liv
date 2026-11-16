@@ -1,6 +1,7 @@
 package co.com.sapenlinea.liv.tax;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import co.com.sapenlinea.liv.isolation.LivDatabase;
 import co.com.sapenlinea.liv.platform.OidcTestProvider;
@@ -29,7 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * The API of the fiscal years (tax.yaml 1.0.0) end to end, with the production configuration and
+ * The API of the fiscal years (tax.yaml 1.1.0) end to end, with the production configuration and
  * PostgreSQL with {@code liv_app}: the answers and errors of the contract, the permissions by role
  * (the screen only hides), the isolation between administrations and a smoke test of the concurrent
  * requests (the interleavings are forced in {@code JpaFiscalYearsRacesTest}). Every test works with
@@ -146,7 +147,7 @@ class FiscalYearsApiTest extends PlatformWebTest {
   @Test
   @Tag("007-03")
   @DisplayName(
-      "007-03 · Sin vigencias, la lista viene vacía y ofrece el año en curso y el siguiente con sus fechas")
+      "007-03 · Sin vigencias, la lista viene vacía y ofrece de 2002 al año siguiente, del más reciente al más antiguo")
   void emptyListOffersTheCreatableYears() {
     Tenant tenant = newTenant();
     int year = currentYear();
@@ -159,22 +160,25 @@ class FiscalYearsApiTest extends PlatformWebTest {
     assertThat(list.get("canCreate").asBoolean()).isTrue();
     assertThat(list.has("createBlocked")).as("se omite, no viene null").isFalse();
     JsonNode offered = list.get("creatableYears");
-    assertThat(offered).hasSize(2);
-    assertThat(offered.get(0).get("year").asInt()).isEqualTo(year);
-    assertThat(offered.get(0).get("relation").asString()).isEqualTo("CURRENT");
-    assertThat(offered.get(0).get("startsOn").asString()).isEqualTo(year + "-01-01");
-    assertThat(offered.get(0).get("endsOn").asString()).isEqualTo(year + "-12-31");
-    assertThat(offered.get(1).get("year").asInt()).isEqualTo(year + 1);
-    assertThat(offered.get(1).get("relation").asString()).isEqualTo("NEXT");
-    assertThat(offered.get(1).get("startsOn").asString()).isEqualTo((year + 1) + "-01-01");
-    assertThat(offered.get(1).get("endsOn").asString()).isEqualTo((year + 1) + "-12-31");
+    // De 2002 al año siguiente al en curso, sin repetir y en orden estrictamente descendente.
+    assertThat(offered).hasSize(year + 1 - 2002 + 1);
+    for (int i = 0; i < offered.size(); i++) {
+      int expected = year + 1 - i;
+      assertThat(offered.get(i).get("year").asInt()).isEqualTo(expected);
+      assertThat(offered.get(i).get("startsOn").asString()).isEqualTo(expected + "-01-01");
+      assertThat(offered.get(i).get("endsOn").asString()).isEqualTo(expected + "-12-31");
+      assertThat(offered.get(i).get("relation").asString())
+          .isEqualTo(expected > year ? "NEXT" : expected == year ? "CURRENT" : "PAST");
+    }
+    assertThat(offered.get(offered.size() - 1).get("year").asInt()).isEqualTo(2002);
   }
 
   @Test
   @Tag("007-01")
+  @Tag("007-03")
   @DisplayName(
-      "007-01 · Las vigencias van de la más reciente a la más antigua, y sin años por crear se bloquea con su motivo")
-  void listIsNewestFirstAndBlockedAtTheLimit() {
+      "007-01 · 007-03 · Las vigencias van de la más reciente a la más antigua y la lista ya no ofrece las que existen")
+  void listIsNewestFirstAndDoesNotOfferWhatExists() {
     Tenant tenant = newTenant();
     int year = currentYear();
     givenTheYear(tenant, year);
@@ -192,9 +196,14 @@ class FiscalYearsApiTest extends PlatformWebTest {
       assertThat(item.get("status").asString()).isEqualTo("PLANEADA");
       assertThat(item.get("assessmentsEnabled").asBoolean()).isFalse();
     }
-    assertThat(list.get("creatableYears")).isEmpty();
-    assertThat(list.get("createBlocked").get("reason").asString()).isEqualTo("FUTURE_LIMIT");
-    assertThat(list.get("createBlocked").get("maxYear").asInt()).isEqualTo(year + 1);
+    JsonNode offered = list.get("creatableYears");
+    assertThat(offered).hasSize(year - 2002 + 1 - 1);
+    // Del más reciente al más antiguo, sin repetir y sin los años que ya existen.
+    for (int i = 0; i < offered.size(); i++) {
+      assertThat(offered.get(i).get("year").asInt()).as("posición %d", i).isEqualTo(year - 1 - i);
+      assertThat(offered.get(i).get("relation").asString()).isEqualTo("PAST");
+    }
+    assertThat(list.has("createBlocked")).isFalse();
   }
 
   // ---- 007-02 y 007-09: permisos
@@ -275,57 +284,120 @@ class FiscalYearsApiTest extends PlatformWebTest {
   }
 
   @Test
-  @Tag("V-05")
-  @Tag("007-08")
+  @Tag("V-01")
+  @Tag("007-04")
   @DisplayName(
-      "V-05 · 007-08 · La primera vigencia solo puede ser la del año en curso o la siguiente")
-  void theFirstYear() {
-    Tenant tenant = newTenant();
-
-    HttpResponse<String> response = create(tenant, currentYear() - 3);
-
-    assertProblem(response, 422, "V-05");
-    assertThat(body(response).get("reason").asString()).isEqualTo("FIRST_YEAR");
-    assertThat(body(response).get("currentYear").asInt()).isEqualTo(currentYear());
-    assertThat(body(response).get("nextYear").asInt()).isEqualTo(currentYear() + 1);
-  }
-
-  @Test
-  @Tag("V-02")
-  @Tag("007-07")
-  @DisplayName("V-02 · 007-07 · Un año anterior a la vigencia más antigua da 422 HISTORICAL")
-  void aHistoricalYear() {
-    Tenant tenant = newTenant();
-    givenTheYear(tenant, currentYear());
-
-    HttpResponse<String> response = create(tenant, currentYear() - 1);
-
-    assertProblem(response, 422, "V-02");
-    assertThat(body(response).get("reason").asString()).isEqualTo("HISTORICAL");
-    assertThat(body(response).get("oldestYear").asInt()).isEqualTo(currentYear());
-  }
-
-  @Test
-  @Tag("V-02")
-  @Tag("V-05")
-  @Tag("007-06")
-  @DisplayName(
-      "V-02 · V-05 · 007-06 · Saltarse un año da GAP con el año que falta, y pasar del siguiente al en curso da FUTURE_LIMIT")
-  void aGapAndTheFutureLimit() {
+      "V-01 · 007-04 · Crear el año en curso y uno pasado los deja PLANEADA, sin liquidación y con las fechas del año")
+  void aCurrentAndAPastYearAreCreatedPlanned() {
     Tenant tenant = newTenant();
     int year = currentYear();
+
+    for (int created : new int[] {year, year - 5}) {
+      HttpResponse<String> response = create(tenant, created);
+      assertThat(response.statusCode()).as("crear %d: %s", created, response.body()).isEqualTo(201);
+      assertThat(body(response).get("year").asInt()).isEqualTo(created);
+      assertThat(body(response).get("status").asString()).isEqualTo("PLANEADA");
+      assertThat(body(response).get("assessmentsEnabled").asBoolean()).isFalse();
+      assertThat(body(response).get("startsOn").asString()).isEqualTo(created + "-01-01");
+      assertThat(body(response).get("endsOn").asString()).isEqualTo(created + "-12-31");
+    }
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-07")
+  @DisplayName("V-05 · 007-07 · 2001 da 422 PAST_LIMIT con minYear 2002, con vigencias y sin ellas")
+  void beforeTheFirstCreatableYear() {
+    Tenant empty = newTenant();
+    Tenant withYears = newTenant();
+    givenTheYear(withYears, currentYear());
+
+    for (Tenant tenant : List.of(empty, withYears)) {
+      HttpResponse<String> response = create(tenant, 2001);
+
+      assertProblem(response, 422, "V-05");
+      assertThat(body(response).get("reason").asString()).isEqualTo("PAST_LIMIT");
+      assertThat(body(response).get("minYear").asInt()).isEqualTo(2002);
+      assertThat(body(response).has("maxYear")).isFalse();
+    }
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-07")
+  @DisplayName("V-05 · 007-07 · El año en curso + 2 da 422 FUTURE_LIMIT con maxYear")
+  void afterTheNextYear() {
+    Tenant empty = newTenant();
+    Tenant withYears = newTenant();
+    int year = currentYear();
+    givenTheYear(withYears, year);
+
+    for (Tenant tenant : List.of(empty, withYears)) {
+      HttpResponse<String> response = create(tenant, year + 2);
+
+      assertProblem(response, 422, "V-05");
+      assertThat(body(response).get("reason").asString()).isEqualTo("FUTURE_LIMIT");
+      assertThat(body(response).get("maxYear").asInt()).isEqualTo(year + 1);
+      assertThat(body(response).has("minYear")).isFalse();
+      // Las extensiones de los motivos que ya no se emiten no vienen nunca.
+      for (String obsolete : List.of("requiredYear", "oldestYear", "currentYear", "nextYear")) {
+        assertThat(body(response).has(obsolete)).as(obsolete).isFalse();
+      }
+    }
+  }
+
+  @Test
+  @Tag("V-02")
+  @Tag("007-06")
+  @DisplayName(
+      "V-02 · 007-06 · Se crean años anteriores, intermedios y posteriores, en cualquier orden")
+  void anyYearInAnyOrder() {
+    Tenant tenant = newTenant();
+    int year = currentYear();
+
     givenTheYear(tenant, year);
-
-    HttpResponse<String> gap = create(tenant, year + 2);
-    assertProblem(gap, 422, "V-02");
-    assertThat(body(gap).get("reason").asString()).isEqualTo("GAP");
-    assertThat(body(gap).get("requiredYear").asInt()).isEqualTo(year + 1);
-
+    givenTheYear(tenant, 2002);
     givenTheYear(tenant, year + 1);
-    HttpResponse<String> limit = create(tenant, year + 2);
-    assertProblem(limit, 422, "V-05");
-    assertThat(body(limit).get("reason").asString()).isEqualTo("FUTURE_LIMIT");
-    assertThat(body(limit).get("maxYear").asInt()).isEqualTo(year + 1);
+    givenTheYear(tenant, year - 10);
+
+    JsonNode items = body(get("/api/v1/fiscal-years", tenant.as(ADMIN))).get("items");
+    assertThat(items).hasSize(4);
+    assertThat(items.get(0).get("year").asInt()).isEqualTo(year + 1);
+    assertThat(items.get(3).get("year").asInt()).isEqualTo(2002);
+  }
+
+  @Test
+  @Tag("V-05")
+  @Tag("007-23")
+  @DisplayName(
+      "V-05 · 007-23 · Con todas las vigencias de 2002 al año siguiente, createBlocked es ALL_CREATED con minYear y maxYear")
+  void everyYearCreated() {
+    Tenant tenant = newTenant();
+    int yearAtStart = currentYear();
+    int last = yearAtStart + 1;
+
+    // Se crean con la propia API: ningún año fijo y ningún borrado, que liv_app no puede hacer.
+    for (int year = last; year >= 2002; year--) {
+      givenTheYear(tenant, year);
+    }
+
+    // La prueba no cubre la medianoche del 31 de diciembre en Bogotá: si el año cambió mientras
+    // creaba, no tiene sentido comprobar el rango.
+    assumeTrue(currentYear() == yearAtStart, "el año en curso cambió durante la prueba");
+    JsonNode list = body(get("/api/v1/fiscal-years", tenant.as(ADMIN)));
+    assertThat(list.get("items")).hasSize(last - 2002 + 1);
+    assertThat(list.get("creatableYears")).isEmpty();
+    assertThat(list.get("createBlocked").get("reason").asString()).isEqualTo("ALL_CREATED");
+    assertThat(list.get("createBlocked").get("minYear").asInt()).isEqualTo(2002);
+    assertThat(list.get("createBlocked").get("maxYear").asInt()).isEqualTo(last);
+    // Con todo creado, las reglas siguen respondiendo: V-01 si existe, V-05 si queda fuera.
+    assertProblem(create(tenant, last), 409, "V-01");
+    HttpResponse<String> past = create(tenant, 2001);
+    assertProblem(past, 422, "V-05");
+    assertThat(body(past).get("reason").asString()).isEqualTo("PAST_LIMIT");
+    HttpResponse<String> future = create(tenant, last + 1);
+    assertProblem(future, 422, "V-05");
+    assertThat(body(future).get("reason").asString()).isEqualTo("FUTURE_LIMIT");
   }
 
   // ---- 007-10, 007-11 y 007-12: abrir la preparación y la lista
@@ -515,7 +587,11 @@ class FiscalYearsApiTest extends PlatformWebTest {
     Tenant tenant = newTenant();
 
     for (int year : new int[] {1999, 2100}) {
-      assertProblem(create(tenant, year), 422, "V-05");
+      HttpResponse<String> response = create(tenant, year);
+      assertProblem(response, 422, "V-05");
+      // 1999 queda antes de 2002 y 2100 después del año siguiente al en curso (V-05).
+      assertThat(body(response).get("reason").asString())
+          .isEqualTo(year == 1999 ? "PAST_LIMIT" : "FUTURE_LIMIT");
       assertThat(detail(tenant, year).statusCode()).isEqualTo(404);
       assertThat(open(tenant, year).statusCode()).isEqualTo(404);
     }

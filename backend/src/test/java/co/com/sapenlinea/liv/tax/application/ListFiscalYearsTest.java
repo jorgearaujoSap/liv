@@ -15,7 +15,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -58,16 +60,23 @@ class ListFiscalYearsTest {
   @Test
   @Tag("007-03")
   @DisplayName(
-      "007-03 · Sin vigencias, ofrece el año en curso y el siguiente con sus fechas y relación")
+      "007-03 · Sin vigencias, ofrece de 2027 a 2002 con sus fechas y su relación, del más reciente")
   void emptyListOffersTheCreatableYears() {
     var result = list(LAST_NIGHT_OF_2026, READ, CREATE).list(FakeFiscalYears.user());
 
     assertThat(result.items()).isEmpty();
     assertThat(result.canCreate()).isTrue();
     assertThat(result.creatableYears())
+        .extracting(CreatableYear::year)
+        .containsExactlyElementsOf(
+            IntStream.rangeClosed(2002, 2027).boxed().sorted(Comparator.reverseOrder()).toList());
+    assertThat(result.creatableYears())
         .extracting(CreatableYear::year, CreatableYear::relation)
-        .containsExactly(tuple(2026, YearRelation.CURRENT), tuple(2027, YearRelation.NEXT));
-    assertThat(result.creatableYears().getFirst().startsOn()).isEqualTo(LocalDate.of(2026, 1, 1));
+        .startsWith(
+            tuple(2027, YearRelation.NEXT),
+            tuple(2026, YearRelation.CURRENT),
+            tuple(2025, YearRelation.PAST));
+    assertThat(result.creatableYears().getFirst().startsOn()).isEqualTo(LocalDate.of(2027, 1, 1));
     assertThat(result.createBlocked()).isEmpty();
   }
 
@@ -88,32 +97,37 @@ class ListFiscalYearsTest {
 
   @Test
   @Tag("V-05")
+  @Tag("007-23")
   @DisplayName(
-      "V-05 · Con permiso y sin años disponibles, createBlocked trae FUTURE_LIMIT y el último año")
+      "V-05 · 007-23 · Con permiso y todos los años creados, createBlocked trae ALL_CREATED con el rango")
   void createBlocked() {
-    fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
-    fiscalYears.given(ADMINISTRATION, 2027, FiscalYearStatus.PLANEADA);
+    IntStream.rangeClosed(2002, 2027)
+        .forEach(year -> fiscalYears.given(ADMINISTRATION, year, FiscalYearStatus.PLANEADA));
 
     var result = list(LAST_NIGHT_OF_2026, READ, CREATE).list(FakeFiscalYears.user());
 
     assertThat(result.creatableYears()).isEmpty();
     assertThat(result.createBlocked())
-        .contains(new CreateBlocked(CreateBlocked.Reason.FUTURE_LIMIT, 2027));
+        .contains(new CreateBlocked(CreateBlocked.Reason.ALL_CREATED, 2002, 2027));
   }
 
   @Test
   @Tag("V-02")
-  @DisplayName("V-02 · Un año pasado pendiente se ofrece con la relación PAST")
-  void pastYearIsOffered() {
+  @Tag("007-06")
+  @DisplayName("V-02 · 007-06 · Todo año anterior al en curso se ofrece con la relación PAST")
+  void pastYearsAreOffered() {
     fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
-    // It is 2028 and nobody created 2027.
     Instant inTheMiddleOf2028 = Instant.parse("2028-06-15T12:00:00Z");
 
     var result = list(inTheMiddleOf2028, READ, CREATE).list(FakeFiscalYears.user());
 
     assertThat(result.creatableYears())
         .extracting(CreatableYear::year, CreatableYear::relation)
-        .containsExactly(tuple(2027, YearRelation.PAST));
+        .startsWith(
+            tuple(2029, YearRelation.NEXT),
+            tuple(2028, YearRelation.CURRENT),
+            tuple(2027, YearRelation.PAST))
+        .doesNotContain(tuple(2026, YearRelation.PAST));
   }
 
   /**
@@ -135,9 +149,18 @@ class ListFiscalYearsTest {
             new Scenario(LAST_NIGHT_OF_2026, 2026),
             new Scenario(LAST_NIGHT_OF_2026, 2026, 2027),
             new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026),
-            new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026, 2028))) {
+            new Scenario(Instant.parse("2028-06-15T12:00:00Z"), 2026, 2028),
+            new Scenario(LAST_NIGHT_OF_2026, 2010, 2020),
+            new Scenario(LAST_NIGHT_OF_2026, 2002, 2027),
+            new Scenario(LAST_NIGHT_OF_2026, IntStream.rangeClosed(2002, 2026).toArray()),
+            new Scenario(LAST_NIGHT_OF_2026, IntStream.rangeClosed(2002, 2027).toArray()))) {
       List<Integer> offered = offeredYears(scenario.now(), scenario.existing());
-      assertThat(offered).as("la lista ofrece de cero a dos años").hasSizeLessThanOrEqualTo(2);
+      // La tabla nacional del doble está completa: o se ofrece algún año o el bloqueo es
+      // ALL_CREATED.
+      assertThat(listed(scenario.now(), scenario.existing()).createBlocked().isPresent())
+          .as("createBlocked sale si y solo si no se ofrece ningún año")
+          .isEqualTo(offered.isEmpty());
+      assertThat(offered).as("la lista nunca repite un año").doesNotHaveDuplicates();
       for (int year = 1999; year <= 2100; year++) {
         assertThat(offered.contains(year))
             .as(
@@ -149,10 +172,14 @@ class ListFiscalYearsTest {
   }
 
   private List<Integer> offeredYears(Instant now, int... existing) {
+    return listed(now, existing).creatableYears().stream().map(CreatableYear::year).toList();
+  }
+
+  private ListFiscalYears.Listing listed(Instant now, int... existing) {
     var clock = Clock.fixed(now, ZoneOffset.UTC);
     return new ListFiscalYears(
             portWith(existing), FakeFiscalYears.catalogWith(READ, CREATE), clock, BOGOTA)
-        .list(FakeFiscalYears.user()).creatableYears().stream().map(CreatableYear::year).toList();
+        .list(FakeFiscalYears.user());
   }
 
   private boolean accepts(Instant now, int[] existing, int year) {

@@ -25,7 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The fiscal years of the administration (tax.yaml 1.0.0, menu 1.4). It has no logic (CC-07): it
+ * The fiscal years of the administration (tax.yaml 1.1.0, menu 1.4). It has no logic (CC-07): it
  * takes the user of the request, calls the use case and turns what it answers into the models of
  * the contract. The rules, the permissions and the errors (409, 422, 404) belong to the use cases
  * and to {@code ProblemDetailsHandler}.
@@ -61,11 +61,14 @@ class FiscalYearsController implements FiscalYearsApi {
                     new CreatableYear(
                         year.year(), year.startsOn(), year.endsOn(), year.relation().name()))
                 .toList());
-    listing
-        .createBlocked()
-        .ifPresent(blocked ->
-            body.setCreateBlocked(new CreateBlocked(blocked.reason().name(), blocked.maxYear())));
+    listing.createBlocked().ifPresent(blocked -> body.setCreateBlocked(toContract(blocked)));
     return ResponseEntity.ok(body);
+  }
+
+  private static CreateBlocked toContract(co.com.sapenlinea.liv.tax.domain.CreateBlocked blocked) {
+    CreateBlocked contract = new CreateBlocked(blocked.reason().name(), blocked.maxYear());
+    contract.setMinYear(blocked.minYear());
+    return contract;
   }
 
   @Override

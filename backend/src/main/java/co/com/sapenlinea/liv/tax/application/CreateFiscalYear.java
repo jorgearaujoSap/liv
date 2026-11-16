@@ -19,9 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Creates the fiscal year of an administration in {@code PLANEADA} (007-04 to 007-08). Reading the
- * years, deciding and writing happen in one transaction, behind the lock of the administration:
- * without it, two creations that cross midnight of 31 December with different current years could
- * both see an empty administration and leave a gap that cannot be deleted.
+ * years, deciding and writing happen in one transaction, behind the lock of the administration. The
+ * lock protects the race for the same year (V-01): without it, two creations of that year can both
+ * read the administration before either inserts, and the loser fails at the {@code INSERT} instead
+ * of in the policy. Any year from {@link FiscalYearOpeningPolicy#FIRST_CREATABLE_YEAR} to the one
+ * after the current year can be created in any order, so no other rule depends on the lock.
  *
  * <p>The isolation is {@code READ_COMMITTED} on purpose: the lock only helps if every statement
  * after it sees what the other creation committed, and a snapshot taken before the lock would not.
@@ -52,7 +54,7 @@ public class CreateFiscalYear {
   }
 
   /**
-   * @throws RuleViolation V-01, V-02 or V-05, the first rule the year breaks
+   * @throws RuleViolation V-01 or V-05, the first rule the year breaks
    */
   @RequiresPermission(PERMISSION)
   @Transactional(isolation = Isolation.READ_COMMITTED)

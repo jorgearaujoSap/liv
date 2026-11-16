@@ -44,8 +44,11 @@ public class ListFiscalYears {
    *
    * @param items the fiscal years, the most recent first
    * @param canCreate whether the user has {@code tax.fiscal-year.create}
-   * @param creatableYears the years the creation accepts now; empty without {@code canCreate}
-   * @param createBlocked why nothing can be created, only with {@code canCreate}
+   * @param creatableYears the years the creation accepts now, the most recent first (from the year
+   *     after the current one down to {@link FiscalYearOpeningPolicy#FIRST_CREATABLE_YEAR}, except
+   *     the ones that exist); empty without {@code canCreate}
+   * @param createBlocked why nothing can be created ({@code ALL_CREATED}), only with {@code
+   *     canCreate}
    */
   public record Listing(
       List<RegisteredFiscalYear> items,

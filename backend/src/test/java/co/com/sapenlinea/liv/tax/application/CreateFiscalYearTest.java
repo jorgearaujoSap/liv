@@ -142,52 +142,52 @@ class CreateFiscalYearTest {
 
   @Test
   @Tag("V-02")
-  @Tag("007-07")
-  @DisplayName("V-02 · 007-07 · Un año anterior a la vigencia más antigua da V-02 HISTORICAL")
-  void historicalYear() {
+  @Tag("007-06")
+  @DisplayName(
+      "V-02 · 007-06 · Un año anterior a la vigencia más antigua se crea: V-02 ya no rechaza")
+  void anOlderYearIsCreated() {
     fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
 
-    RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2025);
+    var stored = useCase(LAST_NIGHT_OF_2026).create(FakeFiscalYears.user(), 2025);
 
-    assertThat(violation.code()).isEqualTo("V-02");
-    assertThat(violation.type()).isEqualTo(RuleViolation.Type.UNPROCESSABLE);
-    assertThat(violation.details())
-        .containsExactlyInAnyOrderEntriesOf(Map.of("reason", "HISTORICAL", "oldestYear", 2026));
+    assertThat(stored.fiscalYear().year()).isEqualTo(2025);
+    assertThat(stored.fiscalYear().status()).isEqualTo(FiscalYearStatus.PLANEADA);
   }
 
   @Test
   @Tag("V-05")
-  @Tag("007-08")
-  @DisplayName(
-      "V-05 · 007-08 · La primera vigencia solo puede ser la del año en curso o la siguiente")
-  void firstYear() {
-    RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2024);
+  @Tag("007-07")
+  @DisplayName("V-05 · 007-07 · Antes de 2002 da V-05 PAST_LIMIT con minYear, sin vigencias")
+  void pastLimit() {
+    RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2001);
 
     assertThat(violation.code()).isEqualTo("V-05");
     assertThat(violation.type()).isEqualTo(RuleViolation.Type.UNPROCESSABLE);
     assertThat(violation.details())
-        .containsExactlyInAnyOrderEntriesOf(
-            Map.of("reason", "FIRST_YEAR", "currentYear", 2026, "nextYear", 2027));
+        .containsExactlyInAnyOrderEntriesOf(Map.of("reason", "PAST_LIMIT", "minYear", 2002));
+    assertThat(events).isEmpty();
   }
 
   @Test
   @Tag("V-02")
   @Tag("007-06")
-  @DisplayName("V-02 · 007-06 · Saltarse un año da V-02 GAP con el año que debe crearse primero")
-  void gap() {
+  @DisplayName("V-02 · 007-06 · Saltarse años se crea: 2028 con {2026} no es un hueco")
+  void skippingYearsIsNotAGap() {
     fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
+    Instant in2028 = Instant.parse("2028-06-15T12:00:00Z");
 
+    var stored = useCase(in2028).create(FakeFiscalYears.user(), 2028);
+
+    assertThat(stored.fiscalYear().year()).isEqualTo(2028);
     RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2029);
-
-    assertThat(violation.code()).isEqualTo("V-02");
-    assertThat(violation.details())
-        .containsExactlyInAnyOrderEntriesOf(Map.of("reason", "GAP", "requiredYear", 2027));
+    assertThat(violation.code()).isEqualTo("V-05");
+    assertThat(violation.details()).containsEntry("reason", "FUTURE_LIMIT");
   }
 
   @Test
   @Tag("V-05")
-  @Tag("007-06")
-  @DisplayName("V-05 · 007-06 · Pasar del año siguiente al en curso da V-05 FUTURE_LIMIT")
+  @Tag("007-07")
+  @DisplayName("V-05 · 007-07 · Pasar del año siguiente al en curso da V-05 FUTURE_LIMIT")
   void futureLimit() {
     fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
     fiscalYears.given(ADMINISTRATION, 2027, FiscalYearStatus.PLANEADA);
@@ -214,35 +214,32 @@ class CreateFiscalYearTest {
   }
 
   @Test
+  @Tag("V-05")
   @Tag("007-08")
   @DisplayName(
-      "007-08 · Con el reloj en UTC ya sería 2027: la zona de negocio manda, no la de la máquina")
+      "V-05 · 007-08 · Con el reloj en UTC ya sería 2027: la zona de negocio manda, no la de la máquina")
   void theBusinessZoneDecidesNotUtc() {
-    // In UTC it is already 2027; in Bogotá it is still 2026, so 2024 breaks FIRST_YEAR with 2026.
-    RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2024);
+    // In UTC it is already 2027 (the limit would be 2028); in Bogotá it is still 2026.
+    RuleViolation violation = rejected(useCase(LAST_NIGHT_OF_2026), 2028);
 
-    assertThat(violation.details()).containsEntry("currentYear", 2026);
+    assertThat(violation.details())
+        .containsExactlyInAnyOrderEntriesOf(Map.of("reason", "FUTURE_LIMIT", "maxYear", 2027));
   }
 
   @Test
   @Tag("V-02")
   @Tag("007-06")
-  @DisplayName("V-02 · 007-06 · Un año pasado pendiente (PAST) se puede crear; saltarse uno da GAP")
-  void aPastYearThatIsStillPendingCanBeCreated() {
-    // The latest is 2026 and it is 2028: nobody created 2027, the only year that can be created.
+  @DisplayName("V-02 · 007-06 · Un año pasado pendiente (PAST) se puede crear, en cualquier orden")
+  void aPastYearCanBeCreatedInAnyOrder() {
+    // The latest is 2026 and it is 2028: 2027 is past, 2028 current and 2029 next.
     Instant inTheMiddleOf2028 = Instant.parse("2028-06-15T12:00:00Z");
     fiscalYears.given(ADMINISTRATION, 2026, FiscalYearStatus.PLANEADA);
     CreateFiscalYear useCase = useCase(inTheMiddleOf2028);
 
-    RuleViolation skipsIt = rejected(useCase, 2028);
-    assertThat(skipsIt.code()).isEqualTo("V-02");
-    assertThat(skipsIt.details())
-        .containsEntry("reason", "GAP")
-        .containsEntry("requiredYear", 2027);
-
-    assertThat(useCase.create(FakeFiscalYears.user(), 2027).fiscalYear().year()).isEqualTo(2027);
-    // With 2027 created, 2028 (the current year) is the next one.
     assertThat(useCase.create(FakeFiscalYears.user(), 2028).fiscalYear().year()).isEqualTo(2028);
-    assertThat(rejected(useCase, 2030).details()).containsEntry("requiredYear", 2029);
+    assertThat(useCase.create(FakeFiscalYears.user(), 2027).fiscalYear().year()).isEqualTo(2027);
+    assertThat(useCase.create(FakeFiscalYears.user(), 2002).fiscalYear().year()).isEqualTo(2002);
+    assertThat(rejected(useCase, 2030).details())
+        .containsExactlyInAnyOrderEntriesOf(Map.of("reason", "FUTURE_LIMIT", "maxYear", 2029));
   }
 }

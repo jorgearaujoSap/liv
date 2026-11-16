@@ -108,10 +108,10 @@ class ErrorResponsesTest extends PlatformWebTest {
   void ruleUnprocessableIs422() {
     HttpResponse<String> response = get("/api/v1/probe/rule/unprocessable", user("c-422"));
 
-    assertProblem(response, 422, "V-02");
+    assertProblem(response, 422, "V-05");
     JsonNode body = JSON.readTree(response.body());
-    assertThat(body.get("reason").asString()).isEqualTo("GAP");
-    assertThat(body.get("requiredYear").asInt()).isEqualTo(2027);
+    assertThat(body.get("reason").asString()).isEqualTo("PAST_LIMIT");
+    assertThat(body.get("minYear").asInt()).isEqualTo(2002);
   }
 
   @Test
@@ -174,7 +174,9 @@ class ErrorResponsesTest extends PlatformWebTest {
     @GetMapping("/api/v1/probe/rule/unprocessable")
     Map<String, String> unprocessable() {
       throw new RuleViolation(
-          "V-02", RuleViolation.Type.UNPROCESSABLE, Map.of("reason", "GAP", "requiredYear", 2027));
+          "V-05",
+          RuleViolation.Type.UNPROCESSABLE,
+          Map.of("reason", "PAST_LIMIT", "minYear", 2002));
     }
 
     /** The same route for both reasons: the body must not tell them apart. */
