@@ -254,11 +254,14 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
         items: [fiscalYear(2027, 'PLANEADA'), fiscalYear(2026, 'EN_PREPARACION')],
         canCreate: true,
         creatableYears: [],
-        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+        createBlocked: { reason: 'ALL_CREATED', minYear: 2002, maxYear: 2027 },
       });
       const page = await open('/opcion/1.4');
 
       expect(page.querySelector('h1')?.textContent).toContain('Vigencias fiscales');
+      expect(page.textContent).toContain(
+        'Ya existen todas las vigencias que se pueden crear: de 2002 a 2027.',
+      );
       expect(page.querySelector('button[aria-disabled="true"][aria-describedby]')).not.toBeNull();
       expect(await violations(page)).toEqual([]);
     });
@@ -319,13 +322,31 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
     });
 
     describe('con el diálogo de creación abierto', () => {
+      // En estas pruebas el año en curso es 2027: el servidor manda del más reciente al más antiguo.
+      const creatableYear = (year: number, relation: string) => ({
+        year,
+        startsOn: `${year}-01-01`,
+        endsOn: `${year}-12-31`,
+        relation,
+      });
       const withCreatableYears: FiscalYearList = {
         items: [fiscalYear(2026, 'EN_PREPARACION')],
         canCreate: true,
         creatableYears: [
-          { year: 2027, startsOn: '2027-01-01', endsOn: '2027-12-31', relation: 'NEXT' },
-          { year: 2028, startsOn: '2028-01-01', endsOn: '2028-12-31', relation: 'PAST' },
+          creatableYear(2028, 'NEXT'),
+          creatableYear(2027, 'CURRENT'),
+          creatableYear(2025, 'PAST'),
         ],
+      };
+      const withoutCurrentYear: FiscalYearList = {
+        ...withCreatableYears,
+        creatableYears: [creatableYear(2028, 'NEXT'), creatableYear(2025, 'PAST')],
+      };
+      const choose = (page: HTMLElement, year: number) => {
+        const select = page.querySelector('[role="dialog"] select') as HTMLSelectElement;
+        select.value = String(year);
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        TestBed.tick();
       };
       const press = (page: HTMLElement, selector: string, label: string) =>
         (
@@ -333,18 +354,37 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
             (candidate) => candidate.textContent?.trim() === label,
           ) as HTMLButtonElement
         ).click();
-      const openDialog = async () => {
-        fiscalYears.list.mockResolvedValue(withCreatableYears);
+      const openDialog = async (list: FiscalYearList = withCreatableYears) => {
+        fiscalYears.list.mockResolvedValue(list);
         const page = await open('/opcion/1.4');
         press(page, 'button', 'Crear vigencia');
         TestBed.tick();
         return page;
       };
 
-      it('con la advertencia y las opciones de año', async () => {
+      it('con el año en curso elegido, la advertencia y las fechas', async () => {
         const page = await openDialog();
 
-        expect(page.querySelector('[role="dialog"] fieldset')).not.toBeNull();
+        const select = page.querySelector<HTMLSelectElement>('[role="dialog"] select');
+        expect(select?.value).toBe('2027');
+        expect(page.querySelector('[role="dialog"] dl')).not.toBeNull();
+        expect(await violations(page)).toEqual([]);
+      });
+
+      it('sin año elegido, con «Elige un año» y «Crear vigencia» inhabilitado', async () => {
+        const page = await openDialog(withoutCurrentYear);
+
+        const dialog = page.querySelector('[role="dialog"]');
+        expect(dialog?.querySelector<HTMLSelectElement>('select')?.value).toBe('');
+        expect(dialog?.querySelector('dl')).toBeNull();
+        expect(await violations(page)).toEqual([]);
+      });
+
+      it('con un año pasado elegido y su advertencia', async () => {
+        const page = await openDialog();
+        choose(page, 2025);
+
+        expect(page.querySelector('[role="dialog"]')?.textContent).toContain('Es un año pasado');
         expect(await violations(page)).toEqual([]);
       });
 
