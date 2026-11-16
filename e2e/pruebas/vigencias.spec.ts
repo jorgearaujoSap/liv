@@ -260,6 +260,11 @@ test.describe('1.4 · ADMIN_SISTEMA de Ipiales', () => {
     await expect(crear).toBeVisible();
     await expect(selector).toBeFocused();
     expect(peticionesPost).toEqual([]);
+    // En Chromium, Enter sobre la lista cerrada abre la de opciones del sistema, que se queda con la siguiente tecla:
+    // se cierra devolviendo el foco a la lista, para probar el recorrido del teclado sin esa ventana abierta.
+    await selector.evaluate((lista) => lista.blur());
+    await selector.focus();
+    await expect(selector).toBeFocused();
 
     // Tab recorre Cancelar y Crear vigencia, y la siguiente vuelve a la lista: el diálogo atrapa el foco.
     await page.keyboard.press('Tab');
