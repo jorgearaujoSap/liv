@@ -77,19 +77,12 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       );
     });
 
-    it('lista las vigencias como vienen, de la más reciente a la más antigua, con fechas largas', async () => {
+    it('lista las vigencias como vienen, de la más reciente a la más antigua, con fechas dd/mm/aaaa', async () => {
       const host = await render(withRows);
 
       expect(rows(host)).toEqual([
-        ['2027', '1 de enero de 2027', '31 de diciembre de 2027', 'Planeada', 'No habilitada', ''],
-        [
-          '2026',
-          '1 de enero de 2026',
-          '31 de diciembre de 2026',
-          'En preparación',
-          'No habilitada',
-          '',
-        ],
+        ['2027', '01/01/2027', '31/12/2027', 'Planeada', 'No habilitada', ''],
+        ['2026', '01/01/2026', '31/12/2026', 'En preparación', 'No habilitada', ''],
       ]);
     });
 
