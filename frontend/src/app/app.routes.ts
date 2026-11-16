@@ -40,6 +40,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/fiscal-years/fiscal-years').then((m) => m.FiscalYears),
       },
+      // Detalle de una vigencia (1.4/:year, feature 007): la misma capacidad que la lista, antes de la genérica.
+      {
+        path: `${OPTION_ROUTE}/1.4/:year`,
+        canActivate: [capabilityGuard],
+        data: { capability: '1.4' },
+        loadComponent: () =>
+          import('./features/fiscal-years/fiscal-year-detail').then((m) => m.FiscalYearDetailPage),
+      },
       // Cualquier opción del menú, por URL (001-16): cada feature registra antes la ruta de su opción.
       // Una opción sin pantalla propia (aún sin construir) cae aquí y la guarda decide: 403 si no está en
       // las capacidades, «Próximamente» si todavía no existe.

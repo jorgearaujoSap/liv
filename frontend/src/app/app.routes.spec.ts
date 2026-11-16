@@ -73,6 +73,19 @@ describe('rutas', () => {
     expect(children[own].loadComponent).toBeDefined();
   });
 
+  // 007-02: el detalle de una vigencia (`1.4/:year`) lleva la misma capacidad y va antes de la genérica.
+  it('el detalle de la vigencia (1.4/:year) tiene su ruta, con la capacidad 1.4, antes de la genérica', () => {
+    const children = shell()?.children ?? [];
+    const own = children.findIndex((route) => route.path === `${OPTION_ROUTE}/1.4/:year`);
+    const generic = children.findIndex((route) => route.path === `${OPTION_ROUTE}/:code`);
+
+    expect(own).toBeGreaterThanOrEqual(0);
+    expect(own).toBeLessThan(generic);
+    expect(children[own].canActivate).toEqual([capabilityGuard]);
+    expect(children[own].data).toEqual({ capability: '1.4' });
+    expect(children[own].loadComponent).toBeDefined();
+  });
+
   it('una dirección desconocida vuelve a Inicio, sin inventar una pantalla', () => {
     const fallback = routes.find((route) => route.path === '**');
 
@@ -128,6 +141,7 @@ describe('rutas', () => {
             provide: FiscalYearsService,
             useValue: {
               list: () => Promise.resolve({ items: [], canCreate: false, creatableYears: [] }),
+              get: () => new Promise(() => undefined),
             },
           },
         ],
@@ -189,6 +203,37 @@ describe('rutas', () => {
         expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain(
           'Vigencias fiscales',
         );
+      });
+    });
+
+    // 007-02: el detalle de una vigencia, por URL, con la misma capacidad que la lista.
+    describe('Detalle de la vigencia (1.4/:year)', () => {
+      const withOption = (status: string) => ({
+        items: [
+          { code: '1', status: 'AVAILABLE', children: [{ code: '1.4', status, children: [] }] },
+        ],
+      });
+
+      it('sin la opción en las capacidades lleva a «Sin permiso» (007-02)', async () => {
+        const { router } = await open('/opcion/1.4/2026');
+
+        expect(router.url).toBe('/sin-permiso');
+      });
+
+      it('mientras la opción siga en «Próximamente», lleva a «Próximamente»', async () => {
+        const { router } = await open('/opcion/1.4/2026', withOption('COMING_SOON'));
+
+        expect(router.url).toBe('/proximamente');
+      });
+
+      it('con la opción disponible abre el detalle de ese año', async () => {
+        const { harness, router } = await open('/opcion/1.4/2026', withOption('AVAILABLE'));
+        await harness.fixture.whenStable();
+        harness.detectChanges();
+
+        expect(router.url).toBe('/opcion/1.4/2026');
+        expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Vigencia');
+        expect(harness.routeNativeElement?.textContent).toContain('Cargando los datos…');
       });
     });
 

@@ -215,6 +215,54 @@ describe('estructura general (001-02, 001-15)', () => {
       ).toHaveLength(1);
     });
 
+    describe('rutas hijas de una opción (007: /opcion/1.4/2026)', () => {
+      const withChildRoutes = async (url: string) => {
+        workspace.menu.set(
+          buildMenu({
+            items: [
+              {
+                code: '1',
+                status: 'AVAILABLE',
+                children: [
+                  leaf('1.4', 'AVAILABLE'),
+                  { code: '1.5', status: 'AVAILABLE', children: [leaf('1.5.3', 'AVAILABLE')] },
+                ],
+              },
+            ],
+          }),
+        );
+        router.resetConfig([{ path: 'opcion/:code/:year', children: [] }]);
+        await router.navigateByUrl(url);
+        return render();
+      };
+      const current = (fixture: { nativeElement: unknown }) =>
+        Array.from(host(fixture).querySelectorAll('[aria-current="page"]')).map(text);
+
+      it('en la ruta hija de una opción, la opción sigue activa y su módulo, abierto', async () => {
+        const fixture = await withChildRoutes('/opcion/1.4/2026');
+        const group = host(fixture).querySelector('liv-nav-item[data-type="group"]');
+
+        expect(current(fixture)).toEqual(['Vigencias fiscales']);
+        expect(group?.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
+        expect(group?.hasAttribute('data-active')).toBe(true);
+      });
+
+      it('en la ruta hija de una opción de tercer nivel, la opción y su subgrupo siguen abiertos', async () => {
+        const fixture = await withChildRoutes('/opcion/1.5.3/2026');
+        const subgroup = host(fixture).querySelector('liv-nav-item[data-type="subgroup"]');
+
+        expect(current(fixture)).toEqual(['Cargar archivo de avalúos']);
+        expect(subgroup?.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
+        expect(subgroup?.hasAttribute('data-active')).toBe(true);
+      });
+
+      it('una ruta de otra opción con prefijo parecido no marca la opción', async () => {
+        const fixture = await withChildRoutes('/opcion/1.40/2026');
+
+        expect(current(fixture)).toEqual([]);
+      });
+    });
+
     describe('tercer nivel (1.5.x y 1.6.x)', () => {
       const withLoads = () =>
         workspace.menu.set(

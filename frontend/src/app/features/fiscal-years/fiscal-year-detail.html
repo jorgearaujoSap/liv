@@ -1,0 +1,110 @@
+<div>
+  <liv-page-header
+    [heading]="heading()"
+    [breadcrumb]="breadcrumb()"
+    [description]="showDescription() ? pageDescription : undefined"
+  />
+  @if (view() === 'ready' && canOpenPreparation()) {
+    <liv-button
+      [loading]="opening()"
+      loadingLabel="Abriendo preparación…"
+      (click)="openPreparation()"
+    >
+      Abrir preparación
+    </liv-button>
+  }
+</div>
+
+<p role="status">{{ notice() }}</p>
+@if (refreshFailed()) {
+  <liv-alert status="warning">
+    No pudimos actualizar la vigencia. Recarga la pantalla para verla al día.
+  </liv-alert>
+}
+@for (alert of alerts(); track alert.id) {
+  <liv-alert status="error" [heading]="alert.heading">{{ alert.message }}</liv-alert>
+}
+
+@switch (view()) {
+  @case ('loading') {
+    <div aria-busy="true">
+      <liv-panel heading="Cargando los datos…">
+        <div>
+          @for (row of skeletons.data; track row) {
+            <liv-skeleton width="100%" />
+          }
+        </div>
+      </liv-panel>
+      <liv-panel heading="Cargando la lista de preparación…">
+        <div>
+          @for (row of skeletons.checklist; track row) {
+            <liv-skeleton width="100%" />
+          }
+        </div>
+      </liv-panel>
+    </div>
+  }
+  @case ('notFound') {
+    <liv-result-state
+      tone="info"
+      icon="file-search"
+      eyebrow="Error 404"
+      heading="No encontramos esa vigencia"
+      description="La vigencia no existe en tu administración. Vuelve a la lista y elige otra."
+    >
+      <liv-button (click)="backToList()">Volver a las vigencias</liv-button>
+    </liv-result-state>
+  }
+  @case ('error') {
+    <liv-result-state
+      tone="danger"
+      icon="cloud-off"
+      eyebrow="Error"
+      heading="No pudimos cargar la vigencia"
+      description="Ocurrió un problema al consultar la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema."
+    >
+      <liv-button leadingIcon="refresh-cw" (click)="load()">Reintentar</liv-button>
+    </liv-result-state>
+  }
+  @default {
+    @if (summary(); as data) {
+      <liv-panel
+        heading="Datos de la vigencia"
+        description="La vigencia va del 1 de enero al 31 de diciembre del año."
+      >
+        <dl>
+          <div livDescriptionItem label="Año" [value]="data.year"></div>
+          <div livDescriptionItem label="Inicio" [value]="data.startsOn"></div>
+          <div livDescriptionItem label="Fin" [value]="data.endsOn"></div>
+          <div
+            livDescriptionItem
+            type="badge"
+            label="Estado"
+            [value]="data.status"
+            [tone]="data.tone"
+          ></div>
+          <div livDescriptionItem label="Liquidación" [value]="data.liquidation"></div>
+        </dl>
+      </liv-panel>
+      <liv-panel heading="Lista de preparación" [description]="checklistIntro()">
+        <ol role="list">
+          @for (point of points(); track $index) {
+            <li
+              livChecklistItem
+              [status]="point.status"
+              [number]="point.number"
+              [heading]="point.heading"
+              [reason]="point.reason"
+              [optional]="point.optional"
+            ></li>
+          }
+        </ol>
+        <div>
+          <liv-button disabled reasonAlign="start" [disabledReason]="enableReason()">
+            Habilitar liquidación
+          </liv-button>
+        </div>
+      </liv-panel>
+    }
+  }
+}
