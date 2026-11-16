@@ -424,6 +424,13 @@ describe('accesibilidad de las pantallas (001-19)', { timeout: 60_000 }, () => {
       const page = harness.fixture.nativeElement as HTMLElement;
 
       expect(page.querySelector('[aria-busy="true"]')).not.toBeNull();
+      // Panel no deja fijar su nombre accesible aparte del título (0.4.0): dos paneles que se llamaran igual
+      // («Cargando…», como en Figma) fallan `landmark-unique`. Cada panel de «cargando» lleva su propio título.
+      const names = Array.from(page.querySelectorAll('main liv-panel')).map((panel) =>
+        panel.querySelector('h2')?.textContent?.trim(),
+      );
+      expect(names).toHaveLength(2);
+      expect(new Set(names).size).toBe(2);
       expect(await violations(page)).toEqual([]);
     });
   });
