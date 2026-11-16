@@ -28,6 +28,19 @@ const CURRENT_2026 = {
   relation: 'CURRENT',
 };
 
+/** Los años de 2002 a 2027 como los manda el contrato 1.1.0: del más reciente al más antiguo. */
+const FULL_RANGE = [
+  NEXT_2027,
+  CURRENT_2026,
+  ...Array.from({ length: 24 }, (_unused, index) => {
+    const year = 2025 - index;
+    return { year, startsOn: `${year}-01-01`, endsOn: `${year}-12-31`, relation: 'PAST' };
+  }),
+];
+
+/** Todas las vigencias de 2002 a 2027 ya existen (007-23). */
+const ALL_CREATED = { reason: 'ALL_CREATED', minYear: 2002, maxYear: 2027 };
+
 const withRows: FiscalYearList = {
   items: [fiscalYear(2027), fiscalYear(2026, 'EN_PREPARACION')],
   canCreate: true,
@@ -182,50 +195,107 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
   });
 
   describe('sin vigencias (007-03)', () => {
-    it('explica con ResultState qué años admite la primera, tal como los manda el backend', async () => {
-      const host = await render({
-        items: [],
-        canCreate: true,
-        creatableYears: [CURRENT_2026, NEXT_2027],
-      });
+    it('explica con ResultState el rango de años que admite la primera, tomado de los extremos de lo que manda el backend (66:2793)', async () => {
+      const host = await render({ items: [], canCreate: true, creatableYears: FULL_RANGE });
 
       expect(host.querySelector('table')).toBeNull();
       expect(text(host.querySelector('h2'))).toBe('Aún no hay vigencias');
       expect(text(host)).toContain(
-        'Crea la primera vigencia de tu administración: puede ser la del año en curso (2026) o la del año siguiente (2027).',
+        'Crea la primera vigencia de tu administración. Puedes crear cualquier año de 2002 a 2027.',
       );
     });
 
-    it('con permiso ofrece «Crear la primera vigencia»', async () => {
+    it('el rango sale del último y del primer año de la lista, no de una cuenta propia ni de una constante', async () => {
       const host = await render({
         items: [],
         canCreate: true,
-        creatableYears: [CURRENT_2026, NEXT_2027],
+        creatableYears: [
+          { ...NEXT_2027, year: 2031 },
+          { ...CURRENT_2026, year: 2030 },
+          { ...CURRENT_2026, year: 2010, relation: 'PAST' },
+        ],
       });
+
+      expect(text(host)).toContain('Puedes crear cualquier año de 2010 a 2031.');
+    });
+
+    it('sin ningún año en la lista, no inventa un rango', async () => {
+      const host = await render({ items: [], canCreate: true, creatableYears: [] });
+
+      expect(text(host)).not.toContain('Puedes crear cualquier año');
+    });
+
+    it('un año que no es entero no se escribe en el rango', async () => {
+      const host = await render({
+        items: [],
+        canCreate: true,
+        creatableYears: [
+          { ...NEXT_2027, year: '2027' as unknown as number },
+          { ...CURRENT_2026, year: 2002, relation: 'PAST' },
+        ],
+      });
+
+      expect(text(host)).not.toContain('Puedes crear cualquier año');
+      expect(text(host)).toContain('Crea la primera vigencia de tu administración.');
+    });
+
+    it('con permiso ofrece «Crear la primera vigencia»', async () => {
+      const host = await render({ items: [], canCreate: true, creatableYears: FULL_RANGE });
 
       expect(button(host, 'Crear la primera vigencia')).toBeDefined();
       expect(button(host, 'Crear vigencia')).toBeUndefined();
     });
   });
 
-  describe('sin años disponibles (createBlocked)', () => {
+  // V-05 · 007-23: con todo creado, de 2002 al año siguiente al año en curso, no hay nada que ofrecer.
+  describe('sin años disponibles: ya existen todas las vigencias (007-23, 66:2513)', () => {
     const blocked: FiscalYearList = {
       items: [fiscalYear(2027), fiscalYear(2026, 'EN_PREPARACION')],
       canCreate: true,
       creatableYears: [],
-      createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+      createBlocked: ALL_CREATED,
     };
+    const ALL_CREATED_REASON =
+      'Ya existen todas las vigencias que se pueden crear: de 2002 a 2027.';
 
-    it('deja «Crear vigencia» inhabilitado y dice el motivo debajo', async () => {
+    it('deja «Crear vigencia» inhabilitado y dice el motivo debajo, con el rango que manda el servidor', async () => {
       const host = await render(blocked);
 
       const create = button(host, 'Crear vigencia');
       expect(create?.getAttribute('aria-disabled')).toBe('true');
-      expect(text(host)).toContain('Ya existe la vigencia 2027, la última que se puede crear.');
+      expect(text(host)).toContain(ALL_CREATED_REASON);
       const reasonId = create?.getAttribute('aria-describedby') ?? '';
-      expect(text(host.querySelector(`[id="${reasonId}"]`))).toBe(
-        'Ya existe la vigencia 2027, la última que se puede crear.',
+      expect(text(host.querySelector(`[id="${reasonId}"]`))).toBe(ALL_CREATED_REASON);
+    });
+
+    it('el rango sale de minYear y maxYear, no de una constante', async () => {
+      const host = await render({
+        ...blocked,
+        createBlocked: { reason: 'ALL_CREATED', minYear: 2003, maxYear: 2028 },
+      });
+
+      expect(text(host)).toContain(
+        'Ya existen todas las vigencias que se pueden crear: de 2003 a 2028.',
       );
+    });
+
+    it('con FUTURE_LIMIT, que desde el contrato 1.1.0 ya no se emite, dice el texto general', async () => {
+      const host = await render({
+        ...blocked,
+        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+      });
+
+      expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+      expect(text(host)).toContain('No hay años disponibles para crear una vigencia.');
+      expect(text(host)).not.toContain('la última que se puede crear');
+    });
+
+    it('sin vigencias y con todo creado, el estado vacío tampoco pide crear la primera', async () => {
+      const host = await render({ ...blocked, items: [] });
+
+      expect(text(host)).not.toContain('Crea la primera vigencia de tu administración');
+      expect(text(host)).toContain(ALL_CREATED_REASON);
+      expect(button(host, 'Crear la primera vigencia')?.getAttribute('aria-disabled')).toBe('true');
     });
 
     it('no abre nada al hacer clic', async () => {
@@ -240,7 +310,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
     it('con un motivo que no conoce, dice que no hay años disponibles', async () => {
       const host = await render({
         ...blocked,
-        createBlocked: { reason: 'OTRO_MOTIVO', maxYear: 2027 },
+        createBlocked: { reason: 'OTRO_MOTIVO', minYear: 2002, maxYear: 2027 },
       });
 
       expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
@@ -307,11 +377,16 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(rows(host)[0][3]).toBe('constructor');
     });
 
-    it('un motivo de bloqueo con un año que no es entero cae en el texto general', async () => {
+    it.each([
+      ['maxYear que no es entero', { reason: 'ALL_CREATED', minYear: 2002, maxYear: '2027' }],
+      ['minYear que no es entero', { reason: 'ALL_CREATED', minYear: '2002', maxYear: 2027 }],
+      ['sin minYear', { reason: 'ALL_CREATED', maxYear: 2027 }],
+      ['sin maxYear', { reason: 'ALL_CREATED', minYear: 2002 }],
+    ])('un bloqueo ALL_CREATED con %s cae en el texto general', async (_name, blocked) => {
       const host = await render({
         ...withRows,
         creatableYears: [],
-        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: '2027' as unknown as number },
+        createBlocked: blocked as unknown as FiscalYearList['createBlocked'],
       });
 
       expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
@@ -324,18 +399,6 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
 
       expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
       expect(text(host)).toContain('No hay años disponibles para crear una vigencia.');
-    });
-
-    it('sin vigencias y con la creación bloqueada, el estado vacío no pide crear la primera', async () => {
-      const host = await render({
-        items: [],
-        canCreate: true,
-        creatableYears: [],
-        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
-      });
-
-      expect(text(host)).not.toContain('Crea la primera vigencia de tu administración');
-      expect(button(host, 'Crear la primera vigencia')?.getAttribute('aria-disabled')).toBe('true');
     });
 
     it('un año que no es entero no se vuelve un enlace', async () => {
@@ -396,17 +459,23 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
 
   // 007-04, 007-05 y 007-21: la lista abre el diálogo de creación y vuelve a leer lo que cambió.
   describe('crear desde la lista (007-04, 007-05)', () => {
+    // En estas pruebas el año en curso es 2027 y el siguiente, 2028; el servidor los manda del más reciente al más antiguo.
+    const current2027 = { ...NEXT_2027, relation: 'CURRENT' };
     const year2028 = { ...NEXT_2027, year: 2028, startsOn: '2028-01-01', endsOn: '2028-12-31' };
     const creatable: FiscalYearList = {
       items: [fiscalYear(2026, 'EN_PREPARACION')],
       canCreate: true,
-      creatableYears: [NEXT_2027, year2028],
+      creatableYears: [year2028, current2027],
     };
     const conflict = () =>
       new HttpErrorResponse({ status: 409, error: { status: 409, code: 'V-01', year: 2027 } });
     const dialog = (host: HTMLElement) => host.querySelector('[role="dialog"]');
-    const radios = (host: HTMLElement) =>
-      Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+    const years = (host: HTMLElement) =>
+      Array.from(host.querySelectorAll<HTMLOptionElement>('liv-select option'))
+        .map((candidate) => candidate.value)
+        .filter(Boolean);
+    const chosen = (host: HTMLElement) =>
+      host.querySelector<HTMLSelectElement>('liv-select select')?.value || undefined;
     const inDialog = (host: HTMLElement, label: string) =>
       Array.from(dialog(host)?.querySelectorAll('button') ?? []).find(
         (candidate) => text(candidate) === label,
@@ -428,8 +497,8 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       const host = await open();
 
       expect(dialog(host)).not.toBeNull();
-      expect(radios(host).map((radio) => radio.value)).toEqual(['2027', '2028']);
-      expect(radios(host)[0].checked).toBe(true);
+      expect(years(host)).toEqual(['2028', '2027']);
+      expect(chosen(host)).toBe('2027');
     });
 
     it('«Crear la primera vigencia» también lo abre', async () => {
@@ -455,7 +524,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
         ...creatable,
         items: [fiscalYear(2027), fiscalYear(2026, 'EN_PREPARACION')],
         creatableYears: [],
-        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+        createBlocked: ALL_CREATED,
       });
 
       await create(host);
@@ -466,7 +535,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(rows(host).map((row) => row[0])).toEqual(['2027', '2026']);
     });
 
-    it('un V-01 vuelve a leer la lista y deja marcado el primer año que siga disponible', async () => {
+    it('un V-01 vuelve a leer la lista y, sin año en curso entre los que quedan, no deja ningún año elegido', async () => {
       service.create.mockRejectedValue(conflict());
       const host = await open();
       service.list.mockResolvedValueOnce({
@@ -482,25 +551,30 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(text(host.querySelector('liv-alert[role="alert"]'))).toContain(
         'V-01 · La vigencia 2027 ya existe',
       );
-      expect(radios(host).find((radio) => radio.checked)?.value).toBe('2028');
+      expect(years(host)).toEqual(['2028']);
+      expect(chosen(host)).toBeUndefined();
+      expect(inDialog(host, 'Crear vigencia')?.disabled).toBe(true);
+      expect(document.activeElement).toBe(host.querySelector('liv-select select'));
       expect(rows(host)).toHaveLength(2);
     });
 
     it('un V-01 sin años que ofrecer cierra el diálogo, deja su mensaje en la pantalla y el botón inhabilitado con su motivo', async () => {
       service.create.mockRejectedValue(conflict());
-      const host = await open({ ...creatable, creatableYears: [NEXT_2027] });
+      const host = await open({ ...creatable, creatableYears: [current2027] });
       service.list.mockResolvedValueOnce({
         ...creatable,
         items: [fiscalYear(2027), fiscalYear(2026, 'EN_PREPARACION')],
         creatableYears: [],
-        createBlocked: { reason: 'FUTURE_LIMIT', maxYear: 2027 },
+        createBlocked: ALL_CREATED,
       });
 
       await create(host);
 
       expect(dialog(host)).toBeNull();
       expect(button(host, 'Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
-      expect(text(host)).toContain('Ya existe la vigencia 2027, la última que se puede crear.');
+      expect(text(host)).toContain(
+        'Ya existen todas las vigencias que se pueden crear: de 2002 a 2027.',
+      );
       expect(text(host.querySelector('liv-alert[role="alert"]'))).toContain(
         'V-01 · La vigencia 2027 ya existe',
       );
@@ -511,7 +585,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       service.create.mockRejectedValue(
         new HttpErrorResponse({
           status: 422,
-          error: { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 },
+          error: { status: 422, code: 'V-05', reason: 'PAST_LIMIT', minYear: 2002 },
         }),
       );
       const host = await open();
@@ -524,11 +598,13 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
   });
 
   describe('después de crear (007-04, 007-21)', () => {
+    // En estas pruebas el año en curso es 2027 y el siguiente, 2028; el servidor los manda del más reciente al más antiguo.
+    const current2027 = { ...NEXT_2027, relation: 'CURRENT' };
     const year2028 = { ...NEXT_2027, year: 2028, startsOn: '2028-01-01', endsOn: '2028-12-31' };
     const creatable: FiscalYearList = {
       items: [fiscalYear(2026, 'EN_PREPARACION')],
       canCreate: true,
-      creatableYears: [NEXT_2027, year2028],
+      creatableYears: [year2028, current2027],
     };
     const dialog = (host: HTMLElement) => host.querySelector('[role="dialog"]');
     const inDialog = (host: HTMLElement, label: string) =>
@@ -550,8 +626,8 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
     const status = (host: HTMLElement) => text(host.querySelector('p[role="status"]'));
     const conflict = () =>
       new HttpErrorResponse({ status: 409, error: { status: 409, code: 'V-01', year: 2027 } });
-    const radios = (host: HTMLElement) =>
-      Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+    const chosen = (host: HTMLElement) =>
+      host.querySelector<HTMLSelectElement>('liv-select select')?.value || undefined;
 
     it('anuncia en una región de estado que se creó la vigencia', async () => {
       service.create.mockResolvedValue(fiscalYear(2027));
@@ -673,7 +749,7 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       expect(status(host)).toBe('Se creó la vigencia 2027.');
     });
 
-    it('un tiempo agotado cuya relectura no trae el año pedido deja el diálogo abierto y el año marcado', async () => {
+    it('un tiempo agotado cuya relectura no trae el año pedido deja el diálogo abierto y el año intentado elegido (H2-18)', async () => {
       service.create.mockRejectedValue(new TimeoutError(10_000));
       const host = await open();
       service.list.mockResolvedValueOnce(creatable);
@@ -681,10 +757,24 @@ describe('Vigencias fiscales (007-01, 007-03, 007-09)', () => {
       await create(host);
 
       expect(dialog(host)).not.toBeNull();
-      expect(radios(host).find((radio) => radio.checked)?.value).toBe('2027');
+      expect(chosen(host)).toBe('2027');
+      expect(host.querySelector<HTMLSelectElement>('liv-select select')?.disabled).toBe(false);
+      expect(document.activeElement).toBe(host.querySelector('liv-select select'));
       expect(text(host.querySelector('liv-alert[role="alert"]'))).toContain(
         'No sabemos si se creó la vigencia',
       );
+    });
+
+    it('si la relectura falla tras un resultado que no se conoce, se conserva el año intentado y la lista vuelve a estar habilitada', async () => {
+      service.create.mockRejectedValue(new TimeoutError(10_000));
+      const host = await open();
+      service.list.mockRejectedValueOnce(new Error('500'));
+
+      await create(host);
+
+      expect(dialog(host)).not.toBeNull();
+      expect(chosen(host)).toBe('2027');
+      expect(host.querySelector<HTMLSelectElement>('liv-select select')?.disabled).toBe(false);
     });
 
     it('si la lista no se puede releer, el diálogo lo dice dentro, donde se lee', async () => {
