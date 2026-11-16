@@ -291,9 +291,9 @@ export class FiscalYears {
       year: item.year,
       // Solo un entero forma una ruta: lo demás se muestra como texto, sin enlace.
       href: Number.isInteger(item.year) ? `/${OPTION_ROUTE}/1.4/${item.year}` : undefined,
-      // Fecha larga explícita: en la lista de vigencias manda el diseño (Figma 66:1967, H2-13).
-      startsOn: formatBusinessDate(item.startsOn, 'long') ?? 'Sin fecha',
-      endsOn: formatBusinessDate(item.endsOn, 'long') ?? 'Sin fecha',
+      // Una tabla de consulta: dd/mm/aaaa (decisión de la H3, constitución y arquitectura 01 §11).
+      startsOn: formatBusinessDate(item.startsOn, 'short') ?? 'Sin fecha',
+      endsOn: formatBusinessDate(item.endsOn, 'short') ?? 'Sin fecha',
       status: known?.label ?? item.status,
       tone: known?.tone ?? 'neutral',
       liquidation: item.assessmentsEnabled ? 'Habilitada' : 'No habilitada',
