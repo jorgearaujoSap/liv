@@ -6,6 +6,7 @@ import co.com.sapenlinea.liv.tax.application.FiscalYears;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -48,14 +49,14 @@ class JpaFiscalYears implements FiscalYears {
   }
 
   @Override
-  public List<Stored> findAll(UUID administrationId) {
+  public List<RegisteredFiscalYear> findAll(UUID administrationId) {
     return rows.findByAdministrationIdOrderByFiscalYearDesc(administrationId).stream()
         .map(this::toStored)
         .toList();
   }
 
   @Override
-  public Optional<Stored> find(UUID administrationId, int year) {
+  public Optional<RegisteredFiscalYear> find(UUID administrationId, int year) {
     // A year that does not fit the SMALLINT cannot exist, and a cast would wrap it into another
     // year.
     if (year < Short.MIN_VALUE || year > Short.MAX_VALUE) {
@@ -73,7 +74,7 @@ class JpaFiscalYears implements FiscalYears {
   }
 
   @Override
-  public Stored create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
+  public RegisteredFiscalYear create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
     if (!fitsSmallint(fiscalYear.year())) {
       throw new IllegalArgumentException("The year does not fit the column: " + fiscalYear.year());
     }
@@ -95,10 +96,10 @@ class JpaFiscalYears implements FiscalYears {
   }
 
   @Override
-  public Stored persistOpened(Stored current, UUID openedBy) {
+  public RegisteredFiscalYear persistOpened(RegisteredFiscalYear current, UUID openedBy) {
     int changed = rows.openPreparation(current.id(), openedBy);
     // The persistence context was cleared by the update, so this read comes from the database.
-    Stored now =
+    RegisteredFiscalYear now =
         find(current.fiscalYear().administrationId(), current.fiscalYear().year())
             .orElseThrow(() -> new NotFound("fiscal year " + current.fiscalYear().year()));
     if (changed == 1) {
@@ -115,14 +116,14 @@ class JpaFiscalYears implements FiscalYears {
     return year >= Short.MIN_VALUE && year <= Short.MAX_VALUE;
   }
 
-  private Stored toStored(AdministrationFiscalYearEntity row) {
+  private RegisteredFiscalYear toStored(AdministrationFiscalYearEntity row) {
     NationalFiscalYearEntity year =
         national
             .findById((short) row.fiscalYear())
             .orElseThrow(() ->
                 new IllegalStateException(
                     "The year " + row.fiscalYear() + " is not in the national table"));
-    return new Stored(
+    return new RegisteredFiscalYear(
         row.id(),
         AdministrationFiscalYear.restore(
             row.administrationId(),

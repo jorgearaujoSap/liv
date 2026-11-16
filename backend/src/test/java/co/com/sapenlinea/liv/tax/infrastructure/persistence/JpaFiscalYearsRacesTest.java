@@ -8,10 +8,10 @@ import co.com.sapenlinea.liv.isolation.LivDatabase;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.application.CreateFiscalYear;
 import co.com.sapenlinea.liv.tax.application.FiscalYears;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.NationalFiscalYear;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -115,7 +115,8 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
                 tenant,
                 () -> {
                   // T1 reads the year as PLANEADA ...
-                  Stored seenByT1 = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
+                  RegisteredFiscalYear seenByT1 =
+                      fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
                   // ... T2 opens it and commits ...
                   inTransaction(
                       tenant,
@@ -139,13 +140,14 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     CountDownLatch t2Release = new CountDownLatch(1);
 
     // T2 updates the row and keeps its transaction open: it holds the row lock.
-    Future<Stored> t2 =
+    Future<RegisteredFiscalYear> t2 =
         threads.submit(() ->
             inTransaction(
                 tenant,
                 () -> {
-                  Stored seen = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
-                  Stored opened = fiscalYears.persistOpened(seen, tenant.userId());
+                  RegisteredFiscalYear seen =
+                      fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
+                  RegisteredFiscalYear opened = fiscalYears.persistOpened(seen, tenant.userId());
                   t2HoldsTheRow.countDown();
                   await(t2Release);
                   return opened;
@@ -159,7 +161,8 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
                 inTransaction(
                     tenant,
                     () -> {
-                      Stored seen = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
+                      RegisteredFiscalYear seen =
+                          fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
                       return fiscalYears.persistOpened(seen, tenant.userId());
                     })));
     LivDatabase.awaitAnApplicationSessionWaitingOnALock("UPDATE tax.administration_fiscal_year");
@@ -189,7 +192,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
   void openingARowCreatedAfterThisTransactionStarted() {
     Tenant tenant = newTenant();
 
-    Stored opened =
+    RegisteredFiscalYear opened =
         inTransaction(
             tenant,
             () -> {
@@ -204,7 +207,8 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
                           AdministrationFiscalYear.plan(tenant.administrationId(), 2026),
                           tenant.userId()));
               // ... and this one opens it: updated_at must not be before created_at.
-              Stored seen = fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
+              RegisteredFiscalYear seen =
+                  fiscalYears.find(tenant.administrationId(), 2026).orElseThrow();
               return fiscalYears.persistOpened(seen, tenant.userId());
             });
 
@@ -244,12 +248,12 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     }
 
     @Override
-    public List<Stored> findAll(UUID administrationId) {
+    public List<RegisteredFiscalYear> findAll(UUID administrationId) {
       return delegate.findAll(administrationId);
     }
 
     @Override
-    public Optional<Stored> find(UUID administrationId, int year) {
+    public Optional<RegisteredFiscalYear> find(UUID administrationId, int year) {
       return delegate.find(administrationId, year);
     }
 
@@ -264,12 +268,12 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     }
 
     @Override
-    public Stored create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
+    public RegisteredFiscalYear create(AdministrationFiscalYear fiscalYear, UUID createdBy) {
       return delegate.create(fiscalYear, createdBy);
     }
 
     @Override
-    public Stored persistOpened(Stored current, UUID openedBy) {
+    public RegisteredFiscalYear persistOpened(RegisteredFiscalYear current, UUID openedBy) {
       return delegate.persistOpened(current, openedBy);
     }
   }
@@ -285,7 +289,8 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     }
   }
 
-  private Future<Stored> createInAThread(Tenant tenant, FiscalYears port, Instant now, int year) {
+  private Future<RegisteredFiscalYear> createInAThread(
+      Tenant tenant, FiscalYears port, Instant now, int year) {
     CreateFiscalYear useCase =
         new CreateFiscalYear(port, event -> {}, Clock.fixed(now, ZoneOffset.UTC), BOGOTA);
     return threads.submit(() -> inTransaction(tenant, () -> useCase.create(tenant.user(), year)));
@@ -298,11 +303,11 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
    */
   private void creationsAcrossMidnight(boolean withLock, Tenant tenant) throws Exception {
     PausingFiscalYears a = new PausingFiscalYears(fiscalYears, withLock, true);
-    Future<Stored> creationA = createInAThread(tenant, a, BEFORE_MIDNIGHT, 2026);
+    Future<RegisteredFiscalYear> creationA = createInAThread(tenant, a, BEFORE_MIDNIGHT, 2026);
     assertThat(a.paused.await(WAIT_SECONDS, TimeUnit.SECONDS)).as("A read the years").isTrue();
 
     PausingFiscalYears b = new PausingFiscalYears(fiscalYears, withLock, false);
-    Future<Stored> creationB = createInAThread(tenant, b, AFTER_MIDNIGHT, 2028);
+    Future<RegisteredFiscalYear> creationB = createInAThread(tenant, b, AFTER_MIDNIGHT, 2028);
     if (withLock) {
       // B waits in the database for the lock of A, and keeps waiting while A holds it.
       LivDatabase.awaitAnApplicationSessionWaitingOnALock("pg_advisory_xact_lock");
@@ -361,7 +366,7 @@ class JpaFiscalYearsRacesTest extends FiscalYearsPersistenceTestBase {
     Tenant holder = newTenant();
     Tenant other = newTenant();
     PausingFiscalYears a = new PausingFiscalYears(fiscalYears, true, true);
-    Future<Stored> creationA = createInAThread(holder, a, BEFORE_MIDNIGHT, 2026);
+    Future<RegisteredFiscalYear> creationA = createInAThread(holder, a, BEFORE_MIDNIGHT, 2026);
     assertThat(a.paused.await(WAIT_SECONDS, TimeUnit.SECONDS)).as("A holds the lock").isTrue();
 
     PausingFiscalYears b = new PausingFiscalYears(fiscalYears, true, false);

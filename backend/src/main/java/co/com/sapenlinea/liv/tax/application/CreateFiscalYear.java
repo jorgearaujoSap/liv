@@ -5,9 +5,9 @@ import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.RequiresPermission;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.FiscalYearCreated;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.AdministrationFiscalYear;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearOpeningPolicy;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -56,7 +56,7 @@ public class CreateFiscalYear {
    */
   @RequiresPermission(PERMISSION)
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public Stored create(CurrentUser user, int year) {
+  public RegisteredFiscalYear create(CurrentUser user, int year) {
     UUID administrationId = user.administrationId();
     fiscalYears.lockForCreation(administrationId);
     var existing = fiscalYears.findAll(administrationId);
@@ -65,7 +65,7 @@ public class CreateFiscalYear {
             existing.stream().map(item -> item.fiscalYear().year()).toList(),
             fiscalYears.nationalYears())
         .check(year);
-    Stored created =
+    RegisteredFiscalYear created =
         fiscalYears.create(AdministrationFiscalYear.plan(administrationId, year), user.userId());
     events.publishEvent(
         new FiscalYearCreated(

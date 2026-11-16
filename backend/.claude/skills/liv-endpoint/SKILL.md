@@ -22,7 +22,34 @@ Para las API de Spring Boot 4, Spring Security 7 o `openapi-generator` consulta 
 | Puerto y adaptador | `core/application/UserProfiles.java` y `core/infrastructure/JdbcUserProfiles.java` |
 | Pruebas | `src/test/java/.../contracts/OpenApiContractTest.java` (contrato), `core/CurrentUserTest.java` (respuesta), `platform/ApiAuthenticationTest.java` (401) y `platform/RequiresPermissionTest.java` (403) |
 
-En los módulos hexagonales (`jurisdiction`, `valuation`, `tax`, `ledger`) se respeta además la fila «Hexagonal» de `backend/AGENTS.md`: `domain` en Java puro y `application` solo con puertos. Todavía no hay un ejemplo real de esos módulos. El primero lo define su feature, que también amplía esta *skill*.
+En los módulos hexagonales (`jurisdiction`, `valuation`, `tax`, `ledger`) se respeta además la fila «Hexagonal» de `backend/AGENTS.md`: `domain` en Java puro y `application` solo con puertos.
+
+### Ejemplo de un módulo hexagonal: `tax`, vigencias fiscales (feature 007)
+
+La tabla sigue una de las cuatro operaciones de `tax.yaml`, `POST /api/v1/fiscal-years/{year}/preparation` (`operationId: openFiscalYearPreparation`); las otras tres comparten el controlador, el puerto y el adaptador:
+
+| Pieza | Archivo |
+|---|---|
+| Contrato | `contracts/openapi/tax.yaml` (rutas por año, no por `id`; los valores que crecerán son cadenas documentadas y no `enum`, para no romper Q08) |
+| Interfaz generada | `tax.api.contract.FiscalYearsApi` |
+| Controlador (sin lógica) | `tax/api/FiscalYearsController.java`: toma `CurrentUser.current()`, llama al caso de uso y convierte a los modelos generados |
+| Casos de uso | `ListFiscalYears`, `GetFiscalYear`, `CreateFiscalYear` y `OpenFiscalYearPreparation`, en `tax/application`: un `@Service` por acción, con una marca (`@RequiresPermission` o `@OpenUseCase`) en cada método público y su constante `PERMISSION`. Reciben el `CurrentUser` como argumento. El controlador depende de `application` solo a través de los `@Service` y de sus tipos anidados (un puerto no lo es), así que lo que un caso de uso devuelve es un tipo anidado suyo o del dominio |
+| Puerto | `tax/application/FiscalYears.java` (lo que los casos de uso necesitan de la persistencia: `lockForCreation`, `findAll`, `find`, `nationalYears`, `create` y `persistOpened`) |
+| Dominio (Java puro) | `tax/domain/AdministrationFiscalYear` (máquina de estados), `FiscalYearOpeningPolicy` (V-01, V-02 y V-05), `PreparationChecklist` y `RegisteredFiscalYear` (la vigencia tal como se guarda, que el caso de uso devuelve) |
+| Errores de negocio | `shared.RuleViolation` (código de la regla, tipo `CONFLICT` o `UNPROCESSABLE` y detalles) y `shared.NotFound`, que traduce `platform/web/ProblemDetailsHandler` a 409, 422 o 404 `SYS-404` sin que `platform` conozca a `tax` |
+| Eventos | `tax/FiscalYearCreated` y `FiscalYearStatusChanged` en el paquete raíz (los escuchará `audit` en B7; ningún módulo depende de `audit`) |
+| Adaptador JPA | `tax/infrastructure/persistence/JpaFiscalYears.java`, entidades y repositorios |
+| Pruebas | dominio (`tax/domain/*Test`), casos de uso con un doble del puerto (`tax/application/*Test`, `FakeFiscalYears`), el adaptador real con Testcontainers (`JpaFiscalYearsTest`, `JpaFiscalYearsRacesTest`, `FiscalYearsBeansTest`) y la API (`tax/FiscalYearsApiTest`, `extends PlatformWebTest`) |
+
+Lo que este ejemplo enseña y conviene repetir:
+
+- **El dominio no sabe de HTTP ni de Spring**: lanza `RuleViolation` y `NotFound`, excepciones no comprobadas (`RuntimeException`), y el manejador los traduce. `tax` depende de `platform` y `shared`, y `platform` depende solo de `shared` (`ModularityTest`).
+- **El reloj y la zona se inyectan**: `BusinessYear` (Java puro, sin ser un *bean*) calcula el año en curso con el `Clock` (UTC) y `liv.business-zone`. Las reglas de `AuthorizationRulesTest` prohíben `@Bean` de clases de `application` y exigen que todo `@Component` de ese paquete sea un `@Service` con una marca (permiso o abierto) en cada método público: por eso `BusinessYear` no es un *bean* y cada caso de uso lo construye.
+- **Una entidad JPA que solo se lee y se inserta** cuando `liv_app` tiene permisos por columna: `insertable = false` y `@Generated` para lo que pone la base, y `updatable = false` en todo. El cambio de estado es un `UPDATE` explícito que cuenta filas (`@Modifying`), no el *dirty checking*; así una carrera perdida da 409 y no un 503.
+- **Los errores de integridad**: la violación de un `UNIQUE` del `INSERT` se traduce a una regla (`V-01`) en el adaptador, por su SQLState `23505`, con una prueba de esquema que fija que es el único `UNIQUE` que el `INSERT` puede violar.
+- **Las pruebas de una carrera la fuerzan**: con dos transacciones, hilos y *latches*, y una variante que quita la protección para comprobar que la prueba la detecta. Una prueba por la API (varias peticiones a la vez) es solo de humo: casi nunca produce la intercalación.
+- **Un `404` que no revela**: una vigencia de otra administración y una que no existe dan el mismo cuerpo (CA-12), y se comprueba la existencia antes del estado, para que el 409 no revele el estado de una vigencia ajena.
+- **Reglas de JSON del contrato, solo para sus DTO**: Jackson convierte `"2026"`, `2026.5` y `2026.0` en 2026 y escribe un campo opcional sin valor como `null`, y el contrato no admite ninguna de las dos cosas. En `tax/api/TaxJsonConfiguration` se acotan a los DTO de la API con *mixins* sobre las clases generadas (que no se editan): el `year` de la petición solo acepta un entero (400) y `createBlocked` se omite. No se cambia `spring.jackson`: las otras APIs y los eventos del *outbox* conservan los valores por omisión (`JacksonScopeTest` lo fija). Si otro contrato necesita lo mismo, se agrega en una configuración igual dentro del `api` de su propio módulo (un módulo no usa los modelos generados de otro).
 
 ## Pasos
 

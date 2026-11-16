@@ -4,10 +4,10 @@ import co.com.sapenlinea.liv.platform.CurrentUser;
 import co.com.sapenlinea.liv.platform.PermissionCatalog;
 import co.com.sapenlinea.liv.platform.RequiresPermission;
 import co.com.sapenlinea.liv.shared.NotFound;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
 import co.com.sapenlinea.liv.tax.domain.FiscalYearStatus;
 import co.com.sapenlinea.liv.tax.domain.PreparationChecklist;
 import co.com.sapenlinea.liv.tax.domain.PreparationItemCheck;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -45,7 +45,9 @@ public class GetFiscalYear {
    * @param preparation the checklist of the preparation
    */
   public record Detail(
-      Stored fiscalYear, List<String> availableActions, PreparationChecklist preparation) {
+      RegisteredFiscalYear fiscalYear,
+      List<String> availableActions,
+      PreparationChecklist preparation) {
 
     public Detail {
       availableActions = List.copyOf(availableActions);
@@ -55,7 +57,7 @@ public class GetFiscalYear {
   @RequiresPermission(PERMISSION)
   @Transactional(readOnly = true)
   public Detail get(CurrentUser user, int year) {
-    Stored stored =
+    RegisteredFiscalYear stored =
         fiscalYears
             .find(user.administrationId(), year)
             .orElseThrow(() -> new NotFound("fiscal year " + year));

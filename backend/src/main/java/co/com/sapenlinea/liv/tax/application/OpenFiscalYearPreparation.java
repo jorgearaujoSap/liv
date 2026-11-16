@@ -6,7 +6,7 @@ import co.com.sapenlinea.liv.platform.RequiresPermission;
 import co.com.sapenlinea.liv.shared.NotFound;
 import co.com.sapenlinea.liv.shared.RuleViolation;
 import co.com.sapenlinea.liv.tax.FiscalYearStatusChanged;
-import co.com.sapenlinea.liv.tax.application.FiscalYears.Stored;
+import co.com.sapenlinea.liv.tax.domain.RegisteredFiscalYear;
 import java.time.Clock;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,15 +43,15 @@ public class OpenFiscalYearPreparation {
    */
   @RequiresPermission(PERMISSION)
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public Stored open(CurrentUser user, int year) {
-    Stored current =
+  public RegisteredFiscalYear open(CurrentUser user, int year) {
+    RegisteredFiscalYear current =
         fiscalYears
             .find(user.administrationId(), year)
             .orElseThrow(() -> new NotFound("fiscal year " + year));
     // The domain decides from the state just read (V-06); the port repeats the check in the
     // UPDATE itself, for the request that changed it between the read and the write.
     current.fiscalYear().openPreparation();
-    Stored opened = fiscalYears.persistOpened(current, user.userId());
+    RegisteredFiscalYear opened = fiscalYears.persistOpened(current, user.userId());
     events.publishEvent(
         new FiscalYearStatusChanged(
             UUID.randomUUID(),
