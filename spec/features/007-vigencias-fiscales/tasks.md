@@ -207,40 +207,40 @@ Con D2 integrado. Se puede escribir a la vez que B5a: no comparten archivos. Mis
 
 Con B3, B4, B5a y B5b integrados. Una sola sesión en `backend/` mientras dure. Corte previsto: 6a = T11 a T13, 6b = T14 y T15. La revisión adversarial y las cuatro lentes se hacen una vez por PR (o por mitad, si se corta) y están en T15.
 
-- [ ] **T11** · Errores de negocio en la API, `liv.business-zone` y las flechas de `platform`.
+- [x] **T11** · Errores de negocio en la API, `liv.business-zone` y las flechas de `platform`.
   - **Proyecto:** `backend/` · **PR:** B6
   - **Archivos:** `backend/src/main/java/co/com/sapenlinea/liv/platform/web/ProblemDetailsHandler.java`, `backend/src/main/resources/application.yml` (la propiedad `liv.business-zone: America/Bogota`), y en `backend/src/test/java/co/com/sapenlinea/liv/`: `platform/ErrorResponsesTest.java` y `architecture/ModularityTest.java`; `backend/CHANGELOG.md`.
   - **Depende de:** T8 (las excepciones de `shared`) y B3, B4, B5a (T8 y T9) y B5b integrados.
   - **Recursos:** `ProblemDetailsHandler` y `ModularityTest` (compartidos con B7: en serie).
   - **Prueba primero:** `ErrorResponsesTest`: `RuleViolation` `CONFLICT` da 409 y `UNPROCESSABLE` da 422, con su `code` y sus extensiones en el Problem Details; `NotFound` da 404 con `SYS-404` y un cuerpo idéntico sea cual sea el motivo (CA‑12); `ModularityTest`: `platform` depende solo de `shared` (`containsExactly("shared")`).
   - **Revisada por la enmienda 4:** T45. `ErrorResponsesTest` usa `GAP` como ejemplo y pasa a `PAST_LIMIT`.
-- [ ] **T12** · Casos de uso, `BusinessYear`, el puerto `FiscalYears` y los eventos.
+- [x] **T12** · Casos de uso, `BusinessYear`, el puerto `FiscalYears` y los eventos.
   - **Proyecto:** `backend/` · **PR:** B6
   - **Archivos:** en `backend/src/main/java/co/com/sapenlinea/liv/tax/`: `FiscalYearCreated.java` y `FiscalYearStatusChanged.java` (paquete raíz, como `core.SessionStarted`) y, en `application/`, `BusinessYear.java`, `FiscalYears.java` (puerto, con `lockForCreation`), `ListFiscalYears.java`, `GetFiscalYear.java`, `CreateFiscalYear.java` y `OpenFiscalYearPreparation.java`; en `backend/src/test/java/co/com/sapenlinea/liv/tax/application/`: `CreateFiscalYearTest.java`, `ListFiscalYearsTest.java` y `BusinessYearTest.java` (esta última, en el contexto real); `ModularityTest` (`tax` depende de `platform` y `shared`); `backend/CHANGELOG.md`.
   - **Depende de:** T11, T9 y T10.
   - **Recursos:** `ModularityTest`.
   - **Prueba primero:** con un doble del puerto, **007-04 a 007-08** (cada rechazo, con su código y extensiones) y **007-10** en `CreateFiscalYearTest` y `OpenFiscalYearPreparationTest`; **la frontera del año**, en `CreateFiscalYearTest` y `ListFiscalYearsTest` con `Clock.fixed(2027-01-01T04:30Z)` (31 de diciembre de 2026 a las 23:30 en Bogotá): se pueden crear 2026 (`CURRENT`) y 2027 (`NEXT`), y 2028 se rechaza con `V‑05` `FUTURE_LIMIT` y su `maxYear`; la lista nunca ofrece un año que la creación rechace; `canCreate` según `tax.fiscal-year.create`; `BusinessYearTest` comprueba, con el contexto real, que usa la zona `America/Bogota` (falla si fuera UTC); cada caso de uso lleva su `@RequiresPermission` (`AuthorizationRulesTest` ya lo exige) y los eventos llevan `eventId`, `administrationId`, `userId`, el `id` de la fila, el año, el estado anterior (nulo al crear), el nuevo, el instante y el `correlationId`.
   - **Revisada por la enmienda 4:** T43. `CreateFiscalYearTest` y `ListFiscalYearsTest` cambian la frontera del año (ahora 2027 es `NEXT` y la lista va de 2027 a 2002) y quitan los casos de V‑02 y de `FIRST_YEAR`. `BusinessYearTest` no cambia.
-- [ ] **T13** · Persistencia JPA: entidades, repositorios y el adaptador de `FiscalYears`.
+- [x] **T13** · Persistencia JPA: entidades, repositorios y el adaptador de `FiscalYears`.
   - **Proyecto:** `backend/` · **PR:** B6
   - **Archivos:** en `backend/src/main/java/co/com/sapenlinea/liv/tax/infrastructure/persistence/`: la entidad de la fila de la administración, la de solo lectura del año nacional, sus repositorios y el adaptador `JpaFiscalYears`; en `backend/src/test/java/co/com/sapenlinea/liv/tax/infrastructure/persistence/`: `JpaFiscalYearsTest.java` (Testcontainers y el adaptador real); `backend/CHANGELOG.md`.
   - **Depende de:** T12.
   - **Recursos:** ninguno.
   - **Prueba primero:** `JpaFiscalYearsTest`, con las pruebas que demuestran **los dos altos de la verificación acotada** (se comprueban en la revisión adversarial del código de este paso; véase abajo): cada una fuerza su intercalación.
-    - **`UNIQUE` real (V‑01 · 007-05):** el dueño de los objetos inserta la vigencia 2026; `save` de 2026 sin pasar por el bloqueo da `RuleViolation` `V‑01`, no `DataIntegrityViolationException` (por SQLState `23505` y el nombre de la restricción);
+    - **`UNIQUE` real (V‑01 · 007-05):** el dueño de los objetos inserta la vigencia 2026; `save` de 2026 sin pasar por el bloqueo da `RuleViolation` `V‑01`, no `DataIntegrityViolationException` (por el SQLState `23505`; ajuste de la H3 en `plan.md`);
     - **apertura que pierde la carrera (007-10):** con dos `TransactionTemplate`, T1 lee la fila, T2 la abre y confirma, y el `UPDATE` de T1 afecta 0 filas y da `V‑06` con el estado `EN_PREPARACION` (nunca 503); un reintento después de un éxito también da `V‑06`;
     - **apertura que gana:** la respuesta dice `EN_PREPARACION` y un contador de sentencias de Hibernate comprueba que no emite ningún `UPDATE` propio (entidad solo de lectura e inserción: `id`, `status`, `assessments_enabled` y `created_at` con `insertable = false` y `@Generated`, y todas las columnas `updatable = false`);
     - **el bloqueo (007-05):** dos instancias de `CreateFiscalYear`, cada una con su `Clock.fixed` a un lado de la medianoche del 31 de diciembre en Bogotá, sobre el adaptador real; un espía detiene a A justo después de obtener el bloqueo y B sigue esperando durante un tiempo límite; al liberar a A el resultado es {2026} y B recibe `V‑02` `GAP`; **la misma prueba con un `lockForCreation` vacío da {2026, 2028}**, con lo que se demuestra que la prueba detecta la falta del bloqueo;
     - `CreateFiscalYear` y `OpenFiscalYearPreparation` en `READ_COMMITTED`; una vigencia de otra administración da `NotFound` (CA‑12).
   - **Revisada por la enmienda 4:** T44. Las dos pruebas de la medianoche de `JpaFiscalYearsRacesTest` (`theLockSerializesTheCreationsAcrossMidnight` y `withoutTheLockTheTestSeesTheGap`) pierden su premisa (`V‑02` `GAP`) y las reemplazan dos pruebas de caracterización del bloqueo con el mismo año. `theRealUniqueBecomesV01`, `theLockIsOfTheAdministration` y las pruebas de la apertura no cambian.
-- [ ] **T14** · `FiscalYearsController` y las pruebas de la API.
+- [x] **T14** · `FiscalYearsController` y las pruebas de la API.
   - **Proyecto:** `backend/` · **PR:** B6
   - **Archivos:** `backend/src/main/java/co/com/sapenlinea/liv/tax/api/FiscalYearsController.java` (sin lógica, máximo 200 líneas) y `backend/src/test/java/co/com/sapenlinea/liv/tax/FiscalYearsApiTest.java` (`extends PlatformWebTest`); `backend/CHANGELOG.md`.
   - **Depende de:** T13 y T7 (la interfaz generada).
   - **Recursos:** contrato `tax`.
   - **Prueba primero:** `FiscalYearsApiTest`, antes del controlador y fallando por una aserción: las respuestas y errores del contrato; **007-01 y 007-03** (lista, orden y estado vacío con las opciones de `creatableYears`); **007-02 y 007-09** (401 y 403 por rol); una vigencia de otra administración y un año inexistente dan **el mismo 404**; **CA‑12 · 007-18 y 007-19** por la API; **V‑01 · 007-05** y **007-10** por la API; dos creaciones y dos aperturas a la vez, solo como prueba de humo (nunca 500 ni 503). Cada prueba que necesite una administración sin vigencias la crea con el dueño de los objetos, porque `liv_app` no puede borrar y el contenedor se comparte.
   - **Revisada por la enmienda 4:** T42 (el controlador pasa `minYear`) y T45. `FiscalYearsApiTest` cambia los rechazos, el orden de `creatableYears` y el estado `ALL_CREATED`, y todos sus años pasan a calcularse con `currentYear()`.
-- [ ] **T15** · Cierre del PR: ejemplo hexagonal en la *skill* y registro.
+- [x] **T15** · Cierre del PR: ejemplo hexagonal en la *skill* y registro.
   - **Proyecto:** `backend/` · **PR:** B6
   - **Archivos:** `backend/.claude/skills/liv-endpoint/SKILL.md` (agrega el ejemplo del módulo hexagonal `tax`, como pide la propia *skill*) y `backend/CHANGELOG.md`.
   - **Depende de:** T14.
@@ -253,13 +253,13 @@ Con B3, B4, B5a y B5b integrados. Una sola sesión en `backend/` mientras dure. 
 
 Con B6 integrado.
 
-- [ ] **T16** · `AuditLog.Entry` con `previousValues`.
+- [x] **T16** · `AuditLog.Entry` con `previousValues`.
   - **Proyecto:** `backend/` · **PR:** B7
   - **Archivos:** `backend/src/main/java/co/com/sapenlinea/liv/audit/application/AuditLog.java`, `backend/src/main/java/co/com/sapenlinea/liv/audit/infrastructure/JdbcAuditLog.java` y los siete usos actuales de `Entry` (`audit/application/RecordSessionEvents.java` y los demás que el compilador señale en `audit/`), y las pruebas de `backend/src/test/java/co/com/sapenlinea/liv/audit/` que los usan; `backend/CHANGELOG.md`.
   - **Depende de:** B6 integrado.
   - **Recursos:** `AuditLog` (solo B7).
   - **Prueba primero:** una prueba de `JdbcAuditLog` (p. ej. en `audit/AuditRows.java` y `SessionAuditTest.java`) comprueba que `previous_values` se escribe cuando viene y que las filas de sesión siguen con `previous_values` nulo; `previousValues` admite nulo (el mapa se copia solo si existe); el *javadoc* de `entityName` agrega `tax.administration_fiscal_year`.
-- [ ] **T17** · Escucha de los eventos de la vigencia y auditoría.
+- [x] **T17** · Escucha de los eventos de la vigencia y auditoría.
   - **Proyecto:** `backend/` · **PR:** B7
   - **Archivos:** `backend/src/main/java/co/com/sapenlinea/liv/audit/infrastructure/FiscalYearEventsListener.java` y `backend/src/main/java/co/com/sapenlinea/liv/audit/application/RecordFiscalYearEvents.java`; `backend/src/test/java/co/com/sapenlinea/liv/audit/FiscalYearAuditTest.java` y `backend/src/test/java/co/com/sapenlinea/liv/architecture/ModularityTest.java`; `backend/CHANGELOG.md`.
   - **Depende de:** T16.
@@ -305,14 +305,14 @@ Con B6 integrado.
   - **Recursos:** `ui/CHANGELOG.md`.
   - **Prueba primero:** la prueba de `icon.component.spec.ts` que cuenta los iconos y la descripción de Figma se actualiza (rojo); cada icono toma el color de su contenedor (`currentColor`) y pasa axe. `chevron-left` no entra: es de la paginación (1.6). Diseño: nodo 63:243.
   - **Al terminar:** revisión adversarial y las cuatro lentes (la de riesgo, de nivel alto).
-- [ ] **T23** · **8e** · `Button` con `disabledReason` (crítico).
+- [x] **T23** · **8e** · `Button` con `disabledReason` (crítico).
   - **Proyecto:** `ui/` · **PR:** 8e
   - **Archivos:** `ui/projects/liv-components/src/lib/button/` (`button.component.ts`, `.html`, `.css`, `.spec.ts` y `button.stories.ts`) y `ui/CHANGELOG.md`.
   - **Depende de:** ninguna.
   - **Recursos:** `ui/CHANGELOG.md`.
   - **Prueba primero:** `disabledReason` solo cuenta con `disabled`; con motivo, el botón usa `aria-disabled="true"` y sigue recibiendo el foco, con su estado propio en el anfitrión (p. ej. `data-state="disabled"`) para el aspecto inhabilitado; el aspecto es igual con motivo y sin él; no emite clic con el ratón, con Enter, con Espacio ni como `submit` de un formulario; `aria-describedby` apunta al texto visible; `reasonAlign` (`start` o `end`); sin `disabled` el motivo no se muestra; `loading` conserva la precedencia de hoy; las reglas de *hover* y de «cargando» (`.button[aria-disabled='true']`) excluyen ese estado, comprobado por el texto de las reglas porque jsdom no evalúa `:hover` (la revisión manual en Storybook lo confirma); axe. Diseño: nodo 65:456.
   - **Al terminar:** revisión adversarial y las cuatro lentes (la de riesgo, de nivel alto).
-- [ ] **T24** · **8f** · `Dialog` con cuerpo, tamaño y tono (H2‑11, crítico) y versión 0.4.0.
+- [x] **T24** · **8f** · `Dialog` con cuerpo, tamaño y tono (H2‑11, crítico) y versión 0.4.0.
   - **Proyecto:** `ui/` · **PR:** 8f
   - **Archivos:** `ui/projects/liv-components/src/lib/dialog/` (`dialog.component.ts`, `.html`, `.css`, `.spec.ts` y `dialog.stories.ts`), `ui/projects/liv-components/package.json` (la versión, con `npm run version:minor`), `ui/package-lock.json` (si el comando lo cambia) y `ui/CHANGELOG.md` (la sección `## [0.4.0] — <fecha>` con las entradas de 8a a 8f; `npm run release:check` la exige).
   - **Depende de:** T21 (`RadioGroup`) y, para integrarse, T18 a T23.
@@ -324,28 +324,28 @@ Con B6 integrado.
 
 *Skill* `liv-pantalla`. **Requiere** el contrato `tax` publicado como *release* `contract-tax-v1.0.0` (B4 integrado), `liv-components` 0.4.0 publicada en npm (8f integrado y publicada por la persona) y el *frame* 75:4479 (la etiqueta de un año pasado, `relation: PAST`), **aprobado el 2026-11-13**. El *frontend* no calcula reglas: todo lo que muestra sobre años, fechas y motivos viene del contrato, y ninguna pantalla usa `new Date()` para decidir.
 
-- [ ] **T25** · Contrato adoptado, versión nueva de la librería y `FiscalYearsService`.
+- [x] **T25** · Contrato adoptado, versión nueva de la librería y `FiscalYearsService`.
   - **Proyecto:** `frontend/` · **PR:** F9a
   - **Archivos:** `frontend/api-spec/versions.json` y `frontend/api-spec/tax.yaml` (copia fijada), el cliente generado (`frontend/src/app/api/tax/`, generado por `npm run api:update`), `frontend/package.json` y `frontend/package-lock.json` (`liv-components` 0.4.0 exacta), `frontend/src/app/features/fiscal-years/fiscal-years.service.ts` y su `.spec.ts`, y `frontend/CHANGELOG.md`.
   - **Depende de:** B4 integrado y *release* publicada, 8f integrado y 0.4.0 publicada; para integrarse el PR, también B6 integrado.
   - **Recursos:** contrato `tax` (`frontend/api-spec/`), versión de `liv-components` y `package.json`.
   - **Prueba primero:** `npm run api:verify` en verde (SHA‑256 de la *release*); `fiscal-years.service.spec.ts` (rojo): llama a los cuatro métodos sobre el cliente generado y expone `canCreate`, `creatableYears` y `createBlocked` tal como vienen. **Antes de seguir**, `npm test` completo con 0.4.0, citando en el PR la prueba propia del aviso de sesión (`features/shell/session-warning-dialog.spec.ts`): `Dialog` por omisión no cambió.
   - **Revisada por la enmienda 4:** T49 y T54. El contrato pasa a 1.1.0 y `liv-components` a 0.5.0; `fiscal-years.service.spec.ts` solo cambia si el tipo nuevo lo exige.
-- [ ] **T26** · La lista de vigencias, con sus siete estados.
+- [x] **T26** · La lista de vigencias, con sus siete estados.
   - **Proyecto:** `frontend/` · **PR:** F9a
   - **Archivos:** `frontend/src/app/features/fiscal-years/fiscal-years.ts`, `.html`, `.css` y `fiscal-years.spec.ts`, `frontend/src/app/app.routes.ts` y `frontend/src/app/app.routes.spec.ts` (la ruta `${OPTION_ROUTE}/1.4` con `capabilityGuard` y `capability: '1.4'`, antes de la genérica), `frontend/src/app/features/accessibility.spec.ts` y `frontend/CHANGELOG.md`.
   - **Depende de:** T25.
   - **Recursos:** `app.routes.ts` y `accessibility.spec.ts` (F9b los toca después: en serie).
   - **Prueba primero:** `fiscal-years.spec.ts` (rojo): **007-01** (la lista, del año más reciente al más antiguo, con las fechas con el formateador de la librería); **007-03** (el estado vacío con `ResultState`, y la acción solo con `canCreate`); **007-09** (`canCreate` en falso, sin la acción); `createBlocked` (el botón inhabilitado con su motivo, `disabledReason`); cargando y error (`ResultState` y `Skeleton`); axe de la ruta en `accessibility.spec.ts` (**007-21**), con el botón inhabilitado con motivo; `app.routes.spec.ts`: la ruta, y el 403 por URL (**007-02**) y «Próximamente» mientras la opción siga así. Diseño: *frames* 66:1967 a 66:3493.
   - **Revisada por la enmienda 4:** T52 y T53. El estado vacío dice el rango de años (007-03) y el botón inhabilitado usa el motivo `ALL_CREATED` (007-23); `accessibility.spec.ts` cambia el `createBlocked` de sus pruebas de axe.
-- [ ] **T27** · El diálogo de creación y los rechazos.
+- [x] **T27** · El diálogo de creación y los rechazos.
   - **Proyecto:** `frontend/` · **PR:** F9a
   - **Archivos:** `frontend/src/app/features/fiscal-years/create-fiscal-year-dialog.ts`, `.html`, `.css` y `.spec.ts` (nombres a decidir por la sesión dentro de `features/fiscal-years/`), `fiscal-years.ts` y `fiscal-years.spec.ts` (para abrir el diálogo y releer la lista), `frontend/src/app/features/accessibility.spec.ts` y `frontend/CHANGELOG.md`.
   - **Depende de:** T26 (el *frame* 75:4479 ya está aprobado, el 2026-11-13).
   - **Recursos:** `accessibility.spec.ts`.
   - **Prueba primero:** las pruebas del diálogo (rojo): las opciones salen de `creatableYears` con su etiqueta (incluida la de un año `PAST`) y sus fechas; lleva la advertencia de H2‑6 (**007-04**); el grupo de años siempre tiene una opción marcada mientras está abierto; mientras se envía, el botón está en `loading` y Escape no cierra; cada rechazo con su código y sus extensiones del Problem Details (**V‑01 · 007-05**, **V‑02 · 007-06 y 007-07**, **V‑05 · 007-08** y `V‑06`), con la alerta creada de nuevo en cada intento para que se anuncie aunque el texto se repita; tras un `V‑01`, la lista se vuelve a leer y queda marcado el primer año que siga disponible, y si no queda ninguno (`createBlocked`) el diálogo se cierra y la lista muestra el botón inhabilitado con su motivo; un 403 lleva a «Sin permiso» (H2‑14, 001-16); axe con el diálogo abierto y con un rechazo (**007-21**). Diseño: *frames* 67:3040, 67:3163 y 67:3284, y el 75:4479 (aprobado el 2026-11-13).
   - **Revisada por la enmienda 4:** T50, T51 y T53. El `RadioGroup` pasa a un `Select`; ya no hay siempre una opción marcada (007-22 la reemplaza); cambian las opciones, la advertencia y los mensajes de rechazo, y salen `GAP`, `HISTORICAL` y `FIRST_YEAR`. El frame 75:4479 está retirado (E4‑4).
-- [ ] **T28** · Fecha larga para fechas sueltas (H2‑13).
+- [x] **T28** · Fecha larga para fechas sueltas (H2‑13).
   - **Proyecto:** `frontend/` · **PR:** F9a
   - **Archivos:** `frontend/AGENTS.md` (solo la fila «Localización») y `frontend/.claude/skills/liv-pantalla/SKILL.md` (solo el paso 5) y `frontend/CHANGELOG.md`.
   - **Depende de:** T26 (la primera pantalla que usa el formato).
@@ -359,13 +359,13 @@ Con B6 integrado.
 
 Con F9a integrado.
 
-- [ ] **T29** · El detalle de la vigencia y su lista de preparación.
+- [x] **T29** · El detalle de la vigencia y su lista de preparación.
   - **Proyecto:** `frontend/` · **PR:** F9b
   - **Archivos:** `frontend/src/app/features/fiscal-years/fiscal-year-detail.ts`, `.html`, `.css` y `fiscal-year-detail.spec.ts`, `frontend/src/app/features/fiscal-years/fiscal-years.service.ts` (solo lo que falte) y su `.spec.ts`, `frontend/src/app/app.routes.ts` y `app.routes.spec.ts` (la ruta `${OPTION_ROUTE}/1.4/:year` con `capabilityGuard` y `capability: '1.4'`, antes de la genérica), `frontend/src/app/features/accessibility.spec.ts` y `frontend/CHANGELOG.md`.
   - **Depende de:** F9a integrado.
   - **Recursos:** `app.routes.ts` y `accessibility.spec.ts`.
   - **Prueba primero:** `fiscal-year-detail.spec.ts` (rojo): **007-10** (la acción «Abrir preparación» solo con `OPEN_PREPARATION`; sin ella en cualquier otro estado, y un valor desconocido de `availableActions` se ignora; un `V‑06` muestra su alerta encima de los datos y vuelve a leer la vigencia); **007-11** (los nueve puntos, con el título sacado de su `code`, la frase de obligatorios y opcionales armada con `required` y «Opción aún no disponible» como pendiente); **V‑03 · CA‑14 · 007-12** («Habilitar liquidación» inhabilitado con `disabledReason` a partir de `missing`); el parámetro `:year` no numérico o fuera de 1999–2100 se muestra «no encontrada» **sin llamar a la API**, igual que el 404; otro error (500 o tiempo agotado) con el `ResultState` de error; cargando; axe de la ruta, con el botón con motivo (**007-21**); `app.routes.spec.ts`: el 403 por URL (**007-02**). Diseño: *frames* 68:3460 a 68:4474.
-- [ ] **T30** · `Shell`: la opción del menú activa en sus rutas hijas.
+- [x] **T30** · `Shell`: la opción del menú activa en sus rutas hijas.
   - **Proyecto:** `frontend/` · **PR:** F9b
   - **Archivos:** `frontend/src/app/features/shell/shell.ts` y `shell.spec.ts`; `frontend/CHANGELOG.md`.
   - **Depende de:** ninguna (mismo PR que T29).
@@ -379,13 +379,13 @@ Con F9a integrado.
 
 Con B6 integrado (para escribirse); se integra después de B6, B7 y F9b. Su rama se aplica en local para validar F9a y F9b.
 
-- [ ] **T31** · La opción 1.4 pasa a `AVAILABLE`.
+- [x] **T31** · La opción 1.4 pasa a `AVAILABLE`.
   - **Proyecto:** `backend/` · **PR:** B10
   - **Archivos:** `backend/src/main/resources/platform/menu-catalog.yaml` (solo la opción 1.4), `backend/src/test/java/co/com/sapenlinea/liv/platform/navigation/MenuCatalogTest.java` y `backend/CHANGELOG.md`.
   - **Depende de:** B6 integrado.
   - **Recursos:** `menu-catalog.yaml` y `MenuCatalogTest` (solo B10).
   - **Prueba primero:** `MenuCatalogTest` (rojo): **007-01** · la opción 1.4 está `AVAILABLE` con el permiso `tax.fiscal-year.read` y las demás siguen `COMING_SOON`.
-- [ ] **T32** · `backend/dev/limpiar-vigencias.sh` (H2‑9).
+- [x] **T32** · `backend/dev/limpiar-vigencias.sh` (H2‑9).
   - **Proyecto:** `backend/` · **PR:** B10
   - **Archivos:** `backend/dev/limpiar-vigencias.sh` (nuevo, junto a `check.sh`), su prueba de escenarios con un `docker` falso (en `backend/dev/test/`, como `contracts/scripts/test/fake-gh.sh`), `backend/dev/README.md` y `backend/CHANGELOG.md`. `tools/dev/` puede invocarlo, pero ese cambio es de la raíz y queda fuera de esta feature.
   - **Depende de:** T31 (mismo PR).
@@ -397,19 +397,19 @@ Con B6 integrado (para escribirse); se integra después de B6, B7 y F9b. Su rama
 
 *Skill* `liv-prueba-e2e`. Las pruebas se escriben en rojo mientras se implementa F9; se corren al final, con el sistema levantado (`README.md` › «Ejecutar LIV en local») y `backend/dev/limpiar-vigencias.sh` ejecutado por la persona. `e2e/` no lo llama (ADR 0030, H2‑9).
 
-- [ ] **T33** · El usuario `e2e.admin.b` y la comprobación de la administración de prueba.
+- [x] **T33** · El usuario `e2e.admin.b` y la comprobación de la administración de prueba.
   - **Proyecto:** `e2e/` · **PR:** E11
   - **Archivos:** `e2e/preparar.ts`, `e2e/limpiar.ts`, `e2e/support/keycloak.ts` y `e2e/support/acceso.ts`; `e2e/README.md` (la sección «Usuarios»).
   - **Depende de:** ninguna (la ejecución, de B10 aplicado).
   - **Recursos:** entorno local y usuarios de Keycloak.
   - **Prueba primero:** una corrida de `npm test` en la que `preparar.ts` crea `e2e.admin.b` (`ADMIN_SISTEMA` de la administración de prueba B, con un TOTP conocido, por la API de administración de Keycloak) y `limpiar.ts` lo borra; y la **comprobación previa**: si la administración de Ipiales de prueba ya tiene vigencias, `preparar.ts` lo detecta por la API y se detiene con un mensaje claro que manda a correr `backend/dev/limpiar-vigencias.sh`.
-- [ ] **T34** · Pruebas de la 001 que cambian.
+- [x] **T34** · Pruebas de la 001 que cambian.
   - **Proyecto:** `e2e/` · **PR:** E11
   - **Archivos:** `e2e/pruebas/estructura.spec.ts` y `e2e/pruebas/estructura.spec.ts-snapshots/` (las capturas del menú).
   - **Depende de:** T33.
   - **Recursos:** entorno local y capturas de referencia.
   - **Prueba primero:** `estructura.spec.ts` (rojo con la opción 1.4 ya abierta: falla porque la prueba de «Próximamente» ya no la encuentra así): pasa a usar otra opción que siga en *Próximamente* y la muestra en la captura del menú del administrador. **La persona vuelve a aprobar esas capturas.**
-- [ ] **T35** · Recorridos de la 1.4, el teclado del grupo de años, axe y capturas.
+- [x] **T35** · Recorridos de la 1.4, el teclado del grupo de años, axe y capturas.
   - **Proyecto:** `e2e/` · **PR:** E11
   - **Archivos:** `e2e/pruebas/vigencias.spec.ts` y `e2e/pruebas/vigencias.spec.ts-snapshots/` (nuevos), `e2e/support/` (solo lo que falte) y `e2e/README.md` (la tabla «Qué prueban»).
   - **Depende de:** T33 y T34.
@@ -420,12 +420,12 @@ Con B6 integrado (para escribirse); se integra después de B6, B7 y F9b. Su rama
 
 ## Cierre de la feature
 
-- [ ] Actualizar documentación si aplica (funcional, arquitectura, ADR, glosario). El glosario («vigencia de la administración» y «lista de preparación») lo escribe el orquestador con el texto que entrega la sesión de T2.
-- [ ] Revisión adversarial independiente de lo implementado; hallazgos resueltos o justificados. La del código de B6 comprueba los dos altos de la verificación acotada (T15).
-- [ ] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra (la tabla «Trazabilidad de los criterios» del `plan.md`). Lo hace el orquestador.
-- [ ] Compuertas de CI en verde y PR aprobado por un humano (H3), en cada PR.
-- [ ] La persona publica `liv-components` 0.4.0 en npm, después de integrar 8f, y no se vuelve a abrir F9a hasta que esté publicada.
-- [ ] Mover la feature a "Hecho" en `../../constitution/roadmap.md` y actualizar `ESTADO.md` (el orquestador).
+- [x] Actualizar documentación si aplica (funcional, arquitectura, ADR, glosario). El glosario («vigencia de la administración» y «lista de preparación») lo escribe el orquestador con el texto que entrega la sesión de T2.
+- [x] Revisión adversarial independiente de lo implementado; hallazgos resueltos o justificados. La del código de B6 comprueba los dos altos de la verificación acotada (T15).
+- [x] Validar contra los criterios de aceptación de `spec.md`: cada uno marcado `[x]` con la prueba que lo demuestra (la tabla «Trazabilidad de los criterios» del `plan.md`). Lo hace el orquestador.
+- [x] Compuertas de CI en verde y PR aprobado por un humano (H3), en cada PR.
+- [x] La persona publica `liv-components` 0.4.0 en npm, después de integrar 8f, y no se vuelve a abrir F9a hasta que esté publicada.
+- [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md` y actualizar `ESTADO.md` (el orquestador).
 
 ## Mantenimiento (checklist recurrente)
 
@@ -508,7 +508,7 @@ _Tareas de la enmienda 4, derivadas de «Enmienda 4» de `plan.md` (pasos 12 a 2
 
 Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto las presenta como reglas aprobadas. Los cambios de la spec («Cambios propuestos a los documentos funcionales») y lo que el plan fija en el paso 13. **No toca:** el Doc. 03, el Doc. 04, los YAML de `anexos/`, el glosario, los ADR, la spec, el plan ni la constitución (`spec/constitution/mission.md` y `roadmap.md` citan «Doc. 05 v0.1»; cambiarlos exige un ADR, así que se anota para el orquestador).
 
-- [ ] **T36** · ERD 2.4.
+- [x] **T36** · ERD 2.4.
   - **Proyecto:** raíz · **PR:** 4D
   - **Archivos:** `docs/funcional/ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md` (el encabezado y la descripción de `tax.fiscal_year`, más una nota).
   - **Depende de:** ninguna.
@@ -518,7 +518,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - la descripción de `tax.fiscal_year` dice que **V‑05 fija el límite inferior** y ya no dice que su rango técnico «no decide qué vigencias históricas se cargarán (pendiente 5)»;
     - la tabla, sus `CHECK` y sus años (1999 a 2100) **no cambian**, y el conteo sigue en 80 tablas;
     - una nota dice que el comentario de la migración `V202611131000` quedó desactualizado y que **no se edita** porque ya está aplicada (`AGENTS.md` §4.5).
-- [ ] **T37** · Doc. 01 v0.6.
+- [x] **T37** · Doc. 01 v0.6.
   - **Proyecto:** raíz · **PR:** 4D
   - **Archivos:** `docs/funcional/01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` (el encabezado, §5 con V‑02, V‑05 y el orden de evaluación, §11 y la entrada de la versión 0.6 en §13, con el registro de los cambios a otros documentos al estilo del Doc. 03 §7).
   - **Depende de:** T36 (la versión del ERD que cita).
@@ -530,7 +530,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - **§11:** el pendiente 5 queda resuelto para la creación y sigue abierto para la cartera (5.1); el pendiente nuevo es el **9** (hoy hay 8: se comprueba antes de numerarlo), «cómo se retira una vigencia que no se puede liquidar, sin borrarla» (E4‑7), y remite a la feature 1.5.1 junto con el cierre (pendiente 7);
     - `ALL_CREATED` **no** aparece como regla del Doc. 01: es el motivo de la API para 007-23;
     - §13: la entrada de la v0.6 con los cambios a los Docs. 02 y 05 y al ERD.
-- [ ] **T38** · Doc. 02 v0.4, Doc. 05 v0.2 y `AGENTS.md` §3.1.
+- [x] **T38** · Doc. 02 v0.4, Doc. 05 v0.2 y `AGENTS.md` §3.1.
   - **Proyecto:** raíz · **PR:** 4D
   - **Archivos:** `docs/funcional/02_Homologacion_y_Reglas_de_Liquidacion.md` (el encabezado y el pendiente 7 del §12), `docs/funcional/05_Cartera_Intereses_Sanciones_Prescripcion.md` (el encabezado y un pendiente nuevo en el §11) y `AGENTS.md` (solo §3.1: los dos números de versión).
   - **Depende de:** T36 y T37 (los números de versión y de pendiente).
@@ -548,7 +548,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 *Skill* `liv-pantalla`. Mitiga el riesgo 6 de la spec: con el *backend* nuevo, el diálogo no puede elegir por omisión un año pasado. Compatible con los contratos 1.0.0 y 1.1.0; **no cambia** la copia del contrato, la versión de la librería, los textos, el diseño, el orden en que se muestran los años ni la advertencia. Sin año marcado, el diálogo muestra vacíos el inicio y el fin: es un estado sin diseño, y solo dura la ventana de H2‑19. No es evidencia de 007-22: es una regla transitoria que T51 reemplaza.
 
-- [ ] **T39** · `pickYear`: nunca se marca un año `PAST`.
+- [x] **T39** · `pickYear`: nunca se marca un año `PAST`.
   - **Proyecto:** `frontend/` · **PR:** 4F0
   - **Archivos:** `frontend/src/app/features/fiscal-years/create-fiscal-year-dialog.ts`, `frontend/src/app/features/fiscal-years/create-fiscal-year-dialog.spec.ts` y `frontend/CHANGELOG.md` («Sin publicar»).
   - **Depende de:** la H2 de la enmienda (ya).
@@ -559,7 +559,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - con solo años `PAST`, ninguno: «Crear vigencia» queda inhabilitado y el foco inicial va al grupo, no a «Crear vigencia»;
     - con el orden de 1.0.0 (`CURRENT`, `NEXT`), `CURRENT`;
     - **V‑01 · 007-05:** al releer la lista después de un rechazo de V‑01, solo con `NEXT`, queda marcado `NEXT`.
-- [ ] **T40** · El foco al releer sin ningún año marcado.
+- [x] **T40** · El foco al releer sin ningún año marcado.
   - **Proyecto:** `frontend/` · **PR:** 4F0
   - **Archivos:** `frontend/src/app/features/fiscal-years/create-fiscal-year-dialog.ts` (`focusSelectionIfPending`), `create-fiscal-year-dialog.html` (solo si el foco al primer radio lo exige), `create-fiscal-year-dialog.spec.ts` y `frontend/CHANGELOG.md`.
   - **Depende de:** T39.
@@ -572,7 +572,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 *Skill* `liv-componente`. Crítico (`ui/**`). Diseño aprobado en Figma (paso 12): sección 81:490 y conjunto 81:629, diez variantes (`State`: `Default`, `Focus`, `Open`, `Disabled` y `Error`, por `Content`: `Filled` o `Placeholder`), con las propiedades `Label`, `Value`, `Placeholder`, `Help` y `Show help`. Alto de 44 px y radio de 8 px; la lista abierta la dibuja el sistema operativo (no se diseña ni se implementa). No hay *tokens* ni estilos nuevos, y `Icon` ya tiene `chevron-down`: no se modifica ningún componente existente.
 
-- [ ] **T47** · `Select`.
+- [x] **T47** · `Select`.
   - **Proyecto:** `ui/` · **PR:** 4U
   - **Archivos:** `ui/projects/liv-components/src/lib/select/` (el componente, su `.css`, su `.html`, su `.spec.ts` y su historia de Storybook enlazada al nodo 81:629) y `ui/projects/liv-components/src/public-api.ts` (la exportación).
   - **Depende de:** el diseño aprobado (ya).
@@ -586,7 +586,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - **dentro de un `Dialog` real** (0.4.0, sin cambios), una prueba sintética: el `<select>` es una parada más de la trampa de foco y, con `data-initial-focus`, recibe el primer foco; la prueba vive en `select.component.spec.ts` y **no** toca los archivos del `Dialog`;
     - estilos con Tailwind en el `.component.css`, solo con *tokens*, `appearance: none` y el icono `chevron-down`; sin atributo `style`, sin utilidades en la plantilla y sin `::ng-deep`.
     - El teclado del `<select>` lo da el navegador y jsdom no lo implementa: se prueba en `e2e/` (T56).
-- [ ] **T48** · Versión 0.5.0, `CHANGELOG.md` y `README.md`.
+- [x] **T48** · Versión 0.5.0, `CHANGELOG.md` y `README.md`.
   - **Proyecto:** `ui/` · **PR:** 4U
   - **Archivos:** `ui/projects/liv-components/package.json` (la versión, con `npm run version:minor`), `ui/package-lock.json` (si el comando lo cambia), `ui/CHANGELOG.md` (la sección `## [0.5.0] — <fecha>` con la entrada de `Select`; `RadioGroup` se queda en la librería) y `ui/README.md` (el párrafo de estado de las versiones y la mención del componente nuevo).
   - **Depende de:** T47.
@@ -598,7 +598,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 *Skill* `liv-endpoint`, paso 1. Con 4D integrado. Se integra solo con 4B2 aprobado sobre su rama: así la *release* no describe una regla que la revisión de 4B2 pudiera corregir.
 
-- [ ] **T41** · `tax.yaml` 1.1.0, compatible.
+- [x] **T41** · `tax.yaml` 1.1.0, compatible.
   - **Proyecto:** `backend/` · **PR:** 4B1
   - **Archivos:** `backend/contracts/openapi/tax.yaml`, `backend/src/test/java/co/com/sapenlinea/liv/contracts/OpenApiContractTest.java` y `backend/CHANGELOG.md` («Sin publicar»). No cambia `backend/pom.xml` ni `backend/README.md` (la tabla de contratos no lleva versión).
   - **Depende de:** 4D integrado (T37: los motivos vienen del Doc. 01 v0.6).
@@ -612,7 +612,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 *Skill* `liv-endpoint`. Sin migraciones, sin permisos nuevos, sin cambios en RLS, auditoría ni aislamiento. **Los `test:` de T42, T43 y T45 se escriben primero y en rojo** (el rojo puede ser de compilación, por los símbolos nuevos: `FIRST_CREATABLE_YEAR`, `ALL_CREATED`, `minYear`); el verde llega después. **T44 es distinta:** sus dos pruebas son de caracterización y nacen en verde, porque el bloqueo ya existe; van en su propio *commit* `test:` (con el mensaje que lo dice), después del rojo y antes del verde, y no cuentan como rojo. El `./mvnw verify` completo solo queda en verde al cerrar T46, porque las pruebas que la regla rompe van en el mismo PR. Cada prueba lleva el código del criterio en `@DisplayName` y en `@Tag`. Una sola sesión en `backend/`.
 
-- [ ] **T42** · La regla en el dominio y el límite 2002.
+- [x] **T42** · La regla en el dominio y el límite 2002.
   - **Proyecto:** `backend/` · **PR:** 4B2
   - **Archivos:** en `backend/src/main/java/co/com/sapenlinea/liv/tax/`: `domain/FiscalYearOpeningPolicy.java` (con la constante `FIRST_CREATABLE_YEAR = 2002` y su Javadoc), `domain/CreateBlocked.java`, `domain/YearRelation.java`, `domain/CreatableYear.java` (solo si hace falta) y `api/FiscalYearsController.java` (solo lo que pide la compilación y pasar `minYear` al `CreateBlocked` generado); en `backend/src/test/java/co/com/sapenlinea/liv/tax/domain/`: `FiscalYearOpeningPolicyTest.java`.
   - **Depende de:** T41 (la rama de 4B1: el modelo generado trae `minYear`).
@@ -625,13 +625,13 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - **V‑05 · 007-23:** con 2002 a 2027 creados, `creatableYears` queda vacío y `createBlocked` es `ALL_CREATED` con `minYear` 2002 y `maxYear` 2027; si falta un solo año, no hay `createBlocked`; si la tabla nacional no tiene algún año del rango (un fallo técnico), tampoco hay `createBlocked`;
     - **V‑05 · E4‑1 · «El primer año que se puede crear es 2002»:** 2002 se acepta y 2001 da `PAST_LIMIT` con `minYear` 2002; falla si alguien mueve la constante. El Javadoc de la constante dice cuatro cosas: la regla (V‑05, Doc. 01 v0.6), el motivo (un límite operativo que decidió el responsable funcional el 2026-11-16, no un valor tributario), la excepción explícita a `AGENTS.md` §4.5 que aprobó en la H1 y que cambiarlo exige una versión del Doc. 01.
   - **Verde:** `refusalOf` evalúa `V‑01`, luego `V‑05` `PAST_LIMIT` y luego `V‑05` `FUTURE_LIMIT`; `creatableYears()` recorre la tabla nacional de mayor a menor; `createBlocked()` da `ALL_CREATED` solo si la administración tiene todos los años del rango; `ALL_CREATED` reemplaza a `FUTURE_LIMIT` en el `enum` del dominio y `CreateBlocked` gana `minYear`; `PAST` es un año anterior al año en curso; su Javadoc cambia.
-- [ ] **T43** · Los casos de uso: la frontera del año.
+- [x] **T43** · Los casos de uso: la frontera del año.
   - **Proyecto:** `backend/` · **PR:** 4B2
   - **Archivos:** en `backend/src/main/java/co/com/sapenlinea/liv/tax/application/`: `CreateFiscalYear.java` y `ListFiscalYears.java` (solo su Javadoc: el de `CreateFiscalYear` justifica hoy el bloqueo con una medianoche que deja un hueco de V‑02 y cita «V-01, V-02 or V-05» en su `@throws`; debe decir que el bloqueo se queda por la carrera del mismo año, V‑01 (H2‑16), y citar solo V‑01 y V‑05); en `backend/src/test/java/co/com/sapenlinea/liv/tax/application/`: `CreateFiscalYearTest.java`, `ListFiscalYearsTest.java` y `FakeFiscalYears.java` (solo si guarda algo de la regla vieja).
   - **Depende de:** T42.
   - **Recursos:** ninguno compartido.
   - **Prueba primero** (rojo; **V‑05 · 007-07**, **V‑05 · 007-08** y **V‑02 · 007-06**): con `Clock.fixed(2027-01-01T04:30Z)` (el 31 de diciembre de 2026 a las 23:30 en Bogotá), 2027 es `NEXT`, 2028 da `FUTURE_LIMIT` con su `maxYear` y la lista va de 2027 a 2002; la lista nunca ofrece un año que la creación rechace; salen los casos de V‑02 y de `FIRST_YEAR`. Siguen igual y en verde: `canCreate` según `tax.fiscal-year.create` y lo que `CreateFiscalYearTest` comprueba del bloqueo (`lockForCreation`).
-- [ ] **T44** · El bloqueo se queda: dos pruebas de caracterización con el mismo año (H2‑16).
+- [x] **T44** · El bloqueo se queda: dos pruebas de caracterización con el mismo año (H2‑16).
   - **Proyecto:** `backend/` · **PR:** 4B2
   - **Archivos:** `backend/src/test/java/co/com/sapenlinea/liv/tax/infrastructure/persistence/JpaFiscalYearsRacesTest.java` y `FiscalYearsPersistenceTestBase.java` (solo si el publicador espía va ahí). No cambian `LivDatabase` (se usa su `awaitAnApplicationSessionWaitingOnALock`) ni el código de producción.
   - **Depende de:** T42.
@@ -641,13 +641,13 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - **el control sin el bloqueo** (`withLock` falso), una **prueba permanente**: mientras A está detenida, B no espera nada; la prueba espera a que B termine (`creationB.get`, con su tiempo límite): B lee la administración vacía, crea 2026 y confirma, y el espía registra su lectura; al soltar A, **A** intenta crear, recibe el `23505` y termina en `V‑01`; queda una sola fila y un solo `FiscalYearCreated`. Demuestra en el CI que la prueba con el bloqueo detecta su falta.
     - **Comprobación local, que no se sube:** se quita a mano la llamada al bloqueo en `CreateFiscalYear`, se ve fallar la prueba con el bloqueo y se vuelve a poner.
     - **No cambian:** `theLockIsOfTheAdministration`, `theRealUniqueBecomesV01` y las pruebas de la apertura.
-- [ ] **T45** · La API: rechazos, orden y `ALL_CREATED`.
+- [x] **T45** · La API: rechazos, orden y `ALL_CREATED`.
   - **Proyecto:** `backend/` · **PR:** 4B2
   - **Archivos:** en `backend/src/test/java/co/com/sapenlinea/liv/`: `tax/FiscalYearsApiTest.java`, `platform/ErrorResponsesTest.java` y `shared/RuleViolationTest.java`.
   - **Depende de:** T42 y T43.
   - **Recursos:** ninguno compartido.
   - **Prueba primero** (rojo; `FiscalYearsApiTest` usa el reloj real, así que **ningún año va fijo**: todos se calculan con `currentYear()`): **V‑01 · 007-04**, crear el año en curso y uno pasado los deja en *Planeada*, sin liquidación habilitada y con inicio el 1 de enero y fin el 31 de diciembre; **V‑05 · 007-07**, 2001 da 422 `V-05` `PAST_LIMIT` con `minYear` y `currentYear() + 2` da `FUTURE_LIMIT` con `maxYear`, con su estado, su código, su motivo y sus extensiones; **007-03**, el orden de `creatableYears` en el JSON; **V‑05 · 007-23**, una administración nueva con los años de 2002 a `currentYear() + 1`, que inserta el dueño de los objetos (`liv_app` no puede borrar y el contenedor se comparte), da `createBlocked` con `ALL_CREATED`, `minYear` y `maxYear`. `ErrorResponsesTest` y `RuleViolationTest` usan `GAP` como ejemplo y pasan a `PAST_LIMIT`, para no dejar de ejemplo un motivo que ya no existe (**es el corte previo** admitido si el PR pasa de ~400 líneas).
-- [ ] **T46** · La *skill* `liv-endpoint`, el registro y el cierre del PR.
+- [x] **T46** · La *skill* `liv-endpoint`, el registro y el cierre del PR.
   - **Proyecto:** `backend/` · **PR:** 4B2
   - **Archivos:** `backend/.claude/skills/liv-endpoint/SKILL.md` (la tabla del ejemplo hexagonal: `FiscalYearOpeningPolicy` aplica V‑01 y V‑05) y `backend/CHANGELOG.md` («Sin publicar»).
   - **Depende de:** T42 a T45.
@@ -660,19 +660,19 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 *Skill* `liv-pantalla`. **Requiere** el diseño aprobado, 4F0 integrado, `liv-components` 0.5.0 publicada en npm y 007-22 como quedó en H2‑18. Se desarrolla en paralelo con 4B1 y 4B2, con el servicio simulado en sus pruebas; **adopta la *release* `contract-tax-v1.1.0` al final (T54)**, cuando sale al integrar 4B1, y entonces se aprueba. Se integra **justo después de 4B2** y nunca antes (H2‑19). El *frontend* no calcula años: la lista, su orden, su relación con el año en curso, el rango del estado vacío y el motivo del bloqueo salen del servidor.
 
-- [ ] **T49** · `liv-components` 0.5.0.
+- [x] **T49** · `liv-components` 0.5.0.
   - **Proyecto:** `frontend/` · **PR:** 4F
   - **Archivos:** `frontend/package.json` y `frontend/package-lock.json` (`liv-components` `0.5.0`, exacta) y `frontend/CHANGELOG.md` («Sin publicar»).
   - **Depende de:** 4F0 integrado y **0.5.0 publicada en npm** por la persona.
   - **Recursos:** `package.json` y `package-lock.json` (solo 4F).
   - **Prueba primero:** `npm test` completo con 0.5.0, y el PR cita la prueba propia del aviso de sesión (`features/shell/session-warning-dialog.spec.ts`), que sigue en verde: el `Dialog` no cambió.
-- [ ] **T50** · Los mensajes de rechazo.
+- [x] **T50** · Los mensajes de rechazo.
   - **Proyecto:** `frontend/` · **PR:** 4F
   - **Archivos:** `frontend/src/app/features/fiscal-years/fiscal-year-rejections.ts` y `fiscal-year-rejections.spec.ts`; `frontend/CHANGELOG.md`.
   - **Depende de:** T49.
   - **Recursos:** `features/fiscal-years/`.
   - **Prueba primero** (rojo; **V‑05 · 007-07**): el mensaje de `V‑05` `PAST_LIMIT` cita `minYear`; `FUTURE_LIMIT` cita `maxYear`; se quedan `V‑01` y `V‑06`; `GAP`, `HISTORICAL` y `FIRST_YEAR` dan el mensaje general. Textos del frame 67:3284. Mientras la *release* no exista, las pruebas pasan `minYear` con un tipo local de la prueba, que T54 elimina cuando el modelo generado lo trae.
-- [ ] **T51** · El diálogo con el `Select`.
+- [x] **T51** · El diálogo con el `Select`.
   - **Proyecto:** `frontend/` · **PR:** 4F
   - **Archivos:** `frontend/src/app/features/fiscal-years/create-fiscal-year-dialog.ts`, `.html`, `.css` y `.spec.ts`; `frontend/CHANGELOG.md`.
   - **Depende de:** T49 y T50.
@@ -685,19 +685,19 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - el foco inicial en el `Select` (`data-initial-focus`), nunca en «Crear vigencia», y Enter al abrir no crea nada;
     - la advertencia nueva de 67:3040 y, solo con un año `PAST` elegido (lo decide `relation`, no un cálculo de fechas), la de 82:5802, «Es un año pasado», que **reemplaza** a la general;
     - axe con el diálogo abierto, con un año elegido y sin él, y con un rechazo; el resto del comportamiento (envío, rechazos, 403 a «Sin permiso», alerta nueva en cada intento) no cambia.
-- [ ] **T52** · La lista de vigencias: el estado vacío y el botón inhabilitado.
+- [x] **T52** · La lista de vigencias: el estado vacío y el botón inhabilitado.
   - **Proyecto:** `frontend/` · **PR:** 4F
   - **Archivos:** `frontend/src/app/features/fiscal-years/fiscal-years.ts`, `.html` y `fiscal-years.spec.ts`; `frontend/CHANGELOG.md`.
   - **Depende de:** T51.
   - **Recursos:** `features/fiscal-years/`.
   - **Prueba primero** (rojo, `fiscal-years.spec.ts`): **007-03**, el estado vacío del administrador dice el rango («de 2002 a 2027») con los años **del último elemento al primero** de `creatableYears` (en una administración sin vigencias es el rango completo, del más reciente al más antiguo); se quita `describeCreatableYear`; **V‑05 · 007-23**, con `ALL_CREATED` y con `minYear` y `maxYear` enteros, el botón inhabilitado con el motivo del diseño («Ya existen todas las vigencias que se pueden crear: de 2002 a 2027.»), y con otro motivo (por ejemplo, un valor desconocido), el texto general; sale la rama de `FUTURE_LIMIT`. La lista de vigencias no cambia: va completa, sin paginación, aunque tenga 26 filas o más. Diseño: 66:2793 y 66:2513.
-- [ ] **T53** · Las pruebas de accesibilidad.
+- [x] **T53** · Las pruebas de accesibilidad.
   - **Proyecto:** `frontend/` · **PR:** 4F
   - **Archivos:** `frontend/src/app/features/accessibility.spec.ts` y `frontend/CHANGELOG.md`.
   - **Depende de:** T51 y T52.
   - **Recursos:** `accessibility.spec.ts`.
   - **Prueba primero** (rojo; **007-21**): las pruebas de axe de la 1.4 hoy buscan el `fieldset` del grupo de radios dentro del diálogo y usan `createBlocked` con `FUTURE_LIMIT`; pasan al `Select` y a `ALL_CREATED`, y se agregan el diálogo con un año elegido, sin él y con un año pasado elegido.
-- [ ] **T54** · El contrato 1.1.0 adoptado y la validación en local.
+- [x] **T54** · El contrato 1.1.0 adoptado y la validación en local.
   - **Proyecto:** `frontend/` · **PR:** 4F
   - **Archivos:** `frontend/api-spec/versions.json` (`tax` 1.1.0 y su `sha256`) y `frontend/api-spec/tax.yaml` (la copia fijada), el cliente generado en `frontend/src/app/api/tax/` (`creation-rejection-extensions.ts`, `fiscal-year-list.ts`, `create-blocked.ts` y `creatable-year.ts`, por `npm run api:update`), los *specs* que usaban el tipo local de T50, `fiscal-years.service.spec.ts` (su dato de prueba usa `createBlocked` con `FUTURE_LIMIT`, que ya no se emite: pasa a `ALL_CREATED` con `minYear`) y `frontend/CHANGELOG.md`.
   - **Depende de:** T49 a T53 y la *release* `contract-tax-v1.1.0` (sale al integrar 4B1, con 4B2 aprobado); para su validación, también de T55 y T56 (las pruebas de 4E, que viven en otra rama, se aplican en el entorno sin integrarse). Si 4F se corta, T54 se divide como dice «Tamaño».
@@ -710,13 +710,13 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 *Skill* `liv-prueba-e2e`. Se escriben en rojo mientras se implementa 4F y se integran **justo después de 4F**, en verde contra el entorno local, con `backend/dev/limpiar-vigencias.sh` ejecutado por la persona antes de cada corrida (H2‑9; `e2e/` no lo llama). **Cómo se eligen los años:** por `relation` y por su posición en la lista del servidor, nunca por el calendario de la prueba, y **una sola vez**, de la lista de la administración vacía, sin volver a leerla: `actual` es el año `CURRENT`; `siguiente`, el `NEXT`; `minimo`, el último de `creatableYears` (2002); e `intermedio`, un año `PAST` del medio de la lista, para dejar huecos. Se quita la etiqueta de `PAST` de `DESCRIPCION_DE_RELACION`. **El rojo de T55 a T57** se comprueba corriendo la prueba de navegador contra el *backend* de la rama de 4B2 aplicada (entorno exclusivo, de una sesión a la vez); mientras esa rama no exista, la sesión escribe las pruebas y comprueba por lectura y con `npm run lint` que compilan, y el primer rojo real lo ve cuando 4B2 está listo.
 
-- [ ] **T55** · Los años por `relation` y las pruebas que no cambian de significado.
+- [x] **T55** · Los años por `relation` y las pruebas que no cambian de significado.
   - **Proyecto:** `e2e/` · **PR:** 4E
   - **Archivos:** `e2e/support/vigencias.ts` (la toma de los cuatro años de la lista de la administración vacía; su tipo `ListaDeVigencias` ya trae `relation`), `e2e/pruebas/vigencias.spec.ts` y `e2e/README.md` (la tabla «Qué prueban» y la línea de los rechazos: V‑05 (007-07) se prueba por la API y V‑02 ya no rechaza).
   - **Depende de:** ninguna (la ejecución, de 4B2 aplicado); las pruebas de la 1.4 de `main` son la base.
   - **Recursos:** entorno local; `vigencias.spec.ts` y sus capturas (solo 4E).
   - **Prueba primero** (rojo con el *backend* nuevo, ejecutando antes de tocar): **007-09 a 007-12** usan `actual` (007-09 compara las vigencias con las de la API, no con un número fijo); la **administración B** (**CA‑12 · 007-18 y 007-19**) usa `anioDeB`, el `CURRENT`, y `anioSiguiente`, el `NEXT`; **V‑01 · 007-05**, después del V‑01 la lista se relee y **no hay ningún año elegido**: se ve «Elige un año», «Crear vigencia» está inhabilitado, `anioDeB` ya no está entre las opciones y el foco está en el `Select` (el nombre de la prueba cambia).
-- [ ] **T56** · El diálogo, el teclado y los rechazos.
+- [x] **T56** · El diálogo, el teclado y los rechazos.
   - **Proyecto:** `e2e/` · **PR:** 4E
   - **Archivos:** `e2e/pruebas/vigencias.spec.ts`, `e2e/pruebas/vigencias.spec.ts-snapshots/` (`vigencias-vacia`, `vigencias-crear` y `vigencias-lista`, vueltas a aprobar) y `e2e/support/vigencias.ts` (solo lo que falte).
   - **Depende de:** T55.
@@ -728,7 +728,7 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
     - **V‑01 · 007-04:** crear `actual` la deja *Planeada*; con `minimo` elegido, aparece la advertencia de un año pasado;
     - **V‑02 · 007-06:** crear `siguiente`, `minimo` e `intermedio`, en ese orden, sin ningún rechazo de V‑02; la lista los muestra del más reciente al más antiguo (la captura `vigencias-lista` pasa a la lista de Ipiales con esas cuatro vigencias);
     - **V‑05 · 007-07, por la API, solo HTTP y sin crear nada:** crear `minimo − 1` da 422 `V-05` `PAST_LIMIT` con `minYear` igual a `minimo`, y `siguiente + 1` da `FUTURE_LIMIT` con `maxYear` igual a `siguiente`.
-- [ ] **T57** · 007-23 al final de la serie de B, y la corrida.
+- [x] **T57** · 007-23 al final de la serie de B, y la corrida.
   - **Proyecto:** `e2e/` · **PR:** 4E
   - **Archivos:** `e2e/pruebas/vigencias.spec.ts`, `e2e/pruebas/vigencias.spec.ts-snapshots/` (`vigencias-sin-anios`, nueva) y `e2e/README.md`.
   - **Depende de:** T56.
@@ -739,16 +739,16 @@ Propuestas pendientes de revisión jurídica (`AGENTS.md` §8); ningún texto la
 
 ### Cierre de la enmienda 4 (orquestador)
 
-Lo hace el orquestador sobre la rama `docs/007-cierre`, sin integrarla antes.
+Lo hizo el orquestador en el PR de cierre (2026-11-16), sobre `main` con los siete PR integrados. La validación de 4F fue la prueba de la persona en el entorno local con 4B2 y 4F aplicados, y las capturas las aprobó al integrar #211.
 
-- [ ] Los siete PR están integrados en el orden de arriba (4D, 4F0 y 4U; 4B1; y, seguidos y el mismo día, 4B2, 4F y 4E), con el CI en verde y la H3 de cada uno.
-- [ ] La persona publicó `liv-components` 0.5.0 en npm y `contract-tax-v1.1.0` está publicada; `frontend/api-spec/versions.json` y `package.json` las adoptan (`api:verify` en verde).
-- [ ] La revisión adversarial y las cuatro lentes de 4B1, 4B2 y 4U, y la adversarial de 4D (coherencia), 4F0, 4F y 4E, tienen sus hallazgos resueltos o justificados, con el resumen en cada PR.
-- [ ] La validación en local (ADR 0030) está citada en los PR de 4F0, 4F y 4E: `npm test` de `e2e/` en verde con 4B2, 4F y 4E aplicados, las pantallas comparadas con Figma y las cuatro capturas aprobadas por la persona.
-- [ ] En `spec.md`: vuelven a `[ ]` los criterios que cambian (007-03, 007-04, 007-06, 007-07, 007-08 y 007-21), se agregan 007-22 y 007-23, y se marcan `[x]` con las pruebas de los pasos 14 a 20 (la tabla «Trazabilidad de los criterios (E4)» del plan); 007-05, 007-09 a 007-12, 007-18 y 007-19 se vuelven a marcar con las pruebas nuevas (las de navegador y la del bloqueo); 007-01, 007-02 y 007-20 no cambian.
-- [ ] «Ajustes de la H3» de la rama de cierre: el bloqueo de creación se queda (H2‑16), con las dos pruebas de caracterización de T44.
-- [ ] `ESTADO.md` (tablero, bitácora y el *roadmap*) al día, con la referencia desactualizada de la constitución («Doc. 05 v0.1» en `mission.md` y `roadmap.md`), que cambiarla exige un ADR y decide la persona. Los términos nuevos del glosario, si los hay, los escribe el orquestador.
-- [ ] Las marcas `[x]` de T36 a T57 y las «Revisada por la enmienda 4» de T1 a T35 se concilian con las de la rama de cierre; las marcas de T1 a T35 no se quitan.
+- [x] Los siete PR están integrados en el orden de arriba (4D, 4F0 y 4U; 4B1; y, seguidos y el mismo día, 4B2, 4F y 4E), con el CI en verde y la H3 de cada uno.
+- [x] La persona publicó `liv-components` 0.5.0 en npm y `contract-tax-v1.1.0` está publicada; `frontend/api-spec/versions.json` y `package.json` las adoptan (`api:verify` en verde).
+- [x] La revisión adversarial y las cuatro lentes de 4B1, 4B2 y 4U, y la adversarial de 4D (coherencia), 4F0, 4F y 4E, tienen sus hallazgos resueltos o justificados, con el resumen en cada PR.
+- [x] La validación en local (ADR 0030) está citada en los PR de 4F0, 4F y 4E: `npm test` de `e2e/` en verde con 4B2, 4F y 4E aplicados, las pantallas comparadas con Figma y las cuatro capturas aprobadas por la persona.
+- [x] En `spec.md`: vuelven a `[ ]` los criterios que cambian (007-03, 007-04, 007-06, 007-07, 007-08 y 007-21), se agregan 007-22 y 007-23, y se marcan `[x]` con las pruebas de los pasos 14 a 20 (la tabla «Trazabilidad de los criterios (E4)» del plan); 007-05, 007-09 a 007-12, 007-18 y 007-19 se vuelven a marcar con las pruebas nuevas (las de navegador y la del bloqueo); 007-01, 007-02 y 007-20 no cambian.
+- [x] «Ajustes de la H3» de la rama de cierre: el bloqueo de creación se queda (H2‑16), con las dos pruebas de caracterización de T44.
+- [x] `ESTADO.md` (tablero, bitácora y el *roadmap*) al día, con la referencia desactualizada de la constitución («Doc. 05 v0.1» en `mission.md` y `roadmap.md`), que cambiarla exige un ADR y decide la persona. Los términos nuevos del glosario, si los hay, los escribe el orquestador.
+- [x] Las marcas `[x]` de T36 a T57 y las «Revisada por la enmienda 4» de T1 a T35 se concilian con las de la rama de cierre; las marcas de T1 a T35 no se quitan.
 
 ### Mantenimiento (enmienda 4)
 
