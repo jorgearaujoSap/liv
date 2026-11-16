@@ -30,10 +30,18 @@ const option = (year: number, relation: string): CreatableYear => ({
   relation,
 });
 
+/** Lo que manda el contrato 1.1.0 en 2026: del año más reciente al más antiguo. */
+const FROM_2027_TO_2024 = [
+  option(2027, 'NEXT'),
+  option(2026, 'CURRENT'),
+  option(2025, 'PAST'),
+  option(2024, 'PAST'),
+];
+
 const CREATED: FiscalYear = {
-  year: 2027,
-  startsOn: '2027-01-01',
-  endsOn: '2027-12-31',
+  year: 2026,
+  startsOn: '2026-01-01',
+  endsOn: '2026-12-31',
   status: 'PLANEADA',
   assessmentsEnabled: false,
 };
@@ -41,14 +49,16 @@ const CREATED: FiscalYear = {
 const rejected = (status: number, body: Record<string, unknown> | null) =>
   new HttpErrorResponse({ status, error: body });
 
-// 007-04 a 007-08 y 007-21: el diálogo de creación. Diseño: Figma LIV-Diseño, 67:3040 (el diálogo), 67:3163
-// (con un rechazo), 67:3284 (los mensajes) y 75:4479 (la etiqueta de un año pasado).
-describe('Crear vigencia (007-04 a 007-08)', () => {
+const v01 = (year: number) => rejected(409, { status: 409, code: 'V-01', year });
+
+// 007-04 a 007-08, 007-21 y 007-22: el diálogo de creación con su lista desplegable. Diseño: Figma LIV-Diseño,
+// 67:3040 (el diálogo), 82:5802 (un año pasado), 67:3163 (con un rechazo) y 67:3284 (los mensajes).
+describe('Crear vigencia (007-04 a 007-08, 007-22)', () => {
   let service: { create: ReturnType<typeof vi.fn> };
   let fixture: ComponentFixture<CreateFiscalYearDialog>;
   let host: HTMLElement;
 
-  const render = (years: CreatableYear[] = [option(2027, 'NEXT')]) => {
+  const render = (years: CreatableYear[] = [option(2027, 'NEXT'), option(2026, 'CURRENT')]) => {
     fixture = TestBed.createComponent(CreateFiscalYearDialog);
     fixture.componentRef.setInput('years', years);
     fixture.detectChanges();
@@ -58,8 +68,17 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   };
-  const radios = () => Array.from(host.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
-  const checked = () => radios().find((radio) => radio.checked);
+  const select = () => host.querySelector<HTMLSelectElement>('liv-select select');
+  /** El año elegido, o `undefined` si la lista muestra «Elige un año». */
+  const chosen = () => select()?.value || undefined;
+  const optionLabels = () =>
+    Array.from(select()?.options ?? []).map((candidate) => text(candidate));
+  const choose = async (year: number) => {
+    const control = select() as HTMLSelectElement;
+    control.value = String(year);
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+  };
   const button = (label: string) =>
     Array.from(host.querySelectorAll('button')).find((candidate) =>
       text(candidate).endsWith(label),
@@ -69,6 +88,15 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     await settle();
   };
   const alerts = () => Array.from(host.querySelectorAll('liv-alert[role="alert"]'));
+  const warnings = () => Array.from(host.querySelectorAll('liv-alert[status="warning"]'));
+  /** Lo que hace la pantalla tras un rechazo que pide releer: inhabilita el diálogo, lee y lo habilita. */
+  const reread = async (years: CreatableYear[]) => {
+    fixture.componentRef.setInput('refreshing', true);
+    await settle();
+    fixture.componentRef.setInput('years', years);
+    fixture.componentRef.setInput('refreshing', false);
+    await settle();
+  };
   const pressEscape = () => {
     (host.querySelector('[role="dialog"]') ?? document.body).dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
@@ -83,7 +111,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     });
   });
 
-  describe('lo que dice el diálogo', () => {
+  describe('lo que dice el diálogo (007-04, 007-22)', () => {
     it('es un diálogo con título, descripción y las dos acciones', () => {
       render();
 
@@ -99,241 +127,416 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       expect(button('Crear vigencia')).toBeDefined();
     });
 
-    it('las opciones salen de los años que manda el backend, con su etiqueta (007-04)', () => {
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
+    it('el año se elige en una lista desplegable con la etiqueta «Año de la vigencia», sin radios', () => {
+      render();
 
-      expect(text(host.querySelector('fieldset legend'))).toBe('Año de la vigencia');
-      const labels = Array.from(host.querySelectorAll('liv-radio-option')).map((item) =>
-        text(item),
-      );
-      expect(labels).toEqual(['2026 Año en curso', '2027 Año siguiente al año en curso']);
+      expect(host.querySelectorAll('liv-select')).toHaveLength(1);
+      expect(text(host.querySelector('liv-select label'))).toBe('Año de la vigencia');
+      expect(host.querySelector('input[type="radio"], fieldset')).toBeNull();
     });
 
-    it('la etiqueta de un año pasado dice que es anterior al año en curso (75:4479)', () => {
+    it('ofrece los años en el orden del servidor, con «Elige un año» primero y la etiqueta de cada uno', () => {
+      render(FROM_2027_TO_2024);
+
+      expect(optionLabels()).toEqual([
+        'Elige un año',
+        '2027 · Año siguiente al año en curso',
+        '2026 · Año en curso',
+        '2025',
+        '2024',
+      ]);
+    });
+
+    it('«Elige un año» no se puede elegir', () => {
+      render();
+
+      const placeholder = select()?.options[0] as HTMLOptionElement;
+      expect(placeholder.value).toBe('');
+      expect(placeholder.disabled).toBe(true);
+    });
+
+    it('un año pasado solo muestra su número: no hay etiqueta de «año anterior al año en curso» (E4-4)', () => {
       render([option(2026, 'PAST')]);
 
-      expect(text(host.querySelector('liv-radio-option'))).toBe(
-        '2026 Año anterior al año en curso',
-      );
+      expect(optionLabels()).toEqual(['Elige un año', '2026']);
     });
 
-    it('un año con una relación que no conoce se muestra sin etiqueta', () => {
-      render([option(2026, 'OTRA')]);
+    it('una relación que no conoce, o que coincide con una propiedad de Object, se muestra sin etiqueta', () => {
+      render([option(2026, 'OTRA'), option(2025, 'constructor')]);
 
-      expect(text(host.querySelector('liv-radio-option'))).toBe('2026');
+      expect(optionLabels()).toEqual(['Elige un año', '2026', '2025']);
     });
 
-    it('marca el primer año y muestra sus fechas, y las cambia al elegir otro', async () => {
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
+    it('con 26 años ofrece los 26, sin cortar la lista', () => {
+      const years = [option(2027, 'NEXT'), option(2026, 'CURRENT')];
+      for (let year = 2025; year >= 2002; year--) {
+        years.push(option(year, 'PAST'));
+      }
+      render(years);
 
-      expect(checked()?.value).toBe('2026');
+      expect(optionLabels()).toHaveLength(27);
+      expect(optionLabels().at(-1)).toBe('2002');
+    });
+
+    it('muestra el inicio y el fin del año elegido, y los cambia al elegir otro', async () => {
+      render(FROM_2027_TO_2024);
+
       expect(text(host)).toContain('Inicio 1 de enero de 2026');
       expect(text(host)).toContain('Fin 31 de diciembre de 2026');
 
-      radios()[1].click();
-      await settle();
+      await choose(2027);
 
-      expect(checked()?.value).toBe('2027');
       expect(text(host)).toContain('Inicio 1 de enero de 2027');
       expect(text(host)).toContain('Fin 31 de diciembre de 2027');
     });
 
-    it('advierte que una vigencia no se puede borrar y que los años anteriores quedan históricos (007-04)', () => {
+    it('advierte que una vigencia no se puede borrar, sin hablar de años históricos (67:3040)', () => {
       render();
 
-      expect(text(host)).toContain('Una vigencia no se puede borrar');
-      expect(text(host)).toContain(
-        'Una vez creada, los años anteriores a la más antigua quedan como históricos y no se podrán crear. Revisa el año antes de continuar.',
+      expect(warnings()).toHaveLength(1);
+      expect(text(warnings()[0])).toBe(
+        'Una vigencia no se puede borrar Revisa el año antes de continuar.',
+      );
+      expect(text(host)).not.toContain('históricos');
+    });
+
+    it('con un año pasado elegido, una sola advertencia, «Es un año pasado», que reemplaza a la general (82:5802)', async () => {
+      render(FROM_2027_TO_2024);
+
+      await choose(2025);
+
+      expect(warnings()).toHaveLength(1);
+      expect(text(warnings()[0])).toBe(
+        'Es un año pasado Una vigencia no se puede borrar. Revisa el año antes de continuar. Solo se podrá liquidar cuando estén cargadas las tablas de ese año.',
+      );
+      expect(warnings()[0].querySelectorAll('p:not(.alert__title)')).toHaveLength(2);
+    });
+
+    it('vuelve a la advertencia general al elegir de nuevo un año que no es pasado', async () => {
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      await choose(2027);
+
+      expect(warnings()).toHaveLength(1);
+      expect(text(warnings()[0])).toBe(
+        'Una vigencia no se puede borrar Revisa el año antes de continuar.',
       );
     });
 
-    it('el grupo de años siempre tiene una opción marcada mientras está abierto', async () => {
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
-      expect(checked()).toBeDefined();
+    it('«año pasado» lo dice la relación que manda el servidor, no un cálculo de fechas', async () => {
+      render([option(2026, 'OTRA'), option(1999, 'NEXT')]);
 
-      fixture.componentRef.setInput('years', [option(2028, 'NEXT')]);
-      await settle();
+      await choose(1999);
 
-      expect(checked()?.value).toBe('2028');
-    });
-
-    it('si el año marcado sigue disponible, se queda marcado cuando cambia la lista', async () => {
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
-      radios()[1].click();
-      await settle();
-
-      fixture.componentRef.setInput('years', [option(2026, 'CURRENT'), option(2027, 'NEXT')]);
-      await settle();
-
-      expect(checked()?.value).toBe('2027');
+      expect(text(warnings()[0])).toBe(
+        'Una vigencia no se puede borrar Revisa el año antes de continuar.',
+      );
     });
   });
 
-  // Riesgo 6 de la spec: con el contrato 1.1.0 la lista llega del año más reciente al más antiguo y el diálogo
-  // nunca debe marcar por omisión un año `PAST`.
-  describe('el año marcado nunca es un año pasado (riesgo 6)', () => {
-    it('con el orden del contrato 1.1.0 (siguiente, en curso, pasados) queda marcado el año en curso', () => {
-      render([
-        option(2027, 'NEXT'),
-        option(2026, 'CURRENT'),
-        option(2025, 'PAST'),
-        option(2024, 'PAST'),
-      ]);
+  // 007-22 y riesgo 6 de la spec: ningún año pasado viene elegido, y solo el año en curso.
+  describe('el año elegido al abrir (007-22, E4-3)', () => {
+    it('si el año en curso se puede crear, viene elegido, y con él sus fechas', () => {
+      render(FROM_2027_TO_2024);
 
-      expect(checked()?.value).toBe('2026');
+      expect(chosen()).toBe('2026');
       expect(text(host)).toContain('Inicio 1 de enero de 2026');
+      expect(button('Crear vigencia')?.disabled).toBe(false);
     });
 
-    it('con el orden del contrato 1.0.0 (en curso, siguiente) queda marcado el año en curso', () => {
+    it('no depende del orden de la lista: el orden del contrato 1.0.0 (en curso, siguiente) da lo mismo', () => {
       render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
 
-      expect(checked()?.value).toBe('2026');
+      expect(chosen()).toBe('2026');
     });
 
-    it('sin año en curso, con el siguiente y años pasados, queda marcado el siguiente', () => {
+    it('sin año en curso, ninguno viene elegido, aunque haya el siguiente', () => {
       render([option(2027, 'NEXT'), option(2025, 'PAST'), option(2024, 'PAST')]);
 
-      expect(checked()?.value).toBe('2027');
+      expect(chosen()).toBeUndefined();
+      expect(text(select()?.selectedOptions[0])).toBe('Elige un año');
     });
 
-    it('no marca un año pasado por estar primero en la lista', () => {
-      render([option(2025, 'PAST'), option(2027, 'NEXT')]);
-
-      expect(checked()?.value).toBe('2027');
-    });
-
-    it('con solo años pasados no marca ninguno: «Crear vigencia» queda inhabilitado y no se muestran fechas', () => {
+    it('con solo años pasados, ninguno viene elegido, ni siquiera el primero de la lista', () => {
       render([option(2025, 'PAST'), option(2024, 'PAST')]);
 
-      expect(checked()).toBeUndefined();
+      expect(chosen()).toBeUndefined();
+    });
+
+    it('una relación que no conoce no se elige por omisión', () => {
+      render([option(2026, 'OTRA'), option(2027, 'NEXT')]);
+
+      expect(chosen()).toBeUndefined();
+    });
+
+    it('sin año elegido, «Crear vigencia» está inhabilitado, no hay fechas y enviar no pide nada', async () => {
+      render([option(2027, 'NEXT'), option(2025, 'PAST')]);
+
       expect(button('Crear vigencia')?.disabled).toBe(true);
-      expect(text(host)).not.toContain('Inicio 1 de enero');
-      expect(text(host)).not.toContain('Fin 31 de diciembre');
-    });
+      expect(text(host)).not.toContain('Inicio');
+      expect(text(host)).not.toContain('Fin 31');
+      const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
 
-    // El foco inicial lo pone `liv-dialog` (la primera parada de Tab): esta prueba protege que siga siendo el grupo.
-    it('con solo años pasados, el foco inicial va al grupo y no a «Crear vigencia»', () => {
-      render([option(2025, 'PAST'), option(2024, 'PAST')]);
-
-      expect(document.activeElement).toBe(radios()[0]);
-      expect(document.activeElement).not.toBe(button('Crear vigencia'));
-    });
-
-    it('con solo años pasados, enviar no pide nada', async () => {
-      render([option(2025, 'PAST')]);
-
-      await submit();
+      await dialog.submit();
 
       expect(service.create).not.toHaveBeenCalled();
     });
 
-    it('una relación que no conoce no se marca por omisión', () => {
-      render([option(2026, 'OTRA'), option(2027, 'NEXT')]);
+    it('sin ningún año que ofrecer, solo queda «Elige un año» y «Crear vigencia» está inhabilitado', () => {
+      render([]);
 
-      expect(checked()?.value).toBe('2027');
+      expect(optionLabels()).toEqual(['Elige un año']);
+      expect(button('Crear vigencia')?.disabled).toBe(true);
     });
 
-    it('si la persona marcó un año pasado y sigue disponible, se queda marcado', async () => {
-      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
-      radios()[1].click();
-      await settle();
+    it('el foco inicial va a la lista, nunca a «Crear vigencia», con año elegido y sin él', () => {
+      render(FROM_2027_TO_2024);
+      expect(document.activeElement).toBe(select());
+      expect(document.activeElement).not.toBe(button('Crear vigencia'));
+      fixture.destroy();
 
-      fixture.componentRef.setInput('years', [option(2026, 'CURRENT'), option(2025, 'PAST')]);
-      await settle();
-
-      expect(checked()?.value).toBe('2025');
+      render([option(2027, 'NEXT')]);
+      expect(document.activeElement).toBe(select());
     });
 
-    it('si el año marcado ya no está, pasa al año en curso y no a un año pasado', async () => {
-      render([option(2027, 'NEXT'), option(2026, 'CURRENT'), option(2025, 'PAST')]);
-      radios()
-        .find((radio) => radio.value === '2025')
-        ?.click();
+    it('Enter al abrir no crea nada', async () => {
+      render(FROM_2027_TO_2024);
+
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+      );
       await settle();
-      expect(checked()?.value).toBe('2025');
+
+      expect(service.create).not.toHaveBeenCalled();
+    });
+
+    it('si la persona eligió un año y la lista cambia sin un rechazo, se queda elegido mientras siga disponible', async () => {
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      fixture.componentRef.setInput('years', [...FROM_2027_TO_2024]);
+      await settle();
+
+      expect(chosen()).toBe('2025');
+    });
+
+    it('si ese año ya no está, vuelve a la regla de apertura: el año en curso, o ninguno', async () => {
+      render(FROM_2027_TO_2024);
+      await choose(2025);
 
       fixture.componentRef.setInput('years', [
         option(2027, 'NEXT'),
-        option(2024, 'PAST'),
         option(2026, 'CURRENT'),
+        option(2024, 'PAST'),
       ]);
       await settle();
+      expect(chosen()).toBe('2026');
 
-      expect(checked()?.value).toBe('2026');
-    });
-
-    it('si el año marcado ya no está y solo quedan el siguiente y años pasados, pasa al siguiente', async () => {
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
-
-      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2027, 'NEXT')]);
+      await choose(2024);
+      fixture.componentRef.setInput('years', [option(2027, 'NEXT'), option(2025, 'PAST')]);
       await settle();
-
-      expect(checked()?.value).toBe('2027');
-    });
-
-    it('si el año marcado ya no está y solo quedan años pasados, no queda ninguno marcado', async () => {
-      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
-
-      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2024, 'PAST')]);
-      await settle();
-
-      expect(checked()).toBeUndefined();
-      expect(button('Crear vigencia')?.disabled).toBe(true);
-    });
-
-    it('V-01 · 007-05: al releer la lista, solo con el siguiente, queda marcado el siguiente', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT'), option(2025, 'PAST')]);
-
-      await submit();
-      fixture.componentRef.setInput('years', [option(2027, 'NEXT')]);
-      await settle();
-
-      expect(checked()?.value).toBe('2027');
-      expect(document.activeElement).toBe(checked());
-    });
-
-    it('V-01 · 007-05: al releer la lista, con el siguiente y años pasados, queda marcado el siguiente', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
-
-      await submit();
-      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2027, 'NEXT')]);
-      await settle();
-
-      expect(checked()?.value).toBe('2027');
+      expect(chosen()).toBeUndefined();
     });
   });
 
-  describe('el foco al releer sin ningún año marcado (riesgo 6 y V-01 · 007-05)', () => {
-    it('el foco va al primer radio del grupo y no se queda en «Crear vigencia»', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2026 }));
-      render([option(2026, 'CURRENT'), option(2025, 'PAST')]);
+  describe('después de un V-01 (007-05, 67:3163)', () => {
+    it('al releer la lista sin el año en curso, no queda ningún año elegido: «Elige un año» y «Crear vigencia» inhabilitado', async () => {
+      service.create.mockRejectedValue(v01(2026));
+      render(FROM_2027_TO_2024);
 
       await submit();
-      // Tras el rechazo, el foco queda en «Crear vigencia»: es de donde la relectura lo tiene que sacar.
+      await reread([option(2027, 'NEXT'), option(2025, 'PAST'), option(2024, 'PAST')]);
+
+      expect(chosen()).toBeUndefined();
+      expect(button('Crear vigencia')?.disabled).toBe(true);
+      expect(text(host)).not.toContain('Inicio');
+      expect(alerts()).toHaveLength(1);
+    });
+
+    it('la regla es la de abrir: aunque se haya elegido un año pasado que sigue disponible, queda el año en curso', async () => {
+      service.create.mockRejectedValue(v01(2025));
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      await submit();
+      await reread([option(2027, 'NEXT'), option(2026, 'CURRENT'), option(2025, 'PAST')]);
+
+      expect(chosen()).toBe('2026');
+    });
+
+    it('si el año en curso sigue disponible tras un V-01 de otro año, queda el año en curso', async () => {
+      service.create.mockRejectedValue(v01(2027));
+      render(FROM_2027_TO_2024);
+      await choose(2027);
+
+      await submit();
+      await reread([option(2026, 'CURRENT'), option(2025, 'PAST')]);
+
+      expect(chosen()).toBe('2026');
+    });
+
+    it('el foco vuelve a la lista cuando termina la relectura, también sin año elegido, y no se queda en «Crear vigencia»', async () => {
+      service.create.mockRejectedValue(v01(2026));
+      render(FROM_2027_TO_2024);
+
+      await submit();
       button('Crear vigencia')?.focus();
-      // La lista nueva ya no trae el año en curso ni el siguiente: no hay año que marcar.
-      fixture.componentRef.setInput('years', [option(2025, 'PAST'), option(2024, 'PAST')]);
+      await reread([option(2027, 'NEXT'), option(2025, 'PAST')]);
+
+      expect(document.activeElement).toBe(select());
+    });
+
+    it('pide a la pantalla que vuelva a leer la lista, sin cerrar el diálogo', async () => {
+      service.create.mockRejectedValue(v01(2026));
+      render(FROM_2027_TO_2024);
+      const stale = vi.fn();
+      const closed = vi.fn();
+      fixture.componentInstance.staleList.subscribe(stale);
+      fixture.componentInstance.closed.subscribe(closed);
+
+      await submit();
+
+      expect(stale).toHaveBeenCalledTimes(1);
+      expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2026, unknown: false }));
+      expect(closed).not.toHaveBeenCalled();
+    });
+  });
+
+  // H2-18: después de un resultado que no se conoce, el diálogo no cambia por su cuenta el año que se intentó.
+  describe('después de un resultado que no se conoce (H2-18, 007-22)', () => {
+    const unknown = [
+      ['un tiempo agotado', () => new TimeoutError(10_000)],
+      ['sin respuesta (estado 0)', () => rejected(0, null)],
+      ['un error del servidor (503)', () => rejected(503, { status: 503 })],
+    ] as const;
+
+    it.each(unknown)(
+      '%s: al releer, sigue elegido el año intentado si todavía está en la lista',
+      async (_name, error) => {
+        service.create.mockRejectedValue(error());
+        render(FROM_2027_TO_2024);
+        await choose(2025);
+
+        await submit();
+        await reread([...FROM_2027_TO_2024]);
+
+        expect(chosen()).toBe('2025');
+        expect(text(host)).toContain('Inicio 1 de enero de 2025');
+        expect(text(warnings()[0])).toContain('Es un año pasado');
+      },
+    );
+
+    it.each(unknown)(
+      '%s: si el año intentado ya no está, no queda ninguno elegido, ni el año en curso',
+      async (_name, error) => {
+        service.create.mockRejectedValue(error());
+        render(FROM_2027_TO_2024);
+        await choose(2025);
+
+        await submit();
+        await reread([option(2027, 'NEXT'), option(2026, 'CURRENT'), option(2024, 'PAST')]);
+
+        expect(chosen()).toBeUndefined();
+        expect(button('Crear vigencia')?.disabled).toBe(true);
+      },
+    );
+
+    it('con el año en curso intentado y todavía disponible, sigue elegido', async () => {
+      service.create.mockRejectedValue(new TimeoutError(10_000));
+      render(FROM_2027_TO_2024);
+
+      await submit();
+      await reread([...FROM_2027_TO_2024]);
+
+      expect(chosen()).toBe('2026');
+    });
+
+    it('si la relectura falla, se conserva el año intentado y la lista vuelve a estar habilitada, con el foco en ella', async () => {
+      service.create.mockRejectedValue(new TimeoutError(10_000));
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      await submit();
+      fixture.componentRef.setInput('refreshing', true);
+      await settle();
+      fixture.componentRef.setInput('refreshFailed', true);
+      fixture.componentRef.setInput('refreshing', false);
       await settle();
 
-      expect(checked()).toBeUndefined();
-      expect(button('Crear vigencia')?.disabled).toBe(true);
-      expect(document.activeElement).toBe(radios()[0]);
+      expect(chosen()).toBe('2025');
+      expect(select()?.disabled).toBe(false);
+      expect(document.activeElement).toBe(select());
+    });
+
+    it('un intento siguiente empieza de cero: un V-01 no conserva el año de un intento anterior', async () => {
+      service.create.mockRejectedValueOnce(new TimeoutError(10_000));
+      service.create.mockRejectedValueOnce(v01(2026));
+      render(FROM_2027_TO_2024);
+      await choose(2025);
+
+      await submit();
+      await reread([...FROM_2027_TO_2024]);
+      await submit();
+      await reread([...FROM_2027_TO_2024]);
+
+      expect(chosen()).toBe('2026');
+    });
+  });
+
+  describe('la lista inhabilitada mientras se envía y se relee (007-22)', () => {
+    it('mientras se envía, la lista está inhabilitada, y vuelve a estar habilitada al terminar', async () => {
+      let fail: (error: unknown) => void = () => undefined;
+      service.create.mockReturnValue(
+        new Promise<FiscalYear>((_resolve, reject) => (fail = reject)),
+      );
+      render();
+
+      button('Crear vigencia')?.click();
+      fixture.detectChanges();
+      expect(select()?.disabled).toBe(true);
+
+      fail(rejected(400, { status: 400, code: 'SYS-400' }));
+      await settle();
+      expect(select()?.disabled).toBe(false);
+    });
+
+    it('mientras la pantalla relee la lista, la lista y la acción están inhabilitadas', async () => {
+      render();
+
+      fixture.componentRef.setInput('refreshing', true);
+      await settle();
+      expect(select()?.disabled).toBe(true);
+      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
+
+      fixture.componentRef.setInput('refreshing', false);
+      await settle();
+      expect(select()?.disabled).toBe(false);
+      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).not.toBe('true');
     });
   });
 
   describe('crear (007-04)', () => {
-    it('pide la creación del año marcado, como número, y avisa con la vigencia creada', async () => {
+    it('pide la creación del año elegido, como número, y avisa con la vigencia creada', async () => {
       service.create.mockResolvedValue(CREATED);
-      render([option(2027, 'NEXT')]);
+      render();
       const created = vi.fn();
       fixture.componentInstance.created.subscribe(created);
 
       await submit();
 
-      expect(service.create).toHaveBeenCalledWith(2027);
+      expect(service.create).toHaveBeenCalledWith(2026);
       expect(created).toHaveBeenCalledWith(CREATED);
+    });
+
+    it('crea el año que la persona eligió, también uno pasado', async () => {
+      service.create.mockResolvedValue({ ...CREATED, year: 2024 });
+      render(FROM_2027_TO_2024);
+      await choose(2024);
+
+      await submit();
+
+      expect(service.create).toHaveBeenCalledWith(2024);
     });
 
     it('mientras se envía, el botón está cargando y Escape no cierra', async () => {
@@ -379,38 +582,22 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     });
   });
 
-  describe('rechazos (007-05 a 007-08)', () => {
+  describe('rechazos (007-05, 007-07)', () => {
     it.each([
       [
         'V-01 · 007-05',
-        rejected(409, { status: 409, code: 'V-01', year: 2027 }),
+        v01(2027),
         'V-01 · La vigencia 2027 ya existe en tu administración: es posible que otra persona la haya creado hace un momento. Actualizamos la lista.',
       ],
       [
-        'V-02 GAP · 007-06',
-        rejected(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 }),
-        'V-02 · No se puede saltar un año: primero debe existir la vigencia 2027.',
+        'V-05 PAST_LIMIT · 007-07',
+        rejected(422, { status: 422, code: 'V-05', reason: 'PAST_LIMIT', minYear: 2002 }),
+        'V-05 · No se puede crear una vigencia anterior a 2002, el primer año que se puede crear.',
       ],
       [
-        'V-02 HISTORICAL · 007-07',
-        rejected(422, { status: 422, code: 'V-02', reason: 'HISTORICAL', oldestYear: 2026 }),
-        'V-02 · No se pueden crear vigencias anteriores a la más antigua (2026): la carga de vigencias históricas todavía no está autorizada.',
-      ],
-      [
-        'V-05 FIRST_YEAR · 007-08',
-        rejected(422, {
-          status: 422,
-          code: 'V-05',
-          reason: 'FIRST_YEAR',
-          currentYear: 2026,
-          nextYear: 2027,
-        }),
-        'V-05 · La primera vigencia de la administración debe ser la del año en curso (2026) o la del año siguiente (2027).',
-      ],
-      [
-        'V-05 FUTURE_LIMIT',
+        'V-05 FUTURE_LIMIT · 007-07',
         rejected(422, { status: 422, code: 'V-05', reason: 'FUTURE_LIMIT', maxYear: 2027 }),
-        'V-05 · No se puede crear una vigencia posterior al año siguiente al año en curso (2027).',
+        'V-05 · No se puede crear una vigencia posterior al año siguiente al año en curso: el último año que se puede crear es 2027.',
       ],
     ])('%s: una alerta de error con el código y los años', async (_name, error, message) => {
       service.create.mockRejectedValue(error);
@@ -424,19 +611,20 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       expect(host.querySelector('[role="dialog"]')).not.toBeNull();
     });
 
-    it('la alerta va arriba del grupo de años, como en Figma (67:3163)', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
+    it('la alerta va arriba de la lista de años, como en Figma (67:3163)', async () => {
+      service.create.mockRejectedValue(v01(2027));
       render();
 
       await submit();
 
       const alert = alerts()[0];
-      const group = host.querySelector('fieldset') as HTMLElement;
-      expect(alert.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        alert.compareDocumentPosition(select() as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     });
 
     it('se crea de nuevo en cada intento, para que se anuncie aunque el texto se repita', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
+      service.create.mockRejectedValue(v01(2027));
       render();
 
       await submit();
@@ -450,9 +638,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
     });
 
     it('un intento que sale bien no deja la alerta de uno anterior', async () => {
-      service.create.mockRejectedValueOnce(
-        rejected(409, { status: 409, code: 'V-01', year: 2027 }),
-      );
+      service.create.mockRejectedValueOnce(v01(2027));
       service.create.mockResolvedValueOnce(CREATED);
       render();
 
@@ -463,37 +649,9 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       expect(alerts()).toHaveLength(0);
     });
 
-    it('un V-01 pide a la pantalla que vuelva a leer la lista, sin cerrar el diálogo', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
-      render([option(2027, 'NEXT'), option(2028, 'NEXT')]);
-      const stale = vi.fn();
-      const closed = vi.fn();
-      fixture.componentInstance.staleList.subscribe(stale);
-      fixture.componentInstance.closed.subscribe(closed);
-
-      await submit();
-
-      expect(stale).toHaveBeenCalledTimes(1);
-      expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2027, unknown: false }));
-      expect(closed).not.toHaveBeenCalled();
-    });
-
-    it('tras un V-01 y la lista nueva, queda marcado el primer año que siga disponible', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
-      render([option(2027, 'NEXT'), option(2028, 'NEXT')]);
-      expect(checked()?.value).toBe('2027');
-
-      await submit();
-      fixture.componentRef.setInput('years', [option(2028, 'NEXT')]);
-      await settle();
-
-      expect(checked()?.value).toBe('2028');
-      expect(alerts()).toHaveLength(1);
-    });
-
     it('otros rechazos no piden volver a leer la lista', async () => {
       service.create.mockRejectedValue(
-        rejected(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 }),
+        rejected(422, { status: 422, code: 'V-05', reason: 'PAST_LIMIT', minYear: 2002 }),
       );
       render();
       const stale = vi.fn();
@@ -502,6 +660,20 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       await submit();
 
       expect(stale).not.toHaveBeenCalled();
+    });
+
+    it('un motivo que el servidor ya no emite (V-02 GAP) dice el mensaje general y deja reintentar', async () => {
+      service.create.mockRejectedValue(
+        rejected(422, { status: 422, code: 'V-02', reason: 'GAP', requiredYear: 2027 }),
+      );
+      render();
+
+      await submit();
+
+      expect(text(alerts()[0])).toBe(
+        'No se creó la vigencia No pudimos crear la vigencia. Intenta de nuevo; si continúa, avisa al administrador del sistema.',
+      );
+      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).not.toBe('true');
     });
 
     it('un error de la petición dice que no se creó y deja reintentar', async () => {
@@ -547,18 +719,12 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
         'No sabemos si se creó la vigencia No pudimos confirmar el resultado. Es posible que la vigencia sí se haya creado: revisa la lista antes de intentarlo de nuevo.',
       );
       expect(stale).toHaveBeenCalledTimes(1);
-      expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2027, unknown: true }));
+      expect(stale).toHaveBeenCalledWith(expect.objectContaining({ year: 2026, unknown: true }));
     });
   });
 
   describe('estado del diálogo', () => {
-    it('al abrir, el foco va al año marcado y no a la acción que no se puede deshacer', () => {
-      render([option(2026, 'CURRENT'), option(2027, 'NEXT')]);
-
-      expect(document.activeElement).toBe(checked());
-    });
-
-    it('un segundo envío mientras se envía no repite la petición, aunque el clic llegue', async () => {
+    it('un segundo envío mientras se envía no repite la petición, aunque el clic llegue', () => {
       service.create.mockReturnValue(new Promise<FiscalYear>(() => undefined));
       render();
       const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
@@ -567,46 +733,6 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       void dialog.submit();
 
       expect(service.create).toHaveBeenCalledTimes(1);
-    });
-
-    it('sin ningún año que elegir, la acción está inhabilitada y no pide nada', async () => {
-      render([]);
-      const dialog = fixture.componentInstance as unknown as { submit(): Promise<void> };
-
-      await dialog.submit();
-
-      expect(button('Crear vigencia')?.disabled).toBe(true);
-      expect(service.create).not.toHaveBeenCalled();
-    });
-
-    it('mientras la pantalla relee la lista, la acción está inhabilitada', async () => {
-      render([option(2027, 'NEXT')]);
-
-      fixture.componentRef.setInput('refreshing', true);
-      await settle();
-      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).toBe('true');
-
-      fixture.componentRef.setInput('refreshing', false);
-      await settle();
-      expect(button('Crear vigencia')?.getAttribute('aria-disabled')).not.toBe('true');
-    });
-
-    it('una relación que coincide con una propiedad de Object se muestra sin etiqueta', () => {
-      render([option(2026, 'constructor')]);
-
-      expect(text(host.querySelector('liv-radio-option'))).toBe('2026');
-    });
-
-    it('tras un V-01 y la lista nueva, el foco va al año marcado y no queda en la acción de crear', async () => {
-      service.create.mockRejectedValue(rejected(409, { status: 409, code: 'V-01', year: 2027 }));
-      render([option(2027, 'NEXT'), option(2028, 'NEXT')]);
-
-      await submit();
-      fixture.componentRef.setInput('years', [option(2028, 'NEXT')]);
-      await settle();
-
-      expect(checked()?.value).toBe('2028');
-      expect(document.activeElement).toBe(checked());
     });
 
     it('creada la vigencia, un segundo envío no repite la petición aunque el diálogo siga abierto', async () => {
@@ -654,7 +780,7 @@ describe('Crear vigencia (007-04 a 007-08)', () => {
       );
     });
 
-    it('«Cancelar» está inhabilitado mientras se envía', async () => {
+    it('«Cancelar» está inhabilitado mientras se envía', () => {
       service.create.mockReturnValue(new Promise<FiscalYear>(() => undefined));
       render();
 
