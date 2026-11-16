@@ -220,15 +220,20 @@ class OpenApiContractTest {
     assertThat(map(contract.get("info"))).containsEntry("version", "1.1.0");
     Map<String, Object> list = schema(contract, "FiscalYearList");
     String description = (String) property(list, "creatableYears").get("description");
-    // 007-03: del más reciente al más antiguo, de 2002 al año siguiente al año en curso, sin los
-    // que existen; sale «de cero a dos» de la 1.0.0.
+    // 007-03: del más reciente al más antiguo, del primer año que se puede crear (lo informa
+    // minYear, el valor vive solo en el dominio) al año siguiente al año en curso, sin los que
+    // existen; sale «de cero a dos» de la 1.0.0.
     assertThat(description)
+        .doesNotContain("2002")
         .contains("del más reciente al más antiguo")
-        .contains("de 2002 (V-05) al año siguiente al año en curso")
+        .contains(
+            "del primer año que se puede crear (V-05; lo informa minYear) al año siguiente al año en curso")
+        .contains("el último es el primer año que se puede crear")
         .contains("sin los que la administración ya tiene")
         .contains("la tabla nacional trae todos los años del rango")
         .contains("el primero es el último año que se puede crear")
         .doesNotContain("de cero a dos");
+    assertThat((String) map(contract.get("info")).get("description")).doesNotContain("2002");
     String get = (String) operation(contract, YEARS, "get").get("description");
     assertThat(get).contains("V-01 y V-05").doesNotContain("V-02");
   }
