@@ -2,17 +2,22 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** borrador
+**Estado:** aprobado (H2) — 2026-11-17, por la persona que dirige el trabajo, como arquitecto y como responsable funcional (`AGENTS.md` §4.3), sobre el PR #218 (véase «H2»)
 _(borrador → aprobado (H2))_
 
 ## H2
 
-Pendiente. La persona que dirige el trabajo aprueba en la H2, como arquitecto y como responsable funcional (`AGENTS.md` §4.3: hay pantallas, y el plan propone reglas, códigos y una enmienda a la spec):
-- el plan;
-- las decisiones H2‑1 a H2‑24 de «Decisiones para la H2», cada una con su recomendación;
-- los dos altos de la ronda 2 de la revisión, corregidos en el plan sin una tercera ronda (la *skill* admite dos): la persona decide si basta o pide una verificación acotada antes de aprobar, como en la 007 (véase «Revisión»);
-- la enmienda 1 a la spec (H2‑5), que firma de nuevo la H1 de 008-18; la escribe el orquestador en `spec.md`;
-- el conjunto exacto de hallazgos de las pruebas *golden* (008-31), en «Pruebas *golden*».
+La persona que dirige el trabajo aprobó la H2 el 2026-11-17, como arquitecto y como responsable funcional (`AGENTS.md` §4.3: hay pantallas, y el plan propone reglas, códigos y enmiendas a la spec), sobre el PR #218. Partió del commit 995e7dd y pidió verificaciones acotadas de sus correcciones; la última salió sin altos (véase «Revisión»). Aprobó:
+- **el plan;**
+- **las decisiones H2‑1 a H2‑24** de «Decisiones para la H2»:
+  - H2‑5: CJ08 *no evaluable* con el DANE en `PENDIENTE`, como se recomendaba (enmienda 1);
+  - H2‑8: **reescrita.** Sin el aviso del BFF a la API: por encima del tope, el BFF y la API responden 413 `TAMANO` sin auditoría; la API lee en *streaming* y audita con el SHA‑256 lo que llega dentro del tope (enmienda 2);
+  - H2‑19: **distinta de la recomendación.** CJ18 revisa las `MM-DD`; `04-31` y `02-30` son error, y `02-29` se acepta con la advertencia `LEAP_DAY`;
+  - H2‑20: un convenio con la fecha de fin anterior a la de inicio es error de CJ12, como se recomendaba;
+  - las otras veinte, con la recomendación del plan;
+- **las enmiendas a la spec:** la 1 (008-18, H2‑5) y la 2 (008-07, 008-03 y 008-47, H2‑8), con la H1 de esos criterios firmada de nuevo. Por encargo del orquestador, están escritas en `spec.md` («Enmiendas de la H2»);
+- **los documentos que el plan cambia de más:** `AGENTS.md` §3.1, §5.2 y §5.3, el Doc. 01 §2 y la flecha `jurisdiction → core`, en R1 y en el ADR 0037 («Documentos que cambian»);
+- **el conjunto exacto de hallazgos** de las pruebas *golden* (008-31), en «Pruebas *golden*».
 
 ## Enfoque
 
@@ -143,10 +148,10 @@ _Lo que la persona aprueba con este plan, además del plan en sí (`AGENTS.md` �
 | H2‑5 | **Enmienda 1 a la spec: CJ08 sin DANE (cambia 008-18).** La plantilla trae el ajuste `SAN_ANDRES` y su DANE es `PENDIENTE`. Al pie de la letra, CJ08 da un error, y 008-31 espera solo CJ02, CJ12, CJ16 y CJ17 | **CJ08 es *no evaluable* si `jurisdiccion.codigo_dane` está en `PENDIENTE`** (motivo `DANE_PENDING`): sin DANE no se puede comparar, y CJ17 ya bloquea. 008-18 agrega esa frase y la H1 se firma de nuevo para ese criterio. *Alternativa:* error de CJ08, con la enmienda en 008-31 |
 | H2‑6 | **CJ02 sin modalidades que liquiden.** En la plantilla ninguna modalidad está activa, y `jurisdiccion`, `calendario` y `redondeo` están en `PENDIENTE`. Lo mismo le pasaría a un municipio solo del 20 % que copie `calendario` de la plantilla | **Son errores de CJ02.** La lista del Doc. 03 §5.4 no los condiciona (solo `intereses_mora` y `prescripcion` lo están), y `calendario` y `redondeo` traen `obligatoria: true` (decisión 11). CJ02 solo mira las reglas presentes: el municipio del 20 % pasa si no trae esas secciones (008-28) y falla si las trae en `PENDIENTE`. B8 prueba los dos casos. *Alternativa:* condicionar `calendario` y `redondeo` a que alguna modalidad liquide, como las fechas de CJ13 |
 | H2‑7 | El conjunto exacto de hallazgos de las pruebas *golden* («Pruebas *golden*») | **Aprobar.** Coincide con el §9.2 en conteos (Ipiales: 0 errores, 17 advertencias, 19 por confirmar) y lo amplía con las rutas, los códigos, CJ17, CJ18 y la marca de la `tarifa_maxima`. Lo recalcularon los dos revisores sobre los anexos |
-| H2‑8 | **Topes de tamaño** (decisión 10; 008-07), iguales en el BFF y en la API, como dice 008-07, con un aviso del BFF a la API para auditar lo que pasa del tope. El detalle está en «Topes de tamaño (H2‑8)», abajo | **Aprobar.** El BFF nunca reenvía un cuerpo que la API cortaría (lo que daría un 502), y el intento queda auditado salvo si falla el aviso (riesgo residual, aceptado y medido). Si el navegador pierde la conexión al subir un archivo de más de 1 MiB (Tomcat solo descarta hasta 2 MB antes de cerrarla), la pantalla muestra el mensaje de `TAMANO`. *Alternativa:* cortar en el BFF solo con un registro (*log*), sin auditoría por encima del tope, que exige enmendar 008-07 |
+| H2‑8 | **Topes de tamaño y enmienda 2 a 008-07** (decisión 10). El mismo tope en el BFF y en la API. Por encima del tope, los dos responden 413 `TAMANO` sin auditoría, solo en su registro técnico; la API audita con el SHA‑256 lo que llega dentro del tope. El detalle está en «Topes de tamaño (H2‑8)», abajo | ✅ **Resuelta por la persona (2026-11-17), con la enmienda 2 a 008-07, 008-03 y 008-47** y la H1 de esos criterios firmada de nuevo. Reemplaza el aviso del BFF a la API que proponía la ronda 2, que dio dos altos en la verificación acotada |
 | H2‑9 | **La carga es el cuerpo crudo** (`application/octet-stream`) en `POST /api/v1/jurisdiction-configs/{year}/versions`, sin `multipart/form-data` ni nombre de archivo | **Aprobar.** No hay sobre que cambie los bytes ni nombre del cliente que guardar (008-04: el nombre lo genera el servidor). Ningún punto acepta `application/yaml` (008-08) |
-| H2‑10 | **Auditoría de un rechazo** (decisión 18; 008-07, 008-33 y 008-47). El coordinador de `platform` no es transaccional: abre la transacción del negocio con `TransactionTemplate`, y si termina con un rechazo auditable (`CG-01`, `CG-06` o el tope), la cierra primero y después registra el intento con el puerto `RejectedAttemptLog`. Este abre su propia transacción, con el contexto de la administración, y publica `IngestionAttemptRejected` por el registro persistente de eventos. Es el mecanismo de `JdbcSessionStore.denied` de la 001, que usa `REQUIRES_NEW`; aquí se llama sin transacción activa (lo comprueba con `TransactionSynchronizationManager.isActualTransactionActive()` y falla si la hay), así que nunca hay dos conexiones a la vez. Si su transacción falla, la respuesta no cambia y el fallo queda en el registro con nivel `ERROR` y una métrica | **Aprobar sin ADR nuevo:** no cambia el patrón del ADR 0025. El ADR 0038 lo describe como parte del motor |
-| H2‑11 | **Cinco ADR** (R2a y R2b): 0036, el original en la base de datos (decisión 10); 0037, las dependencias entre módulos (decisión 16), que agrega `jurisdiction → core` porque CJ17 lee el DANE y el tipo de la entidad territorial (la flecha ya está en la figura de `docs/arquitectura/01` §3.2, pero no en la decisión 16 ni en `ModularityTest`); 0038, el motor de ingesta en `platform` (decisión 2), con su interfaz con nombre de Spring Modulith, la primera del proyecto; 0039, el cargador de producción (decisión 3), porque el ADR 0032 dice que `snakeyaml` **no** se declara y la decisión 3 pide declararlo; 0040, el tope de la carga en el BFF y su aviso a la API por `platform.yaml` (H2‑8), sin tocar las cadenas de seguridad | **Aprobar que se redacten** con la *skill* `liv-adr`. Cada ADR se acepta en su PR |
+| H2‑10 | **Auditoría de un rechazo** (decisión 18; 008-07, 008-33 y 008-47). El coordinador de `platform` no es transaccional: abre la transacción del negocio con `TransactionTemplate`, y si termina con un rechazo auditable (`CG-01` o `CG-06`, también `TAMANO` dentro del tope), la cierra primero y después registra el intento con el puerto `RejectedAttemptLog`. Este abre su propia transacción, con el contexto de la administración, y publica `IngestionAttemptRejected` por el registro persistente de eventos. Es el mecanismo de `JdbcSessionStore.denied` de la 001, que usa `REQUIRES_NEW`; aquí se llama sin transacción activa (lo comprueba con `TransactionSynchronizationManager.isActualTransactionActive()` y falla si la hay), así que nunca hay dos conexiones a la vez. Si su transacción falla, la respuesta no cambia y el fallo queda en el registro con nivel `ERROR` y una métrica | **Aprobar sin ADR nuevo:** no cambia el patrón del ADR 0025. El ADR 0038 lo describe como parte del motor |
+| H2‑11 | **Cuatro ADR** (R2a y R2b): 0036, el original en la base de datos (decisión 10); 0037, las dependencias entre módulos (decisión 16), que agrega `jurisdiction → core` porque CJ17 lee el DANE y el tipo de la entidad territorial (la flecha ya está en la figura de `docs/arquitectura/01` §3.2, pero no en la decisión 16 ni en `ModularityTest`); 0038, el motor de ingesta en `platform` (decisión 2), con su interfaz con nombre de Spring Modulith, la primera del proyecto; 0039, el cargador de producción (decisión 3), porque el ADR 0032 dice que `snakeyaml` **no** se declara y la decisión 3 pide declararlo. El tope del BFF (H2‑8) va en el 0038, sin ADR propio: ya no hay aviso ni contrato nuevo | **Aprobar que se redacten** con la *skill* `liv-adr`. Cada ADR se acepta en su PR |
 | H2‑12 | **Pantalla añadida por el diseño:** «Versiones de la vigencia» (95:5176 y 95:5516), aparte de la lista. La spec lista cuatro pantallas y pone el historial en 008-02 | **No hace falta un criterio nuevo:** 008-02 ya describe el historial; el diseño solo le da pantalla propia. La prueba de 008-02 cubre la pantalla y su estado vacío. *Alternativa:* un criterio 008-54 para el estado vacío |
 | H2‑13 | **`liv-components` 0.6.0 en una serie de PR** (U1 a U4): `ui/AGENTS.md` pide subir la versión en el mismo PR | **Excepción como la H2‑15 de la 007:** los tres primeros van a «Sin publicar», y el U4 sube a 0.6.0. La persona publica en npm después de integrar el U4 |
 | H2‑14 | **Documentos que cambian además de la tabla de la spec:** `AGENTS.md` §3.1 (81 tablas en 10 esquemas funcionales, ERD 2.5), §5.2 (la ruta real `base_gravable.catalogo_ministerio.multiplicador_tablas`) y §5.3 (prefijos de H2‑4); los códigos de H2‑4 en el Doc. 01 §2 y en el Doc. 03 §5.3; y el Doc. 01 §6.1 (el punto 9 lee `jurisdiction.jurisdiction_config`) | **Aprobar.** Van en el PR R1 |
@@ -154,8 +159,8 @@ _Lo que la persona aprueba con este plan, además del plan en sí (`AGENTS.md` �
 | H2‑16 | **El aprobador marca 20 puntos en Ipiales:** las 19 reglas `POR_CONFIRMAR` y la `tarifa_maxima` de `ELECTRICO` (decisión 14; 008-34). La lista de revisión es una sola, con la clase de cada punto | **Aprobar.** Es lo que dicen 008-16 y 008-34; el §9.2 cuenta 19 porque no tenía la regla de la `tarifa_maxima` |
 | H2‑17 | **La versión del validador** empieza en `1.0.0`, escrita en el backend (`JurisdictionConfigValidator.VERSION`), y sube con cualquier cambio de una regla CJ: el menor con una regla nueva o más estricta, el parche con una corrección que no cambia ningún resultado *golden* | **Aprobar** (decisión 17) |
 | H2‑18 | **U1 modifica `Icon`**, un componente existente de `liv-components` (`AGENTS.md` §4.5): agrega `check`, `x`, `upload` y `download`, como diseña 88:506 | **Aprobar** la modificación. Es un cambio crítico de `ui/**`, compatible (solo agrega nombres) |
-| H2‑19 | **CJ18 y las fechas anuales (pregunta funcional).** El esquema 1.1 tiene fechas `MM-DD` (por ejemplo, `causacion.general: "01-01"`) cuyo patrón acepta `02-30`. 008-27 solo habla de fechas «con la forma correcta». ¿Las comprueba CJ18, y qué pasa con `02-29`? | **CJ18 comprueba también las `MM-DD`, contra el año de `vigencia.anio`:** `02-30` es siempre un error, y `02-29` lo es en un año que no es bisiesto. Cada configuración es de una sola vigencia, así que su año está definido. *Alternativa:* aceptar `02-29` siempre, como fecha anual genérica |
-| H2‑20 | **CJ12 y las fechas del convenio (pregunta funcional).** El Doc. 03 §9.5 menciona «fechas invertidas» entre las variantes probadas, sin decir de qué fechas: pueden ser las del convenio (CJ12) o las del calendario (que ya cubre CJ13). CJ12 solo exige que el convenio tenga número y fechas | **Un convenio activo con `fecha_inicio` posterior a `fecha_fin` es un error de CJ12** (motivo `AGREEMENT_DATES_INVERTED`), y el Doc. 03 v0.6 lo agrega al texto de CJ12. Si la persona dice que el §9.5 hablaba del calendario, igual conviene la regla, porque un convenio invertido bloquearía toda liquidación de matriculados. *Alternativa:* no comprobarlo |
+| H2‑19 | **CJ18 y las fechas anuales (pregunta funcional).** El esquema 1.1 tiene fechas `MM-DD` (por ejemplo, `causacion.general: "01-01"`) cuyo patrón acepta `02-30`. 008-27 solo habla de fechas «con la forma correcta». ¿Las comprueba CJ18, y qué pasa con `02-29`? | ✅ **Resuelta por la persona (2026-11-17), distinta de la recomendación:** CJ18 comprueba también las `MM-DD`. Una fecha que no existe en ningún año (`04-31`, `02-30`) es un error; `02-29` se acepta con una advertencia (motivo `LEAP_DAY`), porque solo existe en los años bisiestos. *La recomendación era* comprobar `02-29` contra el año de `vigencia.anio` |
+| H2‑20 | **CJ12 y las fechas del convenio (pregunta funcional).** El Doc. 03 §9.5 menciona «fechas invertidas» entre las variantes probadas, sin decir de qué fechas: pueden ser las del convenio (CJ12) o las del calendario (que ya cubre CJ13). CJ12 solo exige que el convenio tenga número y fechas | ✅ **Resuelta por la persona (2026-11-17), como se recomendaba:** un convenio con la fecha de fin anterior a la de inicio es un error de CJ12 (motivo `AGREEMENT_DATES_INVERTED`), y el Doc. 03 v0.6 lo agrega al texto de CJ12 |
 | H2‑21 | **Las marcas que faltan y el ADR 0035.** 008-34 pide decir cuáles faltan, y el ADR 0035 solo admite extensiones escalares en el Problem Details | **`CJC-02` lleva `missingCount` y `warningsAccepted`**, y la pantalla dice cuáles faltan comparando sus marcas con `reviewItems`. Aprobar solo se habilita con todo marcado (99:8566 y 99:8817), así que el rechazo solo llega en una carrera o por la API. El cuerpo de la aprobación lleva el `validationDigest` que mostró la pantalla, y el servidor lo compara con el de la fila. *Alternativa:* un ADR que admita listas de texto acotadas en las extensiones |
 | H2‑22 | **El catálogo cerrado de motivos** de cada regla («Catálogo de motivos»), que el contrato documenta y con el que la pantalla arma los textos. Un motivo nuevo es una versión menor del contrato y del validador | **Aprobar.** Fijarlo ahora deja publicar el contrato (C2a) antes que el validador, sin cambiarlo después |
 | H2‑23 | **Dos versiones del contrato en la serie** (ADR 0027: la CI publica cada versión al integrar, y dos PR no pueden tener la misma). C2a publica `jurisdiction.yaml` 1.0.0 con las consultas, y C2b, 1.1.0 con las acciones (compatible: solo agrega operaciones) | **Aprobar.** El *frontend* (F0) se fija a 1.1.0. *Alternativa:* un solo PR de contrato de unas 650 líneas |
@@ -177,18 +182,40 @@ _Lo que la persona aprueba con este plan, además del plan en sí (`AGENTS.md` �
 | `CJC-04` | Doc. 03 §5.3 | Una comprobación de la publicación falló (008-39) | 409 |
 
 - Los estados siguen el ADR 0035: 409 cuando el estado lo impide y 422 cuando la regla rechaza la petición.
-- **Única excepción:** el 413 de `CG-06` `TAMANO`, con una excepción propia de `platform` (`PayloadTooLarge`) que traduce `ProblemDetailsHandler`. El ADR 0038 la registra como excepción al ADR 0035.
+- **Única excepción:** el 413 de `CG-06` `TAMANO`, con una excepción propia de `platform` (`PayloadTooLarge`). La lanza `FileReceiver` dentro del caso de uso, así que pasa por el `DispatcherServlet` y la traduce `ProblemDetailsHandler` como cualquier otra. El ADR 0038 la registra como excepción al ADR 0035.
 - En el contrato y en el código, los códigos llevan el guion ASCII (`V-04`, `CG-01`).
+- El plazo de lectura vencido (C3) da 408 con `SYS-408`, un código técnico de `platform` sin regla, como `SYS-404`.
 
 ### Topes de tamaño (H2‑8)
 
-- **Topes:** archivo de hasta 1 MiB (1.048.576 bytes) y tope duro de 1 MiB + 64 KiB (1.114.112 bytes; el cuerpo es crudo, sin sobre). La ruta de carga exige `Content-Length` en el BFF y en la API (si falta, 411), así que el tope se decide solo por la cabecera y cada rechazo tiene un solo dueño.
-- **Hasta el tope:** la API lee, calcula el SHA‑256 y da 413 `CG-06` `TAMANO`, auditado con el SHA‑256.
-- **Por encima del tope:** nadie lee el cuerpo.
-  - El BFF no lo reenvía. En lugar de la carga, llama con el *token* de la sesión a la operación pública `reportOversizeUpload` de `platform.yaml` 1.1.0.
-  - Esa operación pasa por la cadena normal de `/api/**` (usuario, administración y permiso de la ruta, sin cambiar la autenticación) y audita el intento sin SHA‑256.
-  - El BFF responde lo que ella decida: 403 sin el permiso de carga, 413 con él.
-- **Si el aviso falla:** el BFF responde 413 y deja el fallo en su registro (*log*) con nivel `ERROR`.
+Es la enmienda 2 a 008-07.
+
+- **Topes:** archivo de hasta 1 MiB (1.048.576 bytes) y tope duro de 1 MiB + 64 KiB (1.114.112 bytes; el cuerpo es crudo, sin sobre), los mismos en el BFF y en la API.
+- **El BFF** mira el `Content-Length` que envía el navegador, antes de reenviar, y si no viene (un cuerpo en trozos) cuenta los bytes mientras reenvía. Por encima del tope responde 413 `CG-06` `TAMANO` sin leer el resto, y lo deja en su registro técnico (*log*), sin auditoría. Lo hace para todo `/api/**`, no con una lista de rutas: ninguna petición de hoy pasa de ese tamaño, y una feature que necesite un tope mayor lo cambia con su ADR. Así ningún cuerpo por encima del tope llega a la API por el BFF.
+- **El *gateway* quita el `Content-Length` al reenviar** (`RemoveContentLengthRequestHeadersFilter`, activo por omisión en Spring Cloud Gateway Server MVC). Por eso **la API no depende de esa cabecera**: `FileReceiver` cuenta los bytes al leer.
+- **La API lee el cuerpo en *streaming*.** El generador traduce el cuerpo binario a `InputStreamResource` (C2a), que el convertidor de Spring solo envuelve, sin leerlo. Con el `Resource` que da por omisión, `ResourceHttpMessageConverter` lo copiaría entero a memoria antes de llamar al controlador, antes del permiso y del tope.
+- **La API**, dentro del caso de uso y después de comprobar el permiso (un usuario sin permiso recibe 403 sin que la aplicación lea el cuerpo; Tomcat lo descarta sin guardarlo):
+  - hasta 1 MiB, recibe el archivo;
+  - entre 1 MiB y el tope, lo lee entero, calcula el SHA‑256 y da 413 `CG-06` `TAMANO`, auditado con el SHA‑256;
+  - por encima del tope, deja de leer, responde 413 `CG-06` `TAMANO` con `Connection: close` y lo deja en su registro técnico, sin auditoría. Por el BFF no llega nunca un cuerpo así; solo pasaría con una llamada directa a la API.
+- **El *frontend*** rechaza en el navegador lo que pasa del tope duro, sin enviarlo, y muestra el mensaje de `TAMANO`. Lo que está entre 1 MiB y el tope sí lo envía, para que quede auditado con su SHA‑256. El tope lo lee de la API (`uploadLimits` de `listJurisdictionConfigs`), no lo escribe en el código.
+- **El mismo tope en tres proyectos:** la API lo publica en `jurisdiction.yaml` (`uploadLimits` y la descripción de la carga), y `bff.yaml` 1.5.0 lo declara en la descripción de su 413. E1 prueba de punta a punta, con peticiones directas por el BFF (`APIRequestContext`, con la sesión y el `X-XSRF-TOKEN`, porque la pantalla no envía nada por encima del tope): el tope exacto debe dar el 413 de la API, con `fileSha256`, y el tope + 1 byte el 413 del BFF, que lleva la extensión `rejectedBy: bff` (declarada en `bff.yaml`). Así un tope distinto en el BFF y en la API, mayor o menor, hace fallar E1. Además, las pruebas del BFF escriben el literal 1.114.112.
+- **Tiempos:** el plazo total de lectura es de 20 s en el BFF y de 25 s en la API (las dos, constantes), por debajo del `read-timeout` de 30 s del cliente del BFF hacia la API. Si vence en el BFF, el BFF responde 408 `SYS-408` (declarado en `bff.yaml`); en la API queda como defensa para una llamada directa. `server.tomcat.max-swallow-size` baja a 64 KiB en la API y en el BFF (nunca 0, que lo deja sin límite), así que después de un 403, 408 o 413 Tomcat no sigue leyendo un cliente lento más que eso. El BFF fija su `connection-timeout` en 20 s, y la API, su `keep-alive-timeout` aparte (60 s), para no cerrar antes de tiempo las conexiones que reutiliza el cliente del BFF.
+- **Solo por el BFF:** la API se alcanza solo a través del BFF. Por eso los cuerpos JSON de las acciones (aprobar, rechazar, anular) solo los acota el tope del BFF: Jackson los lee enteros antes del permiso, como en el resto de la API.
+- **Lo que se pierde:** la auditoría de los intentos por encima del tope, que quedan solo en los registros técnicos (enmienda 2, también para 008-47). Y un usuario sin permiso que envía más del tope recibe el 413 del BFF y no un 403 (enmienda 2, en 008-03).
+
+## Documentos que cambian
+
+_Los de la tabla «Documentos que cambian» de la spec, más los que agregó este plan (decisión 6 de la persona en la H2). Cada uno dice en qué PR va._
+
+| Documento | Cambio | PR | Por |
+|---|---|---|---|
+| Doc. 03 v0.6 | Lo de la tabla de la spec, más los códigos `CJC-01` a `CJC-04` en §5.3, CJ08 *no evaluable* sin DANE, CJ12 con las fechas del convenio y CJ18 con las `MM-DD` en §5.4 | R1 | Spec, H2‑4, H2‑5, H2‑19 y H2‑20 |
+| Doc. 01 v0.7 | Lo de la tabla de la spec, más **§2: los códigos `CG-01` a `CG-06`** del motor de ingesta y §6.1, el punto 9 sobre `jurisdiction.jurisdiction_config` | R1 | Spec, H2‑4 y H2‑14 |
+| Doc. 05 v0.3 y ERD 2.5 | Lo de la tabla de la spec, con el modelo de este plan | R1 | Spec, H2‑2 |
+| `AGENTS.md` | Lo de la tabla de la spec (§5.2, `ADMINISTRACION_DIRECTA`), más **§3.1** (81 tablas en 10 esquemas funcionales, ERD 2.5), **§5.2** (la ruta `base_gravable.catalogo_ministerio.multiplicador_tablas`) y **§5.3** (los prefijos `CG` y `CJC`) | R1 | Decisión 15, H2‑4 y H2‑14 |
+| ADR 0036 a 0039 | Los de la tabla de la spec. El 0037 lleva **la flecha `jurisdiction → core`**, que necesita CJ17 para el DANE y el tipo de la entidad territorial, y que la decisión 16 no nombraba | R2a y R2b | H2‑11 |
+| `docs/arquitectura/01` y `02` | Lo de la tabla de la spec; en `01` §3.2, también la flecha `jurisdiction → core`; en `02` §7, el tope técnico fijo de H2‑8 en lugar del «límite por tipo de carga en `parametros_sistema`», que el ADR 0038 reemplaza | R2a (`01` §3 y `02` §7, la excepción del ADR 0036) y R2b (`01` §5.3 y §6, y `02` §7, el tope del ADR 0038) | H2‑8 y H2‑11 |
 
 ## Implementación
 
@@ -226,7 +253,7 @@ Se integra **antes** del C1a y del C2a: la prueba de la matriz de permisos y el 
 - **`AGENTS.md`:** §3.1, §5.2 (`ADMINISTRACION_DIRECTA`, decisión 15, y la ruta del multiplicador) y §5.3 (H2‑14). Es un cambio de las reglas del proyecto y lo aprueba la persona en este PR.
 - No toca los anexos YAML (fila «Anexos YAML» de la spec: van con la feature aparte) ni `spec.md` (la enmienda 1 la escribe el orquestador).
 
-### R2a y R2b. ADR 0036 a 0040 (raíz, dos PR) — *skill* `liv-adr`
+### R2a y R2b. ADR 0036 a 0039 (raíz, dos PR) — *skill* `liv-adr`
 
 En paralelo con R1. R2a se integra antes del C1a; R2b, antes del B1 y del C3.
 
@@ -243,12 +270,11 @@ En paralelo con R1. R2a se integra antes del C1a; R2b, antes del B1 y del C3.
   - el coordinador `IngestionEngine` y quién llama a cada interfaz (C3): `IngestionReader` y `IngestionRules` en la carga, `VersionStore` en la carga y las transiciones, `IngestionPublisher` en la publicación;
   - el registro de intentos rechazados (H2‑10);
   - los ocho estados de la decisión 7 y los códigos `CG`;
-  - la excepción `PayloadTooLarge` (413), la única fuera de los tipos del ADR 0035 (H2‑4).
+  - la excepción `PayloadTooLarge` (413), la única fuera de los tipos del ADR 0035 (H2‑4);
+  - los topes de H2‑8 en el BFF y en la API, y que la API no depende del `Content-Length` porque el *gateway* lo quita al reenviar.
 
   Alinea el diagrama de `docs/arquitectura/01` §6 (RECIBIDO y RECHAZADO dejan de ser estados guardados: un archivo rechazado antes de interpretarlo no se guarda, solo se audita) y su §5.3 (cuándo se construye cada materialización; la validación de los anexos, IN‑11, llega con la feature aparte).
 - **R2b · ADR 0039 · Cargador de YAML de producción** (decisión 3): `org.yaml:snakeyaml` declarado en `compile`, con la versión de Spring Boot (cambia lo que decía el ADR 0032), y `json-schema-validator` 3.0.9 a `compile`, con `jackson-dataformat-yaml` excluido; ningún convertidor de `application/yaml`; un solo cargador, que usan también las pruebas del esquema y de los casos comunes (ADR 0034). No es una dependencia nueva: las dos ya están en el árbol.
-- **R2b · ADR 0040 · El tope de la carga en el BFF** (H2‑8): el BFF exige `Content-Length` en la ruta de carga y, por encima del tope, no reenvía el cuerpo y llama a la operación pública `reportOversizeUpload` de `platform.yaml` 1.1.0 con el *token* de la sesión, ya renovado. La operación pasa por la cadena normal de `/api/**`: no cambia ninguna cadena de seguridad ni la autenticación (`AGENTS.md` §4.5).
-
 `docs/arquitectura/01` y `02` suben de versión en el PR que los toca.
 
 ### Bloque B — Cargador y validador (`backend/`)
@@ -303,7 +329,7 @@ Después de R2b (ADR 0039).
   - un campo numérico de `cartera` en `PENDIENTE` cuya regla más cercana con `estado` no está en `PENDIENTE` es un error;
   - cada otro `PENDIENTE` es una advertencia, y cada `estado: POR_CONFIRMAR` entra en la lista de revisión.
 - **CJ03** (008-14): cada clave `norma` fuera de la sección `normas` debe nombrar el `id` de una norma de `normas`; si no, un error en la ruta de la cita.
-- Tamaño: unas 400 líneas. Si pasa, B3a (núcleo) y B3b (CJ02 y CJ03).
+- Tamaño: unas 400 líneas. Si supera las 400, se parte en B3a (núcleo) y B3b (CJ02 y CJ03).
 
 #### B4. CJ04, CJ05, CJ06 y CJ08
 
@@ -377,7 +403,7 @@ Se aplican a toda validación nueva, declare el `esquema_version` que declare (0
   - `/jurisdiccion/codigo_dane` y `/jurisdiccion/tipo`, contra la entidad territorial de la administración;
   - `/vigencia/anio`, `/vigencia/inicio` y `/vigencia/fin`, contra la vigencia;
   - `/vigencia/version_config`, contra la versión publicada más uno.
-- **CJ18** (008-27; H2‑19): solo en las rutas que el esquema declara como fecha (las que usan su definición `AAAA-MM-DD` y la de `MM-DD`, como `causacion.general`), no en los textos libres. Una `AAAA-MM-DD` debe ser una fecha real (`ResolverStyle.STRICT`), y una `MM-DD` debe existir en el año de `vigencia.anio`, que CJ01 ya garantiza. `2026-02-30`, `02-30` y `02-29` en 2026 son errores en su ruta. Las rutas salen del esquema de la versión declarada, no de una lista en el código.
+- **CJ18** (008-27; H2‑19): solo en las rutas que el esquema declara como fecha (las que usan su definición `AAAA-MM-DD` y la de `MM-DD`, como `causacion.general`), no en los textos libres. Una `AAAA-MM-DD` debe ser una fecha real (`ResolverStyle.STRICT`): `2026-02-30` y `2026-02-29` son errores en su ruta. Una `MM-DD` debe existir en algún año: `04-31` y `02-30` son errores, y `02-29` es una advertencia (`LEAP_DAY`), porque solo existe en los años bisiestos. Las rutas salen del esquema de la versión declarada, no de una lista en el código.
 - Tamaño: unas 400 líneas.
 
 #### B8. Pruebas *golden*, decimales y el municipio del 20 %
@@ -421,8 +447,8 @@ Tamaño: unas 300 líneas.
 #### C2a. Contrato: consultas y modelo — *skill* `liv-endpoint`, paso 1
 
 Después de R1. Va pronto, para que el *frontend* arranque.
-- `backend/contracts/openapi/jurisdiction.yaml` **1.0.0**, nuevo, con su ejecución `contract-jurisdiction` de `openapi-generator` en `pom.xml`:
-  - las operaciones de consulta y descarga;
+- `backend/contracts/openapi/jurisdiction.yaml` **1.0.0**, nuevo, con su ejecución `contract-jurisdiction` de `openapi-generator` en `pom.xml`. Esa ejecución traduce el binario (`format: binary`) a `org.springframework.core.io.InputStreamResource` (`typeMappings` con `file=org.springframework.core.io.InputStreamResource`: el generador `spring` 7.26.0 vuelve a aplicar los `typeMappings` después de los suyos, y `importMappings` sola no cambia el tipo). El mismo mapeo alcanza a la respuesta de la descarga (C5b); una prueba de C5b comprueba la firma generada y que la descarga sigue funcionando (H2‑8). El contrato trae:
+  - las operaciones de consulta y descarga, con `uploadLimits` (`maxFileBytes` y `maxRequestBytes`) en la respuesta de la lista;
   - el modelo de la versión, del resultado, del hallazgo y de la comparación;
   - el catálogo de motivos (H2‑22) en la descripción de `reason`.
 - Primero `OpenApiContractTest` (rojo), luego el contrato. Las extensiones del Problem Details son escalares (ADR 0035).
@@ -430,44 +456,47 @@ Después de R1. Va pronto, para que el *frontend* arranque.
 
 Tamaño: unas 350 líneas de YAML.
 
-#### C2b. Contrato: acciones, `tax.yaml` 1.2.0 y `platform.yaml` 1.1.0
+#### C2b. Contrato: acciones y `tax.yaml` 1.2.0
 
-Después de C2a.
-- `jurisdiction.yaml` **1.1.0** (H2‑23): las operaciones de carga, aprobación, rechazo, anulación y publicación, con sus errores. Es compatible con 1.0.0: solo agrega operaciones. Los motivos (`reason` de rechazo y anulación) son texto de 1 a 500 caracteres sin caracteres de control (patrón), para acotar la auditoría (C7).
+Después de C2a, y solo cuando la *release* `contract-jurisdiction-v1.0.0` ya esté publicada. Si las dos corridas se integran seguidas y se cancela la de C2a, 1.0.0 no se publica (ADR 0027, «Concurrencia en `main`»).
+- `jurisdiction.yaml` **1.1.0** (H2‑23): las operaciones de carga, aprobación, rechazo, anulación y publicación, con sus errores. Es compatible con 1.0.0: solo agrega rutas y esquemas de petición. Los `enum` de respuesta (estados, acciones y códigos) ya van completos en C2a, para que `openapi-diff` no lo marque como incompatible. Los motivos (`reason` de rechazo y anulación) son texto de 1 a 500 caracteres sin caracteres de control (patrón), para acotar la auditoría (C7).
 - `tax.yaml` **1.2.0**: el motivo `JURISDICTION_CONFIG_NOT_PUBLISHED` en la descripción de `reason` del punto de preparación (008-43). Es compatible: `reason` ya es un texto con patrón.
-- `platform.yaml` **1.1.0**: `reportOversizeUpload` (`POST /api/v1/ingestion/oversize-uploads`, con la ruta de carga, de una lista cerrada, el tamaño declarado y un `attemptId`), que llama el BFF (H2‑8). Responde 204, o 403 sin el permiso de la ruta.
-- `contracts/scripts/compare.sh` no da cambios incompatibles en ninguno (ADR 0027). La CI publica `contract-jurisdiction-v1.1.0`, `contract-tax-v1.2.0` y `contract-platform-v1.1.0` al integrar.
+- `contracts/scripts/compare.sh` no da cambios incompatibles en ninguno (ADR 0027). La CI publica `contract-jurisdiction-v1.1.0` y `contract-tax-v1.2.0` al integrar.
 
-Tamaño: unas 350 líneas.
+Tamaño: unas 300 líneas.
 
 #### C3. Piezas comunes del motor de ingesta (`platform`)
 
 Después de R2b (ADR 0038). En `platform/ingestion`, con `@NamedInterface("ingestion")`. Es Java sin dependencia de `jurisdiction`:
 - **`IngestionLimits`:** las constantes `MAX_FILE_BYTES` (1.048.576) y `MAX_REQUEST_BYTES` (1.114.112). No son configurables, para no apartarse del cargador ni de los casos comunes (ADR 0032).
-- **`IngestionRoute`:** el registro cerrado de las rutas de carga (patrón, permiso y entidad). Lo aporta cada módulo desde su `infrastructure`; la 1.5.9 registra la suya con `jurisdiction.config.upload` y `jurisdiction.jurisdiction_config`. Lo usan el filtro y `reportOversizeUpload` (C9a), así que `platform` no conoce a `jurisdiction`. Una prueba compara por reflexión el permiso de cada ruta con el `@RequiresPermission` de su caso de uso.
-- **`FileReceiver`:** lee un `InputStream` de longitud declarada hasta `MAX_REQUEST_BYTES` y calcula el SHA‑256 mientras lee. Devuelve `ReceivedFile` (bytes, tamaño y SHA‑256) u `Oversize` (tamaño y SHA‑256, entre 1 MiB y el tope). Tiene un **plazo total** de lectura: un temporizador cierra el flujo al vencer, porque el `connection-timeout` de Tomcat mide cada lectura y un cliente que envía un byte cada pocos segundos nunca lo dispararía.
-- **`RequestBodyLimitFilter`:**
-  - va después de la cadena de Spring Security y solo en las rutas de `IngestionRoute`;
-  - sin sesión, deja que la cadena dé 401; sin el permiso de la ruta, 403, antes de mirar el tamaño (un `CONSULTA` nunca ve un 413 ni llena la auditoría);
-  - sin `Content-Length`, 411. El tope se decide solo por la cabecera, así que el filtro es el único dueño del rechazo por encima del tope, y `FileReceiver`, del que va entre 1 MiB y el tope;
-  - con permiso y un `Content-Length` por encima del tope, lanza `PayloadTooLarge` (413 `CG-06` `TAMANO`, con `Connection: close`) sin leer el cuerpo, y registra el intento sin SHA‑256 con `RejectedAttemptLog`.
+- **`FileReceiver`**, el único dueño del tope en la API (H2‑8). Cuenta los bytes al leer el `InputStream` y no depende del `Content-Length`, que el *gateway* del BFF quita al reenviar. Calcula el SHA‑256 mientras lee, y lo usa el caso de uso después de comprobar el permiso, así que un usuario sin permiso recibe 403 sin que la aplicación lea el cuerpo. Recibe el flujo sin leer gracias al `InputStreamResource` (C2a).
+  - Hasta 1 MiB, devuelve `ReceivedFile` (bytes, tamaño y SHA‑256).
+  - Entre 1 MiB y el tope, devuelve `Oversize` (tamaño y SHA‑256): el coordinador responde 413 `CG-06` `TAMANO` y registra el intento con su SHA‑256 (`RejectedAttemptLog`).
+  - Si el cuerpo pasa del tope, deja de leer al primer byte de más y lanza `PayloadTooLarge` (413 `CG-06` `TAMANO`, con `Connection: close`). Lo deja en el registro técnico con nivel `WARN`, sin auditoría (enmienda 2).
+  - Cada lectura pide como máximo `min(búfer, tope + 1 − leídos)`, así que nunca lee más que el tope + 1 byte.
+  - Tiene un **plazo total** de lectura de 25 s (constante, «Topes de tamaño»), comprobado con el `Clock` después de cada lectura. No usa un hilo aparte: cerrar el flujo desde otro hilo no despierta una lectura bloqueada de Tomcat.
+  - Una lectura bloqueada la corta el `connection-timeout` de Tomcat (`SocketTimeoutException`). Si el plazo vence o la lectura se corta por tiempo, responde 408 con `SYS-408` (nuevo en `ErrorCodes`, sin regla, como `SYS-404`) y lo deja en el registro técnico, sin auditoría y sin SHA‑256.
+  - Si el envío se corta a mitad de la lectura (`IOException` o fin de flujo inesperado), responde 400 `SYS-400` si la conexión sigue abierta y lo deja en el registro técnico con nivel `WARN`, sin auditoría y sin un 500.
+  - C3 fija en `application.yml` de la API `max-swallow-size` (64 KiB), `connection-timeout` (20 s) y `keep-alive-timeout` (60 s) («Topes de tamaño»).
+  - Como todo pasa dentro del caso de uso, los 413 salen como Problem Details por `ProblemDetailsHandler`. Ya no hay un filtro de *servlet* en la API ni un 411.
 - **`IngestionStatus` e `IngestionLifecycle`:** los ocho estados y las acciones (`APPROVE`, `REJECT`, `ANNUL`, `PUBLISH` y `SUPERSEDE`). `require(from, action)` da `CG-02` con el estado actual. `requireDifferentActor(uploader, actor)` da `CG-01`, y `requireSameActor` la anulación.
 - **`IngestionEngine`**, el coordinador, sin transacción propia:
   - `upload(...)`: recibe y lee el archivo fuera de la transacción (`FileReceiver` e `IngestionReader`). Después abre una transacción (`TransactionTemplate`, `READ_COMMITTED`) que toma el bloqueo de la vigencia, aplica las reglas (`IngestionRules`) y guarda (`VersionStore`);
   - `transition(...)`: las acciones llegan por `{id}`, así que abre la transacción, lee la vigencia de la fila (`fiscal_year` es inmutable), toma el bloqueo de esa vigencia y **vuelve a leer la fila** bajo el bloqueo. Después aplica `IngestionLifecycle` y la parte del módulo, y guarda. Las comprobaciones (marcas, 008-39) se hacen sobre la fila leída bajo el bloqueo;
-  - un rechazo auditable (`CG-01`, `CG-06`) cierra la transacción y después se registra con `RejectedAttemptLog` (H2‑10). `PayloadTooLarge` del filtro no pasa por el coordinador: lo registra solo el filtro, así que cada intento da exactamente un evento.
+  - un rechazo auditable (`CG-01`, o `CG-06` dentro del tope) cierra la transacción y después se registra con `RejectedAttemptLog` (H2‑10). Cada intento da exactamente un evento; `PayloadTooLarge`, ninguno.
 - **`RejectedAttemptLog`**, en `platform/infrastructure`: abre su propia transacción con el `AdministrationContext` de la sesión y publica `IngestionAttemptRejected` (entidad, `id` si lo hay, vigencia, código, motivo, SHA‑256 si lo hay, usuario, administración, instante, `eventId` y `correlationId`). Falla si hay una transacción activa. Si su propia transacción falla, la respuesta no cambia y el fallo queda con nivel `ERROR` y una métrica.
 - **Bloqueo de la vigencia:** `pg_advisory_xact_lock(espacio, hashtext(administrationId || ':' || year))`, con una constante de espacio propia de la ingesta, distinta de la de la creación de vigencias de la 007 (`AdministrationFiscalYearRepository`); una prueba comprueba que son distintas. Lo toman la carga y todas las transiciones de la misma vigencia, así que una carga no lee la versión publicada a mitad de una publicación.
 - **Interfaces** que implementa el módulo: `IngestionReader` (el cargador), `IngestionRules` (el validador), `VersionStore` (guardar y leer la versión y hacer cada `UPDATE` condicionado) e `IngestionPublisher` (el paso de publicar). Las llama `IngestionEngine`; ninguna queda sin uso.
 - **Pruebas:**
   - el SHA‑256 de un archivo conocido;
-  - `Oversize` en 1 MiB + 1 byte;
-  - el filtro con `Content-Length` grande, sin leer el cuerpo, y con exactamente un evento; sin `Content-Length`, 411; con un usuario sin permiso, 403;
-  - un cliente que envía un byte por intervalo corta por el plazo total, sin tomar una conexión a la base;
+  - `Oversize` en 1 MiB + 1 byte y en el tope exacto, con su SHA‑256 y exactamente un evento;
+  - `PayloadTooLarge` en el tope + 1 byte, sin leer más allá, sin evento, y con el cuerpo Problem Details `CG-06` `TAMANO` en una prueba por el servidor real (`RANDOM_PORT`), sin `Content-Length` y con un cuerpo en trozos;
+  - un usuario sin permiso recibe 403 sin que se lea el cuerpo;
+  - un cliente que envía un byte por intervalo corta por el plazo total con 408, sin tomar una conexión a la base;
   - la tabla completa de transiciones permitidas y prohibidas;
   - `RejectedAttemptLog` deja su evento en el registro de eventos de Spring Modulith, y falla si se llama dentro de una transacción. La fila de auditoría se prueba en C7, que trae el *listener*.
 
-Tamaño: unas 400 líneas. Si pasa, C3a (recepción, filtro y registro) y C3b (ciclo de vida y coordinador).
+Tamaño: unas 400 líneas. Si supera las 400, se parte en C3a (recepción y registro) y C3b (ciclo de vida y coordinador).
 
 #### C4. Dominio del ciclo de vida (`jurisdiction/domain`)
 
@@ -500,7 +529,7 @@ Tamaño: unas 350 líneas.
 
 Después de B8, C1b, C3 y C4.
 - **`UploadJurisdictionConfig`** (`@RequiresPermission("jurisdiction.config.upload")`), sin `@Transactional`: delega en `IngestionEngine.upload`.
-  1. Fuera de la transacción: recibe el archivo y lo carga con `SafeYamlLoader`. Un rechazo da `CG-06` con el motivo y el SHA‑256 (`TAMANO` con 413), no guarda nada y se registra con `RejectedAttemptLog` (008-07).
+  1. Fuera de la transacción: recibe el archivo y lo carga con `SafeYamlLoader`. Un rechazo da `CG-06` con el motivo y el SHA‑256 (`TAMANO` con 413, solo entre 1 MiB y el tope), no guarda nada y se registra con `RejectedAttemptLog` (008-07). `PayloadTooLarge`, por encima del tope, no se registra.
   2. En la transacción, con el bloqueo de la vigencia:
      - lee la vigencia (`FiscalYearDirectory`), el territorio (`AdministrationTerritory`) y la versión publicada;
      - aplica `UploadPolicy`;
@@ -532,18 +561,27 @@ Después de C2b y C5a. `jurisdiction/api/JurisdictionConfigsController` implemen
   - `ListJurisdictionConfigs` y `ListFiscalYearVersions` (008-01 y 008-02);
   - `GetJurisdictionConfigVersion` (008-02), con `availableActions` según el estado, el permiso y si el usuario es el cargador;
   - `DownloadOriginal` (008-04), con una transacción de lectura y escritura (no `readOnly`), porque publica `JurisdictionConfigOriginalDownloaded` por el registro de eventos.
-- **Carga:** el controlador recibe el cuerpo como `InputStream` (`application/octet-stream`; H2‑9) y lo entrega a `UploadJurisdictionConfig`.
+- **Carga:** el controlador recibe el cuerpo como `InputStreamResource` (`application/octet-stream`; H2‑9; C2a) y entrega su flujo, sin leerlo, a `UploadJurisdictionConfig`.
 - **Descarga:** los bytes guardados, con estas cabeceras:
   - `Content-Type: application/octet-stream`;
   - `Content-Disposition: attachment; filename="config_jurisdiccion_<DANE>_<AÑO>_v<N>.yaml"`; el nombre lo arma el servidor;
   - `X-Content-Type-Options: nosniff`;
-  - `Cache-Control: no-store`.
+  - `Cache-Control: no-store`;
+  - `Content-Length` explícito: con `InputStreamResource`, Spring no lo calcula.
+
+  No se admiten descargas parciales: una petición con `Range` recibe 416, porque Spring no puede partir un `InputStreamResource`, y la respuesta no anuncia `Accept-Ranges`.
 - **Pruebas** con `PlatformWebTest`:
   - las respuestas y los errores del contrato, con su estado HTTP (H2‑4): `TAMANO` siempre 413, los demás motivos del cargador 422;
   - 401 y 403 por rol (008-03 y 008-04): `CONSULTA` y `LIQUIDADOR` sin lectura; `ADMIN_SISTEMA` lee pero no descarga;
   - una versión de otra administración da el mismo 404 que una que no existe (008-44);
   - el SHA‑256 de la descarga es el de la carga, y la descarga queda auditada (008-04);
-  - `Content-Type: application/yaml` da 415 (008-08).
+  - `Content-Type: application/yaml` da 415 (008-08);
+  - **`UploadSizeLimitsIT`**, por el servidor real (`RANDOM_PORT`) y contra el controlador de `jurisdiction`, con un cliente de *socket* que envía un cuerpo en trozos de varios MiB despacio y lee la respuesta mientras envía:
+    - un `CONSULTA` recibe 403 antes de terminar de enviar;
+    - un cargador recibe 413 `CG-06` `TAMANO` al pasar el tope + 1 byte;
+    - un contador del flujo muestra que la aplicación leyó como máximo el tope + 1 byte;
+    - el servidor cierra la conexión después del 403, el 408 o el 413 aunque el cliente siga enviando (`max-swallow-size`);
+    - la interfaz generada recibe un `InputStreamResource`, y la descarga lleva `Content-Length` y da 416 con `Range` (H2‑8).
 
 Tamaño: unas 400 líneas.
 
@@ -606,7 +644,8 @@ Después de C6b.
   - `JurisdictionConfigAuditTest`, cada operación con sus valores;
   - la publicación con reemplazo da dos filas, una por evento;
   - el peor caso de `new_values` (todos los códigos de CJ01 a CJ18 en los totales y un motivo de 500 caracteres de comillas y barras, que el JSON escapa al doble) cabe en los 4096 caracteres del `CHECK`. Si no cabe, se recorta el motivo en la lista blanca;
-  - un intento por segregación, uno del cargador y uno del tope quedan auditados sin que la operación cambie nada (008-07 y 008-47);
+  - un intento por segregación, uno del cargador y uno con `TAMANO` entre 1 MiB y el tope quedan auditados sin que la operación cambie nada (008-07 y 008-47);
+  - un cuerpo por encima del tope no deja ninguna fila en `audit.audit_event` (enmienda 2);
   - `ModularityTest`: `audit` → {`core`, `platform`, `tax`, `jurisdiction`}.
 
 Tamaño: unas 350 líneas.
@@ -620,37 +659,32 @@ Después de C6b y C2b.
 
 Tamaño: unas 200 líneas.
 
-#### C9a. Aviso del tope (`platform`)
+#### C9. BFF
 
-Después de C2b y C3.
-- `platform/api` implementa `reportOversizeUpload` de `platform.yaml` 1.1.0 con un caso de uso, `ReportOversizeUpload`, que pasa por la cadena normal de `/api/**` (`CurrentUserFilter`, `AdministrationContext`):
-  - la ruta pedida debe estar en `IngestionRoute` (si no, 400), y el usuario debe tener el permiso de esa ruta (si no, 403). El permiso lo comprueba el caso de uso con el autorizador de `platform`, no el controlador;
-  - registra el intento sin SHA‑256 con `RejectedAttemptLog`, con el `attemptId` del BFF como `eventId`: un reintento del BFF no duplica la fila.
-- **Pruebas:** el aviso publica su evento; sin el permiso de la ruta, 403 y nada; una ruta fuera del registro, 400; un usuario desactivado o de otra administración, el 401 o el 403 de la cadena normal; el mismo `attemptId` dos veces, un solo evento.
-
-Tamaño: unas 200 líneas.
-
-#### C9b. BFF
-
-Después de C9a.
-- **`bff.yaml`:** las respuestas propias del BFF en la ruta de carga: 411 y 413 como Problem Details `CG-06` `TAMANO`, idéntico al de la API. Sube su versión menor, y el *frontend* la toma en F0.
-- **El filtro:** una `HandlerFilterFunction` del *gateway* para las rutas de carga de `/api/**`, siempre después de `TokenRelayFilter`. Así ya corrieron la sesión, el CSRF, `AbsoluteLimitFilter` y `RateLimitFilter`, y el *token* está renovado (H2‑8):
-  - exige `Content-Length`; si falta, 411;
-  - por encima del tope, no reenvía el cuerpo y llama a `reportOversizeUpload` con el *token* de la sesión y un `attemptId` nuevo. Responde 403 si la API da 403, y 413 `TAMANO` en los demás casos;
-  - si el aviso falla, responde 413 y deja el fallo en el registro (*log*) con nivel `ERROR`.
-- **Pruebas** en `BffContractTest`, con una API falsa:
-  - el cuerpo `application/octet-stream` llega a la API byte por byte: el SHA‑256 de lo que recibe es el del archivo enviado, también con CRLF y con bytes no ASCII (008-05 y 008-09);
-  - cuerpos de 1 MiB + 1 byte (lo reenvía, y la API da 413 con SHA‑256), del tope + 1 byte, de 3 MiB y de 5 MiB (el BFF no reenvía y avisa a la API): siempre 413 `TAMANO`, nunca 502;
-  - un `CONSULTA` con 5 MiB recibe 403, y una petición sin sesión, 401, sin aviso;
-  - sin `Content-Length`, 411;
+Después de R2b (ADR 0038). No depende de `jurisdiction`: puede ir en cualquier momento antes de F3.
+- **`bff.yaml` 1.5.0** (hoy 1.4.0): las respuestas propias del BFF en `/api/**`. El 413 es un Problem Details con `code: CG-06`, `reason: TAMANO` y la extensión `rejectedBy: bff`, el mismo esquema que el de la API, con el tope en su descripción. El 408 es un Problem Details con `code: SYS-408`. El 413 de la API lleva además `fileSha256` cuando el cuerpo está dentro del tope; es opcional y la pantalla no depende de él. El *frontend* la toma en F3, con la *release* `contract-bff-v1.5.0`.
+- **El filtro** (H2‑8): un filtro de *servlet* de `/api/**`, registrado después de `springSecurityFilterChain`, que corre antes de que el *gateway* reenvíe. Las cadenas de seguridad del BFF (sesión, CSRF, `AbsoluteLimitFilter` y `RateLimitFilter`) ya corrieron, así que una petición sin sesión recibe su 401 antes.
+  - Si el `Content-Length` del navegador pasa del tope, responde 413 `TAMANO` sin leer el cuerpo y lo deja en su registro técnico con nivel `WARN`, sin auditoría (enmienda 2).
+  - Si no viene `Content-Length` (un cuerpo en trozos), lee el cuerpo en memoria hasta el tope + 1 byte (una memoria acotada a 1,06 MiB) **antes** de reenviarlo. Si pasa del tope, responde él mismo el 413 `TAMANO` sin reenviar nada. Si no, reenvía el cuerpo completo. Así la API nunca recibe un prefijo cortado, ni ningún cuerpo por encima del tope, por el BFF.
+  - Mientras lee el cuerpo del navegador, con o sin `Content-Length`, aplica el plazo total de 20 s. Si vence, responde 408 `SYS-408` sin reenviar.
+  - `application.yml` del BFF fija `max-swallow-size` (64 KiB) y `connection-timeout` (20 s).
+  - Vale para todo `/api/**`, sin una lista de rutas que se pueda desalinear con la API. Ninguna petición de hoy pasa de ese tamaño; una feature que necesite un tope mayor lo cambia con su ADR.
+  - El BFF no conoce los permisos: un usuario sin permiso de carga que envía más del tope recibe 413 y no 403. Es la excepción que la enmienda 2 agregó a 008-03; por debajo del tope, la API le da su 403.
+- **`Content-Length` al reenviar:** el *gateway* lo quita (`RemoveContentLengthRequestHeadersFilter`, activo por omisión). No se desactiva: la API no depende de él (H2‑8 y C3).
+- **Pruebas** en `ApiProxyTest` y `SlowApiForwardingTest` (`BffFlowTest`, `FakeBackend`, `RANDOM_PORT`), con una API falsa, y la declaración de `bff.yaml` en `BffContractTest`:
+  - el cuerpo `application/octet-stream` llega a la API byte por byte, también sin `Content-Length`: el SHA‑256 de lo que recibe es el del archivo enviado, con CRLF y con bytes no ASCII (008-05 y 008-09);
+  - cuerpos de 1 MiB + 1 byte (lo reenvía, y la API falsa responde su 413), del tope + 1 byte (el literal 1.114.112 + 1), de 3 MiB y de 5 MiB (el BFF no reenvía): el navegador recibe 413 `TAMANO` con `rejectedBy: bff`, nunca 502;
+  - un cuerpo en trozos (sin `Content-Length`) de 3 MiB recibe 413 `TAMANO`, nunca 502, y la API falsa no recibe nada; uno en trozos de 1 MiB llega entero a la API falsa;
+  - un cliente que envía más lento que el plazo recibe 408 `SYS-408`, y el BFF cierra la conexión aunque siga enviando;
+  - la API falsa no recibe nada en los cuerpos con `Content-Length` por encima del tope;
   - las cabeceras de la descarga (`Content-Disposition`, `X-Content-Type-Options`) pasan sin cambios, y `Cache-Control: no-store` sigue.
 - **Riesgo que se comprueba aquí:** que `HandlerFunctions.http()` de Spring Cloud Gateway Server MVC reenvía el cuerpo en *streaming*, sin convertir la codificación.
 
-Tamaño: unas 300 líneas.
+Tamaño: unas 250 líneas.
 
 #### C10. Abrir la opción del menú
 
-Se integra al final, después de C7, C8 y C9b y de la validación en local del *frontend*: así la opción no se muestra habilitada antes de que existan la API y su auditoría (001-15).
+Se integra al final, después de C7, C8 y C9 y de la validación en local del *frontend*: así la opción no se muestra habilitada antes de que existan la API y su auditoría (001-15).
 - `menu-catalog.yaml`: la 1.5.9 pasa a `AVAILABLE`, con su ajuste en `MenuCatalogTest` (008-01).
 - `backend/dev/limpiar-vigencias.sh` vacía `jurisdiction.jurisdiction_config` antes que `tax.administration_fiscal_year`, con las mismas guardas, y su prueba de escenarios (`dev/test/limpiar-vigencias-escenarios.sh`) lo cubre (H2‑15).
 - Agrega a la *skill* `liv-endpoint` el ejemplo de una carga de archivo (cuerpo crudo, tope y coordinador del motor).
@@ -682,14 +716,14 @@ Después del paso 0, en paralelo con el backend. Cada componente lleva su prueba
 
 ### Bloque E — Pantallas (`frontend/`) — *skill* `liv-pantalla`; y pruebas de navegador (`e2e/`)
 
-Después de C2b (`jurisdiction.yaml` 1.1.0, `tax.yaml` 1.2.0 y `platform.yaml` 1.1.0 publicados), de C9b (`bff.yaml`) para F3, y de U4 (0.6.0 publicado en npm). El *frontend* no calcula reglas: los estados, las acciones (`availableActions`, `canUpload`), los hallazgos y los motivos vienen del contrato. Los textos se arman con el código y el motivo del «Catálogo de motivos», desde las hojas de mensajes del diseño (99:8176 y 99:8264); un motivo desconocido muestra el texto genérico de su código. Todas las rutas llevan `capabilityGuard` con `capability: '1.5.9'` y se declaran antes de la genérica. Mientras la opción esté en *Próximamente* (C10), llevan a «Próximamente».
+Después de C2b (`jurisdiction.yaml` 1.1.0 y `tax.yaml` 1.2.0 publicados), de C9 (`bff.yaml` 1.5.0) para F3, y de U4 (0.6.0 publicado en npm). El *frontend* no calcula reglas: los estados, las acciones (`availableActions`, `canUpload`), los hallazgos y los motivos vienen del contrato. Los textos se arman con el código y el motivo del «Catálogo de motivos», desde las hojas de mensajes del diseño (99:8176 y 99:8264); un motivo desconocido muestra el texto genérico de su código. Todas las rutas llevan `capabilityGuard` con `capability: '1.5.9'` y se declaran antes de la genérica. Mientras la opción esté en *Próximamente* (C10), llevan a «Próximamente».
 
 | PR | Contenido | *Frames* |
 |---|---|---|
 | F0 | `api-spec/versions.json` con `jurisdiction` 1.1.0 y `tax` 1.2.0, `npm run api:update`, `liv-components` 0.6.0 exacto en `package.json`, y el texto de `JURISDICTION_CONFIG_NOT_PUBLISHED` en la lista de preparación de la 1.4 (008-43) | — |
 | F1 | `JurisdictionConfigsService` en `src/app/features/jurisdiction-configs/` y la lista en `${OPTION_ROUTE}/1.5.9`, con sus seis estados; «Cargar configuración» solo con `canUpload` | 92:4180, 92:4464, 92:4722, 92:4984, 92:5205, 92:5434 |
 | F2 | «Versiones de la vigencia» en `${OPTION_ROUTE}/1.5.9/:year` (H2‑12) | 95:5176, 95:5516 |
-| F3 | El diálogo «Cargar configuración»: la vigencia (`Select`, de `uploadableYears`), el archivo (`FileField`), «validando» mientras se envía (Escape no cierra) y los rechazos por código y motivo, también el 411 y el 413 del BFF (con `bff.yaml` de C9b) | 95:5973, 95:6164, 95:6349, 95:6534, 99:8176 |
+| F3 | El diálogo «Cargar configuración»: la vigencia (`Select`, de `uploadableYears`), el archivo (`FileField`), «validando» mientras se envía (Escape no cierra) y los rechazos por código y motivo, también el 413 del BFF y el 408 `SYS-408`, y el rechazo en el navegador de lo que pasa de `uploadLimits.maxRequestBytes`; sube `bff` de 1.1.0 a 1.5.0 (revisa los cambios de 1.2.0 a 1.4.0 que trae el salto) en `api-spec/versions.json` (C9) | 95:5973, 95:6164, 95:6349, 95:6534, 99:8176 |
 | F4a | El detalle en `${OPTION_ROUTE}/1.5.9/versiones/:id`: datos, `Badge` del estado y pestañas (`Tab`) de errores, advertencias, no evaluables y por confirmar; cargando, no encontrada y error | 97:6519, 97:6871, 97:7206, 98:7528, 98:7850, 99:7686, 99:7943 |
 | F4b | La pestaña de cambios (CJ11, agrupados por sección, con «Primera versión: no hay nada que comparar»), la descarga del original y la hoja de mensajes del detalle | 98:7153, 99:8264 |
 | F5 | Los diálogos de aprobar (un `Checkbox` por punto y la aceptación de las advertencias, sin «Marcar todas»), rechazar y anular (motivo con `TextArea`, tono *Warning*) y publicar | 99:8566, 99:8817, 99:8998, 99:9180, 99:9347 |
@@ -700,8 +734,7 @@ Después de C2b (`jurisdiction.yaml` 1.1.0, `tax.yaml` 1.2.0 y `platform.yaml` 1
 - La descarga pide el original como `Blob` y lo guarda con el nombre que da `Content-Disposition`, sin mostrarlo en la página (008-04).
 - **La carga:**
   - envía el `File` tal cual, con `Content-Type: application/octet-stream`;
-  - no valida el tamaño antes de enviar, para que todo intento quede auditado (H2‑8);
-  - si la petición falla sin respuesta (conexión cortada) y el archivo pasa de 1 MiB, muestra el mensaje de `TAMANO`;
+  - rechaza en el navegador, sin enviarlo, un archivo que pasa de `uploadLimits.maxRequestBytes`, con el mensaje de `TAMANO`; uno entre `maxFileBytes` y ese tope lo envía, para que quede auditado (H2‑8);
   - el `FileField` lleva `accept=".yaml,.yml"`.
 - La aprobación envía las marcas, la aceptación y el `validationDigest` que muestra (H2‑21). Si recibe `CJC-02`, dice cuáles faltan comparando sus marcas con `reviewItems`.
 - Las fechas van con el formateador de la librería, y los estados con los tonos de `Badge` del diseño.
@@ -736,13 +769,13 @@ Después de C2b (`jurisdiction.yaml` 1.1.0, `tax.yaml` 1.2.0 y `platform.yaml` 1
 ## Datos, API y seguridad
 
 - **Migraciones:** las de C1a y C1b. No modifican ninguna migración aplicada.
-- **Contrato OpenAPI** `jurisdiction.yaml` 1.0.0 (C2a) y 1.1.0 (C2b), nuevo; sin cambios incompatibles en `tax.yaml`, que pasa a 1.2.0, ni en `platform.yaml`, que pasa a 1.1.0. `year` es un entero entre 1999 y 2100 (el rango de la tabla nacional); `id`, un UUID. Todos los errores son Problem Details con `code` y extensiones escalares (ADR 0035).
+- **Contrato OpenAPI** `jurisdiction.yaml` 1.0.0 (C2a) y 1.1.0 (C2b), nuevo; sin cambios incompatibles en `tax.yaml`, que pasa a 1.2.0, ni en `bff.yaml`, que pasa a 1.5.0 (C9). `year` es un entero entre 1999 y 2100 (el rango de la tabla nacional); `id`, un UUID. Todos los errores son Problem Details con `code` y extensiones escalares (ADR 0035).
 
 | Operación | Ruta | Permiso | Respuesta | Errores |
 |---|---|---|---|---|
-| `listJurisdictionConfigs` | `GET /api/v1/jurisdiction-configs` | `read` | `{ items: [{ fiscalYear, fiscalYearStatus, published: { id, versionNumber, publishedAt } \| null, inProgress: { id, versionNumber, status, uploadedAt } \| null }], canUpload, uploadableYears }`, de la más reciente a la más antigua | 401, 403 |
+| `listJurisdictionConfigs` | `GET /api/v1/jurisdiction-configs` | `read` | `{ items: [{ fiscalYear, fiscalYearStatus, published: { id, versionNumber, publishedAt } \| null, inProgress: { id, versionNumber, status, uploadedAt } \| null }], canUpload, uploadableYears, uploadLimits: { maxFileBytes, maxRequestBytes } }`, de la más reciente a la más antigua | 401, 403 |
 | `listFiscalYearVersions` | `GET /api/v1/jurisdiction-configs/{year}/versions` | `read` | `{ fiscalYear, items: [{ id, versionNumber, status, fileSha256, uploadedBy, uploadedAt, approvedBy, approvedAt, rejectedBy, rejectedAt, annulledAt, closureReason, publishedAt, supersededAt }] }`, de la más reciente a la más antigua | 400, 401, 403, 404 `SYS-404` |
-| `uploadJurisdictionConfig` | `POST /api/v1/jurisdiction-configs/{year}/versions`, cuerpo `application/octet-stream` con `Content-Length` | `upload` | 201 y el detalle | 400, 401, 403, 404 `SYS-404` (la vigencia no existe), 409 `CG-03` (`matchesVersionId`, `matchesVersionNumber`), 409 `CG-04`, 409 `CJC-01` (`fiscalYearStatus`), 409 `V-04`, 411, 413 `CG-06` `TAMANO`, 415, 422 `CG-06` (`reason` del cargador, `fileSha256`) |
+| `uploadJurisdictionConfig` | `POST /api/v1/jurisdiction-configs/{year}/versions`, cuerpo `application/octet-stream` | `upload` | 201 y el detalle | 400, 401, 403, 404 `SYS-404` (la vigencia no existe), 409 `CG-03` (`matchesVersionId`, `matchesVersionNumber`), 409 `CG-04`, 409 `CJC-01` (`fiscalYearStatus`), 409 `V-04`, 408 `SYS-408`, 413 `CG-06` `TAMANO` (`fileSha256` solo dentro del tope), 415, 422 `CG-06` (`reason` del cargador, `fileSha256`) |
 | `getJurisdictionConfigVersion` | `GET /api/v1/jurisdiction-configs/versions/{id}` | `read` | La versión; `validation: { schemaVersion, validatorVersion, outcome, digest, totals, findings: [{ class, codes, path, reason, params }], reviewItems: [{ path, kind, norma }], skippedAfterSchemaErrors }`; `comparison: { firstVersion, comparedWith, changes: [{ section, path, change, before, after }] }`; `approval`; `availableActions` | 400, 401, 403, 404 |
 | `downloadOriginal` | `GET /api/v1/jurisdiction-configs/versions/{id}/original` | `download` | 200 `application/octet-stream`, `attachment` (008-04) | 401, 403, 404 |
 | `approveJurisdictionConfig` | `POST …/versions/{id}/approve` con `{ reviewedPaths, warningsAccepted, validationDigest }` | `approve` | La versión | 401, 403, 404, 422 `CG-01`, 409 `CG-02` (`status`), 422 `CJC-02` (`missingCount`, `warningsAccepted`, `digestMatches`), 409 `CJC-03` (`resultValidatorVersion`, `currentValidatorVersion`) |
@@ -777,7 +810,7 @@ Después de C2b (`jurisdiction.yaml` 1.1.0, `tax.yaml` 1.2.0 y `platform.yaml` 1
 | CJ16 | Error | `SECTION_MISSING`, `ACTIVE_PENALTY_WITHOUT_NORMA`, `ACTIVE_PENALTY_WITHOUT_RATE`, `DETERMINATION_PENDING`, `DECLARATION_RULE_ACTIVE`, `UVT_MISSING`, `FINAL_ACT_REQUIRED`, `DECLARATION_MODE`, `YEARS_NOT_POSITIVE`, `TRAFFIC_LIGHT_ORDER`, `AGING_NOT_INCREASING`, `BANK_FORMAT_MISSING`, `DUPLICATE_BANK_CODE`, `UNKNOWN_BANK` |
 | CJ16 | Advertencia | `COMPETENT_PENDING` (fusionada con `PENDING_VALUE`), `BOTH_FORMATS` |
 | CJ17 | Error | `DANE_MISMATCH`, `TYPE_MISMATCH`, `YEAR_MISMATCH`, `FISCAL_YEAR_START_MISMATCH`, `FISCAL_YEAR_END_MISMATCH`, `VERSION_MISMATCH` |
-| CJ18 | Error | `INVALID_DATE` |
+| CJ18 | Error / advertencia | `INVALID_DATE` / `LEAP_DAY` (una `MM-DD` del 29 de febrero) |
 
   Una advertencia fusionada (decisión 13) lleva un motivo por código. Los `params` son texto: el valor esperado y el encontrado, la norma, el rango o la modalidad. Los `kind` de la lista de revisión son `POR_CONFIRMAR` y `TARIFA_MAXIMA`.
 - **Permisos y segregación** (decisión 6; H2‑3):
@@ -793,7 +826,7 @@ Después de C2b (`jurisdiction.yaml` 1.1.0, `tax.yaml` 1.2.0 y `platform.yaml` 1
   La segregación está en `platform` (`CG-01`) y en la base de datos (`CHECK`). La interfaz solo muestra lo que permite `availableActions`.
 - **Amenazas** (`docs/arquitectura/02`):
   - *YAML hostil* (alias, etiquetas, bombas de anidación, claves repetidas, caracteres de control): el cargador seguro lee eventos y rechaza antes de construir nada (008-07 y 008-08). Hay un solo cargador, con los casos comunes.
-  - *Archivo grande o cliente lento*: el BFF exige `Content-Length` y corta por encima del tope sin reenviar; el filtro de la API y `FileReceiver` nunca leen más que el tope, tienen un tiempo máximo de lectura y no toman una conexión a la base mientras leen (H2‑8).
+  - *Archivo grande o cliente lento*: el BFF corta por el `Content-Length` del navegador sin reenviar, retiene un cuerpo en trozos hasta el tope antes de reenviarlo y tiene un plazo total de lectura; la API recibe el cuerpo en *streaming* (`InputStreamResource`), y `FileReceiver` cuenta los bytes, nunca lee más que el tope + 1 byte, tiene su propio plazo y no toma una conexión a la base mientras lee; `max-swallow-size` acota lo que Tomcat descarta después de responder (H2‑8).
   - *Archivo malicioso sin antivirus*: se acepta por la excepción temporal del ADR 0036. Solo se guarda texto UTF‑8 que el cargador aceptó, nunca se interpreta fuera de él y se descarga solo como adjunto con `nosniff`.
   - *Un usuario que aprueba lo suyo* (`docs/arquitectura/02` §4.3): `platform`, el `CHECK` y la auditoría del intento. Queda el riesgo aceptado de un administrador con dos cuentas (decisión 2), que compensa la feature 1.2.
   - *Saltar de administración* (§5): la administración sale de la sesión; RLS y FK compuestas; el mismo 404 para lo ajeno y lo inexistente; un SHA‑256 de otra administración no choca (008-09).
@@ -902,7 +935,7 @@ Si un PR del *frontend* necesita algo que el diseño no tiene (un estado, un tex
   - Figma: solo lectura.
 - **Orden entre proyectos:**
   - R1, R2a y R2b primero;
-  - el backend en serie: B1 → C2a → C2b → B2 → B3 → B4 → B5 → B6 → B7 → B8 → C1a → C1b → C3 → C9a → C9b → C4 → C5a → C5b → C6a → C6b → C7 → C8 → C10. C2a y C2b van pronto para que el *frontend* empiece, y C9b antes de C4 para que F3 tenga `bff.yaml`;
+  - el backend en serie: B1 → C2a → C2b → B2 → B3 → B4 → B5 → B6 → B7 → B8 → C1a → C1b → C3 → C9 → C4 → C5a → C5b → C6a → C6b → C7 → C8 → C10. C2a y C2b van pronto para que el *frontend* empiece, y C9 antes de C4 para que F3 tenga `bff.yaml`;
   - `ui/` (U1 → U2 → U3 → U4) en paralelo con el backend, desde la H2;
   - el *frontend* (F0 → F1 → … → F5), en cuanto están el *release* de C2b y 0.6.0 en npm. Valida en local cuando C10 está listo; E1 va al final;
   - C10 se integra después de validar el *frontend* en local, y el *frontend* después de C10, como en la 007.
@@ -914,7 +947,7 @@ Si un PR del *frontend* necesita algo que el diseño no tiene (un estado, un tex
 | 1 | — | R1 (raíz) | R2a y R2b (raíz) |
 | 2 | B1, C2a, C2b | U1, U2 (`ui/`) | — |
 | 3 | B2 a B8 | U3, U4 (`ui/`), y la persona publica 0.6.0 | F0, F1 (`frontend/`), en cuanto hay 0.6.0 |
-| 4 | C1a, C1b, C3, C9a, C9b, C4 | F2, F4a (`frontend/`) | — |
+| 4 | C1a, C1b, C3, C9, C4 | F2, F4a (`frontend/`) | — |
 | 5 | C5a, C5b, C6a, C6b, C7, C8 | F3, F4b, F5 (`frontend/`) | E1 en rojo (`e2e/`), sin el entorno |
 | 6 | C10 | Validación en local del *frontend* y E1 (entorno exclusivo) | — |
 
@@ -924,10 +957,10 @@ Si un PR del *frontend* necesita algo que el diseño no tiene (un estado, un tex
 |---|---|---|---:|---|---|
 | R1 | raíz | Doc. 03 v0.6, Doc. 01 v0.7, Doc. 05 v0.3, ERD 2.5, `AGENTS.md` | ~400 | H2 | — |
 | R2a | raíz | ADR 0036 y 0037, `docs/arquitectura/01` §3 y `02` §7 | ~300 | H2 | `liv-adr` |
-| R2b | raíz | ADR 0038, 0039 y 0040, `docs/arquitectura/01` §5.3 y §6 | ~350 | H2 | `liv-adr` |
+| R2b | raíz | ADR 0038 y 0039, `docs/arquitectura/01` §5.3 y §6 | ~300 | H2 | `liv-adr` |
 | B1 | `backend/` | Cargador de producción, `pom.xml`, `.gitattributes`, regla de ArchUnit | ~150 | R2b | — |
 | C2a | `backend/` | `jurisdiction.yaml` 1.0.0: consultas, modelo y motivos | ~350 | R1 | `liv-endpoint` |
-| C2b | `backend/` | `jurisdiction.yaml` 1.1.0: acciones; `tax.yaml` 1.2.0; `platform.yaml` 1.1.0 | ~350 | C2a | `liv-endpoint` |
+| C2b | `backend/` | `jurisdiction.yaml` 1.1.0: acciones; `tax.yaml` 1.2.0 | ~300 | C2a (*release* 1.0.0) | `liv-endpoint` |
 | B2 | `backend/` | CJ01, registro de versiones, `ConfigTree` | ~350 | B1 | — |
 | B3 | `backend/` | Núcleo del validador, CJ02, CJ03 | ~400 | B2 | — |
 | B4 | `backend/` | CJ04, CJ05, CJ06, CJ08 | ~350 | B3 | — |
@@ -945,9 +978,8 @@ Si un PR del *frontend* necesita algo que el diseño no tiene (un estado, un tex
 | C6b | `backend/` | Publicar y la fachada de la publicada | ~400 | C6a | `liv-endpoint` |
 | C7 | `backend/` | Auditoría | ~350 | C6b | — |
 | C8 | `backend/` | Punto 9 | ~200 | C6b, C2b | — |
-| C9a | `backend/` | Aviso del tope (`reportOversizeUpload`) | ~200 | C2b, C3 | `liv-endpoint` |
-| C9b | `backend/` | BFF y `bff.yaml` | ~300 | C9a | — |
-| C10 | `backend/` | Abrir la opción, `limpiar-vigencias.sh` | ~120 | C7, C8, C9b, validación del *frontend* | — |
+| C9 | `backend/` | BFF: tope del cuerpo y `bff.yaml` 1.5.0 | ~250 | R2b | — |
+| C10 | `backend/` | Abrir la opción, `limpiar-vigencias.sh` | ~120 | C7, C8, C9, validación del *frontend* | — |
 | U1 | `ui/` | Iconos | ~120 | H2 | `liv-componente` |
 | U2 | `ui/` | `Checkbox`, `TextArea` | ~400 | U1 | `liv-componente` |
 | U3 | `ui/` | `FileField` | ~350 | U1 | `liv-componente` |
@@ -955,13 +987,13 @@ Si un PR del *frontend* necesita algo que el diseño no tiene (un estado, un tex
 | F0 | `frontend/` | Contratos, 0.6.0, texto del punto 9 | ~150 | C2b (*release*), U4 (npm) | `liv-pantalla` |
 | F1 | `frontend/` | Lista | ~400 | F0 | `liv-pantalla` |
 | F2 | `frontend/` | Versiones de la vigencia | ~250 | F1 | `liv-pantalla` |
-| F3 | `frontend/` | Cargar | ~350 | F1, C9b | `liv-pantalla` |
+| F3 | `frontend/` | Cargar | ~350 | F1, C9 (*release* `contract-bff-v1.5.0`) | `liv-pantalla` |
 | F4a | `frontend/` | Detalle y pestañas | ~400 | F2 | `liv-pantalla` |
 | F4b | `frontend/` | Cambios y descarga | ~300 | F4a | `liv-pantalla` |
 | F5 | `frontend/` | Diálogos de acción | ~400 | F4a | `liv-pantalla` |
 | E1 | `e2e/` | Pruebas de navegador | ~400 | F5, C10 | `liv-prueba-e2e` |
 
-Son **38 PR**. Las cifras son techos: suman unas 12.450 líneas sin *lockfiles* ni archivos generados, y unas 11.400 sin los tres PR de la raíz, que la estimación de la spec no contaba (7.300 a 10.300 en los bloques B a E). La diferencia está en el aviso del BFF (H2‑8), los disparadores de la base de datos y el detalle de las pruebas del validador. Un PR que pase de 400 líneas se parte en el momento, sin cambiar el orden.
+Son **37 PR**. Las cifras son techos: suman unas 12.140 líneas sin *lockfiles* ni archivos generados, y unas 11.140 sin los tres PR de la raíz, que la estimación de la spec no contaba (7.300 a 10.300 en los bloques B a E). La diferencia está en los disparadores de la base de datos y el detalle de las pruebas del validador. Un PR que pase de 400 líneas se parte en el momento, sin cambiar el orden.
 
 ## Decisiones
 
@@ -979,10 +1011,10 @@ _Decisiones del plan que no necesitan la H2 porque no cambian ninguna regla ni n
 
 ## Riesgos
 
-- **El reenvío del cuerpo por el BFF** (Spring Cloud Gateway Server MVC) podría guardar el cuerpo en memoria o cambiar su codificación. *Mitigación:* C9b lo prueba con una API falsa y un archivo con CRLF y bytes no ASCII (008-05). El tope del BFF acota la memoria.
-- **El navegador puede perder la conexión** cuando el BFF responde 413 a un archivo grande antes de recibirlo entero. *Mitigación:* el intento queda auditado igual por el aviso a la API (`reportOversizeUpload`), y la pantalla muestra el mensaje de `TAMANO` (H2‑8). E1 lo prueba con un archivo de 5 MiB.
+- **El reenvío del cuerpo por el BFF** (Spring Cloud Gateway Server MVC) podría guardar el cuerpo en memoria o cambiar su codificación. *Mitigación:* C9 lo prueba con una API falsa y un archivo con CRLF y bytes no ASCII (008-05). El tope del BFF acota la memoria.
+- **El navegador puede perder la conexión** cuando el BFF responde 413 a un archivo grande antes de recibirlo entero. *Mitigación:* la pantalla rechaza en el navegador lo que pasa del tope, sin enviarlo (H2‑8), y E1 lo prueba con la pantalla; el 413 del BFF lo prueban E1 por petición directa y las pruebas del BFF. Ese intento no queda en la auditoría, solo en el registro técnico del BFF (enmienda 2).
 - **Las pruebas *golden* dependen de interpretaciones** (H2‑5, H2‑6, H2‑19 y la fusión de advertencias). *Mitigación:* la H2 aprueba el conjunto exacto antes de escribir código; un cambio de interpretación después es una versión del validador y un cambio del conjunto.
-- **El tamaño:** 38 PR, de ellos 23 en serie en el backend, son el camino crítico. *Mitigación:* C2a y C2b van pronto para desbloquear el *frontend*; `ui/` va en paralelo desde el principio; los PR se cortaron de antemano para no pasar de 400 líneas.
+- **El tamaño:** 37 PR, de ellos 22 en serie en el backend, son el camino crítico. *Mitigación:* C2a y C2b van pronto para desbloquear el *frontend*; `ui/` va en paralelo desde el principio; los PR se cortaron de antemano para no pasar de 400 líneas.
 - **Los disparadores y los permisos por columna** pueden chocar con Hibernate si emite un `UPDATE` propio. *Mitigación:* como en la 007, todas las columnas `updatable = false` y las transiciones con `UPDATE` explícitos. Una prueba cuenta las sentencias.
 - **La revalidación al publicar** ocurre dentro de la transacción, con el bloqueo de la vigencia. Con un archivo de 1 MiB, cargar y validar toma tiempo. *Mitigación:* la prueba de tiempo de C6b; si pasa de un segundo, se revisa antes de la H3.
 - **La primera interfaz con nombre de Spring Modulith** (`platform.ingestion`) puede cambiar lo que `ModularityTest` ve. *Mitigación:* el ADR 0038 la registra, y C3 ajusta la prueba en el mismo PR.
@@ -996,13 +1028,13 @@ _Decisiones del plan que no necesitan la H2 porque no cambian ninguna regla ni n
 |---|---|---|
 | 008-01 | C5b, F1, C10 | `ListJurisdictionConfigsTest`, `jurisdiction-configs.spec.ts`, `MenuCatalogTest`, E1 |
 | 008-02 | C5b, C6a, F2, F4a | `ListFiscalYearVersionsTest`, `GetJurisdictionConfigVersionTest`, `RejectJurisdictionConfigTest` (quién aprobó), `fiscal-year-versions.spec.ts`, E1 |
-| 008-03 | C5b, F1 | `JurisdictionConfigsApiTest` (403), prueba del 403 por URL, E1 |
-| 008-04 | C5b, C9b, F4b | `DownloadOriginalTest`, `BffContractTest`, E1 |
-| 008-05 | C3, C5a, C9b | `FileReceiverTest`, `UploadJurisdictionConfigAdapterTest`, `BffContractTest` |
+| 008-03 (enmienda 2) | C5b, C9, F1 | `JurisdictionConfigsApiTest` (403), `UploadSizeLimitsIT` (403 antes de leer), `ApiProxyTest` (413 por encima del tope), prueba del 403 por URL, E1 |
+| 008-04 | C5b, C9, F4b | `DownloadOriginalTest`, `UploadSizeLimitsIT` (`Content-Length` y `Range`), `ApiProxyTest`, E1 |
+| 008-05 | C3, C5a, C9 | `FileReceiverTest`, `UploadJurisdictionConfigAdapterTest`, `ApiProxyTest` |
 | 008-06 (V-04) | C4, C5b | `UploadPolicyTest`, `JurisdictionConfigsApiTest` |
-| 008-07 | B1, C3, C5a, C9a, C9b, C7 | `JurisdictionConfigCommonCasesTest`, `RequestBodyLimitFilterTest`, `ReportOversizeUploadTest`, `BffContractTest`, `JurisdictionConfigAuditTest` |
+| 008-07 (enmienda 2) | B1, C3, C5a, C5b, C9, C7, F3, E1 | `JurisdictionConfigCommonCasesTest`, `FileReceiverTest`, `UploadSizeLimitsIT`, `ApiProxyTest`, `SlowApiForwardingTest`, `BffContractTest` (`bff.yaml`), `JurisdictionConfigAuditTest`, la prueba del diálogo de carga, E1 (tope exacto y tope + 1 byte por petición directa) |
 | 008-08 | B1, C5b | `JurisdictionConfigCommonCasesTest`, `NoYamlConverterTest`, prueba del 415 |
-| 008-09 | C1a, C4, C5a, C9b | `AdministrationIsolationTest`, `UploadPolicyTest`, `UploadJurisdictionConfigAdapterTest` (A y B), `BffContractTest` (CRLF) |
+| 008-09 | C1a, C4, C5a, C9 | `AdministrationIsolationTest`, `UploadPolicyTest`, `UploadJurisdictionConfigAdapterTest` (A y B), `ApiProxyTest` (CRLF) |
 | 008-10 | C1a, C3, C4, C5a | `JurisdictionConfigTableTest`, `UploadPolicyTest`, prueba de dos cargas a la vez |
 | 008-11 (CJ01) | B2, B3 | `SchemaCheckTest`, `JurisdictionConfigCommonCasesTest`, `JurisdictionConfigValidatorTest` |
 | 008-12, 008-13 (CJ02) | B3, B8 | `Cj02Test`, `ParticipationOnlyTest` |
@@ -1039,7 +1071,7 @@ _Decisiones del plan que no necesitan la H2 porque no cambian ninguna regla ni n
 | 008-44 (CA‑12) | C1a, C5b | `AdministrationIsolationTest`, `JurisdictionConfigsApiTest`, E1 |
 | 008-45 | C1a, B7 | `AdministrationIsolationTest`, `Cj17Test` |
 | 008-46 | C5b, C6b, C7 | `DownloadOriginalTest` (auditada), `JurisdictionConfigAuditTest` |
-| 008-47 | C3, C6a, C6b, C7 | `RejectedAttemptLogTest`, `JurisdictionConfigAuditTest` (intentos rechazados) |
+| 008-47 (enmienda 2) | C3, C6a, C6b, C7 | `RejectedAttemptLogTest`, `JurisdictionConfigAuditTest` (intentos rechazados, y ninguna fila por encima del tope) |
 | 008-48 a 008-52 | — | Feature aparte (decisión 19) |
 | 008-53 | U1 a U4, F1 a F5, E1 | axe en cada componente y pantalla, E1 |
 
@@ -1113,7 +1145,102 @@ La tabla agrupa los hallazgos que vieron los dos, con la severidad mayor; por es
 
 **Escalado a la persona.** La ronda 2 dejó dos altos. La *skill* `liv-revision-adversarial` admite dos rondas: con altos en la segunda, se detiene y escala a la persona. Los dos están corregidos en el plan, pero **ninguna ronda ha revisado esas correcciones**. La persona decide en la H2 si basta, o si pide una verificación acotada de C2b, C9a, C9b, H2‑8 y ADR 0040 antes de aprobar, como en la 007.
 
+**Verificación acotada (2026-11-17)**, pedida por la persona en la H2. Dos `liv-revisor-critico` ciegos revisaron solo las dos correcciones de los altos de la ronda 2, sobre el commit 995e7dd.
+- **Versión del contrato (H2‑23):** correcta. `publish.sh` y `compare.sh` aceptan la serie (`jurisdiction` 1.0.0 → 1.1.0, `tax` 1.2.0 y `platform` 1.1.0), y el *frontend* fija 1.1.0. Quedan riesgos bajos: la *release* 1.0.0 puede no publicarse si se cancela su corrida; los `enum` de respuesta deben quedar completos en C2a; la operación nueva necesita una etiqueta propia para que C2b compile.
+- **Aviso del BFF a la API (H2‑8):** usa la cadena normal de `/api/**` sin cambiar la autenticación, pero aparecieron **dos altos nuevos**, uno por revisor:
+  - **Revisor A:** `platform` no tiene cómo autorizar un permiso que depende de la ruta. `@RequiresPermission` solo admite un valor fijo en un `*.application`, y `platform` no tiene esa capa. Haría falta un caso de uso abierto nuevo o un mecanismo de comprobación nuevo, que cambia una regla de arquitectura (`AuthorizationRules`, `AGENTS.md` §4.5).
+  - **Revisor B:** Spring Cloud Gateway Server MVC quita por omisión el `Content-Length` al reenviar (`RemoveContentLengthRequestHeadersFilter`). La API, que lo exige, daría 411 a toda carga legítima por el BFF.
+- **Medios** (de los dos revisores):
+  - cualquier navegador con permiso de carga puede llamar a `reportOversizeUpload` y llenar la auditoría;
+  - el 413, el 411 y el 403 de un filtro de *servlet* no salen como Problem Details sin `HandlerExceptionResolver`;
+  - la idempotencia por `attemptId` no se cumple en el registro de eventos;
+  - un 401 de la API se convertiría en 413;
+  - el BFF y la API tienen dos listas de rutas de carga sin nada que las alinee;
+  - F0 no puede tomar el `bff.yaml` de C9b.
+
+**Resultado:** con dos altos nuevos, la H2 **no se firma** y se reporta a la persona (sus instrucciones de la H2). Después, la persona aprobó la H2 el 2026-11-17 (véase «H2»). Las decisiones que ya tomó (H2‑5 con la enmienda 1, H2‑19, H2‑20 y los documentos de más) están escritas en el plan y en `spec.md`, pero sin la firma de la H2.
+
+**Cambio de H2‑8 (2026-11-17).** La persona decidió quitar el aviso del BFF, con la enmienda 2 a 008-07. Por encima del tope, el BFF y la API responden 413 `TAMANO` y lo dejan solo en su registro técnico. La API cuenta los bytes en `FileReceiver`, dentro del caso de uso, sin depender del `Content-Length`. Salen del plan `reportOversizeUpload`, `platform.yaml` 1.1.0, el ADR 0040, `IngestionRoute`, el filtro de la API y el 411. C9a y C9b pasan a ser un solo C9. Los ADR quedan del 0036 al 0039, sin renumerar, porque el 0040 era el último.
+
+Así quedan los hallazgos de la verificación acotada:
+
+| Hallazgo | Severidad | Resultado |
+|---|---|---|
+| No había cómo autorizar un permiso que depende de la ruta | Alto | **Ya no aplica:** no hay aviso. La carga sigue con su `@RequiresPermission` fijo |
+| El *gateway* quita el `Content-Length`, y la API daba 411 | Alto | **Corregido:** la API no depende de la cabecera; `FileReceiver` cuenta los bytes (H2‑8, C3, C9) |
+| Abuso de `reportOversizeUpload` para llenar la auditoría | Medio | **Ya no aplica** |
+| Los 413, 411 y 403 de un filtro de *servlet* no salían como Problem Details | Medio | **Corregido:** no hay filtro en la API ni 411; el 413 sale de `FileReceiver` dentro del caso de uso, y lo traduce `ProblemDetailsHandler`. Una prueba por el servidor real lo comprueba (C3). El 413 del BFF lo declara `bff.yaml` 1.5.0 (C9) |
+| Idempotencia por `attemptId` | Medio | **Ya no aplica** |
+| Un 401 de la API llegaba como 413 | Medio | **Ya no aplica:** el BFF no llama a la API por encima del tope, y una petición sin sesión recibe el 401 de sus cadenas antes del filtro |
+| Dos listas de rutas de carga sin alinear | Medio | **Ya no aplica:** el BFF aplica el tope a todo `/api/**`, sin lista |
+| F0 no podía tomar el `bff.yaml` de C9b | Medio | **Corregido:** F3 sube `bff` a 1.5.0 y depende de C9 |
+| La *release* 1.0.0 puede no publicarse si se cancela su corrida; `enum` de respuesta | Bajo | **Corregido:** C2b se integra después de ver publicada la 1.0.0, y C2a define completos los `enum` de respuesta |
+| La operación nueva de `platform.yaml` necesitaba su propia etiqueta | Bajo | **Ya no aplica** |
+
+Queda un riesgo aceptado: un usuario sin permiso de carga que envía más del tope recibe el 413 del BFF y no un 403, porque el BFF no conoce los permisos (C9). Por debajo del tope, la API le da su 403 (008-03).
+
+**Verificación acotada del cambio de H2‑8 (2026-11-17)**, dos `liv-revisor-critico` ciegos sobre el árbol de trabajo frente a 995e7dd.
+- **Revisor A:** 1 alto, 4 medios y 5 bajos.
+- **Revisor B:** 1 alto, 2 medios y 4 bajos.
+
+**El alto, confirmado por los dos.** La API lee el cuerpo entero en memoria antes de comprobar el permiso y antes de que `FileReceiver` cuente un byte:
+- `openapi-generator` (`spring` 7.26.0) traduce el cuerpo binario a `org.springframework.core.io.Resource`;
+- `ResourceHttpMessageConverter` lo copia entero a un `ByteArrayResource` al resolver los argumentos del controlador, antes del caso de uso;
+- al quitar el filtro de *servlet* de la API, nada corta antes: un cuerpo en trozos pasa el BFF sin tope y la API lo guarda entero, también si lo envía un `CONSULTA`.
+
+**Medios:**
+- un cuerpo en trozos por encima del tope que pasa por el BFF no recibe un 413 confiable, porque la API cierra la conexión sin drenarla y el *gateway* ve un error al escribir;
+- 008-47 (auditar los rechazos del cargador) y 008-03 (403 sin permiso) no los cubre la enmienda 2: lo decide la persona;
+- el tope vive en el BFF y en la API sin nada que lo mantenga igual;
+- el *frontend* dejó de tener motivo para no validar el tamaño antes de enviar.
+
+**Bajos:** C5a y C7 no distinguen «dentro del tope» de «por encima»; el plazo total con temporizador no desbloquea una lectura de Tomcat; el 413 de la API y el del BFF no son idénticos si uno lleva `fileSha256`; textos sin actualizar (conteo de PR, §H2); F3 debe depender de la *release* de `bff.yaml` 1.5.0; el tope fijo frente a `docs/arquitectura/02` §7.
+
+**Resultado:** con un alto confirmado, la H2 **no se firma** y se reporta a la persona. Después, la persona aprobó la H2 el 2026-11-17 (véase «H2»).
+
+**Correcciones (2026-11-17)**, que pidió la persona, junto con la ampliación de la enmienda 2 a 008-03 y 008-47:
+- **El alto:** la ejecución `contract-jurisdiction` traduce el binario a `InputStreamResource`, así que el convertidor solo envuelve el flujo y `FileReceiver` cuenta de verdad. `UploadSizeLimitsIT`, por el servidor real y contra el controlador de `jurisdiction`, lo comprueba (C2a, C5b, «Topes de tamaño»).
+- **Cuerpo en trozos en el BFF:** el filtro cuenta los bytes cuando no hay `Content-Length` y responde él mismo el 413; ningún cuerpo por encima del tope llega a la API por el BFF (C9).
+- **008-47 y 008-03:** quedan cubiertos por la enmienda 2 (`spec.md`).
+- **El tope en tres proyectos:** la API lo publica en `uploadLimits`, `bff.yaml` lo declara, y E1 prueba el tope exacto y el tope + 1 byte de punta a punta.
+- **El *frontend*:** rechaza lo que pasa del tope sin enviarlo y envía lo que está entre 1 MiB y el tope.
+- **Los bajos:**
+  - C5a y C7 distinguen «dentro del tope» de «por encima», con una prueba de cero filas;
+  - el plazo se comprueba en cada lectura, con el `connection-timeout` fijado y un 408 `SYS-408`;
+  - el 413 común lleva `fileSha256` opcional;
+  - F3 depende de la *release* `contract-bff-v1.5.0`;
+  - el conteo de PR y §H2 están al día;
+  - `docs/arquitectura/02` §7 entra en «Documentos que cambian».
+
+**Verificación acotada de las correcciones (2026-11-17)**, dos `liv-revisor-critico` ciegos. **Ninguno encontró altos.**
+- **Revisor A:** 2 medios y 5 bajos.
+- **Revisor B:** 3 medios y 6 bajos.
+
+Los dos comprobaron contra las bibliotecas reales que la corrección del alto funciona:
+- `ResourceHttpMessageConverter` solo envuelve el flujo con `InputStreamResource`;
+- `openapi-generator` 7.26.0 respeta un `typeMappings` de `file`;
+- el 403 sale antes de leer;
+- el conteo del BFF es realizable.
+
+Se corrigieron todos los hallazgos:
+
+| Hallazgo | Severidad | Corrección |
+|---|---|---|
+| Un cuerpo en trozos que el BFF cortaba a mitad llegaba a la API como un prefijo (500 o una auditoría con el SHA‑256 de un prefijo) | Medio | El BFF retiene en memoria un cuerpo sin `Content-Length` hasta el tope + 1 antes de reenviarlo; `FileReceiver` trata un corte a mitad como 400 `SYS-400` con `WARN`, sin auditoría (C3, C9) |
+| El 408 no llegaba por el BFF, y el plazo no estaba fijado | Medio | Plazos constantes: 20 s en el BFF, que responde 408 `SYS-408` (en `bff.yaml`), y 25 s en la API, por debajo del `read-timeout` de 30 s; `SocketTimeoutException` da 408 («Topes de tamaño», C3, C9) |
+| Tomcat seguía leyendo al cliente lento después de responder | Medio | `max-swallow-size` de 64 KiB en la API y en el BFF, `connection-timeout` del BFF y `keep-alive-timeout` de la API, con su prueba («Topes de tamaño», C3, C5b, C9) |
+| E1 no probaba de verdad que los dos topes coinciden | Medio | Peticiones directas por el BFF; el 413 del BFF lleva `rejectedBy: bff`; el literal 1.114.112 en las pruebas del BFF («Topes de tamaño», C9) |
+| Mapeo del tipo sin fijar; la descarga sin `Content-Length` y con `Range` | Bajo | `typeMappings` con `file`; `Content-Length` explícito y 416 con `Range` (C2a, C5b) |
+| La aserción «no leyó más que el tope» no se puede cumplir, y la prueba lenta podía perder el 413 | Bajo | Lecturas acotadas y aserción de tope + 1 byte; cliente de *socket* que lee mientras envía (C3, C5b) |
+| `BffContractTest` no tiene API falsa | Bajo | Las pruebas van en `ApiProxyTest` y `SlowApiForwardingTest` (C9, trazabilidad) |
+| Los cuerpos JSON de las acciones no tienen tope en la API | Bajo | Se declara que la API solo se alcanza por el BFF, que los acota («Topes de tamaño») |
+| 008-03 decía «Única excepción» y «carga»; 008-47 suponía siempre un registro técnico | Bajo | Texto de la enmienda 2 ajustado en `spec.md` |
+| Textos viejos y F3 sin el 408 | Bajo | Corregidos: el riesgo que decía que E1 prueba 5 MiB por la pantalla, la fila H2‑8 («la H1 de ese criterio»), la carga en C5b (`InputStream`), los totales de líneas, el PR de `02` §7 en «Documentos que cambian» y el texto del 408 en F3 |
+
+Quedan dos riesgos aceptados, ya en la enmienda 2: los intentos por encima del tope no se auditan, y un usuario sin permiso que envía más del tope recibe 413 y no 403.
+
 **Lente de legibilidad (2026-11-16)**, `liv-revisor-rapido` sobre el cambio preparado: tablas y enlaces de Figma bien formados; 12 hallazgos de estilo (1 alto, 8 medios y 3 bajos). Se aplicaron todos menos uno: las celdas largas de H2‑4 y H2‑8 pasaron a sus subsecciones, se aclararon seis frases, se completó una dependencia del mapa, se explicó el conteo de la ronda 1 y se unificó `V-04` con el guion ASCII. Se descartó cambiar la etiqueta «008-34 (CJ02)», que es la de `spec.md`.
 
+- [x] Revisión adversarial del plan en dos rondas y tres verificaciones acotadas; la última, sin altos.
 - [x] Lente de legibilidad.
-- [ ] Aprobación H2: <quién, fecha>.
+- [x] Aprobación H2: la persona que dirige el trabajo, 2026-11-17, sobre el PR #218 (véase «H2»).
