@@ -21,7 +21,13 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
-**Ninguna feature en curso.** La feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16, con la enmienda 4 incluida. Sus 57 tareas y sus 18 criterios están hechos, en los PR #176 a #212 y el de este cierre. La siguiente feature de la Fase 1 la elige la persona del *roadmap*.
+**Orquestador activo: feature 008 · Configuración de jurisdicción (1.5.9)** (desde el 2026-11-16). La eligió la persona como siguiente feature de la Fase 1. La 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16, con la enmienda 4 incluida.
+
+| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
+|---|---|---|---|---|---|
+| Spec (H1) | raíz | `f008-spec` | — | 🔄 En curso | La H1, cuando la spec esté lista |
+| Diseño en Figma | Figma | — | Spec (H1) | ⏳ Pendiente, si hay pantallas | — |
+| Plan (H2) | raíz | — | Spec (H1) y diseño | ⏳ Pendiente | — |
 
 ---
 
@@ -171,6 +177,11 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-16 (tarde)
+
+- Empieza la feature 008 · Configuración de jurisdicción (1.5.9), elegida por la persona (orquestador). La sesión `f008-spec` escribe la spec para la H1: carga, validación CJ01 a CJ16, aprobación y publicación del YAML de cada vigencia, el punto 9 de la lista de preparación y lo que la feature 004 dejó para aquí (el validador de los anexos y su CI).
+- Limpieza: se archivaron 32 sesiones terminadas de las features 006 y 007 y se borraron sus carpetas de trabajo, todas con su PR integrado. Se detuvieron servidores de Storybook que habían quedado corriendo.
 
 ### 2026-11-16
 
