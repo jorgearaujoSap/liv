@@ -2,7 +2,7 @@
 
 _Cómo se implementa lo descrito en `spec.md`. Debe respetar la `constitution/` y la arquitectura (`docs/arquitectura/`)._
 
-**Estado:** aprobado (H2) — 2026-11-17, por la persona que dirige el trabajo, como arquitecto y como responsable funcional (`AGENTS.md` §4.3), sobre el PR #218 (véase «H2»)
+**Estado:** aprobado (H2) — 2026-11-17, por la persona que dirige el trabajo, como arquitecto y como responsable funcional (`AGENTS.md` §4.3), sobre el commit bdb16b9 del PR #218 (véase «H2»)
 _(borrador → aprobado (H2))_
 
 ## H2
@@ -1243,4 +1243,4 @@ Quedan dos riesgos aceptados, ya en la enmienda 2: los intentos por encima del t
 
 - [x] Revisión adversarial del plan en dos rondas y tres verificaciones acotadas; la última, sin altos.
 - [x] Lente de legibilidad.
-- [x] Aprobación H2: la persona que dirige el trabajo, 2026-11-17, sobre el PR #218 (véase «H2»).
+- [x] Aprobación H2: la persona que dirige el trabajo, 2026-11-17, sobre el commit bdb16b9 del PR #218 (véase «H2»).
