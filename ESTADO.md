@@ -25,9 +25,11 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 
 | Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
 |---|---|---|---|---|---|
-| Spec (H1) | raíz | `f008-spec` | — | 🔄 En curso | La H1, cuando la spec esté lista |
-| Diseño en Figma | Figma | — | Spec (H1) | ⏳ Pendiente, si hay pantallas | — |
-| Plan (H2) | raíz | — | Spec (H1) y diseño | ⏳ Pendiente | — |
+| Spec (H1) | raíz | `f008-spec`, PR #217 | — | ✅ Aprobada el 2026-11-16; 48 criterios; enmiendas 1 y 2 en la H2 | — |
+| Diseño en Figma | Figma | `f008-figma` | Spec (H1) | ✅ Aprobado el 2026-11-16: 4 pantallas y el historial, 28 marcos, `Checkbox`, `TextArea`, `FileField`, `Tab` y 4 iconos | — |
+| Plan (H2) | raíz | `f008-plan`, PR #218 | Spec (H1) y diseño | ✅ Aprobado el 2026-11-17: 38 PR en seis olas, H2‑1 a H2‑24 | — |
+| Tareas | raíz | `f008-tareas` | Plan (H2) | 🔄 En curso | — |
+| Implementación | todos | — | Tareas | ⏳ Pendiente | Publicar `liv-components` 0.6.0 cuando entre su serie |
 
 ---
 
@@ -177,6 +179,22 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-17
+
+- **Feature 008 · Configuración de jurisdicción (1.5.9), orquestador.**
+  - **Spec aprobada en la H1** (#217, 2026-11-16), con 48 criterios:
+    - publicar guarda solo la copia inmutable;
+    - carga `CARGADOR_TABLAS`; aprueban y publican `JURIDICO` o `APROBADOR_TABLAS`, siempre distintos de quien cargó;
+    - el YAML se guarda en la base de datos como excepción temporal, con su ADR;
+    - **el validador de los anexos en la raíz y su CI salen a una feature aparte.**
+  - **Diseño en Figma aprobado** (2026-11-16): el historial de versiones como pantalla propia, la aprobación en un diálogo con una marca por regla y sin «Marcar todas», y el detalle con pestañas.
+  - **Plan aprobado en la H2** (#218, 2026-11-17), con verificación acotada sin altos:
+    - **H2‑5:** CJ08 es *no evaluable* con el DANE en `PENDIENTE` (enmienda 1, a 008‑18);
+    - **H2‑8:** se quita el aviso del BFF. Por encima del tope responde 413 y queda solo en el registro del BFF, sin auditoría (enmienda 2, a 008‑07);
+    - **H2‑19:** CJ18 revisa también las fechas `MM-DD`; el 29‑02 pasa con advertencia;
+    - **H2‑20:** un convenio con las fechas invertidas es error en CJ12.
+  - **Tareas en curso.**
 
 ### 2026-11-16 (tarde)
 
