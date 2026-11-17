@@ -47,8 +47,10 @@ _Sin comprometer ni ordenar del todo. El número `NNN` se asigna al crear la car
 - **Normas y soportes** (1.3) — registro de normas con su PDF.
 - **Cargue de tablas de avalúos** (1.5.1–1.5.4) — importación XLSX del Ministerio con validación, aprobación y publicación. La 1.5.1 trae además, desde la 007, la habilitación de la liquidación con doble firma, el estado *Lista* y el cierre de la vigencia (007-13 a 007-17).
 - **Tarifas, calendario, beneficios y sanciones** (1.5.5–1.5.8).
-- **Configuración de jurisdicción** (1.5.9) — carga, validación CJ01–CJ16 y publicación del YAML. Al publicar, guarda la versión del validador y la del esquema (decisión 6 de la H3 de R3a, feature 005). Incluye el validador de los anexos en la raíz y su CI, que la feature 004 dejó para aquí (pasos 4 y 5 de su plan, criterio 004‑13).
+- **Configuración de jurisdicción** (1.5.9) — carga, validación CJ01–CJ16 y publicación del YAML. Al publicar, guarda la versión del validador y la del esquema (decisión 6 de la H3 de R3a, feature 005). En curso como feature 008 (spec, diseño y plan aprobados). El validador de los anexos en la raíz y su CI, que la feature 004 dejó para aquí (pasos 4 y 5 de su plan, criterio 004‑13), salió en la H1 a una feature aparte.
 - **Consultas y exportación de tablas base** (1.6.1–1.6.7), incluido el reporte SIBGA.
+
+- **Validador de los anexos en la raíz y su CI** (criterio 004‑13): separado de la 008 en su H1. Feature pequeña, de unas 700 a 1.000 líneas en 3 o 4 PR.
 
 **Fase 2 — Homologación y liquidación individual**
 - **Homologación vehículo ↔ avalúo** (2.6) — cascada de 8 niveles.
