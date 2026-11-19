@@ -1,12 +1,12 @@
 # AGENTS.md — liv-components
 
-Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librería de componentes. **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD, TDD, aprobaciones H1–H3, *skills* (en especial `liv-figma`) y `ESTADO.md`.
+Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librería de componentes. **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD por rebanadas verticales (ADR 0040), pruebas, aprobaciones (H1 de la spec, visto bueno de cada rebanada y H3), *skills* (en especial `liv-figma`) y `ESTADO.md`.
 
 ## Antes de tocar código
 
 1. Todo componente nuevo nace primero en la página `02 Componentes` del archivo de Figma LIV‑Diseño, con el **mismo nombre, variantes y propiedades** que tendrá aquí.
-2. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3). Como toda la librería es ruta crítica, por el flujo directo solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias.
-3. Modificar un componente existente es un **cambio crítico**: afecta todas las pantallas que lo usan y exige la aprobación del líder de frontend y de un responsable funcional.
+2. La tarea es un ajuste, una rebanada (un *issue* del backlog, en «Lista») o parte de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma), según los tamaños de trabajo del `AGENTS.md` del repositorio de plataforma (§4.3). Modificar un componente existente o sus capturas de referencia, los *tokens* y la configuración de *build* y de publicación son zona roja: como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias, y cada PR pasa la revisión adversarial.
+3. Modificar un componente existente es **zona roja**: afecta todas las pantallas que lo usan y exige la aprobación del líder de frontend y de un responsable funcional.
 
 ## Reglas de la librería
 
