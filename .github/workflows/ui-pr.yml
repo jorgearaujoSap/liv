@@ -1,7 +1,8 @@
 # CI de PR de la librería liv-components (doc. 04 §9, IN‑08): solo orquesta los scripts de npm del proyecto.
 # Compuertas cubiertas hoy: Q01 (lint, formato y empaquetado). Pruebas, historias, regresión visual y
 # accesibilidad (Q02, Q14) se agregan con el primer componente (tarea T03 de la feature 001).
-# Este workflow nunca publica en npm: solo un humano publica (AGENTS.md §4.5).
+# Este workflow nunca publica en npm: solo un humano publica (AGENTS.md §4.5). Si el PR sube la versión de la librería,
+# corre además `release:check --ci` (feature 002, 002-10).
 # Corre en todos los PR, sin filtro de rutas: «ui · cambios» decide si «ui · verify» corre o se omite
 # (.github/scripts/aplica.sh). Los nombres de los trabajos son los de los checks obligatorios del ruleset «main»:
 # no se cambian sin cambiar también la protección, o el check obligatorio queda esperando para siempre.
@@ -55,8 +56,10 @@ jobs:
       run:
         working-directory: ui
     steps:
+      # fetch-depth 2: trae también el primer padre del merge (la punta de main), para saber si el PR sube la versión.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -82,3 +85,29 @@ jobs:
 
       - name: Build y empaquetado (Q01)
         run: npm run pack
+
+      # 002-10: un PR que sube la versión de la librería se juzga aquí, antes de llegar a main, con las mismas
+      # verificaciones de publicación que ui-release.yml. Sin versión nueva no corre (la versión ya publicada
+      # haría fallar la verificación). Cualquier cambio de versión se verifica, también una que baja. Si alguna de las
+      # dos no se puede leer como X.Y.Z, corre: ante la duda se verifica. Los valores se validan antes de imprimirse.
+      - name: ¿Sube el PR la versión de la librería?
+        id: version
+        working-directory: .
+        run: |
+          manifest=ui/projects/liv-components/package.json
+          leer() {
+            node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8")).version; if (typeof v !== "string" || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(v)) process.exit(1); console.log(v)'
+          }
+          nueva=$(leer < "$manifest" 2> /dev/null) || nueva=
+          base=$(git show "HEAD^1:$manifest" 2> /dev/null | leer 2> /dev/null) || base=
+          if [ -n "$nueva" ] && [ "$nueva" = "$base" ]; then
+            echo "La versión no cambia: no se verifica la publicación."
+            echo "cambia=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "El PR cambia la versión de la librería (de '${base:-ninguna}' a '${nueva:-ilegible}'): se verifica la publicación."
+            echo "cambia=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verificar la publicación (002-10)
+        if: ${{ steps.version.outputs.cambia == 'true' }}
+        run: npm run release:check -- --ci
