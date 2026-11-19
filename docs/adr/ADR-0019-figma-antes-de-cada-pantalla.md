@@ -1,6 +1,6 @@
 # ADR-0019 · Diseño en Figma aprobado antes de implementar toda pantalla nueva, con la excepción de las pantallas que copian la estructura de otra existente
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado; complementado por el ADR 0040 (la declaración de reutilización de estructura va en el diseño técnico de `spec.md` o en el *issue* de la rebanada)
 - **Fecha:** 2026-11-01
 - **Decisores:** el equipo del proyecto, en la revisión del 2026-11-01 en que se aceptaron los ADR 0001–0025 (doc. 00 §6 y bitácora de `ESTADO.md`)
 - **Documentos relacionados:** `docs/arquitectura/00` §7 (P10); `docs/arquitectura/01` §11.2; `docs/arquitectura/05` §3.1 y §4.2

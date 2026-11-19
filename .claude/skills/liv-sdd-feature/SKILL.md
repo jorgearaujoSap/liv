@@ -1,81 +1,72 @@
 ---
 name: liv-sdd-feature
-description: Crea y conduce una feature del proyecto LIV con el flujo SDD (spec → plan → tareas → código con TDD). Úsala cuando el usuario pida una funcionalidad nueva o un cambio normal o crítico, pida "crear una feature", "escribir la spec", "hacer el plan" o "desglosar tareas", o cuando haya que avanzar o cerrar una feature en spec/features/. No la uses para los cambios del flujo directo (evaluación previa de AGENTS.md §4.3).
+description: Arranca y conduce una feature del proyecto LIV con SDD por rebanadas verticales (ADR 0040) - spec.md corto con su diseño técnico, backlog de rebanadas en GitHub Issues, construcción de cada rebanada de punta a punta y cierre. Úsala cuando el usuario pida una funcionalidad nueva, "crear una feature", "escribir la spec", "armar el backlog", "hacer la siguiente rebanada" o cerrar una feature en spec/features/. No la uses para los ajustes (AGENTS.md §4.3).
 ---
 
-# Feature SDD del proyecto LIV
+# Feature con SDD por rebanadas verticales
 
-Reemplaza a los comandos SDD de gentle‑ai. La metodología completa está en `spec/README.md` y `AGENTS.md` §4; esta *skill* es el procedimiento paso a paso.
+Reemplaza a los comandos SDD de gentle‑ai. Las reglas están en `AGENTS.md` §4 y el resumen en `spec/README.md`; esta *skill* es el procedimiento. El criterio de todo: **con cuidado en lo que es caro de cambiar** (datos, contratos, reglas tributarias, seguridad, límites entre módulos) **y rápido en lo que es barato** (pantallas, textos, código interno).
 
 ## 0. Antes de empezar
 
-1. Lee `ESTADO.md` y `spec/constitution/roadmap.md`. Si la Fase 0 no está cerrada, solo se aceptan features de la Fase 0 o de documentación.
-2. Haz la evaluación previa de `AGENTS.md` §4.3. Si no se cumple ningún criterio de SDD y la tarea es sencilla y acotada, va por el **flujo directo**: no uses esta *skill*. Si llegas aquí desde un cambio directo que se volvió complejo, empieza por `spec.md`.
-3. Lee los documentos funcionales de `docs/funcional/` que toca la feature y anota las secciones y los códigos de regla (`R0xx`, `LQ-*`, `CJxx`, `CA-x.xx`…).
-4. **Modelo por fase** (`AGENTS.md` §10):
-   - nivel **alto** para `spec.md`, `plan.md` y los ADR;
-   - nivel **estándar** para `tasks.md`, la implementación y la documentación;
-   - nivel **económico** para las búsquedas (en Claude Code, el subagente `liv-explorador`).
+1. Lee `ESTADO.md` y `spec/constitution/roadmap.md`. Hay una sola feature en construcción a la vez; la siguiente puede preparar su arranque mientras tanto.
+2. Decide el tamaño (`AGENTS.md` §4.3). Si es un **ajuste**, no uses esta *skill*: va directo a un PR. Si es una **rebanada** de una feature que ya arrancó, ve a §3.
+3. Lee los documentos funcionales que toca la feature y anota las secciones y los códigos de regla (`R0xx`, `LQ-*`, `CJxx`, `CA-x.xx`…). Para buscar, usa el subagente `liv-explorador`.
+4. **Modelo** (`AGENTS.md` §10): nivel alto para el arranque y los ADR; estándar para construir rebanadas.
 
-   Abre una sesión nueva al pasar de una fase a otra: el estado está en el repositorio.
+## 1. Arranque: `spec.md`
 
-## 1. Crear la carpeta
+1. Busca el siguiente número libre en `spec/features/` (ignora la plantilla `NNN-nombre-feature`) y copia la plantilla a `spec/features/<NNN>-<nombre-corto>/`.
+2. Escribe `spec.md`. Es **corto**: lo justo para arrancar.
+   - **Qué hace y por qué**, en cinco líneas.
+   - **Reglas** con su código y su fuente. Si un pendiente funcional (`PENDIENTE`, `POR_CONFIRMAR`) puede cambiar una regla, **detente y pregunta**.
+   - **Alcance del MVP:** «Entra» con lo mínimo útil y «Después» con todo lo demás. Es la sección que más tiempo ahorra: sé estricto.
+   - **Criterios** Dado / Cuando / Entonces, cada uno con su código y su rebanada.
+   - **Diseño técnico, en una página:** módulos, datos (con *expand/contract* si cambia una tabla existente), contrato, permisos, amenazas, pantallas, riesgos y decisiones. Lo caro de cambiar se decide aquí. Una decisión difícil de revertir lleva su ADR (`liv-adr`).
+   - **Rebanadas en orden.** R1 es el esqueleto: el camino más delgado de punta a punta (opción del menú, pantalla mínima, endpoint y tabla, conectados). Las demás, por riesgo primero y valor después. Cada una cabe en uno a tres PR de unas 400 líneas.
+3. **Si la feature toca una zona roja**, ejecuta `liv-revision-adversarial` sobre el diseño técnico y anota el resultado en su línea «Revisión».
+4. Pide la **H1** a la persona. Sin H1 no hay backlog. Una spec con una pregunta abierta que pueda cambiar un criterio no se aprueba.
+5. Crea el backlog (§2) y abre el PR de arranque con `spec.md` (con la tabla de rebanadas y sus *issues*), y en `ESTADO.md` la feature en construcción y su entrada de la bitácora (`liv-estado`).
 
-1. Busca el siguiente número libre: lista `spec/features/` e ignora la plantilla `NNN-nombre-feature`.
-2. Copia `spec/features/NNN-nombre-feature/` a `spec/features/<NNN>-<nombre-corto>/` (minúsculas con guiones, p. ej. `001-vigencias-fiscales`).
-3. Reemplaza `NNN` y `<Nombre de la feature>` en los tres archivos.
+## 2. Backlog
 
-## 2. Escribir `spec.md`
+Sigue la *skill* `liv-backlog` §2:
+- un *issue* por rebanada de la spec aprobada, en «Backlog»;
+- su número, en la tabla «Rebanadas» de `spec.md`;
+- lo de «Después», propuesto a la persona como rebanadas sueltas.
 
-- Completa el encabezado: módulo, menú, tipo de cambio y fuentes (documento y sección).
-- **Qué hace** y **Por qué**: desde el punto de vista del usuario, sin detalles técnicos.
-- **Criterios de aceptación**: uno por regla o caso, en formato Dado / Cuando / Entonces, empezando por su código. Agrega los de segregación de funciones y aislamiento entre administraciones cuando apliquen.
-- **Fuera de alcance** y **Preguntas abiertas**. Si un pendiente funcional (`PENDIENTE`, `POR_CONFIRMAR`) puede cambiar un criterio, **detente y pregunta**.
-- Deja **Estado: propuesta** y pide la **aprobación H1** del responsable funcional. No sigas sin ella.
+Los agentes nunca mueven un *issue* a «Lista»: ese es el visto bueno de la persona.
 
-## 3. Diseño (solo si hay pantallas)
+## 3. Construir una rebanada
 
-Cada pantalla nueva o modificada necesita su *frame* aprobado en la página `03 Pantallas` de Figma, o una declaración de reutilización de estructura (`AGENTS.md` §6.2). Usa la *skill* `liv-figma`.
+1. **Lista:** la persona la mueve a «Lista». Antes, completa en el *issue* lo que falte de la definición de lista (`AGENTS.md` §4.2): diseño aprobado si hay pantalla (`liv-figma`), su parte del contrato y las pruebas. Si toca una zona roja, prepara ese detalle con el nivel alto; si es una rebanada suelta con zona roja, agrega su diseño técnico corto y pásale la revisión adversarial (`liv-revision-adversarial`). Si falta algo, pregúntalo; no lo inventes.
+2. **Rama** por proyecto: `feat/<NNN>-r<n>-<proyecto>` (p. ej. `feat/009-r2-backend`).
+3. **Contrato primero**, si la rebanada toca la API (`liv-endpoint`).
+4. **Backend:** en las reglas y los cálculos tributarios, la prueba primero (que falle, código, refactorización), con el código de la regla en su nombre y su etiqueta; no hace falta un *commit* aparte. El resto (permisos, segregación, adaptadores) entra con sus pruebas en el mismo PR. Un caso de uso por clase, sin «servicios» compartidos que crezcan con cada rebanada, y cada caso de uso expuesto con su permiso y su segregación completos. Migraciones con `liv-migracion`, con *expand/contract* si cambian una tabla existente. Pruebas de integración del endpoint con la base real.
+5. **Frontend:** la pantalla solo con `liv-components`, contra el contrato (`liv-pantalla`), con sus pruebas de lógica. Puede construirse en local contra la rama del contrato, pero su PR no se integra ni fija `frontend/api-spec/` hasta que exista la *release* del contrato. Si falta un componente, primero va a `ui/` (`liv-componente`), en su propio PR, y la persona publica la versión. La opción queda en «Próximamente».
+6. **Verlo funcionando:** levanta LIV en local (`README.md` › «Ejecutar LIV en local») y revisa la pantalla contra su diseño. Ajusta en la misma sesión.
+7. **Revisión adversarial** (`liv-revision-adversarial`) del PR que toca una zona roja, una regla con código o un documento funcional. Corrige los críticos y altos. Los demás PR van con el CI en verde y la H3 de la persona.
+8. **PR** por proyecto, con:
+   - `Parte de #n`, o `Cierra #n` en el último;
+   - el resumen de la revisión adversarial, si la hubo;
+   - una captura si hay pantalla;
+   - el `CHANGELOG.md` del proyecto.
 
-## 4. Escribir `plan.md`
+   No toques `ESTADO.md`, `spec.md` ni el glosario (`AGENTS.md` §4.2, «Quién escribe en la raíz»). La H3 y la integración son de la persona.
+9. **Deuda y hallazgos:** propón a la persona cada atajo como *issue* `deuda`, y lo que encuentres fuera de la rebanada como *issue* nuevo (`liv-backlog` §3). Créalos solo con su aprobación; si no aprueba la deuda de un atajo, corrígelo en la misma rebanada. Si hay más de cinco *issues* `deuda` abiertos, avísale: la siguiente rebanada es de limpieza.
+10. **Cambios de alcance:** anótalos con la fecha en el *issue* de la rebanada, y ajusta o agrega la rebanada. Si agregan, quitan o alteran un criterio, el diseño técnico o una rebanada con zona roja, pide antes el visto bueno de la persona y llévalos a la sección «Cambios» de `spec.md` en un PR pequeño de la raíz. Si cambia una regla tributaria, detente: sigue el proceso de los documentos funcionales. Los términos nuevos del glosario también se anotan en el *issue*.
 
-- **Enfoque** e **Implementación** paso a paso, indicando en cada paso si es de `backend/`, `frontend/` o de la raíz. Un PR toca un solo proyecto (`AGENTS.md` §4.6).
-- **Datos, API y seguridad**: migraciones, cambios en el OpenAPI (el contrato va antes que el frontend), permisos y amenazas.
-- **Diseño de interfaz**: enlaces a los *frames* y componentes de `liv-components`.
-- **Decisiones** y **Riesgos**. Una decisión de arquitectura nueva se registra con la *skill* `liv-adr`.
-- Ejecuta la *skill* `liv-revision-adversarial` sobre el plan y anota el resultado en la sección **Revisión**.
-- Pide la **aprobación H2** (arquitecto; más el responsable funcional si cambia una regla o hay pantallas).
+## 4. Cerrar la feature
 
-## 5. Escribir `tasks.md`
+Cuando todas las rebanadas están hechas:
 
-- Tareas pequeñas (un PR revisable, ≤ ~400 líneas), cada una con **Archivos** permitidos y **Prueba primero**.
-- Si la feature toca backend y frontend, separa las tareas por proyecto: primero las del backend con el contrato.
-- Conserva las tareas fijas de cierre de la plantilla.
-
-## 6. Implementar (por tarea)
-
-1. Rama `feat/<NNN-nombre>-<proyecto>`.
-2. **Rojo:** escribe la prueba con el código de la regla en su nombre y etiqueta. Ejecútala y confirma que falla por el motivo correcto. Commit `test:`.
-3. **Verde:** el código mínimo que la hace pasar. Commit `feat:` o `fix:`.
-4. **Refactorizar** con las pruebas en verde. Commit `refactor:`.
-5. Toca solo los archivos declarados en la tarea. Si necesitas otro, actualiza `tasks.md` y avisa.
-6. Antes de cada commit, ejecuta la lente de legibilidad de `liv-revision-4r`.
-7. Marca la tarea `[x]` en `tasks.md`. Si la feature la dirige un orquestador (`liv-orquestador`), repórtaselo: él la marca.
-
-## 7. Validar
-
-- Ejecuta `liv-revision-adversarial` sobre lo implementado. Si el cambio es crítico o supera 400 líneas, ejecuta también las cuatro lentes de `liv-revision-4r`.
-- Marca cada criterio de `spec.md` con `[x]` y el nombre de la prueba que lo demuestra. Sin prueba no se marca. Bajo un orquestador, los marca él.
-- Ejecuta las verificaciones locales y reporta con honestidad lo que falle.
-- **Si la feature tiene interfaz, pruébala en el navegador** (ADR 0030):
-  - levanta el sistema como dice `README.md` › «Ejecutar LIV en local»;
-  - corre `npm test` en `e2e/`, con las pruebas de navegador que la feature agregó en rojo al implementar: sus flujos, las capturas de referencia y axe. Van en su propio PR de `e2e/` (un PR por proyecto), y su resultado se cita en el PR del frontend;
-  - revisa además cada pantalla contra su *frame* de Figma con el navegador;
-  - pon el resultado en el PR. Una captura de referencia nueva o cambiada la aprueba el responsable.
-- Abre el PR (uno por proyecto) citando la feature. La **aprobación H3** y el merge son siempre de un humano.
-
-## 8. Cerrar
-
-- Pasa la feature a "Hecho" en `spec/constitution/roadmap.md`.
-- Actualiza `ESTADO.md` con la *skill* `liv-estado`. Si la feature la dirige un orquestador (`liv-orquestador`), esto lo hace él.
-- Si surgieron términos nuevos, agrégalos al glosario (`docs/arquitectura/01` §15).
+1. **Pruebas de navegador** de los caminos principales en `e2e/` (`liv-prueba-e2e`), en verde contra el entorno local (ADR 0030). Una captura de referencia nueva o cambiada la aprueba la persona.
+2. **Criterios:** marca cada uno de `spec.md` con `[x]` y la prueba que lo demuestra. Sin prueba no se marca.
+3. **Deuda:** revisa los *issues* `deuda` de la feature con la persona y decide cuáles se pagan antes de la siguiente.
+4. **Menú:** abre la opción, que deja de mostrar «Próximamente».
+5. **PR de cierre:**
+   - la feature, en «Hecho» del roadmap;
+   - los cambios y los términos nuevos anotados en los *issues*, en la sección «Cambios» de `spec.md` y en el glosario (`docs/arquitectura/01` §15);
+   - los ADR, al día;
+   - `ESTADO.md`, con `liv-estado`;
+   - el estado «hecha» en `spec.md`.

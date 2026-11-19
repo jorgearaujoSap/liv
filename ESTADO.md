@@ -1,7 +1,7 @@
 # Estado del proyecto
 
 > **Última actualización:** 2026-11-18
-> **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
+> **Regla:** este archivo se actualiza al arrancar o cerrar una feature, con las decisiones del equipo, el estado de Figma y los próximos pasos, y con una línea de la bitácora por cada ajuste de la raíz (`AGENTS.md` §7). El avance de las rebanadas lo lleva el *Project* de GitHub, y sus PR no tocan este archivo (ADR 0040).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
 ---
@@ -21,6 +21,8 @@
 
 Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
 
+> **Método anterior.** Este tablero sigue el ADR 0033. Con el ADR 0040, el avance de la 008 pasa al *Project* de GitHub cuando se convierta en rebanadas, y este tablero se reduce a la feature en construcción.
+
 **Orquestador activo: feature 008 · Configuración de jurisdicción (1.5.9)** (desde el 2026-11-16). La eligió la persona como siguiente feature de la Fase 1. La 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16, con la enmienda 4 incluida.
 
 | Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
@@ -37,6 +39,8 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 | Oleada 6 · C10, validación en local (T74) y corrida de E1 | `backend/`, `e2e/` | — | Ola 5 | ⏳ Pendiente | Acompañar T74 y aprobar las capturas de `e2e/` |
 
 ### Cómo continuar la feature 008 (guía de traspaso)
+
+> **Método anterior.** Esta guía describe la 008 con oleadas y tareas (ADR 0033). Desde el ADR 0040, la 008 es el piloto de SDD por rebanadas verticales: sus 78 tareas se agrupan en rebanadas del backlog en el siguiente cambio, y su spec, su diseño y las decisiones H2‑1 a H2‑24 se conservan.
 
 Esta guía es para quien retome la 008 sin el historial de las sesiones anteriores. Todo lo necesario está en el repositorio.
 
@@ -125,7 +129,7 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
 | `CLAUDE.md` | ✅ Importa `AGENTS.md` y agrega solo lo específico de Claude Code | — |
 | `ESTADO.md` (este archivo) | ✅ Creado | — |
 | `spec/` (README, constitución y plantilla de feature) | ✅ Creado, alineado con la plantilla SDD del curso | — |
-| `.claude/skills/` (6 *skills* de proceso del proyecto) | ✅ Creado: `liv-sdd-feature`, `liv-revision-adversarial`, `liv-revision-4r`, `liv-figma`, `liv-adr`, `liv-estado` | — |
+| `.claude/skills/` (7 *skills* de proceso del proyecto) | ✅ Al día con el ADR 0040: `liv-sdd-feature`, `liv-orquestador`, `liv-backlog`, `liv-revision-adversarial`, `liv-figma`, `liv-adr`, `liv-estado` (`liv-revision-4r` se retiró) | — |
 | `backend/`, `frontend/` y `ui/`: `README.md`, `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md` | ✅ Creados: cada proyecto es autosuficiente para cuando tenga su propio repositorio | — |
 
 ---
@@ -257,6 +261,17 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-18
 
+- **Nuevo método de trabajo: SDD por rebanadas verticales** (ADR 0040, propuesto). Lo decidió la persona con las observaciones del desarrollador que trabajó del 2026-11-08 al 2026-11-18: la planificación en cascada consumía días antes de ver código (la 008 lleva tres días de plan sin código) y los ajustes llegaban tarde.
+  - Una spec corta por feature con una sola aprobación (H1), un backlog de rebanadas en GitHub Issues y su *Project*, y cada rebanada de punta a punta.
+  - Esfuerzo según lo que cuesta cambiar: revisión de nivel alto en las zonas rojas y una sola revisión por PR en el resto.
+  - Tres tamaños de trabajo (ajuste, rebanada, feature) en lugar de la evaluación previa.
+  - Deuda registrada en *issues* `deuda`, con tope de cinco abiertos.
+  - `ESTADO.md` sin escritor único: los PR de las rebanadas no lo tocan.
+  - Nada es un ajuste en una zona roja ni en el código de una regla con código. Solo la persona mueve una rebanada a «Lista». Cada caso de uso se expone completo, con su permiso y su segregación.
+  - Cambian `AGENTS.md` §1 a §4.4, §6.2, §7, §9, §10 y §11; `CLAUDE.md`; los docs. 01 (1.5), 04 (1.2) y 05 (1.2); `spec/README.md`; la constitución (`tech-stack.md` y la nota del *roadmap*); la plantilla de feature, ahora con un solo `spec.md`; las *skills* de proceso; los subagentes revisores; la guía del desarrollador; el doc. 00 §6, y el estado de los ADR 0014, 0019, 0028 y 0033.
+  - Revisión independiente de nivel alto (`liv-revisor-critico`): 6 hallazgos altos, 9 medios y 3 bajos, todos corregidos.
+  - **Ajustes de la persona:** la prueba primero, obligatoria solo en las reglas y los cálculos tributarios; la única revisión de agentes es la adversarial (dos revisores ciegos de nivel alto), solo en las zonas rojas, las reglas con código, los documentos funcionales y el diseño técnico con zona roja. Se retiran la *skill* `liv-revision-4r` y el subagente `liv-revisor-rapido`. *Skill* nueva `liv-backlog`: registra los *issues* en GitHub y los que encuentra un agente se crean solo con la aprobación de la persona.
+  - **Pendiente:** aceptar el ADR 0040 en la H3; convertir la 008 en rebanadas (piloto); las referencias de `backend/`, `frontend/`, `ui/` y `e2e/`, un PR por proyecto; las plantillas de *issue* y de PR en `.github/`, con aprobación; el *Project* de GitHub.
 - **Feature 008, orquestador.** Las tareas están integradas (#220, 2026-11-17): T1 a T78 en 37 PR y seis olas.
   - Se agregó a este archivo la guía «Cómo continuar la feature 008», para que otra persona retome el trabajo: dónde está cada cosa, el siguiente paso, cómo se trabaja con el orquestador, las lecciones de la 007 y las particularidades de este equipo.
   - El tablero lista las seis olas y lo que espera la persona en cada una.

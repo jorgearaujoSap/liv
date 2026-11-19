@@ -1,6 +1,6 @@
 # Guía del desarrollador
 
-> **Para quién:** la persona que se suma a LIV para desarrollar la lógica y las pantallas. **Fecha:** 2026-11-08.
+> **Para quién:** la persona que se suma a LIV para desarrollar la lógica y las pantallas. **Fecha:** 2026-11-08; método de trabajo al día el 2026-11-18.
 > Esta guía no agrega reglas: resume dónde está el proyecto y apunta a las fuentes. Si algo choca con `AGENTS.md`, manda `AGENTS.md`.
 
 ## 1. Dónde está el proyecto
@@ -15,19 +15,17 @@ La arquitectura está aprobada (ADR 0001–0033) y estamos cerrando la **Fase 0 
 | **ADR 0001–0033**, uno por archivo | [`docs/adr/`](adr/) |
 | **Feature 004 · Esquema de la configuración de jurisdicción (F0‑10):** el JSON Schema 1.0, inmutable en cada PR y publicado como *release* `jsonschema-config-jurisdiccion-v1.0`. El validador de los anexos en la raíz y su CI pasaron a la feature 1.5.9 | [`spec/features/004-esquema-configuracion-jurisdiccion/`](../spec/features/004-esquema-configuracion-jurisdiccion/spec.md) |
 
-## 2. Por dónde empezar: tus primeras tareas
+## 2. Por dónde empezar
 
-Ninguna feature de negocio empieza antes de cerrar la Fase 0 (`spec/constitution/roadmap.md`, ADR 0031). Para cerrarla falta un solo entregable, y es tu entrada al proyecto:
+La Fase 0 se cerró el 2026-11-12 (ADR 0031) y estamos en la **Fase 1 — Tablas base y configuración**. Las features 005, 006 y 007 están hechas, y la 007 · Vigencias fiscales (1.4) es la mejor referencia de una opción del menú de punta a punta.
 
-1. **F0‑11 · Pruebas *golden* en rojo:** todavía no tiene feature; se abre como una nueva, con su spec y su plan. Convierte los ejemplos numéricos de los documentos funcionales (Doc. 02 §B.9, Doc. 03 §9.3 y Doc. 04 §5.2) en pruebas que fallan, porque el motor de liquidación todavía no existe. Es la mejor forma de aprender la lógica tributaria antes de escribirla.
-
-Cuando esté hecha, la Fase 0 se cierra, y lo siguiente es la Fase 1 del roadmap (vigencias fiscales, cargue de tablas, configuración de jurisdicción…).
+Desde el 2026-11-18 se trabaja con **SDD por rebanadas verticales** (ADR 0040). La feature en construcción y lo siguiente están en [`ESTADO.md`](../ESTADO.md) §1 y en los *issues* de GitHub con la etiqueta `feature:NNN`.
 
 ## 3. Lecturas, en este orden
 
 1. [`ESTADO.md`](../ESTADO.md): fase, entregables, decisiones abiertas y bitácora.
-2. [`AGENTS.md`](../AGENTS.md): **cómo se trabaja aquí**, también para personas. Lo esencial está en §4 (SDD, evaluación previa, rutas críticas, lo prohibido sin aprobación) y §5 (reglas del dominio).
-3. [`spec/README.md`](../spec/README.md) y la feature 001: cómo se escribe y se conduce una feature.
+2. [`AGENTS.md`](../AGENTS.md): **cómo se trabaja aquí**, también para personas. Lo esencial está en §4 (SDD por rebanadas, tamaños de trabajo, zonas rojas, lo prohibido sin aprobación) y §5 (reglas del dominio).
+3. [`spec/README.md`](../spec/README.md): cómo se arranca una feature, el formato del *issue* de una rebanada y cómo se cierra.
 4. [`docs/funcional/`](funcional/), en el orden de `AGENTS.md` §3.1: qué hace el sistema.
 5. [`docs/arquitectura/01`](arquitectura/01_Arquitectura_de_Software.md) (módulos, capas, glosario en §15) y [`04`](arquitectura/04_Calidad_Testing_y_CI.md) (código limpio, pruebas y CI).
 6. El `AGENTS.md` y el `README.md` del proyecto donde vayas a trabajar (`backend/`, `frontend/`, `ui/`), con sus *skills* de código en su `.claude/skills/`.
@@ -38,17 +36,23 @@ Todo está en el [`README.md`](../README.md) de la raíz, «Ejecutar LIV en loca
 
 ## 5. Cómo se trabaja, en una página
 
-- **Antes de escribir nada**, la evaluación previa (`AGENTS.md` §4.3): flujo directo (erratas, defectos claros fuera de reglas y rutas críticas) o SDD (todo lo demás: reglas, contratos, datos, pantallas, rutas críticas).
-- **SDD:** `spec.md` (H1) → Figma si hay pantallas → `plan.md` con revisión adversarial (H2) → `tasks.md` → TDD por tarea (`test:` en rojo, `feat:` en verde, `refactor:`) → revisión independiente → PR (H3).
-- **Una feature a la vez.** El orquestador (*skill* `liv-orquestador`, ADR 0033) reparte su trabajo en sesiones y lleva el tablero de `ESTADO.md`.
+- **Esfuerzo según lo que cuesta cambiar** (ADR 0040): con cuidado en los datos, los contratos, las reglas tributarias y la seguridad; rápido en las pantallas, los textos y el código interno.
+- **Antes de escribir nada, el tamaño** (`AGENTS.md` §4.3):
+  - **ajuste** (errata, defecto claro, refactorización local, prueba nueva): un PR directo;
+  - **rebanada:** un *issue* del backlog;
+  - **feature:** un `spec.md` corto y su backlog.
+- **Feature:** `spec.md` con reglas, alcance del MVP, criterios, diseño técnico y rebanadas → H1 → un *issue* por rebanada → cada rebanada de punta a punta → cierre con pruebas de navegador, deuda revisada y la opción abierta en el menú.
+- **Rebanada:** contrato primero, después backend y frontend (en paralelo si el contrato ya está). Se ve en local, se ajusta y entra con sus pruebas y el CI en verde, tras «Próximamente». La prueba primero es obligatoria solo en las reglas y los cálculos tributarios.
+- **Zonas rojas y reglas** (lista completa en `AGENTS.md` §4.3): nada es un ajuste y cada PR pasa la revisión adversarial, con dos revisores ciegos. Es la única revisión de agentes: el resto entra con el CI y tu H3.
+- **Backlog y deuda en GitHub Issues** (*skill* `liv-backlog`): el agente propone los *issues* nuevos que encuentra (defectos, mejoras, deuda) y los crea solo con tu aprobación. Con más de cinco *issues* `deuda` abiertos, la siguiente rebanada es de limpieza.
 - **Un PR toca un solo proyecto.** `backend/`, `frontend/` y `ui/` no se referencian entre sí: el frontend recibe la API por el OpenAPI fijado y la librería por npm con versión exacta (`AGENTS.md` §4.6).
 - **Ningún valor tributario en el código:** tarifas, rangos, fechas y redondeo vienen de la configuración de jurisdicción (`AGENTS.md` §5.1).
 - **Pantallas:** solo con componentes de `liv-components` y a partir de un diseño aprobado en Figma (`AGENTS.md` §6). Si falta un componente, primero va a la librería, en su propio PR.
-- **La revisión independiente la hace otro agente o una persona**; integrar a `main` es siempre de una persona. Tus propios PR los revisas (H3) y los integras tú (`AGENTS.md` §4.3, excepción «cada desarrollador integra sus PR»).
+- **La revisión de agentes es solo la adversarial**, en las zonas rojas y las reglas; integrar a `main` es siempre de una persona. Tus propios PR los revisas (H3) y los integras tú (`AGENTS.md` §4.3, excepción «quien dirige el trabajo decide»).
 
 ## 6. Quién decide y qué accesos necesitas
 
-**Decides tú.** Quien dirige el trabajo —la persona que interactúa con el agente y le da las instrucciones— da todas las aprobaciones humanas: H1, H2, H3 y las de `AGENTS.md` §4.5 (dependencias, CI, reglas, protección de `main`). Revisas e integras tus propios PR. Un agente nunca aprueba ni integra (`AGENTS.md` §4.3, excepción «quien dirige el trabajo decide»).
+**Decides tú.** Quien dirige el trabajo —la persona que interactúa con el agente y le da las instrucciones— da todas las aprobaciones humanas: la H1, el visto bueno de cada rebanada, la H3 y las de `AGENTS.md` §4.5 (dependencias, CI, reglas, protección de `main`). Revisas e integras tus propios PR. Un agente nunca aprueba ni integra (`AGENTS.md` §4.3, excepción «quien dirige el trabajo decide»).
 
 Los accesos los da el dueño actual del repositorio, una sola vez:
 

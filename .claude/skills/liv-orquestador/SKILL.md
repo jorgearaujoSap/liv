@@ -1,124 +1,95 @@
 ---
 name: liv-orquestador
-description: Dirige la feature en curso del proyecto LIV de principio a fin - propone la siguiente, reparte su trabajo en sesiones nuevas con el modelo de cada nivel, paraleliza lo que no depende de otra cosa ni comparte recursos, supervisa y valida los resultados, lleva el tablero y escala a la persona lo que le corresponde. Úsala cuando la persona pida avanzar el proyecto, empezar o continuar una feature, «orquestar», «dirigir» o «repartir el trabajo».
+description: Coordina el backlog de la feature en construcción del proyecto LIV (ADR 0040) - propone la siguiente rebanada, la prepara, la reparte en hasta tres sesiones nuevas (diseño, backend y frontend) con el modelo de cada nivel, revisa lo que entregan, lleva la deuda y cierra la feature. Úsala cuando la persona quiera avanzar varias rebanadas a la vez, «orquestar», «coordinar», «repartir el trabajo» o continuar la feature en curso.
 ---
 
-# Orquestador de LIV
+# Coordinador del backlog de LIV
 
-El orquestador dirige **la feature en curso**: decide qué se hace, quién lo hace y en qué orden; supervisa, valida y escala. **No hace el trabajo de las fases** (`docs/arquitectura/05` §6), salvo validar y cerrar la feature: lo delega en sesiones nuevas y en subagentes, y comprueba que cada pieza llegue bien hecha.
+El coordinador mueve **el backlog de la feature en construcción**: decide qué rebanada sigue, quién la hace y qué corre en paralelo; revisa y cierra. **No construye las rebanadas**: las delega en sesiones nuevas y comprueba que lleguen bien hechas. Es opcional: una rebanada también se puede hacer en una sola sesión con `liv-sdd-feature`.
 
 Reglas que no cambian:
-- **Una sola feature a la vez** (`spec/constitution/roadmap.md`; ADR 0033). El paralelismo es **dentro** de la feature.
-- **La persona** elige la feature que empieza, aprueba H1 y H2, hace la H3 de **cada** PR (aunque lo abra una sesión), integra cada PR y decide todo lo de `AGENTS.md` §4.5.
-- El orquestador y sus sesiones **nunca**:
+- **Una sola feature en construcción a la vez** (ADR 0040). La siguiente puede preparar su arranque mientras tanto.
+- **La persona** aprueba la spec (H1), mueve cada rebanada a «Lista», hace la H3 de **cada** PR, integra cada PR y decide todo lo de `AGENTS.md` §4.5.
+- El coordinador y sus sesiones **nunca**:
   - integran un PR de ninguna forma (`gh pr merge`, tampoco con `--auto`);
   - aprueban un PR (`gh pr review --approve`);
   - cierran un PR o borran una rama sin que la persona lo pida;
   - cambian la protección de `main` o sus *rulesets*;
-  - publican o despliegan.
-- El orquestador corre con el modelo de **nivel alto** (`AGENTS.md` §10). Su sesión dura toda la feature, pero solo coordina, valida y cierra: el estado pasa por el repositorio (el tablero, `tasks.md`, la spec). Si la sesión se reinicia, retoma desde §0.
+  - publican, despliegan o aceptan un ADR.
+- El coordinador corre con el modelo de **nivel alto** (`AGENTS.md` §10). El estado pasa por el repositorio y por GitHub (`spec.md`, los *issues*, los PR y el *Project*), no por el historial: si la sesión se reinicia, retoma desde §0.
 
 ## 0. Antes de empezar
 
-1. Lee `ESTADO.md`: el tablero («Trabajo en curso», en §1), los próximos pasos y la bitácora reciente.
-2. La feature en curso es la que figura en el tablero. Si hay una, **continúala**. Si no hay ninguna, propónle a la persona la siguiente (según `spec/constitution/roadmap.md` y los próximos pasos de `ESTADO.md`) y **espera a que la elija**.
-3. Revisa qué hay en marcha de verdad: PR abiertos (`gh pr list`), ramas, *worktrees* y sesiones. Si el tablero no coincide, corrígelo. Una sesión que no responde se trata con §4.
-4. Si el `tasks.md` de la feature no declara proyecto, dependencias y recursos, complétalo primero (fase Tareas) o lanza las tareas de a una.
+1. Lee `ESTADO.md` (feature en construcción, próximos pasos, bitácora reciente) y el `spec.md` de la feature.
+2. Mira el backlog: `gh issue list --label feature:NNN` y el *Project*. Mira lo que está en marcha de verdad: PR abiertos (`gh pr list`), ramas, *worktrees* y sesiones.
+3. Si no hay feature en construcción, propónle a la persona la siguiente según el roadmap y **espera a que la elija**. El arranque se hace con `liv-sdd-feature` §1.
 
-## 1. Las fases y quién las hace
+## 1. Qué rebanada sigue
 
-Cada fase va en **su propia sesión nueva** (`AGENTS.md` §10.2), con el modelo de su nivel; la spec y el plan comparten la sesión de diseño. Validar y cerrar los hace el orquestador. El orquestador la lanza (§3), valida lo que entrega y sigue.
+En el orden de la tabla «Rebanadas» de `spec.md`, salvo que la persona diga otra cosa:
+- R1, el esqueleto, va siempre primero y sola.
+- Después, primero lo más incierto, para que los errores salgan pronto.
+- Una rebanada empieza solo en «Lista». Si una está lista para preparar, complétale el *issue* (definición de lista, `AGENTS.md` §4.2; con el nivel alto si toca una zona roja) y pídele a la persona que la mueva. **Nunca la muevas tú a «Lista».**
 
-| Fase | Quién | Nivel | Qué valida el orquestador antes de seguir |
-|---|---|---|---|
-| Explorar | Subagente `liv-explorador` | Económico | Que traiga los hechos con su sección, sin suposiciones |
-| Spec (H1) | Sesión de diseño, con `liv-sdd-feature` | Alto | Criterios verificables con su código de regla. Las preguntas abiertas las resuelve **la persona**. **La persona aprueba** |
-| Figma | Sesión con `liv-figma`, si hay pantallas | Estándar | El diseño, aprobado por la persona |
-| Plan (H2) | La misma sesión de diseño, con `liv-sdd-feature`, y `liv-adr` si hace falta | Alto | Revisión adversarial del plan (`liv-revision-adversarial`) y su sección «Dependencias y recursos». **La persona aprueba** |
-| Tareas | Sesión con `liv-sdd-feature` | Estándar | Que cada tarea declare proyecto, archivos, dependencias, recursos y prueba primero (plantilla de `tasks.md`) |
-| Implementar | Una sesión por tarea, o por grupo de tareas de un proyecto, con su *skill* de código | Estándar | TDD (`test:` antes de `feat:`), solo los archivos declarados, CI en verde y la revisión hecha por revisores que no implementaron |
-| Validar | El orquestador, que no implementó | Alto | Cada criterio de la spec con la prueba que lo demuestra; pruebas de navegador si hay interfaz |
-| Cerrar | El orquestador | Alto (dirección) | Roadmap, `ESTADO.md`, ADR y glosario al día |
+## 2. Qué corre en paralelo
 
-## 2. Repartir: qué corre en paralelo
+Como máximo **tres sesiones de trabajo a la vez**; los subagentes de revisión no cuentan. Un reparto típico:
 
-Para cada tarea pendiente de `tasks.md`, en orden, tres preguntas:
+| Carril | Qué hace | Cuándo puede empezar |
+|---|---|---|
+| Diseño | El diseño en Figma de la rebanada **siguiente** (`liv-figma`) | Cuando la rebanada actual ya tiene el suyo |
+| Backend | El contrato y el backend de la rebanada actual | Cuando la rebanada está en «Lista» |
+| Frontend | La pantalla de la rebanada actual, contra el contrato | Cuando el contrato de la rebanada está escrito en su rama; su PR se integra después de la *release* del contrato |
 
-1. **¿Depende de algo que no está integrado?** Lo dice el campo «Depende de». Si depende de una versión de `liv-components`, esa versión además tiene que estar **publicada en npm**, y eso lo hace solo la persona (`AGENTS.md` §4.6). Si sí, **espera**.
-2. **¿Toca lo mismo que algo en curso?** Los mismos archivos declarados (sin contar el `CHANGELOG.md`, que se comparte), o el mismo **recurso compartido**:
+Antes de lanzar una sesión, tres comprobaciones:
+1. **¿Depende de algo sin integrar?**
+   - El frontend necesita el contrato.
+   - Un componente nuevo de `liv-components` tiene que estar **publicado en npm**, y eso lo hace solo la persona.
 
-   | Recurso compartido | Regla |
-   |---|---|
-   | Un contrato OpenAPI o JSON Schema | Una tarea a la vez; primero el contrato, después quien lo usa |
-   | La versión de `liv-components` | Una a la vez; el *frontend* adopta solo una versión publicada |
-   | Las migraciones de un proyecto (su ubicación de Flyway) | Una tarea a la vez, y se integran en el orden de su versión |
-   | Los archivos de *build* de un proyecto (`pom.xml`, `package.json`, `package-lock.json`) | Una tarea a la vez por proyecto |
-   | El `CHANGELOG.md` de un proyecto | Se comparte: si dos PR chocan en «Sin publicar», el que se integra después se rebasa |
-   | `ESTADO.md`, el roadmap, el glosario, las marcas de `tasks.md` y los criterios de `spec.md` | Solo los escribe el orquestador (§5) |
-
-   Si sí, **espera**.
-3. **¿Necesita un recurso exclusivo?** Son exclusivos el entorno local de `tools/dev/` (sus puertos son fijos), las pruebas de navegador de `e2e/` (corren contra ese entorno) y Figma. Testcontainers no cuenta: cada `./mvnw verify` levanta sus propios contenedores. Si el recurso está ocupado, la tarea **va a la cola**.
-
-Lo que pasa las tres preguntas se lanza, hasta **tres sesiones de trabajo a la vez**; los subagentes de revisión no cuentan. El orden entre proyectos manda siempre (`AGENTS.md` §4.6): primero el *backend* con su contrato y la librería con su versión publicada, después el *frontend*.
+   Si depende de algo sin integrar, espera.
+2. **¿Comparte un recurso con algo en curso?**
+   - Una sola sesión por proyecto.
+   - Las migraciones se integran en el orden de su versión.
+   - Si dos PR chocan en el `CHANGELOG.md`, el que se integra después se rebasa.
+3. **¿Necesita un recurso exclusivo?**
+   - Son exclusivos el entorno local de `tools/dev/`, las pruebas de navegador de `e2e/` y Figma.
+   - Testcontainers no cuenta como exclusivo.
 
 ## 3. Lanzar una sesión: el *brief*
 
-Cada sesión arranca sin la memoria del orquestador. Su *brief* lleva:
+Cada sesión arranca sin la memoria del coordinador. Su *brief* lleva:
+1. **Qué:** el *issue* de la rebanada (`#n`), el proyecto y la rama (`feat/<NNN>-r<n>-<proyecto>`).
+2. **Dónde leer:** `spec.md`, el *issue*, el `AGENTS.md` del proyecto y su *skill* (`liv-endpoint`, `liv-migracion`, `liv-pantalla`, `liv-componente` o `liv-prueba-e2e`).
+3. **Cómo:** `liv-sdd-feature` §3. Si toca una zona roja, una regla con código o un documento funcional, pasa la revisión adversarial. Los *issues* nuevos que encuentre se los propone a la persona (`liv-backlog` §3). No toca `ESTADO.md`, `spec.md` ni el glosario.
+4. **Cuándo termina:** con el PR abierto, el CI en verde, la revisión adversarial hecha si correspondía y un reporte que dice qué hizo, qué falló, qué no verificó y qué *issues* propone.
 
-1. **Qué:** la fase o las tareas (`T<n>` de `spec/features/NNN-…/tasks.md`), el proyecto y la rama.
-2. **Dónde leer:** la spec, el plan, `tasks.md`, el `AGENTS.md` del proyecto y la *skill* que aplica (`liv-endpoint`, `liv-migracion`, `liv-pantalla`, `liv-componente` o `liv-prueba-e2e`).
-3. **Cómo:** TDD; solo los archivos declarados; el `CHANGELOG.md` del proyecto; la revisión que corresponde, con revisores que no implementaron (la adversarial, y las cuatro lentes si es crítico).
-4. **Qué no toca:**
-   - `ESTADO.md`, el roadmap, el glosario, las marcas de `tasks.md` ni los criterios de `spec.md`. Donde una regla o una *skill* pida actualizarlos, la sesión se lo reporta al orquestador, y con eso cumple (`AGENTS.md` §7);
-   - lo que el orquestador y sus sesiones nunca hacen (reglas de arriba).
-5. **Cuándo termina:** el PR abierto, con CI en verde y la revisión hecha, y un reporte final: qué hizo, qué falló, qué no verificó y qué marcas de `tasks.md` y `spec.md` corresponden.
+**Cómo se lanza:** siempre en una **sesión nueva e independiente**, en su propio *worktree* y con el modelo de su nivel (estándar para construir). Nunca en un subagente.
+- En la aplicación de escritorio de Claude Code, con la herramienta de sesiones (`start_session`, `CLAUDE.md`).
+- Si no hay esa herramienta, o no permite fijar el modelo o el *worktree*, el coordinador le da el *brief* a la persona.
 
-**Cómo se lanza:** siempre en una **sesión nueva e independiente**, en su propio *worktree* y con el modelo de su nivel. Nunca en un subagente: los del proyecto son de solo lectura, y una sesión tiene que poder lanzar sus propios revisores.
-- **En la aplicación de escritorio de Claude Code**, el orquestador abre la sesión con la herramienta de sesiones de la aplicación (`start_session`, `CLAUDE.md`).
-- **Si no hay esa herramienta** (en la terminal o con otro agente), **o no permite fijar el modelo o el *worktree***, el orquestador le da el *brief* a la persona, que abre la sesión. El orquestador no implementa las tareas.
+## 4. Revisar lo que entregan
 
-## 4. Supervisar y validar
+- El reporte de una sesión **no es una prueba**: comprueba el PR, el *diff* y el CI.
+- Si una sesión pregunta algo que `spec.md` y el *issue* resuelven, respóndele. Si no, escálalo (§5).
+- **Una sesión sin terminar** es la que se detuvo por un error o lleva más de 24 horas sin *commits* ni reporte. Libera el entorno local si lo tenía (`tools/dev/detener.sh`), y propónle a la persona reanudarla (sesión nueva, mismo *brief*, misma rama) o descartarla.
+- Cuando todos los PR de una rebanada están integrados, comprueba que funcione de punta a punta en local y cierra el *issue*.
+- Junta los *issues* que proponen las sesiones en una sola bandeja para la persona (`liv-backlog` §3), sin duplicados.
+- Lleva la cuenta de la **deuda**: con más de cinco *issues* `deuda` abiertos en el repositorio, la siguiente rebanada es de limpieza.
+- Los cambios de criterios, de diseño técnico o de rebanadas con zona roja que la persona aprobó van a `spec.md` en un PR pequeño de la raíz, que preparas tú. Los cambios menores y los términos del glosario quedan en los *issues* y entran en el PR de cierre.
 
-- El reporte de una sesión **no es una prueba**: el orquestador comprueba el PR, el *diff* y el CI.
-- Si una sesión se detiene con una pregunta, el orquestador la responde si la spec y el plan aprobados la resuelven. Si no, la escala (§6).
-- **Una sesión que queda sin terminar** es la que se detuvo por un error, o la que, al revisar lo que hay en marcha (§0, paso 3), lleva más de 24 horas sin *commits* nuevos en su rama ni reporte. Con ella, el orquestador:
-  1. libera el entorno local, si lo tenía, con `tools/dev/detener.sh`, y da paso a la siguiente de la cola;
-  2. le propone a la persona reanudarla (sesión nueva, mismo *brief*, misma rama) o descartarla. Cerrar el PR y borrar la rama y el *worktree* lo hace la persona, o se hace con su visto bueno;
-  3. marca la tarea ⛔ en el tablero, con su causa.
-- **Antes de la H3 del último PR de la feature**, valida cada criterio de `spec.md` con la prueba que lo demuestra (en `main` o en las ramas abiertas) y lo marca. Si falta alguno, lo pone en la bandeja (§6) y no cierra la feature.
+## 5. Escalar a la persona
 
-## 5. El tablero y `ESTADO.md`
-
-Mientras dirige una feature, el orquestador es el **único** que escribe `ESTADO.md`, el roadmap, el glosario, las marcas de `tasks.md` y los criterios de `spec.md` (ADR 0033). Las sesiones de la feature le reportan. Un cambio ajeno a la feature (del flujo directo, un ADR o una sesión que la persona abre por su cuenta) escribe en `ESTADO.md` solo su entrada de la bitácora, o se la reporta al orquestador.
-
-El **tablero** es la subsección «Trabajo en curso» de `ESTADO.md` §1. Su primera línea dice qué feature dirige el orquestador, o «Sin orquestador activo». Lleva una fila por tarea:
-
-| Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
-|---|---|---|---|---|---|
-| T3 | `frontend/` | `feat/005-…-frontend` | T1 (integrada) | 🔄 En curso | — |
-| T4 | `e2e/` | — | T3 | ⏳ Pendiente (en cola: entorno local) | — |
-
-El orquestador lo actualiza con `liv-estado` cuando cambia algo importante: empieza la feature, se abre o se integra un PR, algo se bloquea o la feature se cierra. Lo hace en un **PR de estado** propio de la raíz, por el flujo directo, que lleva solo `ESTADO.md` y las marcas de `tasks.md` y `spec.md`; la H3 y la integración son de la persona. Hay **un solo PR de estado abierto a la vez**: si ya hay uno, el orquestador sigue en esa rama. El roadmap y el glosario no van ahí: van en el PR de cierre de la feature (§7), que es parte de su SDD.
-
-## 6. Escalar a la persona
-
-El orquestador **siempre** consulta a la persona cuando:
-- hay que elegir o empezar una feature (§0);
-- la tarea requiere aprobar una compuerta H1, H2 o H3, o algo de `AGENTS.md` §4.5;
-- una sesión necesita apartarse del plan aprobado: otros archivos, otro enfoque, o un cambio en una ruta crítica o en una regla que el plan no prevé;
-- aparece un `PENDIENTE` o `POR_CONFIRMAR` funcional, o una pregunta abierta de la spec;
+Siempre consulta a la persona cuando:
+- hay que elegir o arrancar una feature, o mover una rebanada a «Lista»;
+- hace falta una H1 o una H3, o algo de `AGENTS.md` §4.5;
+- una rebanada necesita cambiar el diseño técnico de `spec.md`, una regla, o algo de una zona roja que la spec no prevé;
+- aparece un `PENDIENTE` o `POR_CONFIRMAR` funcional;
 - un revisor deja un hallazgo crítico o alto sin resolver;
 - el CI falla dos veces por la misma causa;
-- una sesión queda sin terminar (§4);
-- la spec o el plan aprobados no resuelven una decisión.
+- la deuda pasa del tope.
 
-Lo junta en una **bandeja de decisiones**: un mensaje corto, con cada punto en una línea (qué hay que aprobar o decidir, por qué y su recomendación). La bandeja junta las preguntas, no las compuertas: cada PR sigue teniendo su propia H3. Lo que la spec y el plan aprobados ya resuelven, el orquestador lo decide sin preguntar. Si la persona no está de acuerdo con el orquestador, **prevalece la persona**, y se anota en la bitácora.
+Júntalo en una **bandeja de decisiones**: un mensaje corto, con cada punto en una línea que dice qué hay que decidir, por qué y su recomendación. Lo que la spec y los *issues* ya resuelven, decídelo sin preguntar. Si la persona no está de acuerdo, **prevalece la persona**.
 
-## 7. Cerrar la feature
+## 6. Cerrar la feature
 
-Cuando todos los PR están integrados y cada criterio tiene su prueba, el orquestador abre el **PR de cierre**, con su propia H3:
-- la feature pasa a «Hecho» en el roadmap;
-- en `ESTADO.md`, el tablero queda en «Sin orquestador activo» y se actualizan los próximos pasos y la bitácora;
-- los ADR y el glosario quedan al día.
-
-La siguiente feature empieza solo cuando la persona la elige (§0).
+Cuando todas las rebanadas están hechas, sigue `liv-sdd-feature` §4: pruebas de navegador, criterios marcados, deuda revisada, menú abierto y PR de cierre con el roadmap, el glosario, los ADR y `ESTADO.md`. La siguiente feature empieza solo cuando la persona la elige.

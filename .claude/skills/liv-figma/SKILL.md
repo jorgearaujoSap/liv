@@ -33,7 +33,7 @@ Reglas completas en `AGENTS.md` §6 y `docs/arquitectura/01` §11.
 1. Crea una sesión del servidor MCP de Figma con la clave del archivo (`create_session`) y reutiliza su identificador en las llamadas siguientes.
 2. Usa `get_metadata` para ubicar páginas y nodos, `get_design_context` para el detalle del *frame* y `get_screenshot` para verlo.
 3. Traduce cada elemento a un componente de `liv-components` con el mismo nombre. Si no existe, **detente**: primero hay que crear el componente (en Figma y en la librería) en un cambio aparte.
-4. Registra el enlace del *frame* (con `node-id`) en la sección "Diseño de interfaz" del `plan.md` de la feature.
+4. Registra el enlace del *frame* (con `node-id`) en el *issue* de la rebanada que construye la pantalla (ADR 0040).
 
 ## Diseñar o modificar en Figma
 
