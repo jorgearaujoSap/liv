@@ -32,7 +32,7 @@ Modificar un componente existente exige además la revisión adversarial (`liv-r
    - los estilos que usa.
 
    Si falta un estilo o un *token*, primero se crea en Figma y después en `src/styles/theme.css`.
-2. **Prueba primero (rojo)** en `<nombre>.component.spec.ts`.
+2. **Pruebas** en `<nombre>.component.spec.ts`. Escribirlas primero es lo recomendado; es **obligatorio** en el código que implementa una regla con código o un caso *golden* (`AGENTS.md` de la raíz, §4.1, principio 5).
    - Una prueba por cada variante, propiedad y estado de Figma.
    - Una prueba de axe que recorra todas las variantes y estados. Para el contraste usa `contrastRatio` y `solidColor` de `src/testing/contrast.ts`, y para los estilos declarados, `src/testing/css.ts`.
    - Las pruebas de un criterio llevan su código (`'cumple axe (001-19) en cada variante y estado'`).
