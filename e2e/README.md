@@ -74,9 +74,9 @@ Con los 15 minutos reales, `pruebas/sesion-corta.spec.ts` tardaría más de un c
 
 ## Cómo se usa en cada feature
 
-La *skill* `liv-sdd-feature` (paso 7, ADR 0030) lo pide en cada feature con interfaz:
-- la feature agrega aquí sus pruebas, primero en rojo, en un PR propio de `e2e/`;
-- al validar, el agente levanta el sistema, corre `npm test` y revisa cada pantalla contra Figma;
-- el resultado va en el PR del frontend.
+La *skill* `liv-sdd-feature` (§4, cierre de la feature; ADR 0030 y 0040) lo pide en cada feature con interfaz:
+- al cerrar la feature, agrega aquí las pruebas de sus caminos principales, en un PR propio de `e2e/`;
+- el agente levanta el sistema, corre `npm test` y revisa cada pantalla contra Figma;
+- el resultado va en el PR de cierre.
 
 Cómo se escribe cada prueba (nombres, sesión, localizadores, axe y capturas): la *skill* `liv-prueba-e2e`, en `e2e/.claude/skills/liv-prueba-e2e/SKILL.md`. Léela antes de escribir una prueba, aunque tu agente no la cargue solo.
