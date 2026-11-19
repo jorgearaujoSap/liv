@@ -69,7 +69,13 @@ jobs:
         id: huella
         if: ${{ steps.decide.outputs.salida == 'publicar' }}
         working-directory: ui
-        run: echo "publicar=$(sha256sum scripts/release-publish.mjs | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+        run: |
+          huella=$(sha256sum scripts/release-publish.mjs | cut -d ' ' -f 1)
+          if ! printf '%s' "$huella" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::No se pudo calcular la huella del script de publicación."
+            exit 1
+          fi
+          echo "publicar=$huella" >> "$GITHUB_OUTPUT"
 
       - name: Resumen
         if: ${{ !cancelled() }}
@@ -80,9 +86,9 @@ jobs:
           {
             echo "### liv-components · decisión: \`${SALIDA:-sin decisión}\`"
             echo
-            echo '```text'
+            echo '~~~~text'
             echo "${MENSAJE:-El script no escribió su decisión; revisa el registro del paso «Decidir».}"
-            echo '```'
+            echo '~~~~'
             if [ "$SALIDA" = etiquetar ]; then
               echo
               echo "La etiqueta y la release las crea la R3 (feature 002); esta versión del workflow no las crea."
@@ -113,8 +119,10 @@ jobs:
       contents: read
     outputs:
       sha256: ${{ steps.paquete.outputs.sha256 }}
+    # El `defaults.run` del trabajo reemplaza al del workflow: se repite el shell para conservar pipefail.
     defaults:
       run:
+        shell: bash
         working-directory: ui
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -249,23 +257,6 @@ jobs:
           name: release-scripts
           path: ${{ runner.temp }}/scripts
 
-      # El artefacto se descarga por nombre y `verificar`, que ejecuta código de las dependencias, también puede subir
-      # artefactos de esta ejecución. Por eso el script solo corre si es el que midió `decidir` (002-08).
-      - name: Comprobar el script de decidir
-        env:
-          HUELLA: ${{ needs.decidir.outputs.huella_publicar }}
-        run: |
-          if ! printf '%s' "$HUELLA" | grep -Eq '^[0-9a-f]{64}$'; then
-            echo "::error::decidir no entregó la huella del script de publicación."
-            exit 1
-          fi
-          cd "$RUNNER_TEMP/scripts"
-          if [ "$(ls -1 | wc -l)" -ne 1 ]; then
-            echo "::error::El artefacto de scripts debe tener solo release-publish.mjs."
-            exit 1
-          fi
-          printf '%s  %s\n' "$HUELLA" release-publish.mjs | sha256sum --check --strict
-
       - name: Descargar el paquete de verificar
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -292,12 +283,27 @@ jobs:
           fi
           printf '%s  %s\n' "$SHA256" "$archivo" | sha256sum --check --strict
 
+      # El script se descarga por nombre y `verificar`, que ejecuta código de las dependencias, también puede subir
+      # artefactos de esta ejecución: por eso solo corre si es el que midió `decidir` (002-08). La comprobación y la
+      # ejecución van en el mismo paso, sin nada en medio. La R3 agrega release-tag.mjs a un manifiesto de huellas.
       # Solo --dry-run en la R2: el script comprueba la integridad contra npm y ejecuta `npm publish --dry-run`.
       - name: Publicar en seco (DRY-RUN)
         env:
           NOMBRE: ${{ needs.decidir.outputs.nombre }}
           VERSION: ${{ needs.decidir.outputs.version }}
+          HUELLA: ${{ needs.decidir.outputs.huella_publicar }}
         run: |
+          if ! printf '%s' "$HUELLA" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::decidir no entregó la huella del script de publicación."
+            exit 1
+          fi
+          cd "$RUNNER_TEMP/scripts"
+          if [ "$(find . -mindepth 1 | wc -l)" -ne 1 ] || [ ! -f release-publish.mjs ] || [ -L release-publish.mjs ]; then
+            echo "::error::El artefacto de scripts debe tener solo el archivo release-publish.mjs."
+            exit 1
+          fi
+          printf '%s  %s\n' "$HUELLA" release-publish.mjs | sha256sum --check --strict
+          cd "$GITHUB_WORKSPACE"
           node "$RUNNER_TEMP/scripts/release-publish.mjs" \
             "$RUNNER_TEMP/paquete/$NOMBRE-$VERSION.tgz" "$NOMBRE" "$VERSION" --dry-run
 

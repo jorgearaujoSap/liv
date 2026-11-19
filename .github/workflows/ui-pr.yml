@@ -96,7 +96,7 @@ jobs:
         run: |
           manifest=ui/projects/liv-components/package.json
           leer() {
-            node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8")).version; if (typeof v !== "string" || !/^\d+\.\d+\.\d+$/.test(v)) process.exit(1); console.log(v)'
+            node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8")).version; if (typeof v !== "string" || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(v)) process.exit(1); console.log(v)'
           }
           nueva=$(leer < "$manifest" 2> /dev/null) || nueva=
           base=$(git show "HEAD^1:$manifest" 2> /dev/null | leer 2> /dev/null) || base=
