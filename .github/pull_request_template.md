@@ -20,7 +20,7 @@
 - [ ] Ningún `TODO` sin su *issue*; cada atajo tiene su *issue* `deuda` aprobado por la persona, o está corregido.
 - [ ] El tablero `liv-project` refleja el estado del *issue*.
 - [ ] Último PR de la rebanada: con los demás PR de la rebanada integrados y este, funciona de punta a punta en local.
-- [ ] Arranque o cierre de una feature: `ESTADO.md` y el *roadmap*. Al cerrar, además: las pruebas de navegador de los caminos principales en verde (ADR 0030), los criterios de `spec.md` marcados con su prueba, el glosario, la deuda revisada y la opción abierta en el menú.
+- [ ] Arranque de una feature: `ESTADO.md`. Cierre: `ESTADO.md`, el *roadmap* y, además: las pruebas de navegador de los caminos principales en verde (ADR 0030), los criterios de `spec.md` marcados con su prueba, el glosario, la deuda revisada y la opción abierta en el menú.
 
 ## Revisión
 
