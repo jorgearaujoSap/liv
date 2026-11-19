@@ -52,10 +52,10 @@ Desde `frontend/`: `npm run lint`, `npm run format:check`, `npm test` y `npm run
 
 ## Antes del *commit*
 
-- [ ] La pantalla tiene diseño aprobado, o el `plan.md` declara qué estructura reutiliza.
+- [ ] La pantalla tiene diseño aprobado, o la `spec.md` o el *issue* de la rebanada declara qué estructura reutiliza.
 - [ ] Solo se usan componentes de `liv-components`, sin estilos propios para ellos, y solo con *tokens*.
 - [ ] La ruta declara su capacidad y la pantalla no decide permisos: los decide el backend.
 - [ ] No se editó nada de `src/app/api/`, y el código no lee ni importa nada de `../backend` ni de `../ui`.
-- [ ] La prueba de la pantalla y la de accesibilidad se escribieron antes (commit `test:`).
+- [ ] La prueba de la pantalla y la de accesibilidad están en el mismo PR.
 - [ ] `lint`, `format:check`, `test` y `build` están en verde.
 - [ ] `CHANGELOG.md` tiene su entrada en «Sin publicar» y la feature y `ESTADO.md` de la raíz están al día.

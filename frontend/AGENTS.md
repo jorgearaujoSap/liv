@@ -1,11 +1,11 @@
 # AGENTS.md — frontend
 
-Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend. **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD, TDD, aprobaciones H1–H3, *skills* (en especial `liv-figma`) y `ESTADO.md`. Si este proyecto ya está en su propio repositorio, ese documento está en el repositorio de plataforma.
+Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend. **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD por rebanadas verticales (ADR 0040), pruebas, aprobaciones (H1 de la spec, visto bueno de cada rebanada y H3), *skills* (en especial `liv-figma`) y `ESTADO.md`. Si este proyecto ya está en su propio repositorio, ese documento está en el repositorio de plataforma.
 
 ## Antes de tocar código
 
-1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3).
-2. **Toda pantalla nueva necesita su diseño aprobado** en la página `03 Pantallas` del archivo de Figma LIV‑Diseño, o una declaración de reutilización de estructura en el `plan.md` de la feature.
+1. La tarea es un ajuste, una rebanada (un *issue* del backlog, en «Lista») o parte de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma), según los tamaños de trabajo del `AGENTS.md` del repositorio de plataforma (§4.3).
+2. **Toda pantalla nueva necesita su diseño aprobado** en la página `03 Pantallas` del archivo de Figma LIV‑Diseño, o una declaración de reutilización de estructura en el diseño técnico de la `spec.md` o en el *issue* de la rebanada.
 3. **Todo componente nuevo nace primero** en la página `02 Componentes` de Figma, con el mismo nombre que tendrá en `liv-components` (se implementa en el proyecto `ui/`, no aquí).
 
 ## Reglas del frontend
