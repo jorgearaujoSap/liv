@@ -5,7 +5,7 @@ description: Crea o cambia un endpoint REST de la API de LIV con el flujo contra
 
 # Nuevo endpoint
 
-Cambiar un contrato toca una **zona roja** (`backend/contracts/**`, `AGENTS.md` de la raíz, §4.3): va en una rebanada, con su parte del contrato escrita en el *issue* o en la `spec.md`, y su PR pasa la revisión adversarial. Si el contrato no está en el diseño técnico aprobado, **detente**: el cambio lo aprueba la persona y pasa la revisión adversarial antes de «Lista» (`AGENTS.md` de la raíz, §4.2). Las reglas están en `backend/AGENTS.md`, `backend/README.md` › «Contratos de API» y `docs/arquitectura/04` §1 (CC‑06, CC‑07 y CC‑12). Esta *skill* dice **cómo** se aplican aquí.
+Cambiar un contrato toca una **zona roja** (`backend/contracts/**`, `AGENTS.md` de la raíz, §4.3): va en una rebanada, con su parte del contrato escrita en el *issue* o en la `spec.md`, y su PR pasa la revisión adversarial. Si el contrato no está en el diseño técnico aprobado, **detente**, también con la rebanada en curso: la persona da su visto bueno con fecha, el cambio entra a la `spec.md` en un PR pequeño de la raíz y pasa la revisión adversarial antes de seguir (`AGENTS.md` de la raíz, §4.2, «Cambios durante la construcción»). Las reglas están en `backend/AGENTS.md`, `backend/README.md` › «Contratos de API» y `docs/arquitectura/04` §1 (CC‑06, CC‑07 y CC‑12). Esta *skill* dice **cómo** se aplican aquí.
 
 Para las API de Spring Boot 4, Spring Security 7 o `openapi-generator` consulta la documentación oficial de la versión del `pom.xml`. No escribas de memoria: muchas API cambiaron desde Spring Boot 3.
 
