@@ -1,6 +1,6 @@
 # ADR-0040 · SDD por rebanadas verticales: spec corta por feature, backlog de rebanadas y esfuerzo según lo que cuesta cambiar
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado (2026-11-18, por el responsable del proyecto)
 - **Fecha:** 2026-11-18
 - **Decisores:** responsable del proyecto, en la sesión del 2026-11-18, con las observaciones del desarrollador que trabajó del 2026-11-08 al 2026-11-18 (`AGENTS.md` §4.3, «quien dirige el trabajo decide»)
 - **Documentos relacionados:**
