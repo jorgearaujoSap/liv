@@ -88,13 +88,16 @@ jobs:
 
       # 002-10: un PR que sube la versión de la librería se juzga aquí, antes de llegar a main, con las mismas
       # verificaciones de publicación que ui-release.yml. Sin versión nueva no corre (la versión ya publicada
-      # haría fallar la verificación). Si no se puede leer alguna de las dos versiones, corre: ante la duda se verifica.
+      # haría fallar la verificación). Cualquier cambio de versión se verifica, también una que baja. Si alguna de las
+      # dos no se puede leer como X.Y.Z, corre: ante la duda se verifica. Los valores se validan antes de imprimirse.
       - name: ¿Sube el PR la versión de la librería?
         id: version
         working-directory: .
         run: |
           manifest=ui/projects/liv-components/package.json
-          leer() { node -e 'console.log(JSON.parse(require("fs").readFileSync(0, "utf8")).version)'; }
+          leer() {
+            node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8")).version; if (typeof v !== "string" || !/^\d+\.\d+\.\d+$/.test(v)) process.exit(1); console.log(v)'
+          }
           nueva=$(leer < "$manifest" 2> /dev/null) || nueva=
           base=$(git show "HEAD^1:$manifest" 2> /dev/null | leer 2> /dev/null) || base=
           if [ -n "$nueva" ] && [ "$nueva" = "$base" ]; then

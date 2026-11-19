@@ -28,6 +28,11 @@ on:
 permissions:
   contents: read
 
+# bash con pipefail: un fallo dentro de una tubería (sha256sum | cut) no pasa inadvertido.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # Decide qué hace la ejecución. No instala nada: lee el árbol de Git, npm y las etiquetas remotas, y sus scripts son
   # los que viajan a `publicar`. Sin `concurrency`, para que un cambio que no publica nunca quede en espera.
@@ -45,6 +50,8 @@ jobs:
       commit: ${{ steps.decide.outputs.commit }}
       node: ${{ steps.decide.outputs.node }}
       npm: ${{ steps.decide.outputs.npm }}
+      # SHA-256 del script que ejecutará `publicar`: sale de aquí, que no instala nada, y `verificar` no puede alterarlo.
+      huella_publicar: ${{ steps.huella.outputs.publicar }}
     steps:
       # fetch-depth 2: release-decide compara la versión con la del commit padre (cada push a main es un commit).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,6 +65,12 @@ jobs:
         working-directory: ui
         run: node scripts/release-decide.mjs
 
+      - name: Huella del script de publicación
+        id: huella
+        if: ${{ steps.decide.outputs.salida == 'publicar' }}
+        working-directory: ui
+        run: echo "publicar=$(sha256sum scripts/release-publish.mjs | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
       - name: Resumen
         if: ${{ !cancelled() }}
         env:
@@ -67,7 +80,9 @@ jobs:
           {
             echo "### liv-components · decisión: \`${SALIDA:-sin decisión}\`"
             echo
+            echo '```text'
             echo "${MENSAJE:-El script no escribió su decisión; revisa el registro del paso «Decidir».}"
+            echo '```'
             if [ "$SALIDA" = etiquetar ]; then
               echo
               echo "La etiqueta y la release las crea la R3 (feature 002); esta versión del workflow no las crea."
@@ -83,7 +98,8 @@ jobs:
           name: release-scripts
           path: ui/scripts/release-publish.mjs
           if-no-files-found: error
-          retention-days: 7
+          # Una aprobación puede esperar hasta 30 días y «Re-run» necesita los artefactos.
+          retention-days: 30
 
   # Instala las dependencias, verifica y empaqueta. Sin `id-token`: no puede publicar. Lo que construye es lo que se
   # publicará, así que el resumen enseña a quien aprueba el nombre, el commit, el SHA-256 y los archivos del .tgz.
@@ -105,6 +121,7 @@ jobs:
         with:
           persist-credentials: false
 
+      # Es una aserción: ambos trabajos hacen checkout de github.sha, así que solo falla si el checkout cambió de commit.
       - name: Comprobar que es el commit que decidió `decidir`
         env:
           COMMIT: ${{ needs.decidir.outputs.commit }}
@@ -115,10 +132,11 @@ jobs:
             exit 1
           fi
 
-      # Sin caché: lo que se instala aquí termina dentro del paquete que se va a publicar.
+      # Sin caché, también la automática de setup-node: lo que se instala aquí termina dentro del paquete publicado.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: ui/.nvmrc
+          package-manager-cache: false
 
       # Sin scripts de instalación de las dependencias (R1 lo comprobó en Windows; aquí, en ubuntu).
       - name: Instalar dependencias (versiones exactas del lock)
@@ -162,6 +180,10 @@ jobs:
           cp "dist/$archivo" "$salida/$archivo"
           cp "$RUNNER_TEMP/notas.md" "$salida/notas.md"
           sha=$(sha256sum "$salida/$archivo" | cut -d ' ' -f 1)
+          if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::No se pudo calcular el SHA-256 del paquete."
+            exit 1
+          fi
           printf '%s  %s\n' "$sha" "$archivo" > "$salida/$archivo.sha256"
           echo "sha256=$sha" >> "$GITHUB_OUTPUT"
           {
@@ -183,7 +205,8 @@ jobs:
           name: paquete
           path: ${{ runner.temp }}/paquete
           if-no-files-found: error
-          retention-days: 7
+          # Una aprobación puede esperar hasta 30 días y «Re-run» necesita los artefactos.
+          retention-days: 30
 
   # Espera la aprobación del entorno `npm`. Es el único trabajo con `id-token: write`: no hace checkout, no instala las
   # dependencias del proyecto y no ejecuta nada que haya pasado por un trabajo que las instaló (002-08).
@@ -207,12 +230,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ needs.decidir.outputs.node }}
+          package-manager-cache: false
 
       - name: Instalar la versión exacta de npm
         env:
           NPM_VERSION: ${{ needs.decidir.outputs.npm }}
         run: |
-          npm install --global "npm@$NPM_VERSION"
+          npm install --global --ignore-scripts --no-audit --no-fund "npm@$NPM_VERSION"
           actual=$(npm --version)
           if [ "$actual" != "$NPM_VERSION" ]; then
             echo "::error::npm quedó en $actual y debía ser $NPM_VERSION."
@@ -224,6 +248,23 @@ jobs:
         with:
           name: release-scripts
           path: ${{ runner.temp }}/scripts
+
+      # El artefacto se descarga por nombre y `verificar`, que ejecuta código de las dependencias, también puede subir
+      # artefactos de esta ejecución. Por eso el script solo corre si es el que midió `decidir` (002-08).
+      - name: Comprobar el script de decidir
+        env:
+          HUELLA: ${{ needs.decidir.outputs.huella_publicar }}
+        run: |
+          if ! printf '%s' "$HUELLA" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::decidir no entregó la huella del script de publicación."
+            exit 1
+          fi
+          cd "$RUNNER_TEMP/scripts"
+          if [ "$(ls -1 | wc -l)" -ne 1 ]; then
+            echo "::error::El artefacto de scripts debe tener solo release-publish.mjs."
+            exit 1
+          fi
+          printf '%s  %s\n' "$HUELLA" release-publish.mjs | sha256sum --check --strict
 
       - name: Descargar el paquete de verificar
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
