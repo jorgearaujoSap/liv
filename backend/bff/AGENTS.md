@@ -1,12 +1,12 @@
 # AGENTS.md — BFF
 
-Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`liv-bff`). **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD, TDD, aprobaciones H1–H3, *skills* y `ESTADO.md`. Todo el BFF es ruta crítica (`backend/bff/**`): cada cambio lleva la revisión adversarial y las cuatro lentes.
+Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`liv-bff`). **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD por rebanadas verticales (ADR 0040), pruebas, aprobaciones (H1 de la spec, visto bueno de cada rebanada y H3), *skills* y `ESTADO.md`. Todo el BFF es zona roja (`backend/bff/**`): cada PR lleva la revisión adversarial, con dos revisores ciegos de nivel alto.
 
 ## Antes de tocar código
 
-1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es ruta crítica, por el flujo directo solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad.
+1. La tarea es un ajuste (sin *issue*) o una rebanada con su *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es zona roja, como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad ni de imágenes base; en sus migraciones (`backend/**/db/migration/**`) no hay excepción (`AGENTS.md` de la raíz, §4.3).
 2. Lee la sección del documento funcional y del de arquitectura que cita la feature (seguridad: doc. 02 §3 y §8).
-3. Trabaja solo en los archivos que declara la tarea.
+3. Trabaja solo en lo de la rebanada o del ajuste. Lo demás que encuentres se le propone a la persona como *issue* (*skill* `liv-backlog`).
 
 ## Reglas del BFF
 
@@ -22,11 +22,11 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`li
 | Contrato | *Contract‑first*: primero `contracts/openapi/bff.yaml`, luego el código (ADR 0005) | Revisión |
 | Idioma | Código en inglés; nombres visibles de las pruebas (`@DisplayName`) en español, con el código de la regla cuando lo hay | Revisión (ADR 0017) |
 | Formato | Google Java Format (2 espacios) | `./mvnw verify` (Spotless) |
-| TDD | Commit `test:` (prueba en rojo) antes del `feat:`/`fix:` | Revisión del PR |
+| Pruebas | Toda rebanada entra con sus pruebas en el mismo PR. **Prueba primero** (escrita antes y vista fallar, sin *commit* aparte) en el código que implementa una regla con código (`AGENTS.md` de la raíz, §5.3) y en los casos *golden* (§4.1, principio 5) | Revisión del PR; revisión adversarial si toca una regla o una zona roja |
 | Dependencias | Solo las del ADR 0023 para el BFF. Una dependencia nueva en el `pom.xml` exige ADR | Revisión |
 
 ## Antes de decir "terminado"
 
 - `./mvnw verify` en verde (formato, compilación y todas las pruebas), o se reporta qué falló.
-- La feature y `ESTADO.md` del repositorio de plataforma están actualizados.
-- Un PR toca solo este proyecto.
+- El `CHANGELOG.md` de este proyecto tiene su entrada y la tarjeta del *issue* está al día (*skill* `liv-backlog`).
+- Un PR toca solo este proyecto: no cambia `spec.md`, el glosario ni `ESTADO.md`, que solo cambian en los PR de la raíz (`AGENTS.md` de la raíz, §4.2, «Quién escribe en la raíz»).

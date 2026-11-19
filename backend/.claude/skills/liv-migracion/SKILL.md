@@ -5,20 +5,20 @@ description: Crea una migración Flyway del backend de LIV (API o BFF) con las c
 
 # Nueva migración
 
-Una migración es un **cambio crítico**: va por el SDD con su `plan.md` aprobado (H2), y nunca por el flujo directo (`AGENTS.md` de la raíz, §4.3). Sigue las reglas de `docs/arquitectura/01` §9 (tabla de persistencia) y `docs/arquitectura/02` §5.1 (RLS). Esta *skill* dice **cómo** se aplican aquí.
+Una migración toca una **zona roja**: nunca es un ajuste. Va en una rebanada, con los datos decididos en el diseño técnico de la `spec.md` (o en el del *issue*, si es una rebanada suelta), y su PR pasa la revisión adversarial (`AGENTS.md` de la raíz, §4.3). Sigue las reglas de `docs/arquitectura/01` §9 (tabla de persistencia) y `docs/arquitectura/02` §5.1 (RLS). Esta *skill* dice **cómo** se aplican aquí.
 
 ## 0. Antes de escribir
 
-1. La tabla o columna debe estar en el ERD (`docs/funcional/ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md`) o en los «Ajustes al modelo de datos» del plan aprobado. Si no está, **detente y pregunta**: el ERD es un documento funcional y no se cambia como efecto colateral.
+1. La tabla o columna debe estar en el ERD (`docs/funcional/ERD_impuesto_vehicular_definitivo_v2_CSV_cartera.md`) o en el diseño técnico aprobado (la `spec.md` de la feature o, en una rebanada suelta, su *issue*). Si no está, **detente y pregunta**: el ERD es un documento funcional y no se cambia como efecto colateral.
 2. Decide dónde va:
    - **API:** `backend/src/main/resources/db/migration/`;
    - **BFF:** `backend/bff/src/main/resources/db/migration/`, solo en el esquema `bff` (`backend/bff/AGENTS.md`).
 3. Una migración que ya está en `main` está aplicada: **nunca** se edita. Cualquier corrección es una migración nueva.
 4. Para la sintaxis de PostgreSQL 18 (la versión del proyecto) o de Flyway, consulta la documentación oficial de esa versión. No escribas de memoria.
 
-## 1. Prueba primero (rojo)
+## 1. Pruebas
 
-Las pruebas de base de datos están en `backend/src/test/java/co/com/sapenlinea/liv/isolation/`. Usan `LivDatabase`, que arranca PostgreSQL con Testcontainers y aplica todas las migraciones. Escribe la prueba antes de la migración y comprueba que falla por el motivo correcto.
+Las pruebas de base de datos están en `backend/src/test/java/co/com/sapenlinea/liv/isolation/`. Usan `LivDatabase`, que arranca PostgreSQL con Testcontainers y aplica todas las migraciones. Escribirla antes de la migración y verla fallar por el motivo correcto es lo recomendado; es obligatorio si la migración implementa una regla con código (`AGENTS.md` de la raíz, §4.1, principio 5). En todo caso, la prueba va en el mismo PR.
 
 | Si la migración… | Prueba modelo | Qué agrega tu prueba |
 |---|---|---|
@@ -31,10 +31,10 @@ Las pruebas de base de datos están en `backend/src/test/java/co/com/sapenlinea/
 
 Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-17 · Con el contexto de A solo se ven las filas de A"`.
 
-## 2. La migración (verde)
+## 2. La migración
 
 1. **Nombre:** `V<AAAAMMDDHHmm>__<modulo>_<descripcion>.sql`, con una marca posterior a la última de la carpeta. Ejemplo: `V202611010905__core_administrations_users.sql`.
-2. **Encabezado:** un comentario con la feature, la tarea y el **porqué** (CC‑09). Modelo: `V202611031010__audit_import_cursor_complete.sql`.
+2. **Encabezado:** un comentario con la feature, la rebanada (*issue*) y el **porqué** (CC‑09). Modelo: `V202611031010__audit_import_cursor_complete.sql`.
 3. **Tipos y nombres:** los de la tabla de `docs/arquitectura/01` §9. Son `snake_case` en inglés como el ERD, `NUMERIC` para dinero y tasas, nunca `float`, `DATE` para fechas de negocio, `TIMESTAMPTZ` para instantes y `CHECK` con los valores de cada estado.
    - **Claves primarias:** `id UUID PRIMARY KEY DEFAULT uuidv7()`, la versión 7 que pide el doc. 01 §9, con la función de PostgreSQL 18. La aplicación no inventa el identificador: lo lee con `RETURNING id`.
    - Las dos tablas de la feature 001 que usan `gen_random_uuid()` (versión 4), `core.admin_user` y `audit.audit_event`, se quedan así por decisión del responsable (2026-11-06). No copies ese patrón en las tablas nuevas.
@@ -49,7 +49,7 @@ Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-
    - Nada de `UPDATE` ni `DELETE` sobre auditoría, movimientos del libro ni catálogos publicados (doc. 01 §9, «Inmutabilidad»).
    - Los saldos nunca se guardan como dato editable (`AGENTS.md` de la raíz, §5.1).
    - Los roles los crea la infraestructura (`backend/dev/initdb/`): la migración no crea roles.
-6. **Funciones `SECURITY DEFINER`:** solo con el patrón de `core.find_user_by_identity` (`V202611010905`). Llevan un rol propio sin inicio de sesión y sin `BYPASSRLS`, `search_path` fijo con `pg_temp` al final y `REVOKE` de `PUBLIC`. Antes del PR, pide la lente de riesgo a `liv-revisor-critico`.
+6. **Funciones `SECURITY DEFINER`:** solo con el patrón de `core.find_user_by_identity` (`V202611010905`). Llevan un rol propio sin inicio de sesión y sin `BYPASSRLS`, `search_path` fijo con `pg_temp` al final y `REVOKE` de `PUBLIC`. Antes del PR, señálala en el encargo de la revisión adversarial del PR.
 7. **Expand/contract:** nunca renombres ni borres en un paso algo que usa la versión en ejecución. Son tres pasos:
    1. Una migración **expand** agrega lo nuevo sin romper lo viejo: una columna que acepta nulos o tiene valor por defecto, y un `UPDATE` que copia los datos existentes.
    2. Se despliega la versión de la aplicación que usa lo nuevo.
@@ -62,10 +62,11 @@ Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-
 
 ## 4. Antes del *commit*
 
-- [ ] La tabla o columna está en el ERD o en el plan aprobado.
+- [ ] La tabla o columna está en el ERD o en el diseño técnico aprobado; si no, se detuvo y lo aprobó la persona antes de «Lista», con su revisión adversarial.
 - [ ] El nombre tiene una marca de tiempo nueva y no se editó ninguna migración ya integrada.
 - [ ] Toda tabla con `administration_id` tiene RLS, una política `TO liv_app` y FK compuestas.
 - [ ] Los permisos de `liv_app` son los mínimos y `LivAppGrantsTest` los refleja.
 - [ ] Las claves primarias nuevas usan `DEFAULT uuidv7()`.
 - [ ] Ningún valor tributario quedó en la migración (tarifas, rangos, fechas): eso es configuración de jurisdicción (CC‑01).
-- [ ] Las pruebas se escribieron antes (commit `test:`) y `./mvnw verify` está en verde.
+- [ ] Las pruebas están en el mismo PR (las de una regla con código, escritas antes y vistas fallar) y `./mvnw verify` está en verde.
+- [ ] El PR pasó la revisión adversarial (las migraciones son zona roja). Si crea una función `SECURITY DEFINER`, el encargo de la revisión lo señala.

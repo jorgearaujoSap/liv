@@ -1,11 +1,11 @@
 ---
 name: liv-endpoint
-description: Crea o cambia un endpoint REST de la API de LIV con el flujo contract-first del proyecto - primero el OpenAPI y su versión, luego la interfaz generada, el controlador sin lógica, el caso de uso con su permiso, el adaptador y las pruebas en orden TDD. Úsala siempre que una tarea agregue, cambie o quite una ruta /api/**, un modelo de petición o respuesta, o un código de error de la API.
+description: Crea o cambia un endpoint REST de la API de LIV con el flujo contract-first del proyecto - primero el OpenAPI y su versión, luego la interfaz generada, el controlador sin lógica, el caso de uso con su permiso, el adaptador y las pruebas en el mismo PR (primero, si es una regla con código). Úsala siempre que una tarea agregue, cambie o quite una ruta /api/**, un modelo de petición o respuesta, o un código de error de la API.
 ---
 
 # Nuevo endpoint
 
-Cambiar un contrato es un **cambio crítico** (`backend/contracts/**`, `AGENTS.md` de la raíz, §4.3): va por el SDD con su `plan.md` aprobado. Las reglas están en `backend/AGENTS.md`, `backend/README.md` › «Contratos de API» y `docs/arquitectura/04` §1 (CC‑06, CC‑07 y CC‑12). Esta *skill* dice **cómo** se aplican aquí.
+Cambiar un contrato toca una **zona roja** (`backend/contracts/**`, `AGENTS.md` de la raíz, §4.3): va en una rebanada, con su parte del contrato escrita en el *issue* o en la `spec.md`, y su PR pasa la revisión adversarial. Si el contrato no está en el diseño técnico aprobado, **detente**, también con la rebanada en curso: la persona da su visto bueno con fecha, el cambio entra a la `spec.md` en un PR pequeño de la raíz y pasa la revisión adversarial antes de seguir (`AGENTS.md` de la raíz, §4.2, «Cambios durante la construcción»). Las reglas están en `backend/AGENTS.md`, `backend/README.md` › «Contratos de API» y `docs/arquitectura/04` §1 (CC‑06, CC‑07 y CC‑12). Esta *skill* dice **cómo** se aplican aquí.
 
 Para las API de Spring Boot 4, Spring Security 7 o `openapi-generator` consulta la documentación oficial de la versión del `pom.xml`. No escribas de memoria: muchas API cambiaron desde Spring Boot 3.
 
@@ -59,7 +59,7 @@ Lo que este ejemplo enseña y conviene repetir:
    - Sube `info.version` (`X.Y.Z`): una corrección sube `Z`; un endpoint o campo nuevo compatible sube `Y`.
    - Un cambio incompatible sube `X` y necesita la etiqueta `contrato-incompatible` en el PR, que pone un humano. Compruébalo con `sh contracts/scripts/compare.sh origin/main`.
    - El contrato va en su propio PR del backend, antes que el frontend que lo usa (`AGENTS.md` de la raíz, §4.6).
-2. **Prueba primero (rojo).**
+2. **Pruebas.** Escribirlas primero es lo recomendado; es **obligatorio** en el código que implementa una regla con código o un caso *golden* (`AGENTS.md` de la raíz, §4.1, principio 5).
    - En `OpenApiContractTest`, lo que el contrato debe declarar.
    - En una prueba como `CurrentUserTest` (`extends PlatformWebTest`), la respuesta y cada error del contrato. Sin permiso da 403 y sin sesión da 401, como en `RequiresPermissionTest` y `ApiAuthenticationTest`.
    - Cada `@DisplayName` en español con el código del criterio: `"001-13 · Responde identificador…"`.
@@ -88,6 +88,7 @@ Lo que este ejemplo enseña y conviene repetir:
 - [ ] El contrato cambió primero, con su `info.version` subida, y `compare.sh` está en verde, o el PR lleva la etiqueta `contrato-incompatible`.
 - [ ] No se editó nada generado (CC‑12) y el controlador solo implementa la interfaz.
 - [ ] Cada método público del caso de uso tiene `@RequiresPermission` o `@OpenUseCase`.
-- [ ] Hay pruebas del caso feliz, de cada error del contrato y de 401 y 403, escritas antes (commit `test:`).
+- [ ] Hay pruebas del caso feliz, de cada error del contrato y de 401 y 403 en el mismo PR. Las de una regla con código se escribieron antes y se vieron fallar, con su código de regla (`AGENTS.md` de la raíz, §4.1, principio 5).
+- [ ] Si el caso de uso tiene segregación de funciones, hay una prueba de que quien carga no puede aprobar; y una de que otra administración recibe el mismo 404 que un recurso que no existe (CA-12).
 - [ ] Ningún valor tributario ni `double`/`float`, y ningún `Instant.now()` en `application`.
 - [ ] `./mvnw verify` está en verde.
