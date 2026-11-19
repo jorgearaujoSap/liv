@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`li
 
 ## Antes de tocar código
 
-1. La tarea es un ajuste o una rebanada: un *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es zona roja, como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad ni de imágenes base; en sus migraciones (`backend/**/db/migration/**`) no hay excepción (`AGENTS.md` de la raíz, §4.3).
+1. La tarea es un ajuste (sin *issue*) o una rebanada con su *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es zona roja, como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad ni de imágenes base; en sus migraciones (`backend/**/db/migration/**`) no hay excepción (`AGENTS.md` de la raíz, §4.3).
 2. Lee la sección del documento funcional y del de arquitectura que cita la feature (seguridad: doc. 02 §3 y §8).
 3. Trabaja solo en lo de la rebanada o del ajuste. Lo demás que encuentres se le propone a la persona como *issue* (*skill* `liv-backlog`).
 

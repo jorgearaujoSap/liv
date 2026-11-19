@@ -18,7 +18,7 @@ Una migración toca una **zona roja**: nunca es un ajuste. Va en una rebanada, c
 
 ## 1. Pruebas
 
-Las pruebas de base de datos están en `backend/src/test/java/co/com/sapenlinea/liv/isolation/`. Usan `LivDatabase`, que arranca PostgreSQL con Testcontainers y aplica todas las migraciones. Escribe la prueba antes de la migración y comprueba que falla por el motivo correcto.
+Las pruebas de base de datos están en `backend/src/test/java/co/com/sapenlinea/liv/isolation/`. Usan `LivDatabase`, que arranca PostgreSQL con Testcontainers y aplica todas las migraciones. Escribirla antes de la migración y verla fallar por el motivo correcto es lo recomendado; es obligatorio si la migración implementa una regla con código (`AGENTS.md` de la raíz, §4.1, principio 5). En todo caso, la prueba va en el mismo PR.
 
 | Si la migración… | Prueba modelo | Qué agrega tu prueba |
 |---|---|---|
@@ -31,7 +31,7 @@ Las pruebas de base de datos están en `backend/src/test/java/co/com/sapenlinea/
 
 Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-17 · Con el contexto de A solo se ven las filas de A"`.
 
-## 2. La migración (verde)
+## 2. La migración
 
 1. **Nombre:** `V<AAAAMMDDHHmm>__<modulo>_<descripcion>.sql`, con una marca posterior a la última de la carpeta. Ejemplo: `V202611010905__core_administrations_users.sql`.
 2. **Encabezado:** un comentario con la feature, la rebanada (*issue*) y el **porqué** (CC‑09). Modelo: `V202611031010__audit_import_cursor_complete.sql`.

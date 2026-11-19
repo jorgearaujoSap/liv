@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el backend.
 
 ## Antes de tocar código
 
-1. La tarea es un ajuste o una rebanada: un *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3).
+1. La tarea es un ajuste (sin *issue*) o una rebanada con su *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3).
 2. Lee la sección del documento funcional y del documento de arquitectura que cita la feature.
 3. Trabaja solo en lo de la rebanada o del ajuste. Lo demás que encuentres se le propone a la persona como *issue* (*skill* `liv-backlog`).
 
@@ -24,7 +24,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el backend.
 | Inyección | Solo por constructor; nunca `@Autowired` en campos | `ArchitectureRulesTest` |
 | Tamaño | Clases de máximo 400 líneas, controladores de 200, y máximo 8 dependencias por constructor. Sin excepciones: si crece, se divide | `CodeSizeGuardTest` |
 | Reglas tributarias | Ningún valor tributario (tarifa, rango, porcentaje, fecha, redondeo) en el código: vienen de la configuración de jurisdicción | Revisión (CC‑01) |
-| Zonas rojas | `tax`, `ledger`, `jurisdiction`, `audit`, la seguridad, la autorización y la persistencia de `platform`, las migraciones, los contratos, el `pom.xml`, el BFF y la identidad (`AGENTS.md` de la raíz, §4.3): un cambio de código nunca es un ajuste, y cada PR pasa la revisión adversarial | Revisión adversarial |
+| Zonas rojas | Rutas: `tax`, `ledger`, `jurisdiction`, `audit`, la seguridad, la autorización y la persistencia de `platform`, las migraciones, los contratos, el `pom.xml`, el BFF y la identidad. Temas, estén donde estén: la autenticación, la autorización, las políticas RLS y los roles (un permiso nuevo en `core`, por ejemplo). Tampoco es un ajuste el código que implementa o corrige una regla con código, esté donde esté. Lista completa: `AGENTS.md` de la raíz, §4.3. Un cambio de código ahí nunca es un ajuste, y cada PR pasa la revisión adversarial | Revisión adversarial |
 | Contrato | API *contract‑first*: primero el OpenAPI, luego el código (ADR 0005) | Revisión |
 | Migraciones | Flyway en `src/main/resources/db/migration`; una migración aplicada no se edita; credenciales solo por variables de entorno | Revisión |
 | Idioma | Código en inglés; nombres visibles de las pruebas (`@DisplayName`) en español con el código de la regla | Revisión (ADR 0017) |
