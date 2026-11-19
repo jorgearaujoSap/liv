@@ -24,7 +24,7 @@ Una pantalla nueva, o un cambio en su estructura o su aspecto, va por el SDD (`A
 
 1. **Diseño.** Lee el *frame* aprobado en `03 Pantallas` con la *skill* `liv-figma` y anota su nodo. Si necesita un componente o variante que no existe en `liv-components`, **detente**: primero se diseña y se implementa en la librería como un cambio aparte, y una persona publica su versión (`AGENTS.md` de la raíz, §6.2 y §4.5).
 2. **Datos.** Si la pantalla usa un endpoint nuevo, su contrato ya debe estar publicado como *release* `contract-<nombre>-vX.Y.Z`. En `api-spec/versions.json` cambia su `version` y su `sha256`, que está en el archivo `<nombre>.yaml.sha256` de la *release*. Después actualiza la copia y el cliente con `npm run api:update` y verifica con `npm run api:verify` (`frontend/README.md`). El frontend nunca lee `../backend`.
-3. **Prueba primero (rojo).**
+3. **Pruebas.** Escribirlas primero es lo recomendado; es **obligatorio** en el código que implementa una regla con código o un caso *golden* (`AGENTS.md` de la raíz, §4.1, principio 5).
    - `src/app/features/<pantalla>/<pantalla>.spec.ts` con Vitest y `TestBed`, como `home.spec.ts`: `describe('<Nombre> (<códigos de criterio>)')`, datos con los dobles de `fixtures.ts` y búsqueda por roles y textos visibles.
    - Agrega la ruta de la pantalla a la lista de `provideRouter` de `src/app/features/accessibility.spec.ts` y un caso que la abra (001-19, axe).
    - Comprueba que fallan por el motivo correcto.
