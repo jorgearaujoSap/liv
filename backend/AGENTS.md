@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el backend.
 
 ## Antes de tocar código
 
-1. La tarea es un ajuste, una rebanada (un *issue* del backlog, en «Lista») o parte de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma), según los tamaños de trabajo del `AGENTS.md` del repositorio de plataforma (§4.3).
+1. La tarea es un ajuste o una rebanada: un *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3).
 2. Lee la sección del documento funcional y del documento de arquitectura que cita la feature.
 3. Trabaja solo en lo de la rebanada o del ajuste. Lo demás que encuentres se le propone a la persona como *issue* (*skill* `liv-backlog`).
 
@@ -24,18 +24,19 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el backend.
 | Inyección | Solo por constructor; nunca `@Autowired` en campos | `ArchitectureRulesTest` |
 | Tamaño | Clases de máximo 400 líneas, controladores de 200, y máximo 8 dependencias por constructor. Sin excepciones: si crece, se divide | `CodeSizeGuardTest` |
 | Reglas tributarias | Ningún valor tributario (tarifa, rango, porcentaje, fecha, redondeo) en el código: vienen de la configuración de jurisdicción | Revisión (CC‑01) |
+| Zonas rojas | `tax`, `ledger`, `jurisdiction`, `audit`, la seguridad, la autorización y la persistencia de `platform`, las migraciones, los contratos, el `pom.xml`, el BFF y la identidad (`AGENTS.md` de la raíz, §4.3): un cambio de código nunca es un ajuste, y cada PR pasa la revisión adversarial | Revisión adversarial |
 | Contrato | API *contract‑first*: primero el OpenAPI, luego el código (ADR 0005) | Revisión |
 | Migraciones | Flyway en `src/main/resources/db/migration`; una migración aplicada no se edita; credenciales solo por variables de entorno | Revisión |
 | Idioma | Código en inglés; nombres visibles de las pruebas (`@DisplayName`) en español con el código de la regla | Revisión (ADR 0017) |
 | Formato | Google Java Format (2 espacios) | `./mvnw verify` (Spotless) |
-| TDD | Commit `test:` (prueba en rojo) antes del `feat:`/`fix:` | Revisión del PR |
+| Pruebas | Toda rebanada entra con sus pruebas en el mismo PR. **Prueba primero** (escrita antes y vista fallar, sin *commit* aparte) en el código que implementa una regla con código (`AGENTS.md` de la raíz, §5.3) y en los casos *golden* (§4.1, principio 5) | Revisión del PR; revisión adversarial si toca una regla o una zona roja |
 | Dependencias | Una dependencia nueva en el `pom.xml` exige ADR | Revisión |
 
 ## Antes de decir "terminado"
 
 - `./mvnw verify` en verde (formato, compilación y todas las pruebas), o se reporta qué falló.
-- La feature y `ESTADO.md` del repositorio de plataforma están actualizados.
-- Un PR toca solo este proyecto.
+- El `CHANGELOG.md` de este proyecto tiene su entrada y la tarjeta del *issue* está al día (*skill* `liv-backlog`).
+- Un PR toca solo este proyecto: no cambia `spec.md`, el glosario ni `ESTADO.md`, que solo cambian en los PR de la raíz (`AGENTS.md` de la raíz, §4.2, «Quién escribe en la raíz»).
 
 ## Skills
 
