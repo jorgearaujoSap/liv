@@ -16,7 +16,7 @@ spec/
         └── spec.md          ← qué hace, reglas, alcance del MVP, criterios, diseño técnico y rebanadas
 ```
 
-El backlog de cada feature son *issues* de GitHub con la etiqueta `feature:NNN`, en el *Project* del repositorio (columnas Backlog, Lista, En curso, En revisión y Hecha).
+El backlog de cada feature son *issues* de GitHub con la etiqueta `feature:NNN`, en el *Project* `liv-project` (columnas *Backlog*, *Ready* = «Lista», *In progress* = «En curso», *In review* = «En revisión» y *Done* = «Hecha»; *skill* `liv-backlog` §0).
 
 Las features 001 a 008 se planificaron con el método anterior y conservan sus `plan.md` y `tasks.md`, como historial.
 
@@ -41,7 +41,7 @@ En una **zona roja** (`AGENTS.md` §4.3), y en todo código que implementa o cor
    - **H1:** la persona aprueba la spec.
 2. **Backlog.** Un *issue* por rebanada, con la etiqueta `feature:NNN` y el formato de abajo. Lo que quedó en «Después» va al backlog sin feature.
 3. **Diseño.** Figma una rebanada por delante: la pantalla tiene su diseño aprobado antes de empezar la rebanada que la construye (`AGENTS.md` §6.2).
-4. **Rebanada.** La persona la mueve a «Lista»; un agente nunca lo hace. Primero su parte del contrato; después el backend y el frontend, en paralelo si el contrato ya está. El PR del frontend se integra después de la *release* del contrato. Se ve funcionando en local y se ajusta.
+4. **Rebanada.** Con el visto bueno de la persona en el chat, el agente la mueve a «Lista» (ADR 0041). Primero su parte del contrato; después el backend y el frontend, en paralelo si el contrato ya está. El PR del frontend se integra después de la *release* del contrato. Se ve funcionando en local y se ajusta.
 5. **PR.** Uno por proyecto, con sus pruebas, el CI en verde y una captura si hay pantalla. Si toca una zona roja, una regla con código o un documento funcional, pasa la revisión adversarial (dos revisores ciegos). Enlaza su *issue* (`Parte de #n` o `Cierra #n` en el último). **H3:** la persona revisa e integra.
 6. **Cierre.** Pruebas de navegador de los caminos principales, cada criterio de `spec.md` marcado `[x]` con su prueba, deuda revisada, la opción abierta en el menú, y roadmap, glosario y `ESTADO.md` al día.
 
@@ -51,7 +51,7 @@ La opción del menú queda en «Próximamente» hasta el cierre, y cada caso de 
 
 ## Formato del *issue* de una rebanada
 
-Título: `NNN · R<n> · <qué se podrá hacer>` (una rebanada suelta: `<módulo> · <qué se podrá hacer>`). Etiquetas: `feature:NNN` si es de una feature, `rebanada` y, si toca una zona roja, `zona-roja`. Los agentes la crean en «Backlog»; solo la persona la mueve a «Lista».
+Título: `NNN · R<n> · <qué se podrá hacer>` (una rebanada suelta: `<módulo> · <qué se podrá hacer>`). Etiquetas: `feature:NNN` si es de una feature, `rebanada` y, si toca una zona roja, `zona-roja`. El agente la crea en «Backlog» y mantiene el tablero; la mueve a «Lista» solo con el visto bueno de la persona en el chat.
 
 ```markdown
 **Objetivo:** <qué podrá hacer o ver la persona usuaria al terminar>
