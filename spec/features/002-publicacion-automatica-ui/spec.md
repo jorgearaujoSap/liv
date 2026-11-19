@@ -1,6 +1,6 @@
 # 002 · Publicación automática de liv-components
 
-**Estado:** propuesta
+**Estado:** aprobada (H1, 2026-11-19); en construcción antes que la 008, que queda en pausa
 _(propuesta → aprobada (H1) → en construcción → hecha)_
 
 **Módulo:** ninguno de negocio; entrega de la librería `ui/` · **Menú:** no aplica · **Zona roja:** sí: `.github/**` y la configuración de *build* y de publicación de `ui/` (`AGENTS.md` §4.3)
@@ -62,7 +62,7 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
   - **en la R2:** `gh api` del entorno (revisores y regla de ramas) y una ejecución en `--dry-run` desde una rama de prueba **sin la condición `if`**, que el entorno rechaza;
   - **en la R3:** la evidencia de la configuración del publicador de confianza, con el entorno. No se prueba publicando desde otra rama.
 - [ ] **002-08** — Dado el trabajo que tiene el permiso de publicar, cuando se ejecuta, entonces no hace `checkout`, no instala las dependencias del proyecto y no ejecuta nada que haya pasado por un trabajo que las instaló. Sus *scripts* vienen de `decidir`, que no instala nada. Usa Node y npm en las versiones exactas que valida `decidir`, sin caché, y publica con `--ignore-scripts` el `.tgz` que construyó y verificó `verificar`. _Rebanada:_ R3. _Prueba:_ una prueba de «sistema · scripts de CI» que lee `ui-release.yml` y falla si `publicar` tiene `checkout`, `npm ci`, caché, un *script* que venga del artefacto de `verificar`, o le falta `--ignore-scripts`.
-- [ ] **002-09** — Dada la guía de `ui/README.md` › «Publicar una versión», cuando se lee, entonces tiene pasos numerados para preparar la versión en el PR, aprobar la publicación (quién y dónde), resolver cada fallo de 002-04 y adoptar la versión en el frontend. La publicación a mano queda solo como emergencia. _Rebanada:_ R3. _Prueba:_ la revisión de la guía en la H3.
+- [ ] **002-09** — Dada la guía de `ui/README.md` › «Publicar una versión», cuando se lee, entonces tiene pasos numerados para preparar la versión en el PR, aprobar la publicación (quién y dónde), resolver cada fallo de 002-04 y adoptar la versión en el frontend. Ya no hay publicación a mano: si GitHub Actions no está disponible, se espera. _Rebanada:_ R3. _Prueba:_ la revisión de la guía en la H3.
 - [ ] **002-10** — Dado un PR de `ui/` que sube la versión, cuando corre su CI, entonces `release:check --ci` verifica la sección del `CHANGELOG.md`, que el número sea mayor que el publicado y el campo `repository` del paquete. Si falla, el PR no se puede integrar. _Rebanada:_ R2. _Prueba:_ un PR de prueba sin la sección del `CHANGELOG.md` queda en rojo.
 
 ## Diseño técnico
@@ -137,10 +137,10 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
     - la lista de archivos del `.tgz` queda en el resumen que ve quien aprueba;
     - las dependencias de `ui/` pasan la revisión de dependencias (doc. 02 §11);
     - el SHA‑256 solo garantiza que el paquete no cambió entre trabajos.
-  - **Credenciales personales:** después de la primera publicación con OIDC, la persona activa en npm «exigir 2FA y no permitir *tokens*». Así ninguna credencial personal puede publicar fuera del *workflow*, salvo la emergencia con 2FA. Un *ruleset* protege las etiquetas `ui-v*`.
+  - **Credenciales personales:** después de la primera publicación con OIDC, la persona activa en npm «exigir 2FA y no permitir *tokens*». Así ninguna credencial personal puede publicar con *tokens*. No hay publicación a mano (decisión de la H1); si GitHub Actions no está disponible, se espera. Un *ruleset* protege las etiquetas `ui-v*`.
   - **Que un agente apruebe con el `gh` de la persona.** Es un **riesgo residual aceptado**:
     - los agentes usan la sesión de `gh` de la persona, que puede aprobar;
-    - la regla `deny` de `.claude/settings.json` cubre `pending_deployments`, `gh api graphql` y `gh auth token`. Es una **mitigación parcial**: solo frena a Claude Code, y se puede evitar con `curl`, con el navegador o desde otros agentes;
+    - no se agrega una regla `deny` en `.claude/settings.json` (decisión de la H1). Sería una mitigación parcial que se evita con `curl`, con el navegador o desde otros agentes;
     - `AGENTS.md` §4.5 dice de forma explícita, para todo agente, que aprobar una publicación o un despliegue está prohibido;
     - el control real es la regla de `AGENTS.md`: ningún agente aprueba, y la persona aprueba solo desde la página de la ejecución, viendo su resumen;
     - no se puede activar «evitar que quien disparó la ejecución la apruebe», porque quien integra suele ser quien aprueba.
@@ -149,10 +149,10 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
   - **Inyección:** la versión se valida y va por `env:`, y las notas van por archivo.
 - **Pantallas:** no hay.
 - **Riesgos y decisiones:**
-  - **El ADR 0042**, que se acepta en la H1:
+  - **El ADR 0042**, aceptado en la H1:
     - publica al integrar, con aprobación;
     - usa la publicación de confianza, con el entorno exigido;
-    - deja la publicación a mano solo como emergencia;
+    - no deja publicación a mano;
     - reemplaza en parte al ADR 0022.
   - **Configuración que hace la persona, en este orden:**
     1. **Antes de la R2:** crear el entorno `npm` con sus revisores y la regla de ramas «Selected branches: `main`». Se comprueba con `gh api repos/jorgearaujoSap/liv/environments/npm`.
@@ -190,9 +190,9 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
 
 | # | Rebanada | PR, en orden | Criterios | *Issue* |
 |---|---|---|---|---|
-| R1 | *Scripts* de publicación con sus pruebas: `release-decide`, `release-notes`, `release-publish`, `check-release --ci` y el campo `repository`. `.nvmrc` con versión exacta. Comprueba si el *build* tolera `npm ci --ignore-scripts`. No publica nada | `ui/` | 002-04, 002-05 (lógica), 002-06 (lógica) | por crear |
-| R2 | Esqueleto del *workflow* en `--dry-run`. **Antes:** la persona crea el entorno `npm` protegido. Trae `ui-release.yml` con `decidir`, `verificar` y `publicar` en `--dry-run`, `release:check --ci` en `ui-pr.yml` y la regla `deny` de `.claude/settings.json` | `.github/` y `.claude/` (raíz) | 002-01, 002-04, 002-05, 002-07, 002-10 | por crear |
-| R3 | Publicación real. **Antes:** el publicador de confianza en npm y las reglas, en dos PR: 1) raíz: `AGENTS.md` (con la prohibición de aprobar para todo agente), docs. 00 §6, 01, 02 y 04, constitución, estado del ADR 0022 y comentario de `ui-pr.yml`; 2) `ui/`: `README.md`, `AGENTS.md` y `release-tag.mjs` con sus pruebas. **Después**, 3) raíz: `publicar` sin `--dry-run`, más `etiquetar` y la prueba de 002-08. Se prueba con la siguiente versión real | raíz, `ui/` y raíz | 002-02, 002-03, 002-06, 002-07, 002-08, 002-09 | por crear |
+| R1 | *Scripts* de publicación con sus pruebas: `release-decide`, `release-notes`, `release-publish`, `check-release --ci` y el campo `repository`. `.nvmrc` con versión exacta. Comprueba si el *build* tolera `npm ci --ignore-scripts`. No publica nada | `ui/` | 002-04, 002-05 (lógica), 002-06 (lógica) | #231 |
+| R2 | Esqueleto del *workflow* en `--dry-run`. **Antes:** la persona crea el entorno `npm` protegido. Trae `ui-release.yml` con `decidir`, `verificar` y `publicar` en `--dry-run`, y `release:check --ci` en `ui-pr.yml` | `.github/` (raíz) | 002-01, 002-04, 002-05, 002-07, 002-10 | #232 |
+| R3 | Publicación real. **Antes:** el publicador de confianza en npm y las reglas, en dos PR: 1) raíz: `AGENTS.md` (con la prohibición de aprobar para todo agente), docs. 00 §6, 01, 02 y 04, constitución, estado del ADR 0022 y comentario de `ui-pr.yml`; 2) `ui/`: `README.md`, `AGENTS.md` y `release-tag.mjs` con sus pruebas. **Después**, 3) raíz: `publicar` sin `--dry-run`, más `etiquetar` y la prueba de 002-08. Se prueba con la siguiente versión real | raíz, `ui/` y raíz | 002-02, 002-03, 002-06, 002-07, 002-08, 002-09 | #233 |
 
 ## Cambios
 
@@ -201,20 +201,15 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
 - 2026-11-18 — Segunda ronda de la revisión: los *scripts* de `publicar` y `etiquetar` vienen de `decidir`, no del artefacto de `verificar`; salida `etiquetar` para volver a ejecutar todo; `release-tag.mjs` con pruebas; versiones de Node y npm validadas por `decidir`; la regla `deny`, declarada como mitigación parcial; el *ruleset* de etiquetas no bloquea la creación.
 - 2026-11-18 — El diseño técnico se rehízo con la revisión adversarial: tres controles contra la publicación desde otra rama, etiqueta solo de la misma ejecución, publicación idempotente, lógica en *scripts* con pruebas, verificación en el PR (002-10), entorno creado antes del *workflow* y reglas cambiadas antes de publicar.
 
-## Preguntas abiertas
+## Decisiones de la H1
 
-Se resuelven en la H1. Cada una trae su recomendación:
+Aprobada por la persona el 2026-11-19:
 
-1. **Qué dispara la publicación.**
-   - **Recomendado:** integrar el PR que sube la versión, más la aprobación.
-   - **Alternativa:** subir a mano la etiqueta `ui-vX.Y.Z`, como dice hoy el doc. 04 §9.
-2. **La credencial.**
-   - **Recomendado:** publicación de confianza (OIDC), con el entorno `npm` exigido.
-   - **Alternativa:** un *token* de npm guardado como secreto, como dice hoy el doc. 04 §9.
-3. **Quién aprueba la publicación.**
-   - **Recomendado:** el responsable y los colaboradores que él agregue como revisores del entorno `npm`.
-4. **Publicación a mano de emergencia.**
-   - **Recomendado:** se permite, con 2FA, solo si GitHub Actions no está disponible, y se anota en la bitácora.
-5. **Bloquear que un agente apruebe.**
-   - **Recomendado:** la regla `deny` en `.claude/settings.json` desde la R2, como adelanto de F0‑03.
-6. **Aceptar el ADR 0042 en esta H1**, para que las rebanadas construyan sobre una decisión aceptada.
+1. **Disparo:** integrar en `main` el *commit* que sube la versión, más la aprobación en el entorno `npm`.
+2. **Credencial:** publicación de confianza de npm (OIDC), con el entorno `npm` exigido. Antes de la H1 se comprobó en la documentación de npm que el publicador de confianza tiene el campo «Environment name».
+3. **Quién aprueba:** el responsable y los colaboradores que él agregue como revisores del entorno `npm`.
+4. **Sin publicación a mano**, ni de emergencia: si GitHub Actions no está disponible, se espera. Hasta integrar el PR que activa la publicación automática, sigue la publicación a mano de hoy.
+5. **Sin regla `deny`** en `.claude/settings.json`. El control es la regla de `AGENTS.md`: ningún agente aprueba una publicación.
+6. **ADR 0042 aceptado.**
+7. **Orden:** la 002 se construye antes que la 008, que queda en pausa.
+8. **Sin tercera ronda de revisión:** las correcciones de la segunda ronda se aceptan como están. Cada rebanada que toque `.github/` o la publicación tendrá su propia revisión adversarial.

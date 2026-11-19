@@ -1,6 +1,6 @@
 # ADR-0042 · Publicación automática de `liv-components`: al integrar, con aprobación humana y sin clave guardada
 
-- **Estado:** Propuesto (se acepta en la H1 de la feature 002)
+- **Estado:** Aceptado (2026-11-19, en la H1 de la feature 002)
 - **Fecha:** 2026-11-18
 - **Decisores:** responsable del proyecto (`AGENTS.md` §4.3, «quien dirige el trabajo decide»)
 - **Documentos relacionados:**
@@ -30,7 +30,7 @@ Opción 3.
 **Aprobación humana:**
 - se da en el entorno protegido `npm` de GitHub, que solo admite la rama `main`, con los revisores que designe el responsable;
 - «publica un humano» pasa a ser **«un humano aprueba la publicación»**;
-- un agente nunca la aprueba. Es un **riesgo residual aceptado**: los agentes usan la sesión de `gh` de la persona, que puede aprobar. La regla `deny` de `.claude/settings.json` (`pending_deployments`, `gh api graphql` y `gh auth token`) solo es una **mitigación parcial**, porque frena a Claude Code pero se evita con `curl`, con el navegador o desde otros agentes. `AGENTS.md` §4.5 lo prohíbe de forma explícita para todo agente. El control real es la regla de `AGENTS.md`, y que la persona apruebe solo desde la página de la ejecución, viendo su resumen.
+- un agente nunca la aprueba. Es un **riesgo residual aceptado**: los agentes usan la sesión de `gh` de la persona, que puede aprobar. No se agrega una regla `deny` en `.claude/settings.json`, porque se evitaría con `curl`, con el navegador o desde otros agentes. `AGENTS.md` §4.5 lo prohíbe de forma explícita para todo agente. El control real es la regla de `AGENTS.md`, y que la persona apruebe solo desde la página de la ejecución, viendo su resumen.
 
 **Credencial:**
 - publicación de confianza de npm (OIDC), con el *workflow* `ui-release.yml` **y el entorno `npm` exigidos** en la configuración de npm;
@@ -52,7 +52,7 @@ Opción 3.
 - la lista de archivos del paquete, que se muestra a quien aprueba;
 - la revisión de dependencias del doc. 02 §11.
 
-**Emergencia:** la publicación a mano, con 2FA, solo si GitHub Actions no está disponible, y queda anotada en la bitácora.
+**Sin publicación a mano**, ni de emergencia: si GitHub Actions no está disponible, se espera. Hasta integrar el PR que activa la publicación automática, sigue la publicación a mano de hoy.
 
 **Repositorio privado:** si el repositorio pasa a privado, este ADR se revisa y la publicación se detiene mientras tanto. La procedencia y la aprobación del entorno dependen de la visibilidad o del plan de GitHub.
 
@@ -73,7 +73,6 @@ Opción 3.
   - el *workflow* es zona roja y lleva revisión adversarial en cada cambio.
 - **Qué cambia en el repositorio:**
   - `.github/workflows/ui-release.yml` y el paso de `release:check --ci` en `ui-pr.yml`, con el comentario de ese archivo;
-  - `.claude/settings.json`, con la regla `deny`;
   - en `ui/`:
     - los *scripts* `release-decide`, `release-notes` y `release-publish`;
     - el modo `--ci` de `check-release`;
