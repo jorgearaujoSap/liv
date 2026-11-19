@@ -159,6 +159,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
+- `AGENTS.md`, `bff/AGENTS.md` y las *skills* `liv-endpoint` y `liv-migracion`, al método de SDD por rebanadas verticales (ADR 0040): tamaños de trabajo, zonas rojas con revisión adversarial y prueba primero solo en las reglas tributarias.
 - La regla nueva de las vigencias fiscales (feature 007, enmienda 4, T42 a T46; PR 4B2, apilado sobre 4B1; se integra después de 4D, 4F0 y 4B1, y **el mismo día y seguidos con 4F y 4E**): una vigencia se puede crear de 2002 al año siguiente al año en curso, en cualquier orden.
   - `FiscalYearOpeningPolicy`: V-02 deja de rechazar (`GAP` y `HISTORICAL` ya no se emiten) y V-05 `FIRST_YEAR` desaparece; V-05 es un rango cerrado igual para la primera vigencia y las demás. El orden de evaluación es V-01, V-05 `PAST_LIMIT` (extensión `minYear`) y V-05 `FUTURE_LIMIT` (`maxYear`). `creatableYears()` va del más reciente al más antiguo, con los años de la tabla nacional del rango que la administración no tiene.
   - **2002 es la constante `FiscalYearOpeningPolicy.FIRST_CREATABLE_YEAR`**, en el dominio y con su prueba. Es un límite operativo que decidió el responsable funcional el 2026-11-16, no un valor tributario, y una excepción explícita a `AGENTS.md` §4.5 que aprobó en la H1 de la enmienda (E4-1). Cambiarlo exige una versión del Doc. 01.

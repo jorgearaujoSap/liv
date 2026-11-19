@@ -5,7 +5,7 @@ description: Crea una migración Flyway del backend de LIV (API o BFF) con las c
 
 # Nueva migración
 
-Una migración es un **cambio crítico**: va por el SDD con su `plan.md` aprobado (H2), y nunca por el flujo directo (`AGENTS.md` de la raíz, §4.3). Sigue las reglas de `docs/arquitectura/01` §9 (tabla de persistencia) y `docs/arquitectura/02` §5.1 (RLS). Esta *skill* dice **cómo** se aplican aquí.
+Una migración toca una **zona roja**: nunca es un ajuste. Va en una rebanada, con los datos decididos en el diseño técnico de la `spec.md` (o en el del *issue*, si es una rebanada suelta), y su PR pasa la revisión adversarial (`AGENTS.md` de la raíz, §4.3). Sigue las reglas de `docs/arquitectura/01` §9 (tabla de persistencia) y `docs/arquitectura/02` §5.1 (RLS). Esta *skill* dice **cómo** se aplican aquí.
 
 ## 0. Antes de escribir
 
@@ -68,4 +68,4 @@ Cada `@DisplayName` va en español y empieza con el código del criterio: `"001-
 - [ ] Los permisos de `liv_app` son los mínimos y `LivAppGrantsTest` los refleja.
 - [ ] Las claves primarias nuevas usan `DEFAULT uuidv7()`.
 - [ ] Ningún valor tributario quedó en la migración (tarifas, rangos, fechas): eso es configuración de jurisdicción (CC‑01).
-- [ ] Las pruebas se escribieron antes (commit `test:`) y `./mvnw verify` está en verde.
+- [ ] Las pruebas están en el mismo PR (las de una regla tributaria, escritas antes) y `./mvnw verify` está en verde.

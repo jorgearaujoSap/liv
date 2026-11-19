@@ -5,7 +5,7 @@ description: Crea o cambia un endpoint REST de la API de LIV con el flujo contra
 
 # Nuevo endpoint
 
-Cambiar un contrato es un **cambio crítico** (`backend/contracts/**`, `AGENTS.md` de la raíz, §4.3): va por el SDD con su `plan.md` aprobado. Las reglas están en `backend/AGENTS.md`, `backend/README.md` › «Contratos de API» y `docs/arquitectura/04` §1 (CC‑06, CC‑07 y CC‑12). Esta *skill* dice **cómo** se aplican aquí.
+Cambiar un contrato toca una **zona roja** (`backend/contracts/**`, `AGENTS.md` de la raíz, §4.3): va en una rebanada, con su parte del contrato escrita en el *issue* o en la `spec.md`, y su PR pasa la revisión adversarial. Las reglas están en `backend/AGENTS.md`, `backend/README.md` › «Contratos de API» y `docs/arquitectura/04` §1 (CC‑06, CC‑07 y CC‑12). Esta *skill* dice **cómo** se aplican aquí.
 
 Para las API de Spring Boot 4, Spring Security 7 o `openapi-generator` consulta la documentación oficial de la versión del `pom.xml`. No escribas de memoria: muchas API cambiaron desde Spring Boot 3.
 
@@ -88,6 +88,6 @@ Lo que este ejemplo enseña y conviene repetir:
 - [ ] El contrato cambió primero, con su `info.version` subida, y `compare.sh` está en verde, o el PR lleva la etiqueta `contrato-incompatible`.
 - [ ] No se editó nada generado (CC‑12) y el controlador solo implementa la interfaz.
 - [ ] Cada método público del caso de uso tiene `@RequiresPermission` o `@OpenUseCase`.
-- [ ] Hay pruebas del caso feliz, de cada error del contrato y de 401 y 403, escritas antes (commit `test:`).
+- [ ] Hay pruebas del caso feliz, de cada error del contrato y de 401 y 403 en el mismo PR. Las de una regla tributaria se escribieron antes, con su código de regla (`AGENTS.md` de la raíz, §4.1, principio 5).
 - [ ] Ningún valor tributario ni `double`/`float`, y ningún `Instant.now()` en `application`.
 - [ ] `./mvnw verify` está en verde.

@@ -1,12 +1,12 @@
 # AGENTS.md — BFF
 
-Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`liv-bff`). **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD, TDD, aprobaciones H1–H3, *skills* y `ESTADO.md`. Todo el BFF es ruta crítica (`backend/bff/**`): cada cambio lleva la revisión adversarial y las cuatro lentes.
+Reglas para cualquier agente de IA (y para el equipo) que trabaje en el BFF (`liv-bff`). **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD por rebanadas verticales (ADR 0040), pruebas, aprobaciones (H1 de la spec, visto bueno de cada rebanada y H3), *skills* y `ESTADO.md`. Todo el BFF es zona roja (`backend/bff/**`): cada PR lleva la revisión adversarial, con dos revisores ciegos de nivel alto.
 
 ## Antes de tocar código
 
-1. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es ruta crítica, por el flujo directo solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad.
+1. La tarea es un ajuste, una rebanada (un *issue* del backlog, en «Lista») o parte de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma), según los tamaños de trabajo del `AGENTS.md` del repositorio de plataforma (§4.3). Como todo el BFF es zona roja, como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias que no sean de seguridad.
 2. Lee la sección del documento funcional y del de arquitectura que cita la feature (seguridad: doc. 02 §3 y §8).
-3. Trabaja solo en los archivos que declara la tarea.
+3. Trabaja solo en lo de la rebanada o del ajuste. Lo demás que encuentres se le propone a la persona como *issue* (*skill* `liv-backlog`).
 
 ## Reglas del BFF
 
