@@ -261,6 +261,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-18
 
+- **ADR 0040 aceptado** por la persona, después de integrar el PR #222. Desde hoy rige el SDD por rebanadas verticales.
 - **Nuevo método de trabajo: SDD por rebanadas verticales** (ADR 0040, propuesto). Lo decidió la persona con las observaciones del desarrollador que trabajó del 2026-11-08 al 2026-11-18: la planificación en cascada consumía días antes de ver código (la 008 lleva tres días de plan sin código) y los ajustes llegaban tarde.
   - Una spec corta por feature con una sola aprobación (H1), un backlog de rebanadas en GitHub Issues y su *Project*, y cada rebanada de punta a punta.
   - Esfuerzo según lo que cuesta cambiar: revisión de nivel alto en las zonas rojas y una sola revisión por PR en el resto.
