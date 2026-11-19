@@ -16,7 +16,7 @@ spec/
         └── spec.md          ← qué hace, reglas, alcance del MVP, criterios, diseño técnico y rebanadas
 ```
 
-El backlog de cada feature son *issues* de GitHub con la etiqueta `feature:NNN`, en el *Project* del repositorio (columnas Backlog, Lista, En curso, En revisión y Hecha).
+El backlog de cada feature son *issues* de GitHub con la etiqueta `feature:NNN`, en el *Project* `liv-project` (columnas *Backlog*, *Ready* = «Lista», *In progress* = «En curso», *In review* = «En revisión» y *Done* = «Hecha»; *skill* `liv-backlog` §0).
 
 Las features 001 a 008 se planificaron con el método anterior y conservan sus `plan.md` y `tasks.md`, como historial.
 

@@ -11,31 +11,39 @@ El trabajo se sigue en *issues* de GitHub y en el *Project* del repositorio (ADR
 - **El agente propone y la persona decide.** Un *issue* nuevo solo se crea con la aprobación de la persona en el chat, salvo las rebanadas que salen de una spec aprobada (§2).
 - **Nadie más que la persona mueve un *issue* a «Lista»:** es su visto bueno para empezar.
 
-## 0. Preparar el repositorio (una sola vez)
+## 0. El tablero y las etiquetas
 
-Si faltan, créalos y avísale a la persona qué creaste:
+**El tablero** es el *Project* **`liv-project`** de la cuenta `jorgearaujoSap` (número 1, privado), creado con la plantilla Kanban. Cambiar sus columnas, campos o automatizaciones lo decide la persona: es configuración del repositorio.
 
-1. **Etiquetas:**
+| Columna del tablero | En las reglas (`AGENTS.md` §4.2) | Quién la mueve |
+|---|---|---|
+| *Backlog* | Backlog | Entra sola al crear el *issue* («Item added to project») |
+| *Ready* | «Lista» | **Solo la persona:** es su visto bueno para empezar |
+| *In progress* | «En curso» | El agente, al empezar la rebanada; o sola, al enlazar un PR («Pull request linked to issue») |
+| *In review* | «En revisión» | El agente, al abrir el PR |
+| *Done* | «Hecha» | Sola, al cerrarse el *issue* («Item closed») |
 
-   ```bash
-   gh label create rebanada --color 1D76DB --description "Rebanada vertical (ADR 0040)" --force
-   gh label create deuda --color B60205 --description "Deuda técnica registrada" --force
-   gh label create zona-roja --color D93F0B --description "Toca una zona roja (AGENTS.md §4.3)" --force
-   gh label create defecto --color E99695 --description "Defecto encontrado" --force
-   gh label create mejora --color 0E8A16 --description "Mejora propuesta" --force
-   ```
+Los campos *Priority* (P0 a P2) y *Size* (XS a XL) de la plantilla son opcionales. Si la persona los usa, *Size* va así: XS o S es un ajuste, M una rebanada y L o XL una rebanada que conviene partir.
 
-   Y `feature:NNN` para cada feature que arranca.
-2. **El *Project*:** un *Project* de GitHub del repositorio con un campo de estado y sus columnas Backlog, Lista, En curso, En revisión y Hecha. Crearlo o cambiar sus columnas lo pide la persona: es configuración del repositorio. Usa `gh project list` para encontrarlo y su número en los comandos de abajo.
+**Las etiquetas** ya existen:
+- `rebanada`, `deuda` y `zona-roja`;
+- `feature:NNN`, una por feature. Créala al arrancar cada una:
+
+  ```bash
+  gh label create feature:NNN --color C5DEF5 --description "Feature NNN · <nombre>"
+  ```
+- **Defectos y mejoras:** se usan las de GitHub, `bug` y `enhancement`.
+
+**Cuenta de GitHub:** el tablero y el repositorio son de `jorgearaujoSap`. Si `gh` responde con un error de permisos, revisa con qué cuenta está trabajando: el repositorio puede indicar la suya en `git config gh.account`.
 
 ## 1. Tipos de *issue*
 
 | Tipo | Etiquetas | Título | Cuándo |
 |---|---|---|---|
 | Rebanada de una feature | `rebanada`, `feature:NNN` (+ `zona-roja`) | `NNN · R<n> · <qué se podrá hacer>` | Al armar el backlog de una spec aprobada |
-| Rebanada suelta | `rebanada` (+ `zona-roja`) y `defecto` o `mejora` | `<módulo> · <qué se podrá hacer>` | Un defecto en una zona roja o en una regla, algo de «Después», una mejora acotada |
+| Rebanada suelta | `rebanada` (+ `zona-roja`) y `bug` o `enhancement` | `<módulo> · <qué se podrá hacer>` | Un defecto en una zona roja o en una regla, algo de «Después», una mejora acotada |
 | Deuda | `deuda` (+ `zona-roja`) | `deuda · <módulo> · <qué se dejó>` | Un atajo de una rebanada, o deuda que se encuentra en el código |
-| Defecto o mejora pequeña | `defecto` o `mejora` | `<módulo> · <qué pasa>` | Algo que cabe en un ajuste (`AGENTS.md` §4.3), para no olvidarlo si no se hace ya |
+| Defecto o mejora pequeña | `bug` o `enhancement` | `<módulo> · <qué pasa>` | Algo que cabe en un ajuste (`AGENTS.md` §4.3), para no olvidarlo si no se hace ya |
 
 **Cuerpo de una rebanada:** el formato de `spec/README.md` › «Formato del *issue* de una rebanada».
 
@@ -73,7 +81,7 @@ Las rebanadas de una spec aprobada en la H1 ya tienen la aprobación de la perso
 2. Agrégalo al *Project* en «Backlog»:
 
    ```bash
-   gh project item-add <número> --owner <dueño> --url <url del issue>
+   gh project item-add 1 --owner jorgearaujoSap --url <url del issue>
    ```
 
 3. Anota el número de cada *issue* en la tabla de `spec.md`, dentro del PR de arranque.
@@ -105,9 +113,10 @@ Mientras trabajas puede aparecer algo fuera de la rebanada en curso: un defecto,
 ## 4. Mantener el tablero
 
 - **Los PR enlazan su *issue*:** usa `Parte de #n` en los PR intermedios y `Cierra #n` en el último de la rebanada. GitHub cierra el *issue* al integrar ese PR.
-- **Los agentes pueden mover las tarjetas** a «En curso» al empezar y a «En revisión» al abrir el PR (`gh project item-edit`).
-- **Nunca a «Lista»:** ese paso es de la persona.
-- **A «Hecha»** pasa sola cuando se cierra el *issue*, si el *Project* está automatizado. Si no lo está, la mueve quien integra.
+- **Los agentes pueden mover las tarjetas** a *In progress* al empezar y a *In review* al abrir el PR (`gh project item-edit`, con los identificadores que da `gh project field-list 1 --owner jorgearaujoSap`).
+- **Nunca a *Ready*:** ese paso es de la persona.
+- **A *Done*** pasa sola cuando se cierra el *issue*.
+- **Solo *issues*:** las tarjetas son las rebanadas y sus PR las enlazan. Si un PR aparece como tarjeta, se saca del tablero, sin cerrarlo, y solo con el visto bueno de la persona.
 - **Deuda:** antes de proponer una rebanada nueva, cuenta los *issues* `deuda` abiertos:
 
   ```bash
@@ -115,11 +124,11 @@ Mientras trabajas puede aparecer algo fuera de la rebanada en curso: un defecto,
   ```
 
   Si son más de cinco, avísale a la persona: la siguiente rebanada es de limpieza.
-- **Ver el backlog:** `gh issue list --label feature:NNN`, `gh issue list --label deuda` y `gh project item-list <número> --owner <dueño>`. Resúmeselo a la persona en una tabla corta: número, título, estado y tipo.
+- **Ver el backlog:** `gh issue list --label feature:NNN`, `gh issue list --label deuda` y `gh project item-list 1 --owner jorgearaujoSap`. Resúmeselo a la persona en una tabla corta: número, título, estado y tipo.
 
 ## Qué no hacer
 
 - No crear *issues* sin la aprobación de la persona, salvo las rebanadas de una spec aprobada.
-- No mover nada a «Lista».
+- No mover nada a *Ready* («Lista»).
 - No cerrar ni borrar *issues* sin que la persona lo pida. Un duplicado se cierra como duplicado, con el enlace al original, y solo con su visto bueno.
 - No usar los *issues* para guardar decisiones de arquitectura: van en un ADR (`liv-adr`). Tampoco para las reglas de negocio: van en los documentos funcionales.
