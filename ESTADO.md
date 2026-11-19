@@ -221,7 +221,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    Ya están al día las reglas de la raíz, sus *skills*, la plantilla de feature, la plantilla de PR y los documentos de arquitectura.
 2. Mientras no exista la publicación automática (feature 002): dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
 3. Antes de entregar el proyecto al desarrollador: los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
-4. **Fase 0 cerrada el 2026-11-12** (ADR 0031). Elegir la primera feature de la Fase 1 (*roadmap*, *backlog*). Quedan de la feature 006, sin fecha:
+4. **Fase 0 cerrada el 2026-11-12** (ADR 0031). La Fase 1 está en curso (§1, «Trabajo en curso»). Quedan de la feature 006, sin fecha:
    - los pendientes 8 y 9 del Doc. 04 §14 (CA‑4.07 y el método del redondeo «al peso»), que decide el responsable funcional;
    - propuestas de las H3: una huella de los valores esperados de las *golden* en el CI y dividir las clases de prueba de más de 400 líneas.
    La T24 de la feature 001 queda para antes de *staging*.

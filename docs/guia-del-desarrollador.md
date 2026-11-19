@@ -81,5 +81,5 @@ Nunca uses datos reales de contribuyentes ni credenciales de entornos reales: en
   - `jsonschema.sh` y `publish.sh` dejan pasar una *release* con archivos de más, y `jsonschema.sh` no falla cuando no puede escribir sus archivos de trabajo. Va en un PR aparte del *backend*;
   - la *release* 1.0 quedó marcada como «Latest» en GitHub, aunque el paso 3 esperaba que no (visto en la lista de *releases* el 2026-11-08);
   - proteger las etiquetas `jsonschema-*` en un *ruleset*, con tu aprobación explícita.
-- **Feature 002** (publicación automática de `liv-components`): su spec nueva y el ADR 0042 esperan la H1, y reemplazan la propuesta del PR #113.
+- **Feature 002** (publicación automática de `liv-components`): su spec nueva y el ADR 0042 esperan la H1 en su PR de arranque (rama `docs/002-arranque`), y reemplazan la propuesta del PR #113.
 - **Decisiones abiertas del equipo** (P1, P6, P7) y de identidad: `ESTADO.md` §5 y §6.
