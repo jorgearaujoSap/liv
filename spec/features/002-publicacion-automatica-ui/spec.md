@@ -71,14 +71,14 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
 - **`release-decide.mjs`:**
   - valida que la versión cumpla `^\d+\.\d+\.\d+$`, y lee y valida las versiones exactas de Node (`ui/.nvmrc`) y de npm (`packageManager`) para `publicar`;
   - consulta `npm view liv-components versions dist-tags --json` y **falla si npm no responde**: una respuesta vacía nunca es «nada que publicar»;
-  - sabe si **este *commit* subió la versión**: la versión de `HEAD^1` es distinta de la de `HEAD`. Como los PR se integran con *squash*, cada `push` a `main` es un solo *commit*. Solo el *commit* que subió la versión la publica: así nunca se publica contenido distinto del que se revisó con su `CHANGELOG.md`;
+  - sabe si **este *commit* subió la versión**: la versión de `HEAD` es mayor que la de `HEAD^1`, o el padre no tenía la librería o tenía una versión previa. Una versión que baja (un *revert*) no cuenta como subida. Como los PR se integran con *squash*, cada `push` a `main` es un solo *commit*. Solo el *commit* que subió la versión la publica: así nunca se publica contenido distinto del que se revisó con su `CHANGELOG.md`;
   - lee las etiquetas remotas con `git ls-remote --tags origin`, porque el `checkout` no las trae;
   - devuelve una de estas salidas:
 
     | Situación | Salida |
     |---|---|
     | **Este *commit* subió la versión**, mayor que la última y no publicada | `publicar` |
-    | Versión no publicada que **no** subió este *commit* (la subió otro que espera, se rechazó o venció) | `nada`, con el aviso «la versión X está pendiente en la ejecución del *commit* Y» |
+    | Versión no publicada que **no** subió este *commit* (la subió otro que espera, se rechazó o venció) | `nada`, con el aviso «la versión X está pendiente en la ejecución del *commit* que la subió». No nombra el *commit*: con `fetch-depth: 2` no se puede saber cuál es |
     | Ya publicada, este *commit* subió la versión y falta la etiqueta (volver a ejecutar todo después de publicar) | `etiquetar` |
     | Ya publicada en cualquier otro caso | `nada` |
     | Menor que la última y no publicada | `error` |
@@ -196,6 +196,9 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
 
 ## Cambios
 
+- 2026-11-19 — Dos cambios de la tabla de salidas de `release-decide`, de la revisión adversarial de la R1 (PR #234), con el visto bueno de la persona el 2026-11-19 (anotado en #231):
+  - «este *commit* subió la versión» pasa de «distinta» a «mayor» que la del padre, para que un *revert* que baja la versión no publique ni etiquete;
+  - el aviso de `nada` ya no nombra el *commit* que subió la versión, porque con `fetch-depth: 2` `git log` señala siempre al padre.
 - 2026-11-18 — Reemplaza la propuesta del PR #113, cerrado sin integrar, con la plantilla del ADR 0040. Se mantienen sus criterios; las versiones previas pasan a «Después».
 - 2026-11-18 — Segunda ronda B: solo publica el *commit* que subió la versión; etiquetas remotas con `git ls-remote`; prueba de 002-07 sin la condición `if`; publicación a mano vigente hasta activar la automática; `deny` ampliado y prohibición para todo agente; lo que se verifica, por rebanada.
 - 2026-11-18 — Segunda ronda de la revisión: los *scripts* de `publicar` y `etiquetar` vienen de `decidir`, no del artefacto de `verificar`; salida `etiquetar` para volver a ejecutar todo; `release-tag.mjs` con pruebas; versiones de Node y npm validadas por `decidir`; la regla `deny`, declarada como mitigación parcial; el *ruleset* de etiquetas no bloquea la creación.
