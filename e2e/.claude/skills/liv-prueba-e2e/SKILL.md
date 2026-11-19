@@ -5,7 +5,7 @@ description: Escribe o cambia una prueba de navegador de LIV (Playwright, en e2e
 
 # Nueva prueba e2e
 
-Las pruebas de navegador recorren LIV como una persona, contra el sistema levantado en local y solo por HTTP (ADR 0030). Cada feature con interfaz agrega aquí sus pruebas, **primero en rojo y en un PR propio de `e2e/`** (`liv-sdd-feature`, paso 7). Esta *skill* dice **cómo** se escriben. Lo demás está en `e2e/README.md`.
+Las pruebas de navegador recorren LIV como una persona, contra el sistema levantado en local y solo por HTTP (ADR 0030). Cada feature con interfaz agrega aquí las pruebas de sus caminos principales **al cerrarse, en un PR propio de `e2e/`** (`liv-sdd-feature` §4, ADR 0040). Esta *skill* dice **cómo** se escriben. Lo demás está en `e2e/README.md`.
 
 Para la API de Playwright consulta la documentación oficial de la versión de `package.json` (1.64.1). No escribas de memoria.
 
