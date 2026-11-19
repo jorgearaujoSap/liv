@@ -57,34 +57,83 @@ export function integrityOf(content) {
   return `sha512-${createHash('sha512').update(content).digest('base64')}`;
 }
 
-/** package/package.json of an npm .tgz (gzip + ustar), read with Node only. */
+/** `path` record of a pax extended header ("<length> path=<value>\n" records), or null. */
+function paxPath(body) {
+  const match = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(body.toString('utf8'));
+  return match ? match[1] : null;
+}
+
+/** Entry paths npm reads as given: package/..., without empty, "." or ".." segments. */
+function isPlainPackagePath(path) {
+  const segments = path.replace(/\/$/, '').split('/');
+  return (
+    segments[0] === 'package' && segments.every((segment) => !['', '.', '..'].includes(segment))
+  );
+}
+
+/**
+ * package/package.json of an npm .tgz (gzip + ustar), read with Node only. It is strict where its reading
+ * could differ from npm's: only files, directories and pax path headers; plain package/... paths; and
+ * nothing after the end-of-archive blocks. Anything else fails, so the manifest checked is the published one.
+ */
 export function readPackedManifest(tgz) {
   const tar = gunzipSync(tgz);
   const found = [];
+  let pendingPath = null;
   let offset = 0;
   while (offset + 512 <= tar.length) {
     const header = tar.subarray(offset, offset + 512);
-    if (header.every((byte) => byte === 0)) break;
+    if (header.every((byte) => byte === 0)) {
+      if (!tar.subarray(offset).every((byte) => byte === 0)) {
+        throw new Error('el .tgz tiene contenido después del fin del archivo tar');
+      }
+      break;
+    }
     const field = (start, length) =>
       header
         .subarray(start, start + length)
         .toString('utf8')
         .replace(/\0[\s\S]*$/, '');
-    const size = parseInt(field(124, 12).trim() || '0', 8);
-    if (!Number.isFinite(size)) throw new Error('el .tgz tiene una cabecera de tar inválida');
-    const prefix = field(345, 155);
-    const path = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
-    const type = field(156, 1);
-    const body = offset + 512;
-    if ((type === '0' || type === '') && path === 'package/package.json') {
-      found.push(tar.subarray(body, body + size).toString('utf8'));
+    const sizeField = field(124, 12).trim();
+    const checksum = header.reduce(
+      (sum, byte, index) => sum + (index >= 148 && index < 156 ? 32 : byte),
+      0,
+    );
+    if (
+      !/^[0-7]*$/.test(sizeField) ||
+      !field(257, 6).startsWith('ustar') ||
+      parseInt(field(148, 8).trim(), 8) !== checksum
+    ) {
+      throw new Error('el .tgz tiene una cabecera de tar inválida');
     }
-    offset = body + Math.ceil(size / 512) * 512;
+    const size = parseInt(sizeField || '0', 8);
+    const body = tar.subarray(offset + 512, offset + 512 + size);
+    const type = field(156, 1);
+    offset += 512 + Math.ceil(size / 512) * 512;
+
+    if (type === 'x') {
+      pendingPath = paxPath(body);
+      continue;
+    }
+    if (!['0', '', '5'].includes(type)) {
+      throw new Error(`el .tgz tiene una entrada de tar de tipo "${type}", que no se acepta`);
+    }
+    const prefix = field(345, 155);
+    const path = pendingPath ?? (prefix ? `${prefix}/${field(0, 100)}` : field(0, 100));
+    pendingPath = null;
+    if (!isPlainPackagePath(path)) {
+      throw new Error(`el .tgz tiene la ruta "${path}", que no es package/...`);
+    }
+    if (type !== '5' && path === 'package/package.json') found.push(body.toString('utf8'));
   }
   if (found.length !== 1) {
     throw new Error(`el .tgz tiene ${found.length} archivos package/package.json, no uno`);
   }
-  return JSON.parse(found[0]);
+  const manifest = JSON.parse(found[0]);
+  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error('package/package.json del .tgz no es un objeto');
+  }
+  return manifest;
 }
 
 function npmErrorCode(stdout) {
@@ -203,7 +252,9 @@ export function main({ argv, run, readFile, env, log, error }) {
     return 0;
   } catch (cause) {
     if (!(cause instanceof PublishError)) throw cause;
-    const message = singleLine(cause.message);
+    // In --dry-run (rebanada R2) a failure must not read as a real publish that failed.
+    const mode = argv.at(-1) === '--dry-run' ? 'DRY-RUN: no publica. ' : '';
+    const message = singleLine(`${mode}${cause.message}`);
     // Escaped as a GitHub Actions annotation, so npm's output cannot carry another workflow command.
     error(env.GITHUB_ACTIONS === 'true' ? `::error::${message.replace(/%/g, '%25')}` : message);
     return 1;

@@ -224,4 +224,39 @@ describe('check-release · línea de comandos', () => {
     assert.equal(code, 1);
     assert.match(errors[0], /Argumento desconocido/);
   });
+
+  it('cada problema va en una sola línea, aunque npm responda en varias', () => {
+    const errors = [];
+    const failing = setup({ view: result(1, '', 'npm error x\n::add-mask::y\nfin') });
+    assert.equal(
+      main({ argv: ['--ci'], ...failing, log: () => {}, error: (l) => errors.push(l) }),
+      1,
+    );
+    const numbered = errors.filter((line) => /^ {2}\d+\. /.test(line));
+    assert.equal(numbered.length, 1);
+    assert.ok(!numbered[0].includes('\n'), numbered[0]);
+    assert.ok(
+      errors.every((line) => !/^::/m.test(line)),
+      errors.join('\n'),
+    );
+  });
+
+  it('sin projects/liv-components/package.json, da la lista de problemas y no se cae', () => {
+    const errors = [];
+    const { run } = setup();
+    const readFile = fakeFiles({ 'CHANGELOG.md': CHANGELOG });
+    const code = main({
+      argv: ['--ci'],
+      run,
+      readFile,
+      readBinary: fakeFiles({}),
+      log: () => {},
+      error: (l) => errors.push(l),
+    });
+    assert.equal(code, 1);
+    assert.match(
+      errors.join('\n'),
+      /1\. No se pudo leer ui\/projects\/liv-components\/package\.json/,
+    );
+  });
 });

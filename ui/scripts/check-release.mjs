@@ -19,6 +19,7 @@ import {
   readLibrary,
   readToolVersions,
   runCommand,
+  singleLine,
 } from './release-decide.mjs';
 import { extractSection } from './release-notes.mjs';
 import { readPackedManifest } from './release-publish.mjs';
@@ -45,6 +46,16 @@ export function parseArgs(argv) {
   }
   if (options.tarball && !options.ci) throw new Error('--paquete solo se usa con --ci.');
   return options;
+}
+
+/** Name and version for the message when readLibrary failed (its problem already says why). */
+function describeInvalidLibrary(readFile) {
+  try {
+    const { name, version } = JSON.parse(readFile(`${LIBRARY_DIR}/package.json`));
+    return { name, version };
+  } catch {
+    return { name: 'liv-components', version: '?' };
+  }
 }
 
 function output(result) {
@@ -123,7 +134,7 @@ function checkPublished({ run, name, version }, problems) {
 export function checkRelease({ ci, tarball, run, readFile, readBinary }) {
   const problems = [];
   const library = collect(problems, () => readLibrary(readFile));
-  const { name, version } = library ?? JSON.parse(readFile(`${LIBRARY_DIR}/package.json`));
+  const { name, version } = library ?? describeInvalidLibrary(readFile);
   if (ci) collect(problems, () => readToolVersions(readFile));
 
   if (!ci) {
@@ -192,7 +203,8 @@ export function main({ argv, run, readFile, readBinary, log, error }) {
   });
   if (problems.length > 0) {
     error(`\nNo se publica ${name}@${version}:\n`);
-    problems.forEach((problem, index) => error(`  ${index + 1}. ${problem}`));
+    // One line per problem: npm's output inside a message cannot add lines to the CI log.
+    problems.forEach((problem, index) => error(`  ${index + 1}. ${singleLine(problem)}`));
     error('\nProceso completo: ui/README.md, sección "Publicar una versión".\n');
     return 1;
   }

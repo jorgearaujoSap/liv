@@ -163,6 +163,71 @@ describe('release-publish · el .tgz es el que se pide publicar (002-08)', () =>
       /2 archivos package\/package\.json, no uno/,
     ],
     'el archivo no es un .tgz': [Buffer.from('no es gzip'), /No se pudo leer/],
+    // A pax header renames the next entry, as npm reads it: the real package.json is the 9.9.9 one.
+    'una cabecera pax convierte otro archivo en el package.json': [
+      makeTarball([
+        ['package/package.json', JSON.stringify({ name: 'liv-components', version: '0.6.0' })],
+        ['PaxHeader/a.json', '29 path=package/package.json\n', { type: 'x' }],
+        ['package/a.json', JSON.stringify({ name: 'liv-components', version: '9.9.9' })],
+      ]),
+      /2 archivos package\/package\.json, no uno/,
+    ],
+    'una cabecera pax renombra el único package.json': [
+      makeTarball([
+        ['PaxHeader/package.json', '23 path=package/b.json\n', { type: 'x' }],
+        ['package/package.json', JSON.stringify({ name: 'liv-components', version: '0.6.0' })],
+        ['package/a.json', JSON.stringify({ name: 'liv-components', version: '9.9.9' })],
+      ]),
+      /0 archivos package\/package\.json/,
+    ],
+    'un bloque de ceros suelto antes de otro package.json': [
+      makeTarball([
+        ['package/package.json', JSON.stringify({ name: 'liv-components', version: '0.6.0' })],
+        null,
+        ['package/package.json', JSON.stringify({ name: 'liv-components', version: '9.9.9' })],
+      ]),
+      /contenido después del fin del archivo tar/,
+    ],
+    'una entrada de nombre largo de GNU': [
+      makeTarball([
+        ['././@LongLink', 'package/package.json', { type: 'L' }],
+        ['package/x', JSON.stringify({ name: 'liv-components', version: '9.9.9' })],
+      ]),
+      /de tipo "L", que no se acepta/,
+    ],
+    'un enlace simbólico': [
+      makeTarball([['package/package.json', '', { type: '2' }]]),
+      /de tipo "2", que no se acepta/,
+    ],
+    'una ruta con ..': [
+      makeTarball({
+        'package/../package/package.json': JSON.stringify({
+          name: 'liv-components',
+          version: '0.6.0',
+        }),
+      }),
+      /la ruta "package\/\.\.\/package\/package\.json"/,
+    ],
+    'una ruta que no empieza por package/': [
+      makeTarball({
+        'otro/package.json': JSON.stringify({ name: 'liv-components', version: '0.6.0' }),
+      }),
+      /la ruta "otro\/package\.json"/,
+    ],
+    'una cabecera con la suma de control equivocada': [
+      makeTarball([
+        [
+          'package/package.json',
+          JSON.stringify({ name: 'liv-components', version: '0.6.0' }),
+          { checksum: 1 },
+        ],
+      ]),
+      /cabecera de tar inválida/,
+    ],
+    'un package.json que no es un objeto': [
+      makeTarball({ 'package/package.json': 'null' }),
+      /no es un objeto/,
+    ],
   };
   for (const [situation, [content, message]] of Object.entries(tarballs)) {
     it(`falla sin consultar npm: ${situation}`, () => {
@@ -245,6 +310,14 @@ describe('release-publish · línea de comandos', () => {
     assert.equal(errors.length, 1);
     assert.match(errors[0], /^::error::npm no respondió/);
     assert.ok(!errors[0].includes('\n') && errors[0].includes('%250A'), errors[0]);
+  });
+
+  it('con --dry-run, también los fallos empiezan por «DRY-RUN: no publica»', () => {
+    const errors = [];
+    const io = { env: {}, log: () => {}, error: (line) => errors.push(line) };
+    const failing = setup({ view: npmError('E404'), versions: result(0, '["0.7.0"]') });
+    assert.equal(main({ argv: [...ARGS, '--dry-run'], ...failing, ...io }), 1);
+    assert.match(errors[0], /^DRY-RUN: no publica\. .*no es mayor que la última/);
   });
 
   it('funciona solo, copiado a un directorio sin los demás scripts (artefacto de `decidir`)', () => {

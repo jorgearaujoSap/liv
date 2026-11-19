@@ -44,10 +44,19 @@ export function fakeFiles(files) {
   };
 }
 
-/** Builds an npm-like .tgz (gzip of a ustar archive) from path → text content (object or entry list). */
+/**
+ * Builds an npm-like .tgz (gzip of a ustar archive) from path → text content, as an object or a list of
+ * entries. A list entry may be [path, content, { type, checksum }] to build a malformed archive, or null
+ * for a lone zero block.
+ */
 export function makeTarball(files) {
   const blocks = [];
-  for (const [path, content] of Array.isArray(files) ? files : Object.entries(files)) {
+  for (const entry of Array.isArray(files) ? files : Object.entries(files)) {
+    if (entry === null) {
+      blocks.push(Buffer.alloc(512));
+      continue;
+    }
+    const [path, content, { type = '0', checksum } = {}] = entry;
     const body = Buffer.from(content, 'utf8');
     const header = Buffer.alloc(512);
     header.write(path, 0, 100, 'utf8');
@@ -57,11 +66,11 @@ export function makeTarball(files) {
     header.write(`${body.length.toString(8).padStart(11, '0')}\0`, 124);
     header.write('00000000000\0', 136);
     header.write('        ', 148);
-    header.write('0', 156);
+    header.write(type, 156);
     header.write('ustar\0', 257);
     header.write('00', 263);
-    const checksum = header.reduce((sum, byte) => sum + byte, 0);
-    header.write(`${checksum.toString(8).padStart(6, '0')}\0 `, 148);
+    const sum = checksum ?? header.reduce((total, byte) => total + byte, 0);
+    header.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148);
     blocks.push(header, body, Buffer.alloc((512 - (body.length % 512)) % 512));
   }
   blocks.push(Buffer.alloc(1024));

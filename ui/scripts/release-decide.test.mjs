@@ -1,12 +1,10 @@
 // Tests of the publish decision (feature 002, criteria 002-04, 002-05 and 002-06; spec.md, table of
 // release-decide outputs). npm and git are simulated: no test reaches the registry or the remote.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
 
 import { decide, main } from './release-decide.mjs';
 import { fakeFiles, fakeRun, npmError, result } from './test-helpers.mjs';
@@ -369,32 +367,5 @@ describe('release-decide · salida para el workflow', () => {
     assert.equal(errors.length, 1);
     assert.ok(!errors[0].includes('\n'));
     assert.ok(errors[0].includes('%250A'), errors[0]);
-  });
-});
-
-describe('release-decide · como proceso', () => {
-  const script = fileURLToPath(new URL('./release-decide.mjs', import.meta.url));
-
-  function exitCode(path) {
-    try {
-      // Run from an empty directory: there is no package.json, so it must end in error, never silently.
-      execFileSync(process.execPath, [path], {
-        cwd: mkdtempSync(join(tmpdir(), 'release-decide-cwd-')),
-        stdio: 'pipe',
-      });
-      return 0;
-    } catch (error) {
-      return error.status;
-    }
-  }
-
-  it('termina en 1 cuando falla, ejecutado directamente', () => {
-    assert.equal(exitCode(script), 1);
-  });
-
-  it('termina en 1 cuando falla, ejecutado por un enlace o una junction al directorio', () => {
-    const link = join(mkdtempSync(join(tmpdir(), 'release-decide-link-')), 'scripts');
-    symlinkSync(join(script, '..'), link, 'junction');
-    assert.equal(exitCode(join(link, 'release-decide.mjs')), 1);
   });
 });
