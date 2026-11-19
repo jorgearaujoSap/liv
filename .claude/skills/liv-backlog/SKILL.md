@@ -113,7 +113,7 @@ Mientras trabajas puede aparecer algo fuera de la rebanada en curso: un defecto,
 
 ## 4. Mantener el tablero
 
-- **Los PR enlazan su *issue*:** usa `Parte de #n` en los PR intermedios y `Cierra #n` en el último de la rebanada. GitHub cierra el *issue* al integrar ese PR.
+- **Los PR enlazan su *issue*:** usa `Parte de #n` en los PR intermedios y `Closes #n` solo en el último de la rebanada. GitHub cierra el *issue* al integrar ese PR; solo reconoce las palabras en inglés (`Closes`, `Fixes`, `Resolves`), así que «Cierra #n» no sirve.
 - **Mover las tarjetas** con `gh project item-edit`, con los identificadores que da `gh project field-list 1 --owner jorgearaujoSap`:
   - a *In progress* al empezar;
   - a *In review* al abrir el PR;

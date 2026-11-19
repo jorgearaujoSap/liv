@@ -1,6 +1,6 @@
-# Propietarios por carpeta (doc. 04 §9; rutas críticas en AGENTS.md §4.3).
+# Propietarios por carpeta (doc. 04 §9; zonas rojas en AGENTS.md §4.3).
 # Hoy hay un solo responsable. Al sumar equipo, cada carpeta pasa a su grupo (backend, frontend, ui)
-# y las rutas críticas exigen dos aprobaciones con la protección de la rama main.
+# Cuando el equipo active las aprobaciones, aquí se listan las rutas de las zonas rojas con sus revisores.
 *            @jorgearaujoSap
 /backend/    @jorgearaujoSap
 /frontend/   @jorgearaujoSap
