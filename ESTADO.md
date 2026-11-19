@@ -10,7 +10,8 @@
 
 | Tema | Estado |
 |---|---|
-| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16; la siguiente la elige la persona |
+| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16. La 008 · Configuración de jurisdicción (1.5.9) es la feature en construcción y el piloto del método nuevo; la 002 · Publicación automática de `liv-components` prepara su arranque |
+| Método de trabajo | ✅ **SDD por rebanadas verticales** desde el 2026-11-18 (ADR 0040 y 0041): spec corta por feature con una sola aprobación (H1), backlog de rebanadas en GitHub Issues y en el *Project* `liv-project`, que mantiene el agente; revisión adversarial solo en las zonas rojas, y prueba primero solo en las reglas tributarias (`AGENTS.md` §4) |
 | Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.5.0 publicada en npm, y pruebas de navegador en local. Primera funcionalidad de negocio: la opción 1.4 (vigencias fiscales, feature 007), con su esquema `tax`, su API, su auditoría y sus pantallas |
 | Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
 | Arquitectura (00–05) | ✅ **Aprobada** el 2026-11-01: ADR 0001–0020 aceptados sin ajustes (Java 21 LTS en lugar de 25); ADR 0021 (backend con Maven y la base del equipo) y ADR 0022 (librería como proyecto `ui/` publicado en npm) aceptados el mismo día |
@@ -19,11 +20,16 @@
 
 ### Trabajo en curso
 
-Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestador`, ADR 0033), con una fila por tarea; las sesiones de las tareas no lo tocan.
+El avance de cada rebanada está en el *Project* [`liv-project`](https://github.com/users/jorgearaujoSap/projects/1), que mantiene el agente (ADR 0041). Aquí solo va qué feature está en construcción y qué arranque se prepara.
 
-> **Método anterior.** Este tablero sigue el ADR 0033. Con el ADR 0040, el avance de la 008 pasa al *Project* de GitHub cuando se convierta en rebanadas, y este tablero se reduce a la feature en construcción.
+| Feature | Estado | Siguiente paso |
+|---|---|---|
+| **008 · Configuración de jurisdicción (1.5.9)** | 🔄 En construcción, piloto del ADR 0040. Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior | Agrupar sus 78 tareas en rebanadas (*issues* `feature:008`), con R1 como esqueleto, y pedir el visto bueno de la R1 |
+| **002 · Publicación automática de `liv-components`** | ⏳ Arranque en preparación: spec nueva y ADR 0042, que reemplazan la propuesta del PR #113 | La H1 de la persona; conviene construirla antes que las rebanadas de la 008 que necesitan componentes nuevos |
 
-**Orquestador activo: feature 008 · Configuración de jurisdicción (1.5.9)** (desde el 2026-11-16). La eligió la persona como siguiente feature de la Fase 1. La 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16, con la enmienda 4 incluida.
+#### Plan anterior de la 008 (ADR 0033, referencia)
+
+Esta tabla y la guía de abajo describen la 008 con oleadas y tareas. Se conservan como referencia para convertirla en rebanadas; ya no se actualizan.
 
 | Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
 |---|---|---|---|---|---|
@@ -206,7 +212,8 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 
 ## 6. Próximos pasos
 
-1. Dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
+1. **Método de trabajo (ADR 0040 y 0041):** la H1 de la feature 002 y su construcción; convertir la 008 en rebanadas; la plantilla de PR con la lista de la definición de hecha (F0‑03); en el *Project*, el filtro `is:issue is:open` de *Auto-add to project*, que pone la persona. Lo demás ya está al día: reglas, *skills*, plantilla de feature, documentos de arquitectura y referencias de cada proyecto.
+1. Mientras no exista la publicación automática (feature 002): dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
 2. Antes de entregar el proyecto al desarrollador: la plantilla de PR y los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
 3. **Fase 0 cerrada el 2026-11-12** (ADR 0031). Elegir la primera feature de la Fase 1 (*roadmap*, *backlog*). Quedan de la feature 006, sin fecha:
    - los pendientes 8 y 9 del Doc. 04 §14 (CA‑4.07 y el método del redondeo «al peso»), que decide el responsable funcional;
@@ -261,6 +268,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-18
 
+- **Documentación al día con el método nuevo:** en `ESTADO.md`, el resumen, el tablero y los próximos pasos; y la guía del desarrollador §1. Los `AGENTS.md` y las *skills* de `backend/`, `frontend/`, `ui/` y `e2e/` van en sus propios PR.
 - **ADR 0041 aceptado:** el agente mantiene el tablero `liv-project`. Lo trivial y reversible lo hace sin preguntar; mover una rebanada a «Lista», crear *issues* nuevos, cerrarlos sin terminar o cambiar el tablero lo hace con la autorización de la persona en el chat. Cambian `AGENTS.md` §4.2 y §7, `liv-backlog`, `liv-sdd-feature`, `liv-orquestador`, `spec/README.md` y el doc. 05.
 - **Tablero del backlog:** la persona creó el *Project* `liv-project` con la plantilla Kanban, y se crearon las etiquetas `rebanada`, `deuda`, `zona-roja` y `feature:008`; defectos y mejoras usan `bug` y `enhancement`. La *skill* `liv-backlog` quedó al día con el tablero: sus columnas en inglés, equivalentes a las de las reglas, y quién mueve cada una.
 - **ADR 0040 aceptado** por la persona, después de integrar el PR #222. Desde hoy rige el SDD por rebanadas verticales.
