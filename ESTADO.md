@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-18
+> **Última actualización:** 2026-11-19
 > **Regla:** este archivo se actualiza al arrancar o cerrar una feature, con las decisiones del equipo, el estado de Figma y los próximos pasos, y con una línea de la bitácora por cada ajuste de la raíz (`AGENTS.md` §7). El avance de las rebanadas lo lleva el *Project* de GitHub, y sus PR no tocan este archivo (ADR 0040).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -10,7 +10,7 @@
 
 | Tema | Estado |
 |---|---|
-| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16. La 008 · Configuración de jurisdicción (1.5.9) es la feature en construcción y el piloto del método nuevo; la 002 · Publicación automática de `liv-components` prepara su arranque |
+| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16. La **002 · Publicación automática de `liv-components`** es la feature en construcción (H1 del 2026-11-19) y la primera con el método nuevo; la 008 · Configuración de jurisdicción (1.5.9) queda en pausa hasta cerrarla |
 | Método de trabajo | ✅ **SDD por rebanadas verticales** desde el 2026-11-18 (ADR 0040 y 0041): spec corta por feature con una sola aprobación (H1), backlog de rebanadas en GitHub Issues y en el *Project* `liv-project`, que mantiene el agente; revisión adversarial solo en las zonas rojas, las reglas con código y los documentos funcionales, y prueba primero solo en el código de las reglas con código y los casos *golden* (`AGENTS.md` §4) |
 | Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.5.0 publicada en npm, y pruebas de navegador en local. Primera funcionalidad de negocio: la opción 1.4 (vigencias fiscales, feature 007), con su esquema `tax`, su API, su auditoría y sus pantallas |
 | Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
@@ -24,8 +24,8 @@ El avance de cada rebanada está en el *Project* [`liv-project`](https://github.
 
 | Feature | Estado | Siguiente paso |
 |---|---|---|
-| **008 · Configuración de jurisdicción (1.5.9)** | 🔄 En construcción, piloto del ADR 0040. Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior | Agrupar sus 78 tareas en rebanadas (*issues* `feature:008`), con R1 como esqueleto, y pedir el visto bueno de la R1 |
-| **002 · Publicación automática de `liv-components`** | ⏳ Arranque en preparación (rama `docs/002-arranque`): spec nueva y ADR 0042, que reemplazan la propuesta del PR #113 | La H1 de la persona. Hay una sola feature en construcción a la vez: la persona decide si pausa la 008 para construir antes la 002, que publica los componentes nuevos que la 008 necesita, o si la 002 espera |
+| **002 · Publicación automática de `liv-components`** | 🔄 En construcción desde la H1 del 2026-11-19 (PR #228): ADR 0042 aceptado, sin publicación a mano. Rebanadas R1 (#231), R2 (#232) y R3 (#233) en el *Project* | El visto bueno de la R1 (los *scripts* de `ui/`). Antes de la R2, la persona crea el entorno `npm`; antes de la R3, registra el publicador de confianza en npm |
+| **008 · Configuración de jurisdicción (1.5.9)** | ⏸️ En pausa hasta cerrar la 002 (decisión de la persona, 2026-11-19). Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior | Al retomarla: agrupar sus 78 tareas en rebanadas (*issues* `feature:008`), con R1 como esqueleto |
 
 #### Plan anterior de la 008 (ADR 0033, referencia)
 
@@ -213,8 +213,8 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 6. Próximos pasos
 
 1. **Método de trabajo (ADR 0040 y 0041):**
-   - la H1 de la feature 002 y la decisión de su orden frente a la 008;
-   - convertir la 008 en rebanadas;
+   - construir la feature 002 (rebanadas #231 a #233); la 008 queda en pausa hasta cerrarla;
+   - al retomar la 008, convertirla en rebanadas;
    - integrar los PR de las referencias de cada proyecto (`backend/`, `frontend/`, `ui/` y `e2e/`), que llevan el método nuevo a sus `AGENTS.md` y *skills*;
    - en el *Project*, el filtro `is:issue is:open` de *Auto-add to project*, que pone la persona.
 
@@ -271,6 +271,10 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-19
+
+- **Feature 002, H1 aprobada** (PR #228): publicación al integrar el *commit* que sube la versión, con aprobación en el entorno `npm` y publicación de confianza de npm (OIDC) con el entorno exigido; **sin publicación a mano**, ni de emergencia; sin regla `deny` en `.claude/settings.json`; ADR 0042 aceptado; sin tercera ronda de revisión. Se comprobó en la documentación de npm que el publicador de confianza tiene el campo «Environment name». La 002 va antes que la 008, que queda en pausa. Backlog: R1 (#231), R2 (#232) y R3 (#233), en el *Project* `liv-project`. El PR #113 se cerró sin integrar.
 
 ### 2026-11-18
 
