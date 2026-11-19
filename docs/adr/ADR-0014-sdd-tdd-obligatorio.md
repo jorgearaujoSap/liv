@@ -1,6 +1,6 @@
 # ADR-0014 · Proceso SDD + TDD obligatorio, también para agentes de IA
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado; modificado en parte por el ADR 0040 (las compuertas pasan a ser la H1 de arranque, el visto bueno de cada rebanada y la H3; la prueba primero queda obligatoria solo en las reglas y los cálculos tributarios)
 - **Fecha:** 2026-11-01
 - **Decisores:** el equipo del proyecto, en la revisión del 2026-11-01 en que se aceptaron los ADR 0001–0025 (doc. 00 §6 y bitácora de `ESTADO.md`)
 - **Documentos relacionados:** `docs/arquitectura/00` §1; `docs/arquitectura/04` §4.1; `docs/arquitectura/05` §1, §3 y §13

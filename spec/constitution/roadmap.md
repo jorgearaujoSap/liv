@@ -34,7 +34,7 @@ _Features completadas, en orden de implementación._
 
 ## Siguiente 🔜
 
-_Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
+_Lo próximo a abordar. Una sola feature en construcción a la vez; la siguiente puede preparar su arranque mientras tanto (ADR 0040)._
 
 - ⏳ **T24 de la feature 001, antes de producción** — imágenes publicadas, `infra/` con TLS, el e2e en CI (F0‑12 completo), la CSP con *nonce* del frontend y las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue. No se despliega a producción sin ella (ADR 0030).
 - 🔜 **Fase 1 — Tablas base y configuración:** la 007 (1.4) está hecha; la siguiente la elige la persona, del *backlog* de abajo.
@@ -76,4 +76,4 @@ _Sin comprometer ni ordenar del todo. El número `NNN` se asigna al crear la car
 - **Firma digital** de liquidaciones oficiales y paz y salvo con un proveedor certificado.
 - **Portal del contribuyente** — consulta, recibo y pago por PSE.
 
-> Cada feature nueva se crea como `features/NNN-nombre-feature/` con `spec.md`, `plan.md` y `tasks.md` antes de tocar código.
+> Cada feature nueva se crea como `features/NNN-nombre-feature/` con su `spec.md` aprobado (H1) y su backlog de rebanadas antes de tocar código (ADR 0040).

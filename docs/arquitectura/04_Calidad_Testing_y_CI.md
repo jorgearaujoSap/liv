@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0014, 0015, 0016) · `01_Arquitectura_de_Software.md`
-> **Versión:** 1.1 — 2026-11-07, §9 cambiado por la feature 003 (CI obligatorio en `main`; H2 aprobada). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.2 — 2026-11-18, §4.1, §4.2, §6 (Q11 y Q15), §7, §8 y §9 con el SDD por rebanadas verticales (ADR 0040). La 1.1 (2026-11-07) cambió el §9 por la feature 003 (CI obligatorio en `main`; H2 aprobada). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 
 ---
 
@@ -86,14 +86,15 @@ Son pruebas que fallan el build. Constituyen la principal defensa contra la eros
 
 | Ámbito | Obligatoriedad |
 |---|---|
-| `domain` y `application` de todos los módulos | Obligatorio |
+| Reglas y cálculos tributarios (código con su código de regla y casos *golden*) | Obligatorio: la prueba primero (ADR 0040) |
+| Resto de `domain` y `application` (permisos, segregación, orquestación) | Pruebas en la misma rebanada, nunca después |
 | Adaptadores (persistencia, archivos, REST) | Prueba de integración escrita antes o junto con el adaptador |
-| Frontend | Obligatorio en servicios y componentes con lógica; pruebas de componente para flujos críticos |
+| Frontend | Pruebas de servicios y componentes con lógica en la misma rebanada, nunca después (ADR 0040); pruebas de componente para flujos críticos |
 | Configuración e infraestructura | Verificación automática (esquemas, *healthchecks*, e2e de humo) |
 
 ### 4.2 Evidencia del ciclo
 
-- En el historial del PR, el commit `test:` con la prueba en rojo precede al commit `feat:` o `fix:` que la pone en verde. Para los agentes es obligatorio (doc. 05).
+- En las reglas y los cálculos tributarios, la prueba se escribe antes y se ve fallar; lleva el código de la regla en su nombre y su etiqueta. No hace falta un *commit* `test:` aparte (ADR 0040): la revisión adversarial comprueba que cada regla tenga su prueba.
 - La prueba de mutación (§5) detecta pruebas que no verifican nada (tautológicas), un riesgo típico del código generado.
 
 ### 4.3 Trazabilidad en las pruebas
@@ -170,11 +171,11 @@ Un PR no se integra si falla cualquiera:
 | Q08 | OpenAPI | Sin cambios incompatibles no aprobados |
 | Q09 | Configuraciones de jurisdicción | Válidas contra su esquema y sin errores CJ |
 | Q10 | e2e de humo | En verde. Hasta producción no corre en CI: el e2e corre en local al validar cada feature (ADR 0030) |
-| Q11 | Trazabilidad SDD | El PR referencia su carpeta `spec/features/NNN-nombre-feature/` con `spec.md` y `plan.md` aprobados (salvo los del flujo directo, cuya descripción dice «Flujo: directo» y por qué no necesitan spec; doc. 05 §3.3). En un PR directo, `sdd-guard` comprueba lo que se puede medir: que no toque rutas críticas (salvo las excepciones de `AGENTS.md` §4.3), contratos, migraciones ni documentos funcionales, ADR, arquitectura o constitución, y que no pase de ~200 líneas. Hasta que exista, lo comprueba la H3 |
+| Q11 | Trazabilidad SDD | El PR enlaza el *issue* de su rebanada, de una feature con `spec.md` aprobado o suelta, o su descripción dice «Tamaño: ajuste» (doc. 05 §3.3, ADR 0040). En un ajuste, `sdd-guard` comprueba lo que se puede medir: que no toque zonas rojas (salvo las excepciones de `AGENTS.md` §4.3), contratos, migraciones ni documentos funcionales, ADR, arquitectura o constitución. Hasta que exista, lo comprueba la H3 |
 | Q12 | Tamaño del PR | Advertencia sobre 400 líneas cambiadas (sin contar código generado); requiere justificación |
 | Q13 | Commits | Conventional Commits |
 | Q14 | Librería `liv-components` | Toda variante tiene historia; regresión visual sin diferencias no aprobadas (una diferencia esperada se aprueba actualizando la captura de referencia, con visto bueno del líder de frontend y de un responsable funcional); accesibilidad sin errores |
-| Q15 | Diseño previo | Todo PR que agregue una ruta o pantalla nueva tiene en el `plan.md` de su feature un enlace a un *frame* de Figma aprobado o la declaración de reutilización de estructura (01 §11.2) |
+| Q15 | Diseño previo | Todo PR que agregue una ruta o pantalla nueva tiene en el *issue* de su rebanada o en el `spec.md` de su feature un enlace a un *frame* de Figma aprobado o la declaración de reutilización de estructura (01 §11.2) |
 
 Los umbrales solo se modifican mediante ADR. Bajarlos para "hacer pasar" un PR está prohibido.
 
@@ -187,8 +188,8 @@ Un cambio está terminado cuando:
 - cumple todos los requisitos de su especificación y cada uno tiene una prueba en verde que lo demuestra;
 - todas las compuertas de §6 están en verde;
 - la documentación afectada está actualizada (funcional, arquitectura, ADR, glosario, *runbooks*);
-- `ESTADO.md` refleja el nuevo estado de la tarea y su entrada en la bitácora;
-- un humano revisó y aprobó el PR (dos humanos en rutas críticas, §8);
+- el *issue* de su rebanada está al día; `ESTADO.md` cambia solo al arrancar o cerrar una feature (`AGENTS.md` §7);
+- un humano revisó e integró el PR, con la revisión adversarial en las zonas rojas (dos humanos cuando el equipo active las aprobaciones, §8);
 - la feature está cerrada: criterios de `spec.md` marcados y feature en "Hecho" en `spec/constitution/roadmap.md` (doc. 05 §3).
 
 ---
@@ -198,9 +199,9 @@ Un cambio está terminado cuando:
 | Tema | Definición |
 |---|---|
 | Modelo | *Trunk‑based development*: `main` siempre desplegable; ramas cortas (≤ 2 días de vida ideal) |
-| Nombres de rama | `<tipo>/<NNN-nombre-feature>-<proyecto>` (p. ej. `feat/003-cargue-tablas-avaluos-backend`); los cambios del flujo directo usan `<tipo>/<descripcion-corta>` |
+| Nombres de rama | `<tipo>/<NNN>-r<n>-<proyecto>` para una rebanada (p. ej. `feat/009-r2-backend`); los ajustes y las rebanadas sueltas usan `<tipo>/<descripcion-corta>` |
 | Integración | Solo por PR; *squash merge*; prohibido el *push* directo a `main` |
-| Aprobaciones | 1 humano como mínimo; **2** en rutas críticas definidas en CODEOWNERS: motor de liquidación (`tax`), `ledger`, `jurisdiction`, seguridad, migraciones, contratos OpenAPI, workflows de CI |
+| Aprobaciones | 1 humano como mínimo; **2** en las zonas rojas definidas en CODEOWNERS (motor de liquidación `tax`, `ledger`, `jurisdiction`, seguridad, migraciones, contratos OpenAPI, workflows de CI) cuando el equipo las active. Mientras tanto rige `AGENTS.md` §4.3, «quien dirige el trabajo decide», con la revisión adversarial en las zonas rojas |
 | Commits | Conventional Commits, en español o inglés de forma consistente (a decidir en la Fase 0) |
 | Versiones | Etiquetas semánticas **por proyecto** (`backend-vX.Y.Z`, `frontend-vX.Y.Z`); *changelog* y notas de versión por proyecto, generados automáticamente |
 | Alcance de un PR | Un PR toca un solo proyecto (`backend/`, `frontend/` o la raíz). Una feature que cambia backend y frontend se entrega en PR separados, primero el del contrato (doc. 01 §14.1, IN‑07) |
@@ -227,7 +228,7 @@ flowchart LR
 | `nightly.yml` | Programado | Mutación completa, rendimiento, ZAP completo, Trivy completo, verificación de enlaces de documentación | Crea *issues* automáticamente |
 | `backend-release.yml` · `frontend-release.yml` | Etiqueta `backend-vX.Y.Z` o `frontend-vX.Y.Z` | Promoción a producción del *digest* probado de ese proyecto; migraciones (backend); verificación posterior | Entorno protegido con aprobación manual; cada proyecto se publica por separado |
 | `ui-release.yml` | Etiqueta `ui-vX.Y.Z` | Compila y publica `liv-components` en npm con un *token* guardado como secreto; la versión de la etiqueta debe coincidir con la del `package.json` de la librería | Entorno protegido con aprobación manual; mientras no exista, publica un humano con `npm run release` |
-| `sdd-guard` (trabajo dentro de `pr.yml`) | Cada PR | Verifica la referencia a la carpeta de la feature, que los archivos tocados estén dentro del alcance declarado en su `tasks.md`, que no se toquen rutas protegidas sin aprobación (doc. 05 §5) y que toda pantalla nueva tenga su diseño o su declaración de reutilización (Q15) | Clave contra el *vibe coding* |
+| `sdd-guard` (trabajo dentro de `pr.yml`, pendiente) | Cada PR | Verifica el enlace al *issue* de la rebanada o la marca «Tamaño: ajuste» (Q11), que un ajuste no toque zonas rojas (doc. 05 §5) y que toda pantalla nueva tenga su diseño o su declaración de reutilización (Q15) | Clave contra el *vibe coding* |
 
 **CI obligatorio en `main` (feature 003):** un check obligatorio que nunca corre deja el PR esperando para siempre, así que los workflows de PR no filtran por ruta. Cada uno empieza con un trabajo `<proyecto> · cambios`, que llama a `.github/scripts/aplica.sh` (el de la rama base, no el del PR) y decide si la verificación aplica:
 
@@ -249,4 +250,4 @@ flowchart LR
 - caché de Maven y npm;
 - `concurrency` para cancelar ejecuciones obsoletas del mismo PR;
 - workflows reutilizables para no duplicar pasos entre backend y frontend;
-- los workflows son ruta crítica: cambios con dos aprobaciones.
+- los workflows son zona roja: revisión adversarial, y dos aprobaciones cuando el equipo las active.

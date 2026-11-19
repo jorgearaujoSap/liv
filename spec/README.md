@@ -1,6 +1,6 @@
-# spec/ — Spec Driven Development
+# spec/ — SDD por rebanadas verticales
 
-> Metodología SDD: primero se escribe la spec, luego el plan, luego las tareas, y solo entonces se toca el código. El código se escribe con TDD: primero la prueba.
+> Una spec corta por feature y un backlog de rebanadas verticales que se construyen de punta a punta (ADR 0040). El esfuerzo va donde cuesta cambiar después: datos, contratos, reglas tributarias y seguridad. Las reglas completas están en `AGENTS.md` §4.
 
 ## Estructura
 
@@ -12,51 +12,80 @@ spec/
 │   └── roadmap.md           ← orden y estado de las features
 └── features/                ← una carpeta por feature
     ├── NNN-nombre-feature/  ← plantilla: se copia, no se edita
-    └── 001-nombre-feature/
-        ├── spec.md          ← qué hace + criterios de aceptación
-        ├── plan.md          ← cómo se implementa
-        └── tasks.md         ← checklist de tareas
+    └── 009-nombre-feature/
+        └── spec.md          ← qué hace, reglas, alcance del MVP, criterios, diseño técnico y rebanadas
 ```
 
-## Evaluación previa
+El backlog de cada feature son *issues* de GitHub con la etiqueta `feature:NNN`, en el *Project* del repositorio (columnas Backlog, Lista, En curso, En revisión y Hecha).
 
-Antes de escribir una spec, el agente evalúa la solicitud con los criterios de `AGENTS.md` §4.3 (ADR 0028). Si cumple alguno, sigue el flujo de abajo. Si no, va por el flujo directo, sin carpeta de feature.
+Las features 001 a 008 se planificaron con el método anterior y conservan sus `plan.md` y `tasks.md`, como historial.
 
-## Flujo para una feature nueva
+## Tamaños de trabajo
 
-> Procedimiento detallado para personas y agentes: *skill* `liv-sdd-feature` (`.claude/skills/liv-sdd-feature/SKILL.md`). Las revisiones usan `liv-revision-adversarial` y `liv-revision-4r`.
+Antes de empezar, decide el tamaño (`AGENTS.md` §4.3):
 
-1. Copiar la plantilla `features/NNN-nombre-feature/` a una carpeta nueva con el siguiente número libre (`001`, `002`, …) y un nombre corto en minúsculas con guiones, p. ej. `features/001-vigencias-fiscales/`. Ese identificador es también el de la rama (`feat/001-nombre-feature`) y el del PR.
-2. Escribir `spec.md`: qué hace, por qué y criterios de aceptación medibles, cada uno con su código de regla o de criterio funcional.
-   - **Aprobación H1:** el responsable funcional aprueba la spec. Sin H1 no hay plan.
-3. Si la feature tiene pantallas: diseño en Figma aprobado, o declaración de reutilización de estructura (`AGENTS.md` §6.2).
-4. Escribir `plan.md`: enfoque técnico y decisiones, respetando `constitution/tech-stack.md` y `docs/arquitectura/`.
-   - Revisión adversarial independiente del plan.
-   - **Aprobación H2:** arquitecto (más el responsable funcional si cambia una regla o hay pantallas; no hay diseñador dedicado). Sin H2 no hay tareas.
-5. Desglosar en `tasks.md`: tareas pequeñas, cada una con los archivos que puede tocar y la prueba que se escribe primero.
-6. Implementar tarea por tarea con TDD (rojo → verde → refactorizar) y marcar el progreso.
-7. Validar: revisión adversarial independiente de lo implementado, cada criterio de `spec.md` marcado `[x]` con la prueba que lo demuestra, compuertas de CI en verde.
-   - **Aprobación H3:** revisión humana del PR. Solo un humano integra a `main`.
-8. Cerrar: mover la feature a "Hecho" en `constitution/roadmap.md` y actualizar `ESTADO.md` en el mismo cambio.
+| Tamaño | Qué es | Qué lleva |
+|---|---|---|
+| **Ajuste** | Errata, formato, defecto con causa clara fuera de las reglas y de las zonas rojas, refactorización local, parche, *script*, prueba nueva fuera de las zonas rojas, alinear una pantalla con su diseño | Un PR directo, con su prueba si cambia el comportamiento; sin revisión de agentes |
+| **Rebanada** | Una pieza de una feature que se ve funcionando de punta a punta, o una rebanada suelta sin feature (un defecto en una zona roja o en una regla, una deuda, algo de «Después») | Su *issue* y uno a tres PR, uno por proyecto |
+| **Feature** | Una opción del menú o capacidad nueva, un cambio de regla, un módulo, más de dos rebanadas | `spec.md` (H1) y su backlog |
 
-Si la feature la dirige un orquestador (*skill* `liv-orquestador`, ADR 0033), solo él marca el progreso de `tasks.md`, los criterios de `spec.md`, el roadmap y `ESTADO.md`; las sesiones de las tareas se lo reportan.
+En una **zona roja** (`AGENTS.md` §4.3), y en todo código que implementa o corrige una regla con código, un cambio de código nunca es un ajuste y cada PR pasa la revisión adversarial. Una rebanada suelta con zona roja lleva además un diseño técnico corto en su *issue*, con su revisión adversarial antes de «Lista».
+
+## Flujo de una feature
+
+> Procedimiento detallado para personas y agentes: *skill* `liv-sdd-feature`. Para avanzar varias rebanadas a la vez, *skill* `liv-orquestador`.
+
+1. **Arranque.** Copiar la plantilla `features/NNN-nombre-feature/` a una carpeta con el siguiente número libre y un nombre corto en minúsculas con guiones. Escribir `spec.md`: qué hace y por qué, reglas, alcance del MVP, criterios, diseño técnico en una página y rebanadas en orden.
+   - Si toca una zona roja, su diseño técnico pasa la revisión adversarial (`liv-revision-adversarial`).
+   - **H1:** la persona aprueba la spec.
+2. **Backlog.** Un *issue* por rebanada, con la etiqueta `feature:NNN` y el formato de abajo. Lo que quedó en «Después» va al backlog sin feature.
+3. **Diseño.** Figma una rebanada por delante: la pantalla tiene su diseño aprobado antes de empezar la rebanada que la construye (`AGENTS.md` §6.2).
+4. **Rebanada.** La persona la mueve a «Lista»; un agente nunca lo hace. Primero su parte del contrato; después el backend y el frontend, en paralelo si el contrato ya está. El PR del frontend se integra después de la *release* del contrato. Se ve funcionando en local y se ajusta.
+5. **PR.** Uno por proyecto, con sus pruebas, el CI en verde y una captura si hay pantalla. Si toca una zona roja, una regla con código o un documento funcional, pasa la revisión adversarial (dos revisores ciegos). Enlaza su *issue* (`Parte de #n` o `Cierra #n` en el último). **H3:** la persona revisa e integra.
+6. **Cierre.** Pruebas de navegador de los caminos principales, cada criterio de `spec.md` marcado `[x]` con su prueba, deuda revisada, la opción abierta en el menú, y roadmap, glosario y `ESTADO.md` al día.
+
+La opción del menú queda en «Próximamente» hasta el cierre, y cada caso de uso que una rebanada expone va completo, con su permiso y su segregación, así que `main` siempre está sano. Los cambios de alcance se anotan en la sección «Cambios» de `spec.md`, sin enmiendas formales; los que tocan un criterio, el diseño técnico o una zona roja llevan el visto bueno de la persona, y un cambio de una regla tributaria sigue el proceso de los documentos funcionales. Los PR de los proyectos no tocan `spec.md`, el glosario ni `ESTADO.md` (`AGENTS.md` §4.2, «Quién escribe en la raíz»).
 
 > La constitución manda: si una feature choca con `mission.md` o `tech-stack.md`, se replantea la feature, no la constitución. Cambiar la constitución exige un ADR aprobado.
 
-## Equivalencia con las fases SDD de gentle‑ai
+## Formato del *issue* de una rebanada
 
-Para herramientas que usan los nombres de fase de gentle‑ai, los artefactos van en la carpeta de la feature con estos nombres:
+Título: `NNN · R<n> · <qué se podrá hacer>` (una rebanada suelta: `<módulo> · <qué se podrá hacer>`). Etiquetas: `feature:NNN` si es de una feature, `rebanada` y, si toca una zona roja, `zona-roja`. Los agentes la crean en «Backlog»; solo la persona la mueve a «Lista».
+
+```markdown
+**Objetivo:** <qué podrá hacer o ver la persona usuaria al terminar>
+
+**Criterios** (de `spec.md` si es de una feature):
+- [ ] <código> — Dado …, cuando …, entonces …
+
+**Proyectos:** backend/ · ui/ · frontend/ · e2e/
+**Zona roja:** <no | cuál>
+**Diseño:** <nodo de Figma aprobado | sin pantalla>
+**Contrato:** <endpoints y esquemas, o «sin cambio»>
+**Pruebas que la demuestran:** <unitarias del dominio, integración del endpoint, pantalla>
+**Fuera de esta rebanada:** <lo que va en otra>
+**Diseño técnico** (solo una rebanada suelta con zona roja): <datos con *expand/contract*, contrato, permisos, amenazas y riesgos; revisión adversarial: fecha y hallazgos>
+
+**Definición de hecha** (`AGENTS.md` §4.2):
+- [ ] criterios con su prueba en verde
+- [ ] CI en verde en cada PR
+- [ ] si hay zona roja o regla, revisión adversarial sin críticos ni altos abiertos
+- [ ] captura o video si hay pantalla
+- [ ] `CHANGELOG.md` de cada proyecto
+- [ ] ningún `TODO` sin *issue*; atajos con *issue* `deuda` aprobado, o corregidos
+- [ ] funciona de punta a punta en local
+```
+
+Un atajo o una deuda técnica se registra en un *issue* con la etiqueta `deuda`: qué se dejó, por qué y cómo se paga. Los *issues* nuevos que encuentra un agente se le proponen a la persona y se crean solo con su aprobación (*skill* `liv-backlog`).
+
+## Equivalencia con las fases SDD de gentle‑ai
 
 | Fase gentle‑ai | Dónde queda |
 |---|---|
 | explore | No produce archivo; sus hallazgos alimentan `spec.md` |
-| propose + spec | `spec.md` |
-| design | `plan.md` |
-| tasks | `tasks.md` |
-| apply | Código y pruebas; progreso marcado en `tasks.md` |
-| verify | Criterios marcados en `spec.md` y cierre de `tasks.md` |
+| propose + spec + design | `spec.md` (diseño técnico incluido) |
+| tasks | *Issues* de las rebanadas |
+| apply | Código y pruebas, en los PR de cada rebanada |
+| verify | Criterios marcados en `spec.md` al cierre |
 | archive | `constitution/roadmap.md` + `ESTADO.md` |
-
-## Flujo directo
-
-Los cambios sencillos, bien definidos y de impacto acotado, que no cumplen ningún criterio de SDD, no crean carpeta de feature ni documentos de planificación. Llevan las pruebas, verificaciones, revisión y registro que pide `AGENTS.md` §4.3. Si al implementarlos aparece complejidad o riesgo, siguen este flujo desde `spec.md`.

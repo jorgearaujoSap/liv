@@ -53,7 +53,7 @@ El entorno local completo con Docker Compose llega con F0‑06.
 - Errores de negocio con su código de regla; respuestas de la API en formato Problem Details (RFC 9457).
 - API *contract‑first* con OpenAPI; código generado no se edita.
 - Migraciones Flyway con nombre `V<AAAAMMDDHHmm>__<modulo>_<descripcion>.sql`; una migración aplicada no se edita.
-- TDD obligatorio; cada prueba de regla lleva el código de la regla.
+- Prueba primero obligatoria en las reglas y los cálculos tributarios; en el resto, las pruebas van en la misma rebanada (ADR 0040). Cada prueba de regla lleva el código de la regla.
 - Conventional Commits, *trunk‑based development*, PR pequeños (≤ ~400 líneas).
 
 ## Estilo visual

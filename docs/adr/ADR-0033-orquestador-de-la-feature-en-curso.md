@@ -1,6 +1,6 @@
 # ADR-0033 · Orquestador de la feature en curso: una feature a la vez, paralelismo dentro de ella y un solo escritor de `ESTADO.md`
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado; reemplazado en parte por el ADR 0040 (el orquestador coordina rebanadas y no es el único escritor de `ESTADO.md`)
 - **Fecha:** 2026-11-08
 - **Decisores:** responsable del proyecto, que lo decidió en la sesión del 2026-11-08 (equipo de una persona, `AGENTS.md` §4.3)
 - **Documentos relacionados:** `docs/arquitectura/05` §4.1, §6 (roles) y §7.2; `AGENTS.md` §4.3, §4.4, §7, §9, §10 y §11; `spec/constitution/roadmap.md`; *skill* `liv-orquestador`; ADR 0014 y 0028
