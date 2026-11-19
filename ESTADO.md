@@ -268,6 +268,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-18
 
+- **Plantilla de PR** (`.github/pull_request_template.md`, parte de F0‑03): cada PR trae la lista de la definición de hecha, con la documentación, el `CHANGELOG.md`, `ESTADO.md` y el tablero. El comentario de `CODEOWNERS` dice «zonas rojas».
 - **Documentación al día con el método nuevo:** en `ESTADO.md`, el resumen, el tablero y los próximos pasos; y la guía del desarrollador §1. Los `AGENTS.md` y las *skills* de `backend/`, `frontend/`, `ui/` y `e2e/` van en sus propios PR.
 - **ADR 0041 aceptado:** el agente mantiene el tablero `liv-project`. Lo trivial y reversible lo hace sin preguntar; mover una rebanada a «Lista», crear *issues* nuevos, cerrarlos sin terminar o cambiar el tablero lo hace con la autorización de la persona en el chat. Cambian `AGENTS.md` §4.2 y §7, `liv-backlog`, `liv-sdd-feature`, `liv-orquestador`, `spec/README.md` y el doc. 05.
 - **Tablero del backlog:** la persona creó el *Project* `liv-project` con la plantilla Kanban, y se crearon las etiquetas `rebanada`, `deuda`, `zona-roja` y `feature:008`; defectos y mejoras usan `bug` y `enhancement`. La *skill* `liv-backlog` quedó al día con el tablero: sus columnas en inglés, equivalentes a las de las reglas, y quién mueve cada una.
