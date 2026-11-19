@@ -1,10 +1,10 @@
 // Tests of the pre-release checks (feature 002, 002-04 and 002-10): the --ci mode and the manual mode.
-// npm, git and tar are simulated.
+// npm and git are simulated, and the .tgz is built in memory.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { EXPECTED_REPOSITORY, checkRelease, main, parseArgs } from './check-release.mjs';
-import { fakeFiles, fakeRun, npmError, result } from './test-helpers.mjs';
+import { fakeFiles, fakeRun, makeTarball, npmError, result } from './test-helpers.mjs';
 
 const VIEW = 'npm view liv-components versions dist-tags --json --prefer-online';
 const PUBLISHED = result(
@@ -12,25 +12,27 @@ const PUBLISHED = result(
   JSON.stringify({ versions: ['0.0.0-stage', '0.4.0', '0.5.0'], 'dist-tags': { latest: '0.5.0' } }),
 );
 const CHANGELOG =
-  '# Changelog\n\n## [Sin publicar]\n\n## [0.6.0] — 2026-11-20\n\n- algo\n\n## [0.5.0]\n';
+  '# Changelog\n\n## [Sin publicar]\n\n## [0.6.0] — 2026-11-20\n\n- algo\n\n## [0.5.0]\n\n- otro\n';
 
 function packed(overrides = {}) {
-  return result(
-    0,
-    JSON.stringify({
+  return makeTarball({
+    'package/package.json': JSON.stringify({
       name: 'liv-components',
       version: '0.6.0',
       repository: EXPECTED_REPOSITORY,
       ...overrides,
     }),
-  );
+  });
 }
 
 function setup({
   version = '0.6.0',
+  name = 'liv-components',
   changelog = CHANGELOG,
+  nvmrc = '22.23.5\n',
+  packageManager = 'npm@11.12.0',
   view = PUBLISHED,
-  tar = packed(),
+  tgz = packed(),
   tarball = `dist/liv-components-${version}.tgz`,
   status = result(0, ''),
   branch = result(0, 'main\n'),
@@ -39,22 +41,31 @@ function setup({
 } = {}) {
   const { run, calls } = fakeRun({
     [VIEW]: view,
-    [`tar -xzOf ${tarball} package/package.json`]: tar,
     'git status --porcelain -- .': status,
     'git rev-parse --abbrev-ref HEAD': branch,
     'npm whoami': whoami,
     'npm owner ls liv-components': owners,
   });
   const readFile = fakeFiles({
-    'projects/liv-components/package.json': JSON.stringify({ name: 'liv-components', version }),
+    'projects/liv-components/package.json': JSON.stringify({ name, version }),
     'CHANGELOG.md': changelog,
+    '.nvmrc': nvmrc,
+    'package.json': JSON.stringify({ packageManager }),
   });
-  return { run, calls, readFile };
+  const readBinary = fakeFiles(tgz ? { [tarball]: tgz } : {});
+  return { run, calls, readFile, readBinary };
 }
 
 function problemsOf(options, mode = { ci: true }) {
-  const { run, readFile, calls } = setup(options);
-  return { ...checkRelease({ ...mode, run, readFile }), calls };
+  const { run, readFile, readBinary, calls } = setup(options);
+  return { ...checkRelease({ ...mode, run, readFile, readBinary }), calls };
+}
+
+function assertProblem(problems, message) {
+  assert.ok(
+    problems.some((problem) => message.test(problem)),
+    `${message} no está en:\n${problems.join('\n')}`,
+  );
 }
 
 describe('check-release --ci · una versión lista pasa (002-10)', () => {
@@ -68,13 +79,9 @@ describe('check-release --ci · una versión lista pasa (002-10)', () => {
   });
 
   it('lee el .tgz indicado con --paquete', () => {
-    const { run, readFile } = setup({ tarball: 'otro/dir/liv-components-0.6.0.tgz' });
-    const { problems } = checkRelease({
-      ci: true,
-      tarball: 'otro/dir/liv-components-0.6.0.tgz',
-      run,
-      readFile,
-    });
+    const path = 'otro/dir/liv-components-0.6.0.tgz';
+    const { run, readFile, readBinary } = setup({ tarball: path });
+    const { problems } = checkRelease({ ci: true, tarball: path, run, readFile, readBinary });
     assert.deepEqual(problems, []);
   });
 });
@@ -82,67 +89,82 @@ describe('check-release --ci · una versión lista pasa (002-10)', () => {
 describe('check-release --ci · cada fallo da su mensaje (002-04)', () => {
   const failures = {
     'falta la sección del CHANGELOG.md': [
-      { changelog: '## [0.5.0]\n' },
+      { changelog: '## [0.5.0]\n\n- x\n' },
+      /no tiene la sección "## \[0\.6\.0\]"/,
+    ],
+    'la sección del CHANGELOG.md está vacía': [
+      { changelog: '## [0.6.0] — 2026-11-20\n\n## [0.5.0]\n\n- x\n' },
+      /La sección "## \[0\.6\.0\]" de CHANGELOG\.md está vacía/,
+    ],
+    'la sección es de nivel 3': [
+      { changelog: '### [0.6.0]\n\n- x\n' },
+      /no tiene la sección "## \[0\.6\.0\]"/,
+    ],
+    'la versión solo se nombra dentro de un texto': [
+      { changelog: '## [Sin publicar]\n\n- Prepara la sección ## [0.6.0]\n' },
       /no tiene la sección "## \[0\.6\.0\]"/,
     ],
     'la versión ya está publicada': [
-      { version: '0.5.0', changelog: '## [0.5.0]\n' },
+      { version: '0.5.0', tarball: 'dist/liv-components-0.5.0.tgz' },
       /ya está publicada/,
     ],
     'la versión no es mayor que la última': [
-      { version: '0.4.5', changelog: '## [0.4.5]\n' },
+      { version: '0.4.5', changelog: '## [0.4.5]\n\n- x\n' },
       /no es mayor que la última publicada \(0\.5\.0\)/,
     ],
-    'la versión no es X.Y.Z': [
-      { version: '0.6.0-next.1', changelog: '## [0.6.0-next.1]\n' },
-      /no es X\.Y\.Z/,
+    'la versión no es X.Y.Z': [{ version: '0.6.0-next.1' }, /no es X\.Y\.Z/],
+    'el paquete no es liv-components': [{ name: 'otro' }, /El paquete se llama "otro"/],
+    '.nvmrc no es una versión exacta': [{ nvmrc: '22\n' }, /ui\/\.nvmrc dice "22"/],
+    'packageManager no es npm@X.Y.Z exacto': [
+      { packageManager: 'npm@11.12.0+sha512.abc' },
+      /packageManager/,
     ],
     'npm no responde': [{ view: result(1, '', 'ETIMEDOUT') }, /npm no respondió/],
     'npm responde E404 por el paquete': [{ view: npmError('E404') }, /npm no respondió/],
     'npm responde vacío': [{ view: result(0, '') }, /npm no respondió/],
     'hay cambios sin commit': [{ status: result(0, ' M src/x.ts\n') }, /cambios sin commit/],
-    'no hay .tgz': [
-      { tar: result(1, '', 'tar: dist/liv-components-0.6.0.tgz: Cannot open') },
-      /npm run pack/,
-    ],
-    'el .tgz no tiene un package.json válido': [
-      { tar: result(0, 'no es JSON') },
+    'no hay .tgz': [{ tgz: null }, /npm run pack/],
+    'el .tgz no es un gzip': [
+      { tgz: Buffer.from('no es gzip') },
       /No se pudo leer package\/package\.json/,
     ],
     'el paquete empaquetado tiene otra versión': [
-      { tar: packed({ version: '0.5.0' }) },
+      { tgz: packed({ version: '0.5.0' }) },
       /es liv-components@0\.5\.0 y el código dice liv-components@0\.6\.0/,
     ],
     'el paquete empaquetado no tiene repository': [
-      { tar: packed({ repository: undefined }) },
+      { tgz: packed({ repository: undefined }) },
       /campo repository/,
     ],
     'repository es solo un texto': [
-      { tar: packed({ repository: 'github:jorgearaujoSap/liv' }) },
+      { tgz: packed({ repository: 'github:jorgearaujoSap/liv' }) },
       /campo repository/,
     ],
     'repository apunta a otro repositorio': [
       {
-        tar: packed({
+        tgz: packed({
           repository: { ...EXPECTED_REPOSITORY, url: 'git+https://github.com/otro/liv.git' },
         }),
       },
       /campo repository/,
     ],
     'repository sin directory': [
-      { tar: packed({ repository: { type: 'git', url: EXPECTED_REPOSITORY.url } }) },
+      { tgz: packed({ repository: { type: 'git', url: EXPECTED_REPOSITORY.url } }) },
       /campo repository/,
     ],
   };
   for (const [situation, [options, message]] of Object.entries(failures)) {
     it(situation, () => {
-      const { problems } = problemsOf(options);
-      assert.ok(
-        problems.some((problem) => message.test(problem)),
-        problems.join('\n'),
-      );
+      assertProblem(problemsOf(options).problems, message);
     });
   }
+
+  it('con un nombre o una versión inválidos, no consulta npm', () => {
+    for (const options of [{ name: 'otro & calc' }, { version: '1.0.0; rm -rf /' }]) {
+      const { calls } = problemsOf(options);
+      assert.ok(!calls.some((call) => call.startsWith('npm')), calls.join('\n'));
+    }
+  });
 });
 
 describe('check-release sin --ci · publicación a mano, como hasta ahora', () => {
@@ -150,9 +172,9 @@ describe('check-release sin --ci · publicación a mano, como hasta ahora', () =
     assert.deepEqual(problemsOf({}, { ci: false }).problems, []);
   });
 
-  it('no lee el .tgz', () => {
-    const { calls } = problemsOf({}, { ci: false });
-    assert.ok(!calls.some((call) => call.startsWith('tar')), calls.join('\n'));
+  it('no lee el .tgz ni valida .nvmrc ni packageManager', () => {
+    const { problems } = problemsOf({ tgz: null, nvmrc: '22\n' }, { ci: false });
+    assert.deepEqual(problems, []);
   });
 
   const failures = {
@@ -160,14 +182,14 @@ describe('check-release sin --ci · publicación a mano, como hasta ahora', () =
     'sin sesión de npm': [{ whoami: result(1, '') }, /No has iniciado sesión en npm/],
     'sin permiso en npm': [{ owners: result(0, 'otra <correo>\n') }, /no puede publicar/],
     'npm no responde': [{ view: result(1, '', 'ETIMEDOUT') }, /npm no respondió/],
+    'la sección del CHANGELOG.md está vacía': [
+      { changelog: '## [0.6.0]\n\n## [0.5.0]\n\n- x\n' },
+      /está vacía/,
+    ],
   };
   for (const [situation, [options, message]] of Object.entries(failures)) {
     it(situation, () => {
-      const { problems } = problemsOf(options, { ci: false });
-      assert.ok(
-        problems.some((problem) => message.test(problem)),
-        problems.join('\n'),
-      );
+      assertProblem(problemsOf(options, { ci: false }).problems, message);
     });
   }
 });
@@ -194,5 +216,12 @@ describe('check-release · línea de comandos', () => {
     assert.equal(main({ argv: ['--ci'], ...setup({ changelog: '' }), ...io }), 1);
     assert.match(errors.join('\n'), /1\. CHANGELOG\.md no tiene la sección/);
     assert.match(errors.join('\n'), /Publicar una versión/);
+  });
+
+  it('termina en 1 con un argumento desconocido', () => {
+    const errors = [];
+    const code = main({ argv: ['--cii'], ...setup(), log: () => {}, error: (l) => errors.push(l) });
+    assert.equal(code, 1);
+    assert.match(errors[0], /Argumento desconocido/);
   });
 });

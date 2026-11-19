@@ -1,14 +1,15 @@
 // Decides what the release workflow (ui-release.yml, job `decidir`) does with the current commit of main:
 // `publicar`, `etiquetar`, `nada` or `error` (feature 002, spec.md › Diseño técnico, table of outputs).
 // Runs from ui/ after a checkout with fetch-depth 2. It installs nothing and only reads: npm view, git
-// rev-parse/cat-file/show/log and git ls-remote. It never publishes, tags or pushes.
+// rev-parse/ls-tree/show and git ls-remote. It never publishes, tags or pushes. Every failed answer from
+// npm or git is an error: it never resolves to `publicar` or `nada`.
 //
 // Usage: node scripts/release-decide.mjs
 // With GITHUB_OUTPUT set, it appends salida, nombre, version, commit, node, npm and mensaje to it.
 // Exit code: 0 for publicar, etiquetar and nada; 1 for error.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { appendFileSync, readFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 export const LIBRARY_NAME = 'liv-components';
 export const LIBRARY_MANIFEST = 'projects/liv-components/package.json';
@@ -16,15 +17,18 @@ export const LIBRARY_MANIFEST = 'projects/liv-components/package.json';
 export const MIN_NODE = '22.14.0';
 export const MIN_NPM = '11.5.1';
 
-const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
+// X.Y.Z as SemVer defines it: no leading zeros, no pre-release or build suffix.
+export const EXACT_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const COMMIT_SHA = /^[0-9a-f]{40}$/;
 
-class DecisionError extends Error {}
+/** A check that failed with a message that says how to fix it. */
+export class ReleaseError extends Error {}
 
 function fail(message) {
-  throw new DecisionError(message);
+  throw new ReleaseError(message);
 }
 
+/** Compares two X.Y.Z versions (validate them with EXACT_VERSION first). */
 export function compareVersions(left, right) {
   const [a, b] = [left, right].map((value) => value.split('.').map(Number));
   for (let i = 0; i < 3; i++) {
@@ -39,6 +43,17 @@ export function latestStable(versions, latestTag) {
   return stable.sort(compareVersions).at(-1) ?? null;
 }
 
+/** Replaces line breaks, so a value can never add a line to GITHUB_OUTPUT or to the log. */
+export function singleLine(value) {
+  return String(value).replace(/[\r\n]+/g, ' ');
+}
+
+/** Message as a GitHub Actions error annotation, escaped so it cannot carry another workflow command. */
+export function errorAnnotation(message) {
+  const escaped = singleLine(message).replace(/%/g, '%25');
+  return `::error::${escaped}`;
+}
+
 function readJson(readFile, path) {
   try {
     return JSON.parse(readFile(path));
@@ -47,7 +62,8 @@ function readJson(readFile, path) {
   }
 }
 
-function readLibrary(readFile) {
+/** Name and version of the library; fails unless the name is liv-components and the version X.Y.Z. */
+export function readLibrary(readFile) {
   const { name, version } = readJson(readFile, LIBRARY_MANIFEST);
   if (name !== LIBRARY_NAME) {
     fail(`El paquete se llama "${name}" y el workflow solo publica ${LIBRARY_NAME}.`);
@@ -60,7 +76,8 @@ function readLibrary(readFile) {
   return { name, version };
 }
 
-function readToolVersions(readFile) {
+/** Exact Node (ui/.nvmrc) and npm (packageManager) versions that the publish job installs. */
+export function readToolVersions(readFile) {
   let node;
   try {
     node = readFile('.nvmrc').trim();
@@ -80,7 +97,7 @@ function readToolVersions(readFile) {
 
   const { packageManager } = readJson(readFile, 'package.json');
   const npm = /^npm@(\d+\.\d+\.\d+)$/.exec(packageManager ?? '')?.[1];
-  if (!npm) {
+  if (!npm || !EXACT_VERSION.test(npm)) {
     fail(
       `El campo packageManager de ui/package.json ("${packageManager}") debe ser npm@X.Y.Z, con la versión exacta.`,
     );
@@ -93,6 +110,26 @@ function readToolVersions(readFile) {
   return { node, npm };
 }
 
+/** Version of the library in the parent commit, or null if the parent did not have the file. */
+function readParentVersion(run) {
+  const listed = run('git', ['ls-tree', 'HEAD^1', '--', LIBRARY_MANIFEST]);
+  if (listed.status !== 0) {
+    fail(`No se pudo leer el árbol del commit padre (git ls-tree): ${listed.stderr.trim()}`);
+  }
+  if (!listed.stdout.trim()) return null;
+  const shown = run('git', ['show', `HEAD^1:./${LIBRARY_MANIFEST}`]);
+  try {
+    if (shown.status !== 0) throw new Error(shown.stderr.trim() || `código ${shown.status}`);
+    return JSON.parse(shown.stdout).version ?? null;
+  } catch (cause) {
+    fail(`No se pudo leer la versión del commit padre: ${cause.message}`);
+  }
+}
+
+/**
+ * The current commit and whether it bumped the version: the parent had no library, a version that is
+ * not X.Y.Z, or a lower one. A commit that lowers the version (a revert) did not bump it.
+ */
 function readCommits(run, version) {
   const head = run('git', ['rev-parse', 'HEAD']);
   const commit = head.stdout.trim();
@@ -103,19 +140,12 @@ function readCommits(run, version) {
   if (parent.status !== 0) {
     fail('Falta el commit padre: el checkout debe hacerse con fetch-depth: 2.');
   }
-
-  const parentManifest = `HEAD^1:./${LIBRARY_MANIFEST}`;
-  let parentVersion = null;
-  if (run('git', ['cat-file', '-e', parentManifest]).status === 0) {
-    const shown = run('git', ['show', parentManifest]);
-    try {
-      if (shown.status !== 0) throw new Error(shown.stderr);
-      parentVersion = JSON.parse(shown.stdout).version;
-    } catch (cause) {
-      fail(`No se pudo leer la versión del commit padre: ${cause.message}`);
-    }
-  }
-  return { commit, bumped: parentVersion !== version };
+  const parentVersion = readParentVersion(run);
+  const bumped =
+    typeof parentVersion !== 'string' ||
+    !EXACT_VERSION.test(parentVersion) ||
+    compareVersions(version, parentVersion) > 0;
+  return { commit, bumped };
 }
 
 function readPublished(run, name) {
@@ -152,18 +182,28 @@ function readTagCommit(run, version) {
   return refs.get(`${ref}^{}`) ?? refs.get(ref) ?? null;
 }
 
-function pendingMessage(run, version) {
-  const log = run('git', [
-    'log',
-    '-1',
-    '--format=%h',
-    `-S"version": "${version}"`,
-    '--',
-    LIBRARY_MANIFEST,
-  ]);
-  const bumpCommit = log.status === 0 ? log.stdout.trim() : '';
-  const where = bumpCommit ? `del commit ${bumpCommit}` : 'del commit que la subió';
-  return `Nada que publicar: este commit no subió la versión. La versión ${version} está pendiente en la ejecución ${where}; solo ese commit la publica.`;
+/**
+ * Fails if npm records that the version was published from another commit (gitHead, present when it was
+ * published by hand from a Git checkout). Without gitHead, the bump of this commit is the evidence.
+ */
+function checkPublishedFrom(run, name, version, commit) {
+  const view = run('npm', ['view', `${name}@${version}`, 'gitHead', '--json', '--prefer-online']);
+  let gitHead = null;
+  try {
+    if (view.status !== 0) throw new Error(view.stderr.trim() || `código ${view.status}`);
+    gitHead = view.stdout.trim() ? JSON.parse(view.stdout) : null;
+  } catch (cause) {
+    fail(`npm no respondió de qué commit se publicó ${name}@${version} (${cause.message}).`);
+  }
+  if (gitHead !== null && gitHead !== commit) {
+    fail(
+      `${name}@${version} se publicó desde el commit ${gitHead}, no desde este (${commit}): no se etiqueta este commit.`,
+    );
+  }
+}
+
+function foreignTagError(version, tagCommit, commit) {
+  return `La etiqueta ui-v${version} ya existe en el commit ${tagCommit}, no en este (${commit}). No se mueve.`;
 }
 
 /**
@@ -188,11 +228,7 @@ export function decide({ run, readFile }) {
           mensaje: `Nada que publicar: ${name}@${version} ya está publicada.`,
         };
       }
-      if (foreignTag) {
-        fail(
-          `La etiqueta ui-v${version} ya existe en el commit ${tagCommit}, no en este (${commit}). No se mueve.`,
-        );
-      }
+      if (foreignTag) fail(foreignTagError(version, tagCommit, commit));
       if (tagCommit === commit) {
         return {
           ...facts,
@@ -200,6 +236,7 @@ export function decide({ run, readFile }) {
           mensaje: `Nada que hacer: ${name}@${version} ya está publicada y etiquetada en este commit.`,
         };
       }
+      checkPublishedFrom(run, name, version, commit);
       return {
         ...facts,
         salida: 'etiquetar',
@@ -213,33 +250,36 @@ export function decide({ run, readFile }) {
       );
     }
     if (!bumped) {
-      return { ...facts, salida: 'nada', mensaje: pendingMessage(run, version) };
+      // With fetch-depth 2 the history does not say which commit bumped it, so no commit is named.
+      return {
+        ...facts,
+        salida: 'nada',
+        mensaje: `Nada que publicar: este commit no subió la versión. La versión ${version} está pendiente en la ejecución del commit que la subió; solo ese commit la publica.`,
+      };
     }
-    if (foreignTag) {
-      fail(
-        `La etiqueta ui-v${version} ya existe en el commit ${tagCommit}, no en este (${commit}). No se mueve.`,
-      );
-    }
+    if (foreignTag) fail(foreignTagError(version, tagCommit, commit));
     return {
       ...facts,
       salida: 'publicar',
       mensaje: `Se publica ${name}@${version} desde el commit ${commit}, con la aprobación del entorno npm.`,
     };
   } catch (error) {
-    if (error instanceof DecisionError) return { salida: 'error', mensaje: error.message };
+    if (error instanceof ReleaseError) return { salida: 'error', mensaje: error.message };
     throw error;
   }
 }
 
-function singleLine(value) {
-  return String(value).replace(/[\r\n]+/g, ' ');
-}
-
 export function main({ run, readFile, env, log, error, appendFile = appendFileSync }) {
   const decision = decide({ run, readFile });
-  const report = decision.salida === 'error' ? error : log;
-  const prefix = decision.salida === 'error' && env.GITHUB_ACTIONS === 'true' ? '::error::' : '';
-  report(`${prefix}${singleLine(decision.mensaje)}`);
+  if (decision.salida === 'error') {
+    error(
+      env.GITHUB_ACTIONS === 'true'
+        ? errorAnnotation(decision.mensaje)
+        : singleLine(decision.mensaje),
+    );
+  } else {
+    log(singleLine(decision.mensaje));
+  }
 
   if (env.GITHUB_OUTPUT) {
     const keys = ['salida', 'nombre', 'version', 'commit', 'node', 'npm', 'mensaje'];
@@ -251,13 +291,13 @@ export function main({ run, readFile, env, log, error, appendFile = appendFileSy
   return decision.salida === 'error' ? 1 : 0;
 }
 
-function runCommand(command, args) {
+/** Runs a command without a shell (npm, on Windows, through one: it is a .cmd script). */
+export function runCommand(command, args) {
   try {
     const stdout = execFileSync(command, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
-      // npm is a .cmd script on Windows, which only runs through a shell. Its arguments are fixed or
-      // validated (X.Y.Z), so they carry no shell syntax.
+      // The arguments that reach the Windows shell are fixed or validated (name and X.Y.Z).
       shell: process.platform === 'win32' && command === 'npm',
     });
     return { status: 0, stdout, stderr: '' };
@@ -270,7 +310,17 @@ function runCommand(command, args) {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/** True when this module is the script node runs, also through a symbolic link or a junction. */
+export function isEntryPoint(moduleUrl) {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint(import.meta.url)) {
   process.exitCode = main({
     run: runCommand,
     readFile: (path) => readFileSync(path, 'utf8'),

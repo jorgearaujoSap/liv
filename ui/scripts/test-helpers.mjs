@@ -2,6 +2,8 @@
 // be declared in the scenario; an undeclared command fails the test, so a script can never reach the real
 // npm registry, the real Git remote or a publish by accident.
 
+import { gzipSync } from 'node:zlib';
+
 /** Result of a simulated command: exit status, stdout and stderr. */
 export function result(status, stdout = '', stderr = '') {
   return { status, stdout, stderr };
@@ -40,4 +42,28 @@ export function fakeFiles(files) {
     }
     return files[path];
   };
+}
+
+/** Builds an npm-like .tgz (gzip of a ustar archive) from path → text content (object or entry list). */
+export function makeTarball(files) {
+  const blocks = [];
+  for (const [path, content] of Array.isArray(files) ? files : Object.entries(files)) {
+    const body = Buffer.from(content, 'utf8');
+    const header = Buffer.alloc(512);
+    header.write(path, 0, 100, 'utf8');
+    header.write('0000644\0', 100);
+    header.write('0000000\0', 108);
+    header.write('0000000\0', 116);
+    header.write(`${body.length.toString(8).padStart(11, '0')}\0`, 124);
+    header.write('00000000000\0', 136);
+    header.write('        ', 148);
+    header.write('0', 156);
+    header.write('ustar\0', 257);
+    header.write('00', 263);
+    const checksum = header.reduce((sum, byte) => sum + byte, 0);
+    header.write(`${checksum.toString(8).padStart(6, '0')}\0 `, 148);
+    blocks.push(header, body, Buffer.alloc((512 - (body.length % 512)) % 512));
+  }
+  blocks.push(Buffer.alloc(1024));
+  return gzipSync(Buffer.concat(blocks));
 }

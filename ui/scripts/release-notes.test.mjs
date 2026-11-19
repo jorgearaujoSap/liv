@@ -38,11 +38,13 @@ describe('release-notes · sección del CHANGELOG.md', () => {
     assert.equal(extractSection(CHANGELOG, '0.5.0'), '- `Select`.\n');
   });
 
-  it('no confunde 0.6.0 con 0.6.01 ni con [Sin publicar]', () => {
-    assert.throws(
-      () => extractSection(CHANGELOG, '0.6.01'),
-      /no tiene la sección "## \[0\.6\.01\]"/,
-    );
+  it('no toma la sección de 0.6.10 por la de 0.6.1, ni la de [Sin publicar]', () => {
+    const changelog = '## [Sin publicar]\n\n- x\n\n## [0.6.10]\n\n- y\n';
+    assert.throws(() => extractSection(changelog, '0.6.1'), /no tiene la sección "## \[0\.6\.1\]"/);
+  });
+
+  it('falla si la versión tiene ceros a la izquierda', () => {
+    assert.throws(() => extractSection(CHANGELOG, '0.06.0'), /no es X\.Y\.Z/);
   });
 
   it('falla si falta la sección (002-04)', () => {

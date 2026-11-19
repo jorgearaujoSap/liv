@@ -3,9 +3,8 @@
 //
 // Usage: node scripts/release-notes.mjs <X.Y.Z> <output file>
 import { readFileSync, writeFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
 
-const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
+import { EXACT_VERSION, isEntryPoint } from './release-decide.mjs';
 
 /** Body of the "## [version]" section (without its heading), up to the next "## " heading. */
 export function extractSection(changelog, version) {
@@ -46,7 +45,7 @@ export function main({ argv, readFile, writeFile, log, error }) {
   return 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isEntryPoint(import.meta.url)) {
   process.exitCode = main({
     argv: process.argv.slice(2),
     readFile: (path) => readFileSync(path, 'utf8'),

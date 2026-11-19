@@ -7,17 +7,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ### Agregado
 
 - *Scripts* de la publicación automática (feature 002, rebanada R1, ADR 0042), en Node y sin dependencias, con sus pruebas `node --test` (`npm run test:scripts`, que ahora también corre `npm test`). Todavía no los usa ningún *workflow* (R2) y no publican nada: la publicación sigue siendo a mano.
-  - `scripts/release-decide.mjs`: decide si el *commit* de `main` se publica, se etiqueta o no hace nada, según la tabla de salidas del diseño técnico. Valida la versión y las versiones exactas de Node (`.nvmrc`) y npm (`packageManager`), y falla si npm o las etiquetas remotas no responden.
+  - `scripts/release-decide.mjs`: decide si el *commit* de `main` se publica, se etiqueta o no hace nada, según la tabla de salidas del diseño técnico. Valida la versión y las versiones exactas de Node (`.nvmrc`) y npm (`packageManager`), y falla si npm o las etiquetas remotas no responden. Una versión que baja (un *revert*) no cuenta como subida, y no etiqueta un *commit* si npm registra que la versión se publicó desde otro (`gitHead`).
   - `scripts/release-notes.mjs`: extrae la sección de una versión del `CHANGELOG.md` a un archivo, para la *release*.
-  - `scripts/release-publish.mjs`: publica el `.tgz` verificado sin publicar dos veces. Con la misma integridad, sigue; con otra, falla; solo publica si npm responde E404, y siempre con `--ignore-scripts`.
-  - `npm run release:check -- --ci [--paquete <archivo.tgz>]`: las verificaciones de publicación para el CI, sin `npm whoami`, `npm owner` ni la rama local, y con el campo `repository` del `package.json` empaquetado.
+  - `scripts/release-publish.mjs`: publica el `.tgz` verificado sin publicar dos veces. Antes comprueba que el `package.json` del `.tgz` sea el nombre y la versión pedidos. Con la misma integridad, sigue; con otra, falla; solo publica si npm responde E404 y la versión es mayor que la última publicada, y siempre con `--ignore-scripts`. No importa ningún otro archivo del proyecto: viaja solo.
+  - `npm run release:check -- --ci [--paquete <archivo.tgz>]`: las verificaciones de publicación para el CI, sin `npm whoami`, `npm owner` ni la rama local. Agrega las de `release-decide` (versiones exactas de Node y npm) y lee el `package.json` empaquetado: nombre, versión y campo `repository`.
 - El campo `repository` del paquete (`git+https://github.com/jorgearaujoSap/liv.git`, `directory: ui/projects/liv-components`), que exige la publicación de confianza de npm. Llega a npm con la próxima versión.
 
 ### Cambiado
 
 - `AGENTS.md` y la *skill* `liv-componente`, al método de SDD por rebanadas verticales (ADR 0040): un componente nuevo va en una rebanada, y modificar uno existente, los *tokens* o la publicación es zona roja, con revisión adversarial.
-- `.nvmrc` fija la versión exacta de Node, 22.21.1 (antes, `22`): la publicación de confianza pide Node 22.14 o mayor.
-- `npm run release:check`, también a mano: si npm no responde con las versiones publicadas, ahora falla en vez de seguir, y compara con la mayor versión X.Y.Z publicada, no solo con la etiqueta `latest`.
+- `.nvmrc` fija la versión exacta de Node, 22.23.5, el último parche de seguridad de la línea 22 (antes, `22`): la publicación de confianza pide Node 22.14 o mayor. `README.md` › «Requisitos» lo dice así.
+- `npm run release:check`, también a mano:
+  - si npm no responde con las versiones publicadas, ahora falla en vez de seguir;
+  - compara con la mayor versión X.Y.Z publicada, no solo con la etiqueta `latest`;
+  - exige que la sección `## [X.Y.Z]` del `CHANGELOG.md` empiece una línea y tenga contenido, igual que las notas de la *release*;
+  - exige que el paquete se llame `liv-components` y que la versión sea X.Y.Z sin ceros a la izquierda.
 
 ## [0.5.0] — 2026-11-16
 
