@@ -5,7 +5,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librerí
 ## Antes de tocar código
 
 1. Todo componente nuevo nace primero en la página `02 Componentes` del archivo de Figma LIV‑Diseño, con el **mismo nombre, variantes y propiedades** que tendrá aquí.
-2. La tarea es un ajuste o una rebanada: un *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3). Modificar un componente existente o sus capturas de referencia, los *tokens* y la configuración de *build* y de publicación son zona roja: como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias, y cada PR pasa la revisión adversarial.
+2. La tarea es un ajuste (sin *issue*) o una rebanada con su *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3). Modificar un componente existente o sus capturas de referencia, los *tokens* y la configuración de *build* y de publicación son zona roja: como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias, y cada PR pasa la revisión adversarial.
 3. Modificar un componente existente es **zona roja**: afecta todas las pantallas que lo usan y exige la aprobación del líder de frontend y de un responsable funcional.
 
 ## Reglas de la librería
