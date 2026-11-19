@@ -4,7 +4,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en el frontend
 
 ## Antes de tocar código
 
-1. La tarea es un ajuste o una rebanada: un *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3).
+1. La tarea es un ajuste (sin *issue*) o una rebanada con su *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3).
 2. **Toda pantalla nueva necesita su diseño aprobado** en la página `03 Pantallas` del archivo de Figma LIV‑Diseño, o una declaración de reutilización de estructura en el diseño técnico de la `spec.md` o en el *issue* de la rebanada.
 3. **Todo componente nuevo nace primero** en la página `02 Componentes` de Figma, con el mismo nombre que tendrá en `liv-components` (se implementa en el proyecto `ui/`, no aquí).
 
