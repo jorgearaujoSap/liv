@@ -6,7 +6,7 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 
 ## Requisitos
 
-- Node 22.12 o superior dentro de la línea 22 (`.nvmrc`), o Node 24+.
+- Node en la versión exacta de `.nvmrc` (hoy, 22.23.5). La publicación de confianza de npm pide Node 22.14 o mayor.
 
 ## Comandos
 
