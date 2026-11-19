@@ -7,21 +7,22 @@ description: Registra y mantiene el backlog del proyecto LIV en GitHub Issues y 
 
 El trabajo se sigue en *issues* de GitHub y en el *Project* del repositorio (ADR 0040, `AGENTS.md` §4.2). Esta *skill* dice cómo se crean, cómo se proponen y quién decide.
 
-**Regla de oro:**
-- **El agente propone y la persona decide.** Un *issue* nuevo solo se crea con la aprobación de la persona en el chat, salvo las rebanadas que salen de una spec aprobada (§2).
-- **Nadie más que la persona mueve un *issue* a «Lista»:** es su visto bueno para empezar.
+**Regla de oro** (ADR 0041): **el agente mantiene el tablero completo.**
+- **Lo trivial y reversible lo hace sin preguntar:** crear las rebanadas de una spec aprobada, mover las tarjetas según el trabajo real, enlazar PR, comentar, etiquetar, llenar campos, completar los *issues* y corregir el tablero.
+- **Lo que es una decisión de la persona lo pide en el chat** y lo ejecuta en cuanto ella responde: mover una rebanada a *Ready* («Lista»), crear un *issue* nuevo que encontró, cerrar sin terminar, borrar o reabrir un *issue*, y cambiar la configuración del tablero.
+- **Criterio:** si decide qué se construye, qué entra al backlog o cómo funciona el tablero, se pregunta; si solo refleja lo que ya pasó o lo ya aprobado, se hace.
 
 ## 0. El tablero y las etiquetas
 
-**El tablero** es el *Project* **`liv-project`** de la cuenta `jorgearaujoSap` (número 1, privado), creado con la plantilla Kanban. Cambiar sus columnas, campos o automatizaciones lo decide la persona: es configuración del repositorio.
+**El tablero** es el *Project* **`liv-project`** de la cuenta `jorgearaujoSap` (número 1, privado), creado con la plantilla Kanban. Cambiar sus columnas, campos o automatizaciones lo hace el agente con la autorización de la persona en el chat.
 
 | Columna del tablero | En las reglas (`AGENTS.md` §4.2) | Quién la mueve |
 |---|---|---|
-| *Backlog* | Backlog | Entra sola al crear el *issue* («Item added to project») |
-| *Ready* | «Lista» | **Solo la persona:** es su visto bueno para empezar |
+| *Backlog* | Backlog | Entra sola al crear el *issue* («Item added to project»), o la pone el agente |
+| *Ready* | «Lista» | El agente, **con el visto bueno de la persona en el chat**, que anota en un comentario del *issue* con la fecha |
 | *In progress* | «En curso» | El agente, al empezar la rebanada; o sola, al enlazar un PR («Pull request linked to issue») |
 | *In review* | «En revisión» | El agente, al abrir el PR |
-| *Done* | «Hecha» | Sola, al cerrarse el *issue* («Item closed») |
+| *Done* | «Hecha» | Sola, al cerrarse el *issue* («Item closed»), o el agente si la automatización no lo hizo |
 
 Los campos *Priority* (P0 a P2) y *Size* (XS a XL) de la plantilla son opcionales. Si la persona los usa, *Size* va así: XS o S es un ajuste, M una rebanada y L o XL una rebanada que conviene partir.
 
@@ -113,10 +114,13 @@ Mientras trabajas puede aparecer algo fuera de la rebanada en curso: un defecto,
 ## 4. Mantener el tablero
 
 - **Los PR enlazan su *issue*:** usa `Parte de #n` en los PR intermedios y `Cierra #n` en el último de la rebanada. GitHub cierra el *issue* al integrar ese PR.
-- **Los agentes pueden mover las tarjetas** a *In progress* al empezar y a *In review* al abrir el PR (`gh project item-edit`, con los identificadores que da `gh project field-list 1 --owner jorgearaujoSap`).
-- **Nunca a *Ready*:** ese paso es de la persona.
-- **A *Done*** pasa sola cuando se cierra el *issue*.
-- **Solo *issues*:** las tarjetas son las rebanadas y sus PR las enlazan. Si un PR aparece como tarjeta, se saca del tablero, sin cerrarlo, y solo con el visto bueno de la persona.
+- **Mover las tarjetas** con `gh project item-edit`, con los identificadores que da `gh project field-list 1 --owner jorgearaujoSap`:
+  - a *In progress* al empezar;
+  - a *In review* al abrir el PR;
+  - a *Done* si la automatización no lo hizo al cerrarse el *issue*.
+- **A *Ready*:** cuando la persona da el visto bueno en el chat, para una o varias rebanadas. Antes, comprueba la definición de lista (`AGENTS.md` §4.2). Al moverla, deja un comentario en el *issue*: «Lista: visto bueno de la persona el AAAA-MM-DD».
+- **Al empezar cada sesión:** compara el tablero con los PR reales (`gh pr list --state all`) y corrige las tarjetas atrasadas.
+- **Solo *issues*:** las tarjetas son las rebanadas y sus PR las enlazan. Si un PR aparece como tarjeta, sácalo del tablero sin cerrarlo (`gh project item-delete`): es trivial.
 - **Deuda:** antes de proponer una rebanada nueva, cuenta los *issues* `deuda` abiertos:
 
   ```bash
@@ -128,7 +132,7 @@ Mientras trabajas puede aparecer algo fuera de la rebanada en curso: un defecto,
 
 ## Qué no hacer
 
-- No crear *issues* sin la aprobación de la persona, salvo las rebanadas de una spec aprobada.
-- No mover nada a *Ready* («Lista»).
-- No cerrar ni borrar *issues* sin que la persona lo pida. Un duplicado se cierra como duplicado, con el enlace al original, y solo con su visto bueno.
+- No crear *issues* nuevos sin la aprobación de la persona, salvo las rebanadas de una spec aprobada.
+- No mover nada a *Ready* («Lista») sin su visto bueno en el chat.
+- No cerrar sin terminar, borrar ni reabrir *issues* sin su autorización. Un duplicado se cierra como duplicado, con el enlace al original, y solo con su visto bueno.
 - No usar los *issues* para guardar decisiones de arquitectura: van en un ADR (`liv-adr`). Tampoco para las reglas de negocio: van en los documentos funcionales.

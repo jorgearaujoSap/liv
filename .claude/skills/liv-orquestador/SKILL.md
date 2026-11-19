@@ -9,7 +9,7 @@ El coordinador mueve **el backlog de la feature en construcción**: decide qué 
 
 Reglas que no cambian:
 - **Una sola feature en construcción a la vez** (ADR 0040). La siguiente puede preparar su arranque mientras tanto.
-- **La persona** aprueba la spec (H1), mueve cada rebanada a «Lista», hace la H3 de **cada** PR, integra cada PR y decide todo lo de `AGENTS.md` §4.5.
+- **La persona** aprueba la spec (H1), da el visto bueno de cada rebanada en el chat (el coordinador la mueve a «Lista»), hace la H3 de **cada** PR, integra cada PR y decide todo lo de `AGENTS.md` §4.5.
 - El coordinador y sus sesiones **nunca**:
   - integran un PR de ninguna forma (`gh pr merge`, tampoco con `--auto`);
   - aprueban un PR (`gh pr review --approve`);
@@ -29,7 +29,7 @@ Reglas que no cambian:
 En el orden de la tabla «Rebanadas» de `spec.md`, salvo que la persona diga otra cosa:
 - R1, el esqueleto, va siempre primero y sola.
 - Después, primero lo más incierto, para que los errores salgan pronto.
-- Una rebanada empieza solo en «Lista». Si una está lista para preparar, complétale el *issue* (definición de lista, `AGENTS.md` §4.2; con el nivel alto si toca una zona roja) y pídele a la persona que la mueva. **Nunca la muevas tú a «Lista».**
+- Una rebanada empieza solo en «Lista». Si una está lista para preparar, complétale el *issue* (definición de lista, `AGENTS.md` §4.2; con el nivel alto si toca una zona roja) y pídele el visto bueno en el chat. Con él, muévela tú a «Lista» y anótalo en el *issue* (`liv-backlog` §4). Sin él, nunca.
 
 ## 2. Qué corre en paralelo
 
@@ -80,7 +80,7 @@ Cada sesión arranca sin la memoria del coordinador. Su *brief* lleva:
 ## 5. Escalar a la persona
 
 Siempre consulta a la persona cuando:
-- hay que elegir o arrancar una feature, o mover una rebanada a «Lista»;
+- hay que elegir o arrancar una feature, o dar el visto bueno para mover una rebanada a «Lista»;
 - hace falta una H1 o una H3, o algo de `AGENTS.md` §4.5;
 - una rebanada necesita cambiar el diseño técnico de `spec.md`, una regla, o algo de una zona roja que la spec no prevé;
 - aparece un `PENDIENTE` o `POR_CONFIRMAR` funcional;

@@ -35,11 +35,11 @@ Sigue la *skill* `liv-backlog` §2:
 - su número, en la tabla «Rebanadas» de `spec.md`;
 - lo de «Después», propuesto a la persona como rebanadas sueltas.
 
-Los agentes nunca mueven un *issue* a «Lista»: ese es el visto bueno de la persona.
+El agente mantiene el tablero (`liv-backlog`, ADR 0041). Mueve una rebanada a «Lista» solo con el visto bueno de la persona en el chat.
 
 ## 3. Construir una rebanada
 
-1. **Lista:** la persona la mueve a «Lista». Antes, completa en el *issue* lo que falte de la definición de lista (`AGENTS.md` §4.2): diseño aprobado si hay pantalla (`liv-figma`), su parte del contrato y las pruebas. Si toca una zona roja, prepara ese detalle con el nivel alto; si es una rebanada suelta con zona roja, agrega su diseño técnico corto y pásale la revisión adversarial (`liv-revision-adversarial`). Si falta algo, pregúntalo; no lo inventes.
+1. **Lista:** pide el visto bueno de la persona en el chat y, cuando lo da, mueve la rebanada a «Lista» y anótalo en el *issue*. Antes, completa en el *issue* lo que falte de la definición de lista (`AGENTS.md` §4.2): diseño aprobado si hay pantalla (`liv-figma`), su parte del contrato y las pruebas. Si toca una zona roja, prepara ese detalle con el nivel alto; si es una rebanada suelta con zona roja, agrega su diseño técnico corto y pásale la revisión adversarial (`liv-revision-adversarial`). Si falta algo, pregúntalo; no lo inventes.
 2. **Rama** por proyecto: `feat/<NNN>-r<n>-<proyecto>` (p. ej. `feat/009-r2-backend`).
 3. **Contrato primero**, si la rebanada toca la API (`liv-endpoint`).
 4. **Backend:** en las reglas y los cálculos tributarios, la prueba primero (que falle, código, refactorización), con el código de la regla en su nombre y su etiqueta; no hace falta un *commit* aparte. El resto (permisos, segregación, adaptadores) entra con sus pruebas en el mismo PR. Un caso de uso por clase, sin «servicios» compartidos que crezcan con cada rebanada, y cada caso de uso expuesto con su permiso y su segregación completos. Migraciones con `liv-migracion`, con *expand/contract* si cambian una tabla existente. Pruebas de integración del endpoint con la base real.

@@ -122,7 +122,7 @@ flowchart LR
 | 1. Arranque | `spec.md` con qué hace y por qué; las reglas con su código y su fuente; el alcance del MVP («Entra» y «Después»); los criterios Dado / Cuando / Entonces; los criterios no funcionales que apliquen; el diseño técnico en una página (módulos, datos con *expand/contract*, contrato, permisos, amenazas, pantallas, riesgos y decisiones); las rebanadas en orden. Si toca una zona roja (§4.3), su diseño técnico pasa la revisión adversarial (`liv-revision-adversarial`) | **H1** (de arranque): la persona aprueba la spec |
 | 2. Backlog | Un *issue* por rebanada, en «Backlog», con su objetivo, criterios, proyectos, diseño, parte del contrato y pruebas. Lo que quedó en «Después» va al backlog como rebanada suelta (§4.3) | — |
 | 3. Diseño | Figma una rebanada por delante: cada pantalla tiene su diseño aprobado antes de empezar la rebanada que la construye (§6.2) | Aprobación del diseño, si hay pantalla |
-| 4. Rebanada | La persona la mueve a «Lista» (definición de lista, abajo); un agente nunca lo hace. Primero su parte del contrato; después el backend y el frontend, en paralelo si el contrato ya está. El frontend puede construir contra la rama del contrato solo en local: su PR no se integra ni fija `frontend/api-spec/` hasta que exista la *release* del contrato (ADR 0027). Se ve funcionando en local y se ajusta | Visto bueno de la persona |
+| 4. Rebanada | Con la definición de lista cumplida (abajo), la persona da su visto bueno en el chat (puede darlo para varias rebanadas a la vez) y el agente la mueve a «Lista». Primero su parte del contrato; después el backend y el frontend, en paralelo si el contrato ya está. El frontend puede construir contra la rama del contrato solo en local: su PR no se integra ni fija `frontend/api-spec/` hasta que exista la *release* del contrato (ADR 0027). Se ve funcionando en local y se ajusta | Visto bueno de la persona |
 | 5. PR | Uno por proyecto (§4.6), con sus pruebas, el CI en verde y una captura si hay pantalla. Si toca una zona roja, una regla con código o un documento funcional, pasa la revisión adversarial (dos revisores ciegos de nivel alto, `liv-revision-adversarial`) (§10). Enlaza su *issue* | **H3**: la persona revisa e integra |
 | 6. Cierre | Pruebas de navegador de los caminos principales en verde contra el entorno local (ADR 0030); cada criterio de `spec.md` marcado `[x]` con su prueba; deuda revisada; la opción abierta en el menú; roadmap, glosario y `ESTADO.md` al día | H3 del PR de cierre |
 
@@ -130,6 +130,21 @@ flowchart LR
 - todo cambio que agrega, quita o altera un criterio, el diseño técnico o una rebanada con zona roja lleva el visto bueno de la persona, anotado con su fecha, y entra a `spec.md` en un PR pequeño de la raíz;
 - si agrega algo de una zona roja, pasa la revisión adversarial antes de «Lista»;
 - un cambio de una regla tributaria sigue el proceso de los documentos funcionales (§3.1).
+
+**El tablero lo mantiene el agente** (ADR 0041, *skill* `liv-backlog`):
+- **Sin preguntar, lo trivial y reversible:**
+  - crear los *issues* de las rebanadas de una spec aprobada;
+  - mover las tarjetas según el trabajo real (*In progress*, *In review*, *Done*);
+  - enlazar los PR, comentar, poner etiquetas y llenar los campos;
+  - completar el detalle de un *issue* y anotar sus cambios;
+  - al empezar cada sesión, corregir las tarjetas que no coinciden con los PR reales;
+  - sacar del tablero las tarjetas de PR.
+- **Con autorización de la persona en el chat,** que el agente ejecuta en cuanto la recibe:
+  - mover una rebanada a «Lista»;
+  - crear un *issue* nuevo que encontró;
+  - cerrar un *issue* sin terminarlo, borrarlo o reabrirlo;
+  - cambiar las columnas, los campos o las automatizaciones del tablero.
+- **Criterio:** si la acción decide qué se construye, qué entra al backlog o cómo funciona el tablero, se pregunta; si solo refleja lo que ya pasó o lo ya aprobado, se hace.
 
 **Quién escribe en la raíz:** los PR de los proyectos no tocan `spec.md`, el glosario ni `ESTADO.md`. Esos archivos cambian en el PR de arranque (con la tabla de rebanadas y sus *issues*), en un PR pequeño de la raíz cuando la persona aprueba un cambio de criterio o de diseño técnico, y en el PR de cierre (criterios marcados, glosario y roadmap).
 
@@ -284,7 +299,7 @@ Detalle en `docs/arquitectura/01` §11.2.
 
 ## 7. Estado del proyecto (`ESTADO.md`)
 
-[`ESTADO.md`](ESTADO.md) dice dónde está el proyecto: la fase, la feature en construcción, las decisiones abiertas, el estado de Figma, los próximos pasos y la bitácora. **El avance de las rebanadas no va ahí:** lo lleva el *Project* de GitHub (ADR 0040). Cuando se configuren sus automatizaciones se moverá solo al abrir e integrar los PR; hasta entonces lo mueve quien abre o integra el PR.
+[`ESTADO.md`](ESTADO.md) dice dónde está el proyecto: la fase, la feature en construcción, las decisiones abiertas, el estado de Figma, los próximos pasos y la bitácora. **El avance de las rebanadas no va ahí:** lo lleva el *Project* de GitHub `liv-project` (ADR 0040), que mantiene el agente (§4.2, ADR 0041).
 
 `ESTADO.md` se actualiza en el mismo cambio que:
 - arranca o cierra una feature (su H1 y su cierre);
