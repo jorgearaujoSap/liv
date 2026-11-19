@@ -47,7 +47,8 @@ El agente mantiene el tablero (`liv-backlog`, ADR 0041). Mueve una rebanada a «
 6. **Verlo funcionando:** levanta LIV en local (`README.md` › «Ejecutar LIV en local») y revisa la pantalla contra su diseño. Ajusta en la misma sesión.
 7. **Revisión adversarial** (`liv-revision-adversarial`) del PR que toca una zona roja, una regla con código o un documento funcional. Corrige los críticos y altos. Los demás PR van con el CI en verde y la H3 de la persona.
 8. **PR** por proyecto, con:
-   - `Parte de #n`, o `Cierra #n` en el último;
+   - `Parte de #n`, o `Closes #n` solo en el último (GitHub no reconoce «Cierra»);
+   - la descripción armada desde `.github/pull_request_template.md`, con su definición de hecha completa: con `gh pr create --body-file` la plantilla no se aplica sola;
    - el resumen de la revisión adversarial, si la hubo;
    - una captura si hay pantalla;
    - el `CHANGELOG.md` del proyecto.

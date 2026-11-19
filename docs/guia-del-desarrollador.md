@@ -5,14 +5,14 @@
 
 ## 1. Dónde está el proyecto
 
-La arquitectura está aprobada (ADR 0001–0041). La **Fase 0 — Fundaciones** se cerró el 2026-11-12 y estamos en la **Fase 1 — Tablas base y configuración**. El estado al día siempre está en [`ESTADO.md`](../ESTADO.md).
+La arquitectura está aprobada: ADR 0001–0035, 0040 y 0041 (los 0036 a 0039 los reserva la feature 008). La **Fase 0 — Fundaciones** se cerró el 2026-11-12 y estamos en la **Fase 1 — Tablas base y configuración**. El estado al día siempre está en [`ESTADO.md`](../ESTADO.md).
 
 | Ya está hecho | Dónde verlo |
 |---|---|
 | **Feature 001 · Inicio de sesión**, de punta a punta: API y BFF con Keycloak (sin *tokens* en el navegador), segundo factor por rol, permisos, sesión, auditoría, menú, *layout* y pantallas de error, con pruebas de navegador en local | [`spec/features/001-inicio-de-sesion/`](../spec/features/001-inicio-de-sesion/spec.md). Es la **feature de referencia**: copia su forma |
 | **Librería `liv-components` 0.5.0**, publicada en npm | [`ui/README.md`](../ui/README.md) y el archivo de Figma [LIV‑Diseño](https://www.figma.com/design/s2r2Kdu31sQW5CmVeQNyZb/LIV-Dise%C3%B1o) |
 | **CI obligatorio en `main`**: cada proyecto tiene su verificación y ningún PR entra sin ella | [`spec/features/003-ci-obligatorio/`](../spec/features/003-ci-obligatorio/spec.md) |
-| **ADR 0001–0041**, uno por archivo (0036 a 0039 los reserva la feature 008) | [`docs/adr/`](adr/) |
+| **ADR 0001–0035, 0040 y 0041**, uno por archivo | [`docs/adr/`](adr/) |
 | **Features 005, 006 y 007:** cartera y recaudo (documentación y contrato), pruebas *golden* en rojo (cierre de la Fase 0) y **vigencias fiscales (1.4)**, la primera feature de negocio de punta a punta | [`spec/features/`](../spec/features/) y [`spec/constitution/roadmap.md`](../spec/constitution/roadmap.md) |
 | **Método de trabajo:** SDD por rebanadas verticales, con el backlog en GitHub Issues y en el *Project* `liv-project` (ADR 0040 y 0041) | [`AGENTS.md`](../AGENTS.md) §4 y [`spec/README.md`](../spec/README.md) |
 | **Feature 004 · Esquema de la configuración de jurisdicción (F0‑10):** el JSON Schema 1.0, inmutable en cada PR y publicado como *release* `jsonschema-config-jurisdiccion-v1.0`. El validador de los anexos en la raíz y su CI pasaron a la feature 1.5.9 | [`spec/features/004-esquema-configuracion-jurisdiccion/`](../spec/features/004-esquema-configuracion-jurisdiccion/spec.md) |
@@ -81,5 +81,5 @@ Nunca uses datos reales de contribuyentes ni credenciales de entornos reales: en
   - `jsonschema.sh` y `publish.sh` dejan pasar una *release* con archivos de más, y `jsonschema.sh` no falla cuando no puede escribir sus archivos de trabajo. Va en un PR aparte del *backend*;
   - la *release* 1.0 quedó marcada como «Latest» en GitHub, aunque el paso 3 esperaba que no (visto en la lista de *releases* el 2026-11-08);
   - proteger las etiquetas `jsonschema-*` en un *ruleset*, con tu aprobación explícita.
-- **Feature 002** (publicación automática de `liv-components`): su spec es una propuesta sin aprobar, en el PR #113 (borrador); todavía no está en `main`.
+- **Feature 002** (publicación automática de `liv-components`): su spec nueva y el ADR 0042 esperan la H1, y reemplazan la propuesta del PR #113.
 - **Decisiones abiertas del equipo** (P1, P6, P7) y de identidad: `ESTADO.md` §5 y §6.
