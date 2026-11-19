@@ -1,12 +1,12 @@
 # AGENTS.md — liv-components
 
-Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librería de componentes. **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD, TDD, aprobaciones H1–H3, *skills* (en especial `liv-figma`) y `ESTADO.md`.
+Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librería de componentes. **Complementan** al `AGENTS.md` del repositorio de plataforma y documentación (hoy, la raíz del monorepo `liv`), que define la metodología completa: SDD por rebanadas verticales (ADR 0040), pruebas, aprobaciones (H1 de la spec, visto bueno de cada rebanada y H3), *skills* (en especial `liv-figma`) y `ESTADO.md`.
 
 ## Antes de tocar código
 
 1. Todo componente nuevo nace primero en la página `02 Componentes` del archivo de Figma LIV‑Diseño, con el **mismo nombre, variantes y propiedades** que tendrá aquí.
-2. La tarea debe venir de una feature aprobada (`spec/features/NNN-…/` en el repositorio de plataforma) o ser un cambio del flujo directo, según la evaluación previa del `AGENTS.md` del repositorio de plataforma (§4.3). Como toda la librería es ruta crítica, por el flujo directo solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias.
-3. Modificar un componente existente es un **cambio crítico**: afecta todas las pantallas que lo usan y exige la aprobación del líder de frontend y de un responsable funcional.
+2. La tarea es un ajuste (sin *issue*) o una rebanada con su *issue* en «Lista», de una feature con su `spec.md` aprobado (`spec/features/NNN-…/` en el repositorio de plataforma) o suelta. Los tamaños de trabajo y las zonas rojas están en el `AGENTS.md` del repositorio de plataforma (§4.3). Modificar un componente existente o sus capturas de referencia, los *tokens* y la configuración de *build* y de publicación son zona roja: como ajuste solo van los comentarios, el `README.md`, el `CHANGELOG.md` y los parches de dependencias, y cada PR pasa la revisión adversarial.
+3. Modificar un componente existente es **zona roja**: afecta todas las pantallas que lo usan y exige la aprobación del líder de frontend y de un responsable funcional.
 
 ## Reglas de la librería
 
@@ -21,7 +21,7 @@ Reglas para cualquier agente de IA (y para el equipo) que trabaje en la librerí
 | Versiones | Todo cambio que deba llegar a las aplicaciones sube la versión en el mismo PR (`npm run version:patch`/`minor`/`major`, según la tabla de `README.md`) y agrega su sección en `CHANGELOG.md` | `npm run release:check` |
 | Publicación | Solo un humano publica, desde `main` y después de integrar el PR, siguiendo `README.md` › "Publicar una versión". Un agente puede preparar la versión y el `CHANGELOG.md`, pero nunca ejecuta `npm publish` ni `npm run release` | `npm run release:check` + revisión |
 | Formato | Prettier | `npm run format:check` |
-| TDD | Commit `test:` (prueba en rojo) antes del `feat:`/`fix:` | Revisión del PR |
+| Pruebas | Toda rebanada entra con sus pruebas en el mismo PR. **Prueba primero** (escrita antes y vista fallar, sin *commit* aparte) en el código que implementa una regla con código (`AGENTS.md` de la raíz, §5.3) y en los casos *golden* (§4.1, principio 5) | Revisión del PR; revisión adversarial si toca una regla o una zona roja |
 
 ## Skills
 
@@ -39,5 +39,5 @@ Para Figma usa `liv-figma`, y para el resto las *skills* de proceso del reposito
 
 - `npm run lint`, `npm run format:check` y `npm run pack` en verde, o se reporta qué falló.
 - Con el primer componente: pruebas, historia de Storybook y captura de referencia de cada variante y estado.
-- La feature y `ESTADO.md` del repositorio de plataforma están actualizados.
-- Un PR toca solo este proyecto.
+- El `CHANGELOG.md` de este proyecto tiene su entrada y la tarjeta del *issue* está al día (*skill* `liv-backlog`).
+- Un PR toca solo este proyecto: no cambia `spec.md`, el glosario ni `ESTADO.md`, que solo cambian en los PR de la raíz (`AGENTS.md` de la raíz, §4.2, «Quién escribe en la raíz»).

@@ -5,9 +5,9 @@ description: Crea o cambia un componente de liv-components (proyecto ui/) con la
 
 # Nuevo componente de `liv-components`
 
-Crear un componente es un cambio **normal** y modificar uno existente es **crítico**: los dos van por el SDD, porque toda la librería es ruta crítica (`AGENTS.md` de la raíz, §4.3). **El componente nace primero en Figma**, en la página `02 Componentes`, con el mismo nombre, variantes y propiedades (`ui/AGENTS.md`). Esta *skill* dice **cómo** se implementa aquí; las reglas están en `ui/AGENTS.md`.
+Crear un componente va en una rebanada, como parte de la feature que lo necesita; modificar uno existente es **zona roja** (`AGENTS.md` de la raíz, §4.3). **El componente nace primero en Figma**, en la página `02 Componentes`, con el mismo nombre, variantes y propiedades (`ui/AGENTS.md`). Esta *skill* dice **cómo** se implementa aquí; las reglas están en `ui/AGENTS.md`.
 
-Modificar un componente existente exige además lo de todo cambio crítico: la revisión adversarial (`liv-revision-adversarial`), las cuatro lentes de `liv-revision-4r` y las aprobaciones de `ui/AGENTS.md` (líder de frontend y responsable funcional).
+Modificar un componente existente exige además la revisión adversarial (`liv-revision-adversarial`, dos revisores ciegos de nivel alto) y las aprobaciones de `ui/AGENTS.md` (líder de frontend y responsable funcional).
 
 **Conocimiento de Angular:** usa el servidor MCP del CLI de Angular (`angular-cli` en `.mcp.json`). `get_best_practices` da la guía oficial y `search_documentation` la documentación de la versión instalada. No escribas de memoria. **Si la guía de Angular choca con una regla de LIV, manda LIV:** sin `style` ni `[style]`, plantilla y estilos en archivos propios y solo *tokens*.
 
@@ -32,7 +32,7 @@ Modificar un componente existente exige además lo de todo cambio crítico: la r
    - los estilos que usa.
 
    Si falta un estilo o un *token*, primero se crea en Figma y después en `src/styles/theme.css`.
-2. **Prueba primero (rojo)** en `<nombre>.component.spec.ts`.
+2. **Pruebas** en `<nombre>.component.spec.ts`. Escribirlas primero es lo recomendado; es **obligatorio** en el código que implementa una regla con código o un caso *golden* (`AGENTS.md` de la raíz, §4.1, principio 5).
    - Una prueba por cada variante, propiedad y estado de Figma.
    - Una prueba de axe que recorra todas las variantes y estados. Para el contraste usa `contrastRatio` y `solidColor` de `src/testing/contrast.ts`, y para los estilos declarados, `src/testing/css.ts`.
    - Las pruebas de un criterio llevan su código (`'cumple axe (001-19) en cada variante y estado'`).
@@ -66,6 +66,6 @@ Modificar un componente existente exige además lo de todo cambio crítico: la r
 - [ ] El nombre, las variantes, las propiedades y los estados son los de Figma, y la historia enlaza su nodo.
 - [ ] El componente no tiene lógica de negocio, ni llamadas HTTP, ni decide permisos.
 - [ ] Solo hay *tokens*, sin `style` ni `::ng-deep`.
-- [ ] Hay una prueba por variante y estado y axe en todos, escritas antes (commit `test:`).
+- [ ] Hay una prueba por variante y estado, y axe en todos, en el mismo PR.
 - [ ] Está exportado en `public-api.ts`, con la versión subida y su sección en `CHANGELOG.md`.
 - [ ] `lint`, `format:check`, `test`, `build-storybook` y `pack` están en verde, y `ESTADO.md` de la raíz está al día.

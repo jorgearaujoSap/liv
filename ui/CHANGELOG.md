@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado
+
+- `AGENTS.md` y la *skill* `liv-componente`, al método de SDD por rebanadas verticales (ADR 0040): un componente nuevo va en una rebanada, y modificar uno existente, los *tokens* o la publicación es zona roja, con revisión adversarial.
+
 ## [0.5.0] — 2026-11-16
 
 Un componente nuevo, `Select`, para la enmienda 4 de la feature 007 (vigencias fiscales, 1.4): el diálogo de crear una vigencia ofrece hasta 26 años, y esa lista es demasiado larga para un `RadioGroup`. No cambia ningún componente existente ni los _tokens_: `RadioGroup` y `RadioOption` se quedan en la librería. Un humano la publica desde `main`, después de integrar el PR (`README.md` › "Publicar una versión"). Para adoptarla, el frontend instala la versión exacta 0.5.0 y ejecuta su prueba del aviso de sesión con ella (ningún componente existente cambia).
