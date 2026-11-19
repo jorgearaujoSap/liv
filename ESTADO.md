@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-16
+> **Última actualización:** 2026-11-18
 > **Regla:** este archivo se actualiza en el mismo cambio que completa, inicia o bloquea una tarea (humano o agente de IA). Si no está al día, el cambio no está terminado (`docs/arquitectura/04_Calidad_Testing_y_CI.md` §7, `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` §4.1). Mientras un orquestador dirige una feature, solo él lo escribe y las sesiones de sus tareas se lo reportan (`AGENTS.md` §7, ADR 0033).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -27,9 +27,84 @@ Tablero de la feature en curso. Lo lleva el orquestador (*skill* `liv-orquestado
 |---|---|---|---|---|---|
 | Spec (H1) | raíz | `f008-spec`, PR #217 | — | ✅ Aprobada el 2026-11-16; 48 criterios; enmiendas 1 y 2 en la H2 | — |
 | Diseño en Figma | Figma | `f008-figma` | Spec (H1) | ✅ Aprobado el 2026-11-16: 4 pantallas y el historial, 28 marcos, `Checkbox`, `TextArea`, `FileField`, `Tab` y 4 iconos | — |
-| Plan (H2) | raíz | `f008-plan`, PR #218 | Spec (H1) y diseño | ✅ Aprobado el 2026-11-17: 38 PR en seis olas, H2‑1 a H2‑24 | — |
-| Tareas | raíz | `f008-tareas` | Plan (H2) | 🔄 En curso | — |
-| Implementación | todos | — | Tareas | ⏳ Pendiente | Publicar `liv-components` 0.6.0 cuando entre su serie |
+| Plan (H2) | raíz | `f008-plan`, PR #218 | Spec (H1) y diseño | ✅ Aprobado el 2026-11-17: 37 PR en seis oleadas (el plan habla de 38; véase `tasks.md`, «Puntos del plan…», punto 6), H2‑1 a H2‑24 | — |
+| Tareas | raíz | `f008-tareas`, PR #220 | Plan (H2) | ✅ Integradas el 2026-11-17: T1 a T78 en 37 PR y seis oleadas | Confirmar los «Puntos del plan que estas tareas interpretan» de `tasks.md`, sobre todo el 1 (orden de C10) |
+| Oleada 1 · R1, R2a y R2b (documentos y ADR 0036 a 0039) | raíz | — | Tareas | ⏳ Siguiente paso | Aprobar R1 como responsable funcional y aceptar los cuatro ADR en la H3 |
+| Oleada 2 · B1, C2a y C2b; U1 y U2 | `backend/`, `ui/` | — | R1 y R2b | ⏳ Pendiente | Integrar C2a y esperar la *release* `contract-jurisdiction-v1.0.0` antes de C2b |
+| Oleada 3 · B2 a B8; U3 y U4; F0 y F1 | `backend/`, `ui/`, `frontend/` | — | Ola 2 | ⏳ Pendiente | Publicar `liv-components` 0.6.0 en npm después de U4; F0 no empieza antes |
+| Oleada 4 · C1a, C1b, C3, C9 y C4; F2 y F4a | `backend/`, `frontend/` | — | Ola 3 | ⏳ Pendiente | — |
+| Oleada 5 · C5a a C8; F3, F4b y F5; E1 en rojo | `backend/`, `frontend/`, `e2e/` | — | Ola 4 | ⏳ Pendiente | — |
+| Oleada 6 · C10, validación en local (T74) y corrida de E1 | `backend/`, `e2e/` | — | Ola 5 | ⏳ Pendiente | Acompañar T74 y aprobar las capturas de `e2e/` |
+
+### Cómo continuar la feature 008 (guía de traspaso)
+
+Esta guía es para quien retome la 008 sin el historial de las sesiones anteriores. Todo lo necesario está en el repositorio.
+
+**Vocabulario mínimo:**
+- **H1, H2 y H3:** las aprobaciones de la persona. H1 aprueba la spec, H2 el plan y H3 cada PR antes de integrarlo (`AGENTS.md` §4.2).
+- **T1 a T78:** las tareas de `tasks.md`.
+- **R1, R2a, B1, C2a, U1, F0, E1 y los demás:** los PR del mapa. R es la raíz; B y C, `backend/`; U, `ui/`; F, `frontend/`; E, `e2e/`.
+- **Oleada:** un grupo de PR que se trabaja a la vez.
+- **C10:** el PR que abre la opción 1.5.9 en el menú; hasta entonces sus pantallas muestran «Próximamente».
+- ***Worktree*:** la copia aislada del repositorio donde trabaja cada sesión.
+- **Reglas comunes a todas las tareas:** al inicio de `tasks.md`.
+
+**Dónde está cada cosa**
+
+| Qué | Dónde |
+|---|---|
+| Spec (H1, 48 criterios, enmiendas 1 y 2) | `spec/features/008-configuracion-jurisdiccion/spec.md` |
+| Plan (H2, decisiones H2‑1 a H2‑24, revisión y verificación acotada) | `spec/features/008-configuracion-jurisdiccion/plan.md` |
+| Tareas (T1 a T78 en 37 PR, orden de integración, olas, recursos, lo que hace la persona, puntos interpretados) | `spec/features/008-configuracion-jurisdiccion/tasks.md` |
+| Diseño aprobado | LIV‑Diseño, `03 Pantallas` › «1.5.9 · Configuración de jurisdicción» (`92:4179`); componentes nuevos en `02 Componentes` (`88:506`, `88:524`, `88:578`, `89:611`, `90:565`). La lista de nodos por pantalla está en `plan.md`, «Diseño de interfaz» |
+| Modelo a seguir | La feature 007 (`spec/features/007-vigencias-fiscales/`): una opción del menú de punta a punta, con sus «Ajustes de la H3» en `plan.md` |
+
+**Siguiente paso, en orden**
+
+1. **Confirmar los «Puntos del plan que estas tareas interpretan»** de `tasks.md`. Lo más importante es el punto 1, el orden de C10 (la opción 1.5.9 abierta en el menú). La recomendación es la de la 007: el frontend se integra primero y queda en «Próximamente», se valida todo en local con C10 aplicado (T74) y C10 se integra al final.
+2. **Oleada 1:** una sesión para R1 (T1 a T4) y otra para R2a y después R2b (T5 a T10). R1 puede ir en paralelo con R2a; R2b empieza después de R2a, en serie, porque se escribe sobre su rama.
+3. **Seguir el orden de integración de `tasks.md` al pie de la letra.** En la 007 se integraron PR antes de tiempo (B10 antes que B7 y F9b, y el contrato 4B1 antes que 4B2). No hubo daño porque no hay producción, pero hay que evitarlo.
+
+**Cómo se trabaja** (*skill* `liv-orquestador`, ADR 0033; `AGENTS.md` §10 y `CLAUDE.md`)
+
+- **Una sesión de orquestador** (nivel alto) coordina y es la única que escribe `ESTADO.md`, el *roadmap*, el glosario, las marcas de `tasks.md` y los criterios de `spec.md`.
+- **Cada PR se hace en su propia sesión**, con su *worktree*: nivel estándar para implementar y nivel alto para spec, plan y revisiones críticas.
+  - El encargo de cada sesión cita la tarea de `tasks.md`, los nodos de Figma, las decisiones que aplican, TDD, la revisión (dos `liv-revisor-critico` ciegos y las cuatro lentes en `backend/**/liv/jurisdiction/**`, contratos, migraciones y `ui/**`) y lo que no toca.
+  - La sesión abre el PR con el CI en verde y reporta.
+- **Límites:**
+  - como máximo tres sesiones a la vez;
+  - una sola en `backend/`;
+  - una sola de `ui/` y una sola de `frontend/`;
+  - el entorno local, exclusivo: lo usa una sesión a la vez.
+- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»).
+- **Al cerrar:**
+  - se marcan las tareas y los criterios con sus pruebas;
+  - se registran en `plan.md` los «Ajustes de la H3», como en la 007;
+  - se ponen al día el glosario, el *roadmap* y este archivo.
+
+**Lecciones de la 007 que conviene repetir**
+
+- **ADR:** se aceptan en la H3 de su PR, antes de integrarlo, nunca en «Propuesto».
+- **Contratos:** una *release* publicada es inmutable (ADR 0027). Si un PR posterior necesita cambiar el contrato, va en una versión nueva.
+- **Ramas:** los PR se integran con *squash*, así que las ramas remotas desaparecen y los commits locales de los *worktrees* aparecen «sin subir». Eso no es trabajo perdido.
+- **Cambios de autorización, permisos, reglas de *lint* o de arquitectura:** necesitan la aprobación explícita de la persona (§4.5) y quedan anotados en «Ajustes de la H3».
+- **`dev.admin.sistema` es del desarrollador:** ninguna sesión le reinicia el segundo factor. Las validaciones usan los usuarios `e2e.*`, que se crean con un TOTP conocido, o uno propio que se borra al terminar.
+- **Procesos al terminar:** las sesiones de `ui/` deben detener Storybook o los servidores que levanten. En la 007 quedaron procesos que bloquearon el borrado de los *worktrees*.
+
+**Particularidades de este equipo**
+
+- **Puertos:** Contravencional usa 4200, 8080 y 5433. LIV corre en API 8090, BFF 8081 y frontend 4300, PostgreSQL 5434 y Keycloak 8180, con `LIV_BFF_BASE_URL=http://localhost:4300` y `POSTGRES_PORT=5434` en `backend/dev/.env`, que no se versiona.
+- **Levantar LIV a mano:** `tools/dev/iniciar.sh` y `detener.sh` asumen 4200 y 8080. Se levanta así:
+  - los contenedores, desde `backend/`: `docker compose -f dev/compose.yaml --env-file dev/.env up -d`;
+  - la API con `SERVER_PORT=8090`;
+  - el BFF con `LIV_API_URL=http://localhost:8090`;
+  - el frontend con `ng serve --port 4300` y `NG_CLI_ANALYTICS=false`.
+- **Docker Desktop:** si no arranca por *sockets* viejos, se renombran `%LOCALAPPDATA%\Docker\run` y `%LOCALAPPDATA%\docker-secrets-engine` (bitácora del 2026-11-14).
+- **`ESTADO.md`:** se guarda con fin de línea CRLF. Se agrega con `git -c core.autocrlf=false add ESTADO.md` y se comprueba con `git diff --cached --numstat` que solo cambian las líneas editadas.
+- **Publicar `liv-components`:**
+  - desde `main` y en `ui/`, con el Angular CLI sin analítica, para que no modifique `ui/angular.json`;
+  - `npm login`, `npm run release` y después la etiqueta `ui-vX.Y.Z`;
+  - npm puede tardar unos minutos en mostrar la versión nueva.
 
 ---
 
@@ -163,7 +238,7 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
    - las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
 
 11. Seguimiento de la feature 007 (vigencias), sin fecha:
-   - **Arreglo del *layout* (barra exterior y espacio vacío):** #213 (`frontend/`, flujo directo) espera la H3. Su prueba de navegador va en #214, en borrador, y se corre con el entorno desde `main`.
+   - **Arreglo del *layout* (barra exterior y espacio vacío):** hecho e integrado (#213 y su prueba de navegador #214, 2026-11-16).
    - **`dev.admin.sistema`:** es del desarrollador y su segundo factor no se reinicia. Las validaciones usan los usuarios `e2e.*` o uno propio. Falta escribirlo en `backend/dev/README.md` (flujo directo, `backend/`).
    - **ERD, regla 3:** debe decir que la RLS de `tax.administration_fiscal_year` solo admite *Planeada* → *En preparación*; la 1.5.1 impone las demás transiciones, por ejemplo con un disparador.
    - **La *skill* `liv-migracion`:** todavía muestra el `INSERT` sobre toda la tabla y debe mostrar el `INSERT` por columnas de B3b.
@@ -179,6 +254,14 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-18
+
+- **Feature 008, orquestador.** Las tareas están integradas (#220, 2026-11-17): T1 a T78 en 37 PR y seis olas.
+  - Se agregó a este archivo la guía «Cómo continuar la feature 008», para que otra persona retome el trabajo: dónde está cada cosa, el siguiente paso, cómo se trabaja con el orquestador, las lecciones de la 007 y las particularidades de este equipo.
+  - El tablero lista las seis olas y lo que espera la persona en cada una.
+  - No hay cambios sin *commit* en el repositorio ni en los *worktrees*.
+- **Pendiente de la persona antes de la ola 1:** confirmar los «Puntos del plan que estas tareas interpretan» de `tasks.md`, sobre todo el orden de C10.
 
 ### 2026-11-17
 
