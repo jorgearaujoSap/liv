@@ -32,7 +32,7 @@ _Cada proyecto se construye desde su propia carpeta; el detalle está en su `REA
 | Construir y probar todo | `./mvnw verify` | `npm run lint`, `npm test`, `npm run build` | `npm run lint`, `npm run pack` |
 | Solo pruebas | `./mvnw test` | `npm test` | — (con el primer componente) |
 | Formato | `./mvnw spotless:apply` / `spotless:check` | `npm run format` / `npm run format:check` | `npm run format` / `npm run format:check` |
-| Arrancar en local / publicar | `./mvnw spring-boot:run` | `npm start` | `npm run storybook`; se publica al integrar el PR que sube la versión: `ui-release.yml`, con la aprobación de un humano (ADR 0042) |
+| Arrancar en local / publicar | `./mvnw spring-boot:run` | `npm start` | `npm run storybook`; se publica al integrar el PR que sube la versión: `ui-release.yml`, con la aprobación de un humano (ADR 0042); hasta que se active (feature 002, R3), `npm run release`, solo un humano |
 
 El entorno local completo con Docker Compose llega con F0‑06.
 

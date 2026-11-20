@@ -148,7 +148,7 @@ Estas reglas están en `AGENTS.md`, en la raíz, que es la fuente única de regl
 | Crear componentes visuales fuera de `liv-components`, o redefinir los estilos de un componente de la librería desde una pantalla | ADR 0018: rompería la línea única de componentes |
 | Modificar un componente existente de `liv-components` o actualizar sus capturas de referencia | Afecta todas las pantallas; requiere aprobación del líder de frontend y de un responsable funcional |
 | Usar o pedir datos reales de contribuyentes o credenciales de entornos reales | Ley 1581 y seguridad |
-| Integrar a `main`, publicar versiones o desplegar | Gate H3 |
+| Integrar a `main`, publicar versiones o desplegar | Gate H3. Aprobar, rechazar, cancelar o volver a ejecutar una publicación o un despliegue en espera, y cambiar lo que los protege (entorno `npm`, *rulesets*, publicador de confianza), nunca lo hace un agente, ni con permiso de la persona (`AGENTS.md` §4.5, ADR 0042) |
 
 ---
 

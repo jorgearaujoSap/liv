@@ -53,11 +53,11 @@ Esta feature cambia la segunda regla: «publica un humano» pasa a ser **«un hu
 Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el CI de `ui/`; las del *workflow*, en las ejecuciones que se citan.
 
 - [ ] **002-01** — Dado un PR que sube la versión de `liv-components` por encima de la publicada, cuando se integra en `main`, entonces corren las verificaciones de publicación y la publicación queda **esperando la aprobación** en el entorno `npm`. Las verificaciones son *lint*, formato, pruebas, Storybook, empaquetado, sección del `CHANGELOG.md`, número mayor y `repository` dentro del paquete. El resumen de la ejecución muestra `nombre@versión`, el *commit*, el SHA‑256 y la lista de archivos del `.tgz`. _Rebanada:_ R3 (pasó de la R2, 2026-11-19). _Prueba:_ la ejecución de la primera publicación real queda en «Waiting» con ese resumen.
-- [ ] **002-02** — Dado que la publicación espera la aprobación, cuando una persona autorizada la aprueba, entonces la versión queda en npm con su procedencia, y el repositorio no guarda ninguna clave de npm. _Rebanada:_ R3. _Prueba:_ `npm audit signatures` en `frontend/` con la versión nueva; `gh secret list` y `gh secret list --env npm` sin claves de npm.
+- [ ] **002-02** — Dado que la publicación espera la aprobación, cuando una persona autorizada la aprueba, entonces la versión queda en npm con su procedencia, y el repositorio no guarda ninguna clave de npm. _Rebanada:_ R3. _Prueba:_ `npm audit signatures` en `frontend/` con la versión nueva; `gh secret list` y `gh secret list --env npm` sin claves de npm. Al cerrar la feature, con la configuración posterior a la primera publicación hecha por la persona: la página de acceso del paquete en npm con «Require two-factor authentication and disallow tokens» activo, y `gh api repos/jorgearaujoSap/liv/rulesets` con el *ruleset* de las etiquetas `ui-v*` (bloquea la actualización y el borrado, no la creación).
 - [ ] **002-03** — Dada una versión publicada por una ejecución, cuando termina, entonces existen la etiqueta `ui-vX.Y.Z` **en el *commit* de esa misma ejecución** y una *release* con la sección de esa versión del `CHANGELOG.md`. Si la etiqueta ya existe en otro *commit*, la ejecución falla y no la mueve. _Rebanada:_ R3. _Prueba:_ las pruebas de `release-decide` (etiqueta ajena → error) y `git rev-parse ui-vX.Y.Z` igual al *commit* publicado.
 - [ ] **002-04** — Dado un PR que sube la versión, cuando falla una verificación, entonces no se pide la aprobación ni se publica ni se etiqueta, y el registro dice qué paso falló con el enlace a la sección de la guía que lo resuelve. Las verificaciones del `CHANGELOG.md`, la versión y el paquete fallan **ya en el PR** (002-10), antes de llegar a `main`. _Rebanada:_ R1, R2 y R3 (los enlaces a la guía existen desde la R3). _Prueba:_ las pruebas de `release-decide` y de `check-release --ci` con cada fallo; los enlaces, en la R3.
 - [ ] **002-05** — Dado un cambio en `main` que no sube la versión (o que no toca `ui/`), cuando corre el *workflow*, entonces termina en «nada que publicar» sin pedir la aprobación, sin etiquetar y sin quedar en espera detrás de otra ejecución. Una versión igual a una ya publicada es «nada que publicar». Una versión menor que la última publicada, y no publicada, es un error. _Rebanada:_ R1 y R2. _Prueba:_ las pruebas de `release-decide`; una ejecución con un cambio de `ui/` sin subir la versión.
-- [ ] **002-06** — Dada una ejecución cuyo `publicar` subió el paquete pero falló después, cuando se vuelve a ejecutar esa misma ejecución («Re-run failed jobs» o «Re-run all jobs»), entonces no se publica otra vez y se crea lo que falte. `publicar` compara la integridad del `.tgz` con la de npm: sigue si coinciden y falla si no. Si se vuelve a ejecutar todo, `decidir` ve la versión publicada **por el *commit* de esta ejecución** y sin etiqueta, y salta directo a `etiquetar`. _Rebanada:_ R3. _Prueba:_ las pruebas de `release-publish` con un `npm` falso que ya tiene la versión, con la misma integridad, con otra y sin respuesta; y las de `release-decide` con la salida `etiquetar`.
+- [ ] **002-06** — Dada una ejecución cuyo `publicar` subió el paquete pero falló después, cuando se vuelve a ejecutar esa misma ejecución («Re-run failed jobs» o «Re-run all jobs»), entonces no se publica otra vez y se crea lo que falte (la etiqueta, la *release* o las dos). `publicar` compara la integridad del `.tgz` con la de npm: sigue si coinciden y falla si no. Si se vuelve a ejecutar todo, `decidir` ve la versión publicada **por el *commit* de esta ejecución** (con o sin etiqueta) y salta directo a `etiquetar`, que no cambia nada de lo que ya existe. _Rebanada:_ R3. _Prueba:_ las pruebas de `release-publish` con un `npm` falso que ya tiene la versión, con la misma integridad, con otra y sin respuesta; las de `release-decide` con la salida `etiquetar`, **incluida la etiqueta que ya está en este *commit***; y las de `release-tag` con la etiqueta y la *release* ya existentes, en este *commit* y en otro.
 - [ ] **002-07** — Dada cualquier ejecución que no sea de `main` (un PR, un *fork* o **una rama del propio repositorio con el *workflow* modificado**), cuando corre, entonces nunca puede publicar. Lo impiden tres controles a la vez: npm solo acepta el *workflow* `ui-release.yml` **con el entorno `npm`**; ese entorno solo admite la rama `main` y pide la aprobación; y cada trabajo exige `github.ref == 'refs/heads/main'`. _Rebanada:_ R2 y R3. _Prueba:_
   - **en la R2:** `gh api` del entorno (revisores y regla de ramas) y una ejecución en `--dry-run` desde una rama de prueba **sin la condición `if`**, que el entorno rechaza;
   - **en la R3:** la evidencia de la configuración del publicador de confianza, con el entorno. No se prueba publicando desde otra rama.
@@ -78,11 +78,12 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
     | Situación | Salida |
     |---|---|
     | **Este *commit* subió la versión**, mayor que la última y no publicada | `publicar` |
-    | Versión no publicada que **no** subió este *commit* (la subió otro que espera, se rechazó o venció) | `nada`, con el aviso «la versión X está pendiente en la ejecución del *commit* que la subió». No nombra el *commit*: con `fetch-depth: 2` no se puede saber cuál es |
+    | Versión no publicada, no menor que la última, que **no** subió este *commit* (la subió otro que espera, se rechazó o venció) | `nada`, con el aviso «la versión X está pendiente en la ejecución del *commit* que la subió». No nombra el *commit*: con `fetch-depth: 2` no se puede saber cuál es |
     | Ya publicada y este *commit* subió la versión (volver a ejecutar todo después de publicar: falta la etiqueta, la *release* o las dos; `etiquetar` es idempotente) | `etiquetar` |
     | Ya publicada y este *commit* no subió la versión | `nada` |
     | Menor que la última y no publicada | `error` |
-    | La etiqueta existe en otro *commit* | `error` |
+    | La etiqueta existe en otro *commit* y este *commit* subió la versión | `error` |
+    | Ya publicada y npm dice que salió de otro *commit* (`gitHead`) | `error` |
     | npm no responde | `error` |
 - **`check-release.mjs --ci`:** sin `npm whoami`, `npm owner` ni la rama local. Agrega la verificación del campo `repository` dentro del `package.json` empaquetado.
 - **`release-notes.mjs`:** extrae la sección de la versión del `CHANGELOG.md` a un archivo.
@@ -99,14 +100,14 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
   1. **`decidir`** (`contents: read`):
      - `checkout` con `fetch-depth: 2` y `persist-credentials: false`, sin instalar dependencias;
      - ejecuta `release-decide.mjs` y publica su salida;
-     - sube `release-publish.mjs` y `release-tag.mjs` como artefacto propio, que usarán `publicar` y `etiquetar`;
+     - con `publicar` o `etiquetar`, genera las notas de la versión con `release-notes.mjs` (no necesita dependencias) y sube `release-publish.mjs`, `release-tag.mjs` y las notas como artefacto propio, que usarán `publicar` y `etiquetar`. Publica un manifiesto `sha256sum` con las huellas de los *scripts*, que `publicar` y `etiquetar` comprueban con `sha256sum --check --strict`, con una cuenta exacta de archivos, en el mismo paso que ejecuta el *script*;
      - con `nada` o `error`, la ejecución termina ahí: `nada` en verde, `error` en rojo con su mensaje; con `etiquetar`, salta a `etiquetar`;
      - no tiene `concurrency`, así que un cambio que no publica nunca queda en espera (002-05).
   2. **`verificar`** (`contents: read`, sin `id-token`):
      - `npm ci` (con `--ignore-scripts` si el *build* de Angular lo tolera; se comprueba en la R1), *lint*, formato, pruebas, `build-storybook`, `check-release --ci` y `npm pack`;
-     - genera el archivo de notas;
+     - comprueba la sección del `CHANGELOG.md` (`check-release --ci`), pero las notas de la *release* las genera `decidir`;
      - escribe en el resumen `nombre@versión`, el *commit*, el SHA‑256 y la lista de archivos del `.tgz`;
-     - sube el `.tgz`, su SHA‑256 y las notas como artefacto.
+     - sube el `.tgz` y su SHA‑256 como artefacto.
   3. **`publicar`:**
      - permisos `id-token: write` y `contents: read`, en el entorno **`npm`**;
      - `concurrency` propia (`ui-release-publicar`), sin cancelar la ejecución en curso;
@@ -118,7 +119,7 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
   4. **`etiquetar`** (`contents: write`):
      - sin `checkout`;
      - el *token* solo en el paso que lo usa;
-     - ejecuta `release-tag.mjs` del artefacto de `decidir` con el `github.sha` **de esta ejecución** y las notas de `verificar` (002-03).
+     - ejecuta `release-tag.mjs` del artefacto de `decidir` con el `github.sha` **de esta ejecución** y las notas que generó `decidir`, que no instala nada (002-03, 002-06). Corre también cuando `decidir` da `etiquetar`, sin `verificar` ni `publicar`.
 - **Varias versiones seguidas:** GitHub deja una sola ejecución en espera por grupo. Si se integran dos subidas de versión antes de aprobar la primera, la primera se cancela.
   - **La regla es aprobar o rechazar antes de integrar otra versión de la librería.**
   - Si pasa, la versión saltada se publica con «Re-run» de su ejecución cancelada, **antes** de aprobar la siguiente.
@@ -196,9 +197,13 @@ Cada criterio dice con qué se prueba. Las pruebas de los *scripts* corren en el
 
 ## Cambios
 
-- 2026-11-19 — Tres cambios al integrar la R2 y construir la R3, con el visto bueno de la persona el 2026-11-19 (anotados en #232 y #233):
+- 2026-11-19 — Cambios al integrar la R2 y construir la R3, con el visto bueno de la persona el 2026-11-19 (anotados en #232 y #233):
   - **002-01 pasa de la R2 a la R3**, por decisión de la persona: se comprueba con la primera publicación real, que pasa por la misma espera de aprobación con el mismo resumen, y así no hace falta una versión de prueba que nunca se publicaría. 002-05 se comprobó en la R2 con la ejecución 44625271457 (un cambio de `main` que no subió la versión terminó en «nada», sin pedir aprobación ni quedar en espera);
   - la fila «ya publicada, este *commit* subió la versión» de la tabla de salidas de `release-decide` da `etiquetar` también cuando la etiqueta ya está en este *commit*, y no `nada`. Así «Re-run all jobs» crea la *release* que falte (002-06, «se crea lo que falte»); `release-tag` es idempotente en la etiqueta y en la *release*. Cambia el código de `release-decide` en el PR de `ui/` de la R3;
+  - **las notas de la *release* las genera `decidir`**, no `verificar`, y `decidir` sube los *scripts* y las notas tanto con `publicar` como con `etiquetar`, con un manifiesto de huellas de todos los *scripts* que `publicar` y `etiquetar` comprueban en el mismo paso que los ejecutan. Motivo: con la salida `etiquetar`, `verificar` no corre y no habría notas; además, así las notas no vienen de un trabajo que ejecutó código de las dependencias. Visto bueno de la persona el 2026-11-19, en el chat;
+  - **002-02 agrega a su prueba**, al cerrar la feature, la configuración posterior a la primera publicación (npm sin *tokens* y con 2FA, y el *ruleset* de `ui-v*`), para que esos controles tengan evidencia. Visto bueno de la persona el 2026-11-19, en el chat;
+  - la tabla de salidas de `release-decide` aclara sus filas: «la etiqueta existe en otro *commit*» es un error solo si este *commit* subió la versión, y se agrega la fila del `gitHead` de otro *commit*. No cambia el comportamiento del código;
+  - **requisito del PR 3:** antes de integrarlo, la versión de `ui/projects/liv-components/package.json` en `main` debe estar publicada en npm (`npm view liv-components version`). Una versión integrada mientras el *workflow* está en `--dry-run` no se podría publicar después: «Re-run» usa el *workflow* de su propio *commit*, y la publicación a mano ya no estaría vigente;
   - la R3 se entrega en tres PR, en orden, y el de las reglas lleva además la nota de que **hasta el PR que activa la publicación real sigue vigente la publicación a mano**, que ese último PR retira de `AGENTS.md`.
 - 2026-11-19 — Dos cambios de la tabla de salidas de `release-decide`, de la revisión adversarial de la R1 (PR #234), con el visto bueno de la persona el 2026-11-19 (anotado en #231):
   - «este *commit* subió la versión» pasa de «distinta» a «mayor» que la del padre, para que un *revert* que baja la versión no publique ni etiquete;
