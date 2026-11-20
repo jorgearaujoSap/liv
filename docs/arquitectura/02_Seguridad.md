@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0004, 0010, 0011) · `01_Arquitectura_de_Software.md`
-> **Versión:** 1.0 — **Aprobado** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.1 — 2026-11-19, §11 y §12 con la publicación automática de `liv-components` (ADR 0042, feature 002). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Advertencia:** el marco normativo se resume para fines de diseño y debe validarlo el área jurídica.
 
 ---
@@ -215,9 +215,10 @@ Suite obligatoria con Testcontainers: un usuario de la administración A no pued
 | Análisis estático de seguridad | CodeQL y Semgrep | Cada PR |
 | Secretos | gitleaks + *secret scanning* de GitHub | *Pre‑commit* y cada PR |
 | SBOM | CycloneDX por cada imagen construida | Cada build de `main` |
-| Firma y procedencia | cosign + atestaciones de procedencia | Cada imagen publicada |
+| Firma y procedencia | cosign + atestaciones de procedencia; en npm, la publicación de confianza (OIDC) agrega la procedencia de cada versión de `liv-components` que publica `ui-release.yml` | Cada imagen publicada; cada versión de `liv-components` |
 | Imágenes base | Mínimas, usuario no root, sistema de archivos de solo lectura, fijadas por *digest* | Siempre |
 | GitHub Actions | Fijadas por SHA de commit; permisos mínimos por workflow | Siempre |
+| Publicación de `liv-components` en npm | Publicación de confianza de npm (OIDC) con el *workflow* `ui-release.yml` **y el entorno `npm` exigidos**; sin ninguna clave de npm guardada. El entorno solo admite `main` y pide la aprobación de una persona. El trabajo que publica tiene `id-token: write`, pero no hace `checkout`, no instala las dependencias del proyecto y solo ejecuta *scripts* de otro trabajo que no instala nada; publica con `--ignore-scripts` el `.tgz` verificado, con Node y npm en versiones exactas y sin caché. Después de la primera publicación, la persona activa en npm «exigir 2FA y no permitir *tokens*» y crea el *ruleset* que protege las etiquetas `ui-v*` contra la actualización y el borrado (configuración manual, con su evidencia en 002-02). Sin publicación a mano a partir de su activación (ADR 0042, feature 002, R3: hasta entonces, a mano) | Cada versión de la librería |
 
 Umbral bloqueante: ninguna vulnerabilidad crítica o alta sin corregir o sin excepción documentada con fecha de vencimiento.
 
@@ -233,6 +234,7 @@ Umbral bloqueante: ninguna vulnerabilidad crítica o alta sin corregir o sin exc
 | Inyección de instrucciones desde archivos externos (archivos del banco, YAML, documentos) | Todo contenido externo es dato, nunca instrucción. Regla explícita en `AGENTS.md` |
 | Cambios silenciosos en seguridad | Rutas protegidas (configuración de seguridad, políticas RLS, roles, workflows de CI) bloqueadas para agentes por ganchos y CODEOWNERS (doc. 05 §5) |
 | Herramientas del agente con permisos excesivos | Lista blanca de comandos; ningún servidor MCP con escritura sobre entornos reales |
+| Que un agente apruebe una publicación o un despliegue con la sesión de `gh` de la persona | **Riesgo residual aceptado** (ADR 0042): la sesión de `gh` que usan los agentes puede aprobar un entorno protegido, y una regla `deny` en `.claude/settings.json` solo sería una mitigación parcial, porque se evita con `curl`, con el navegador o desde otros agentes, así que no se agrega. El control es `AGENTS.md` §4.5, que prohíbe a todo agente, aunque la persona lo pida, aprobar una publicación o un despliegue; rechazar, cancelar, disparar o volver a ejecutar una ejecución de `ui-release.yml` o de los `*-release.yml`; crear, mover o borrar las etiquetas `ui-v*` y sus *releases*; cambiar la protección del entorno `npm`, los *rulesets*, el publicador de confianza o la configuración del paquete en npm (`npm owner`, `npm access`, `npm dist-tag`, `npm deprecate`, `npm unpublish`); y publicar con un comando. Lo de GitHub se podría hacer con la sesión de `gh` sin aprobar nada, y lo de npm con la sesión de npm que la persona tiene en su equipo mientras dure la publicación a mano. La persona aprueba solo desde la página de la ejecución, viendo su resumen. Tampoco se puede activar «evitar que quien disparó la ejecución la apruebe», porque quien integra suele ser quien aprueba |
 
 ---
 

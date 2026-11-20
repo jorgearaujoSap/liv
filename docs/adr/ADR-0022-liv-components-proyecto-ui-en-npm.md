@@ -1,6 +1,6 @@
 # ADR-0022 · La librería `liv-components` es un proyecto autónomo en la raíz del monorepo (`ui/`), publicado en npm e instalado con versión exacta
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado; reemplazado en parte por el ADR 0042 (la publicación: «un humano publica» pasa a «un humano aprueba la publicación»)
 - **Fecha:** 2026-11-01
 - **Decisores:** el equipo del proyecto, en la revisión del 2026-11-01 en que se aceptaron los ADR 0001–0025 (doc. 00 §6 y bitácora de `ESTADO.md`)
 - **Documentos relacionados:** `docs/arquitectura/01` §11.1, §14 y §14.1 (IN‑02, IN‑04b, IN‑07); ADR 0013; ADR 0018

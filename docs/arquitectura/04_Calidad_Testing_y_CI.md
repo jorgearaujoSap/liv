@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0014, 0015, 0016) · `01_Arquitectura_de_Software.md`
-> **Versión:** 1.2 — 2026-11-18, §4.1, §4.2, §6 (Q11 y Q15), §7, §8 y §9 con el SDD por rebanadas verticales (ADR 0040). La 1.1 (2026-11-07) cambió el §9 por la feature 003 (CI obligatorio en `main`; H2 aprobada). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.3 — 2026-11-19, §9 con la publicación automática de `liv-components` (fila `ui-release.yml` y diagrama; ADR 0042, feature 002). La 1.2 (2026-11-18) trajo §4.1, §4.2, §6 (Q11 y Q15), §7, §8 y §9 con el SDD por rebanadas verticales (ADR 0040). La 1.1 (2026-11-07) cambió el §9 por la feature 003 (CI obligatorio en `main`; H2 aprobada). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 
 ---
 
@@ -216,6 +216,8 @@ flowchart LR
     PR[Pull request] --> CHK["backend-pr / bff-pr / frontend-pr / ui-pr / sistema-pr<br/>corren todos; cada proyecto omite su verificación<br/>si el PR no lo afecta<br/>lint · build · pruebas · arquitectura<br/>cobertura · mutación incremental<br/>seguridad · contrato · e2e humo<br/>guardas SDD"]
     CHK -->|aprobación humana + squash| MAIN[main]
     MAIN --> M["backend-main / frontend-main<br/>imagen · SBOM · firma<br/>despliegue a staging<br/>e2e completo · ZAP base"]
+    MAIN -->|"el commit sube la versión<br/>de liv-components"| U["ui-release<br/>decidir · verificar<br/>publicar (aprobación humana en el entorno npm)<br/>etiquetar"]
+    U --> NPM[("npm · liv-components<br/>con procedencia")]
     NIGHT[Programado] --> N["nightly.yml<br/>mutación completa · k6<br/>ZAP completo · auditoría de dependencias"]
     TAG[Etiqueta backend-v / frontend-v] --> R["backend-release / frontend-release<br/>promoción del mismo digest<br/>a producción con aprobación"]
 ```
@@ -227,7 +229,7 @@ flowchart LR
 | `backend-main.yml` · `frontend-main.yml` | *Push* a `main` con cambios en su proyecto | Construcción de su imagen, SBOM, firma, publicación (el backend publica además el OpenAPI versionado como *releases* `contract-<nombre>-vX.Y.Z`, después de juzgar cada versión contra la última *release* publicada de su contrato; ADR 0027), despliegue de ese proyecto a *staging*; luego e2e completo y ZAP de línea base | Un fallo en *staging* bloquea la promoción |
 | `nightly.yml` | Programado | Mutación completa, rendimiento, ZAP completo, Trivy completo, verificación de enlaces de documentación | Crea *issues* automáticamente |
 | `backend-release.yml` · `frontend-release.yml` | Etiqueta `backend-vX.Y.Z` o `frontend-vX.Y.Z` | Promoción a producción del *digest* probado de ese proyecto; migraciones (backend); verificación posterior | Entorno protegido con aprobación manual; cada proyecto se publica por separado |
-| `ui-release.yml` | Etiqueta `ui-vX.Y.Z` | Compila y publica `liv-components` en npm con un *token* guardado como secreto; la versión de la etiqueta debe coincidir con la del `package.json` de la librería | Entorno protegido con aprobación manual; mientras no exista, publica un humano con `npm run release` |
+| `ui-release.yml` | *Push* a `main` con cambios en `ui/` o en el propio *workflow*; `workflow_dispatch` en `main` | `decidir` (sin instalar nada: ¿este *commit* subió la versión de `liv-components` por encima de la publicada? Genera las notas de la *release* y sube los *scripts* y las notas, con sus huellas), `verificar` (*lint*, formato, pruebas, Storybook, empaquetado y `release:check --ci`; deja en el resumen `nombre@versión`, el *commit*, el SHA‑256 y los archivos del `.tgz`), `publicar` (entorno protegido `npm`, con `id-token: write`, sin `checkout` ni instalar las dependencias del proyecto; publica con `--ignore-scripts` el `.tgz` verificado y es idempotente por integridad) y `etiquetar` (la etiqueta `ui-vX.Y.Z` en el *commit* de la ejecución y su *release*, con la sección del `CHANGELOG.md`; también cuando `decidir` da `etiquetar` al volver a ejecutar todo una versión ya publicada, sin `verificar` ni `publicar`) | **Un humano aprueba la publicación** en el entorno `npm`, que solo admite `main` (ADR 0042, feature 002). Publicación de confianza de npm (OIDC) con el entorno exigido: sin clave guardada y con procedencia. La lógica vive en `ui/scripts/` con sus pruebas (P4). Un cambio que no sube la versión termina en «nada que publicar», sin pedir aprobación. Aprobar o rechazar antes de integrar otra versión. Hasta que se active la publicación automática (feature 002, R3), publica a mano una persona, como dice `ui/README.md`. |
 | `sdd-guard` (trabajo dentro de `pr.yml`, pendiente) | Cada PR | Verifica el enlace al *issue* de la rebanada o la marca «Tamaño: ajuste» (Q11), que un ajuste no toque zonas rojas (doc. 05 §5) y que toda pantalla nueva tenga su diseño o su declaración de reutilización (Q15) | Clave contra el *vibe coding* |
 
 **CI obligatorio en `main` (feature 003):** un check obligatorio que nunca corre deja el PR esperando para siempre, así que los workflows de PR no filtran por ruta. Cada uno empieza con un trabajo `<proyecto> · cambios`, que llama a `.github/scripts/aplica.sh` (el de la rama base, no el del PR) y decide si la verificación aplica:

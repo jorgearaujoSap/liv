@@ -62,7 +62,7 @@ Los accesos los da el dueño actual del repositorio, una sola vez:
 |---|---|
 | Colaborador del repositorio en GitHub, con rol de administrador | Abrir PR, hacer la H3 e integrarlos, y cambiar la protección de `main` cuando una tarea lo pida (como T10) |
 | Archivo de Figma LIV‑Diseño | Leer los diseños aprobados y diseñar las pantallas nuevas |
-| npm (`liv-components`) | Solo si vas a publicar versiones de la librería: `npm owner add` lo ejecuta el dueño actual. Publicar es siempre de una persona, desde `main` |
+| Entorno `npm` de GitHub (`liv-components`) | Solo si vas a aprobar la publicación de versiones de la librería: el responsable te agrega como revisor del entorno `npm`. A partir de la activación de la publicación automática (feature 002, R3) no hace falta cuenta ni permiso en npm: publica el *workflow* (ADR 0042). Hasta entonces, para publicar a mano hace falta una cuenta de npm con 2FA y que el dueño actual te agregue con `npm owner add` |
 
 Nunca uses datos reales de contribuyentes ni credenciales de entornos reales: en local, los usuarios y claves de prueba están en [`backend/dev/README.md`](../backend/dev/README.md).
 

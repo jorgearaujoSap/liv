@@ -44,7 +44,7 @@ Como máximo **tres sesiones de trabajo a la vez**; los subagentes de revisión 
 Antes de lanzar una sesión, tres comprobaciones:
 1. **¿Depende de algo sin integrar?**
    - El frontend necesita el contrato.
-   - Un componente nuevo de `liv-components` tiene que estar **publicado en npm**, y eso lo hace solo la persona.
+   - Un componente nuevo de `liv-components` tiene que estar **publicado en npm**: lo publica el *workflow* `ui-release.yml` al integrar el PR que sube la versión, y **solo la persona aprueba la publicación** (hasta que se active, la publica a mano). Un agente nunca la aprueba (`AGENTS.md` §4.5).
 
    Si depende de algo sin integrar, espera.
 2. **¿Comparte un recurso con algo en curso?**
