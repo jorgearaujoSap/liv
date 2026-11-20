@@ -205,7 +205,9 @@ export function main({ argv, run, readFile, readBinary, log, error }) {
     error(`\nNo se publica ${name}@${version}:\n`);
     // One line per problem: npm's output inside a message cannot add lines to the CI log.
     problems.forEach((problem, index) => error(`  ${index + 1}. ${singleLine(problem)}`));
-    error('\nProceso completo: ui/README.md, sección "Publicar una versión".\n');
+    error(
+      '\nProceso completo y qué hacer con cada fallo: ui/README.md, sección "Publicar una versión" («3. Si algo falla»).\n',
+    );
     return 1;
   }
   log(

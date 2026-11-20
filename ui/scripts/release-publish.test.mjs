@@ -310,6 +310,7 @@ describe('release-publish · línea de comandos', () => {
     assert.equal(errors.length, 1);
     assert.match(errors[0], /^::error::npm no respondió/);
     assert.ok(!errors[0].includes('\n') && errors[0].includes('%250A'), errors[0]);
+    assert.match(errors[0], /Si falla «publicar»/);
   });
 
   it('con --dry-run, también los fallos empiezan por «DRY-RUN: no publica»', () => {

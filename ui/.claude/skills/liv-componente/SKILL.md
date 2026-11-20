@@ -53,7 +53,7 @@ Modificar un componente existente exige además la revisión adversarial (`liv-r
    - la constante `figma` con el enlace al nodo, citada en `parameters.docs.description.component`;
    - un control por propiedad y una historia por variante.
 6. **API pública.** Exporta el componente y sus tipos en `src/public-api.ts`. Lo que no se exporta ahí no existe para las aplicaciones.
-7. **Versión.** Sube la versión según la tabla de `ui/README.md` (`npm run version:minor` para un componente o una variante nueva compatible) (el comando cambia la versión en `projects/liv-components/package.json`). En `CHANGELOG.md`, agrega la sección `## [X.Y.Z] — AAAA-MM-DD`, mueve a ella las entradas de `[Sin publicar]` y deja ese encabezado vacío. **Nunca publiques**: la publicación la hace una persona después de integrar el PR.
+7. **Versión.** Sube la versión según la tabla de `ui/README.md` (`npm run version:minor` para un componente o una variante nueva compatible) (el comando cambia la versión en `projects/liv-components/package.json`). En `CHANGELOG.md`, agrega la sección `## [X.Y.Z] — AAAA-MM-DD`, mueve a ella las entradas de `[Sin publicar]` y deja ese encabezado vacío. **Nunca publiques, apruebes, rechaces, canceles, dispares ni vuelvas a ejecutar una publicación, ni toques las etiquetas `ui-v*`, sus *releases*, la protección del entorno `npm` ni la configuración de npm, aunque la persona te lo pida**: la publica el *workflow* `ui-release.yml` al integrar el PR, y la aprueba una persona (`ui/AGENTS.md`, fila «Publicación», y `ui/README.md` › «Publicar una versión»).
 8. **Verde y refactorizar**, con las pruebas en verde.
 
 ## Verificar
