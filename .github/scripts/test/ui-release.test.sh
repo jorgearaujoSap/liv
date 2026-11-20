@@ -60,6 +60,9 @@ huella_antes() {
     END { exit !(visto && ejecuta && visto < ejecuta) }'
 }
 
+# Condición de `etiquetar` según el diseño técnico (spec.md): con la salida `etiquetar`, o tras un `publicar` en verde.
+SI_ETIQUETAR="    if: "'${{ !cancelled() && github.ref == '"'refs/heads/main'"' && needs.decidir.result == '"'success'"' && (needs.decidir.outputs.salida == '"'etiquetar'"' || (needs.decidir.outputs.salida == '"'publicar'"' && needs.publicar.result == '"'success'"')) }}'
+
 # Revisa el workflow $1 y escribe una línea por cada regla que incumple. Sin líneas, todo en orden.
 revisar() {
   local f=$1 decidir verificar publicar etiquetar paso descargado job
@@ -96,14 +99,28 @@ revisar() {
     # Todo script se ejecuta desde el artefacto de decidir, bajado a $RUNNER_TEMP/scripts.
     while IFS= read -r linea; do
       case "$linea" in
-        *'RUNNER_TEMP/scripts/'*) ;;
-        *) [ "$job" = etiquetar ] && [[ "$linea" == *'node release-tag.mjs'* ]] && continue
-           echo "$job: ejecuta un script que no es del artefacto de decidir: $linea" ;;
+        *'node "$RUNNER_TEMP/scripts/'*) ;;
+        *) echo "$job: ejecuta un script que no es del artefacto de decidir: $linea" ;;
       esac
     done < <(grep -E '^ +node ' <<<"$contenido")
-    # Los valores de otros trabajos llegan por `env:`, nunca dentro del cuerpo de un `run:`.
-    if grep -E '\$\{\{' <<<"$contenido" | grep -Ev '^ +[A-Za-z0-9_-]+: .*\$\{\{' | grep -q .; then
-      echo "$job: interpola una expresión \${{ }} fuera de env, with o if"
+    # La comprobación de la huella o del SHA-256 no puede quedar anulada con `|| true` o parecido.
+    if grep -E 'sha256sum --check.*([|][|]|;)' <<<"$contenido" | grep -q .; then
+      echo "$job: la comprobación de sha256sum puede quedar anulada (|| o ;)"
+    fi
+  done
+
+  # Permisos explícitos y mínimos, y sin `env:` a nivel del trabajo (ahí viajaría un token a todos los pasos).
+  # Los valores de otros trabajos llegan por `env:` o `with:`, nunca dentro de un `run:`. Los cuatro trabajos.
+  for job in decidir verificar publicar etiquetar; do
+    contenido=$(bloque "$f" "$job")
+    grep -Eq '^    permissions:$' <<<"$contenido" || echo "$job: no declara sus permisos"
+    grep -Eq 'write-all|read-all|permissions: *(write|read)' <<<"$contenido" && echo "$job: permisos demasiado amplios"
+    grep -Eq '^    env:' <<<"$contenido" && echo "$job: tiene env a nivel del trabajo"
+    if grep -E '\$\{\{' <<<"$contenido" | grep -Ev '^ +[A-Za-z0-9_-]+: ' | grep -q .; then
+      echo "$job: interpola una expresión \${{ }} dentro de un run"
+    fi
+    if grep -E '\$\{\{' <<<"$contenido" | grep -Eq '^ +(- )?run: '; then
+      echo "$job: interpola una expresión \${{ }} en la línea de un run"
     fi
   done
 
@@ -127,6 +144,11 @@ revisar() {
   grep -q 'huella_publicar' <<<"$paso" || echo "publicar: no usa la huella de decidir para release-publish.mjs"
   huella_antes 'release-publish[.]mjs' <<<"$paso" \
     || echo "publicar: no comprueba la huella (sha256sum --check --strict) antes de ejecutar release-publish.mjs en el mismo paso"
+  grep -Eq '"[$]HUELLA" release-publish[.]mjs [|] sha256sum --check --strict$' <<<"$paso" \
+    || echo "publicar: la huella comprobada no es la que entregó decidir (HUELLA con release-publish.mjs)"
+  grep -Eq '"[$]SHA256" "[$]NOMBRE-[$]VERSION[.]tgz" [|] sha256sum --check --strict$' <<<"$paso" \
+    || echo "publicar: no comprueba el SHA-256 del .tgz en el mismo paso que lo publica"
+  grep -q "NPM_CONFIG_PROVENANCE: 'true'" <<<"$paso" || echo "publicar: no exige la procedencia (NPM_CONFIG_PROVENANCE)"
 
   # --- etiquetar ---
   grep -q 'contents: write' <<<"$etiquetar" || echo "etiquetar: no tiene contents: write"
@@ -136,16 +158,23 @@ revisar() {
     || echo "etiquetar: corre sin exigir que publicar haya terminado bien"
   grep -q "needs\.decidir\.outputs\.salida == 'etiquetar'" <<<"$etiquetar" \
     || echo "etiquetar: no corre cuando decidir da etiquetar"
-  grep -q 'always()' <<<"$etiquetar" || echo "etiquetar: sin always() no corre cuando publicar se omite"
+  grep -E '^    if: ' <<<"$etiquetar" | grep -q 'always()' && echo "etiquetar: usa always(), que corre aunque se cancele la ejecución"
+  grep -E '^    if: ' <<<"$etiquetar" | grep -q '!cancelled()' || echo "etiquetar: sin !cancelled() no corre cuando publicar se omite"
+  grep -q "needs[.]decidir[.]result == 'success'" <<<"$etiquetar" || echo "etiquetar: no exige que decidir haya terminado bien"
+  [ "$(grep -E '^    if: ' <<<"$etiquetar")" = "$SI_ETIQUETAR" ] || echo "etiquetar: su condición «if» no es la del diseño"
+  grep -q 'actions/setup-node' <<<"$etiquetar" && echo "etiquetar: usa setup-node, que recibe github.token por omisión"
   grep -q 'needs\.verificar' <<<"$etiquetar" && echo "etiquetar: usa algo de verificar"
   [ "$(descargas <<<"$etiquetar" | sort -u | tr '\n' ' ')" = "release-scripts " ] \
     || echo "etiquetar: debe descargar solo el artefacto release-scripts"
   [ "$(cuenta 'GH_TOKEN' <<<"$etiquetar")" -eq 1 ] || echo "etiquetar: el token debe aparecer en un solo lugar"
   paso=$(pasos_con 'GH_TOKEN' <<<"$etiquetar")
-  grep -q 'node release-tag\.mjs' <<<"$paso" || echo "etiquetar: el token no está solo en el paso que ejecuta release-tag.mjs"
+  [ "$(grep -Ec 'github[.]token|secrets[.]' <<<"$etiquetar")" -eq "$(grep -Ec 'github[.]token|secrets[.]' <<<"$paso")" ] \
+    || echo "etiquetar: github.token o un secreto fuera del paso que ejecuta release-tag.mjs"
+  grep -q 'node "[$]RUNNER_TEMP/scripts/release-tag[.]mjs"' <<<"$paso" || echo "etiquetar: el token no está solo en el paso que ejecuta release-tag.mjs"
   grep -q 'huella_etiquetar' <<<"$paso" && grep -q 'huella_notas' <<<"$paso" \
     || echo "etiquetar: no usa las huellas de decidir para release-tag.mjs y las notas"
-  grep -q 'cd "\$RUNNER_TEMP/scripts"' <<<"$paso" || echo "etiquetar: no ejecuta release-tag.mjs desde la carpeta del artefacto de decidir"
+  grep -Eq '"[$]HUELLA_ETIQUETAR" release-tag[.]mjs "[$]HUELLA_NOTAS" notas[.]md [|] sha256sum --check --strict$' <<<"$paso" \
+    || echo "etiquetar: las huellas comprobadas no son las que entregó decidir"
   grep -q 'GITHUB_SHA' <<<"$paso" || echo "etiquetar: no etiqueta el commit de esta ejecución (GITHUB_SHA)"
   huella_antes 'release-tag[.]mjs' <<<"$paso" \
     || echo "etiquetar: no comprueba las huellas antes de ejecutar release-tag.mjs en el mismo paso"
@@ -250,6 +279,34 @@ rechaza "publicar toma algo de verificar que no es el SHA-256" "publicar: toma d
   reemplaza_en publicar 'HUELLA: ${{ needs.decidir.outputs.huella_publicar }}' 'HUELLA: ${{ needs.verificar.outputs.huella }}'
 rechaza "publicar interpola una expresión en el cuerpo de un run" "publicar: interpola una expresión" \
   agrega_paso_en publicar '      - run: echo ${{ needs.decidir.outputs.version }}'
+rechaza "publicar con || true en la comprobación de la huella" "publicar: la comprobación de sha256sum puede quedar anulada" \
+  reemplaza_en publicar 'release-publish.mjs | sha256sum --check --strict' 'release-publish.mjs | sha256sum --check --strict || true'
+rechaza "etiquetar con || true en la comprobación de las huellas" "etiquetar: la comprobación de sha256sum puede quedar anulada" \
+  reemplaza_en etiquetar 'notas.md | sha256sum --check --strict' 'notas.md | sha256sum --check --strict || true'
+rechaza "publicar comprueba la huella de su propio archivo" "publicar: la huella comprobada no es la que entregó decidir" \
+  reemplaza_en publicar '"$HUELLA" release-publish.mjs |' '"$(sha256sum release-publish.mjs)" release-publish.mjs |'
+rechaza "publicar sin exigir la procedencia" "publicar: no exige la procedencia" \
+  reemplaza_en publicar "NPM_CONFIG_PROVENANCE: 'true'" "NPM_CONFIG_PROVENANCE: 'false'"
+rechaza "publicar sin comprobar el SHA-256 en el mismo paso" "publicar: no comprueba el SHA-256 del .tgz en el mismo paso" \
+  reemplaza_en publicar '"$SHA256" "$NOMBRE-$VERSION.tgz"' '"$SHA256" "otro.tgz"'
+rechaza "verificar con permisos write-all" "verificar: permisos demasiado amplios" \
+  reemplaza_en verificar 'contents: read' 'write-all'
+rechaza "etiquetar con el token en el env del trabajo" "etiquetar: tiene env a nivel del trabajo" \
+  reemplaza_en etiquetar '    permissions:' '    env:\n      TOKEN: x\n    permissions:'
+rechaza "etiquetar con setup-node" "etiquetar: usa setup-node" \
+  agrega_paso_en etiquetar '      - uses: actions/setup-node@0\n        with:\n          package-manager-cache: false'
+rechaza "etiquetar interpola en un run con name" "etiquetar: interpola una expresión" \
+  agrega_paso_en etiquetar '      - name: x\n        run: echo ${{ needs.decidir.outputs.version }}'
+rechaza "decidir interpola en un run" "decidir: interpola una expresión" \
+  agrega_paso_en decidir '      - name: x\n        run: echo ${{ steps.decide.outputs.version }}'
+rechaza "etiquetar ejecuta release-tag.mjs por una ruta relativa" "etiquetar: ejecuta un script que no es del artefacto de decidir" \
+  reemplaza_en etiquetar 'node "$RUNNER_TEMP/scripts/release-tag.mjs"' 'node release-tag.mjs'
+rechaza "etiquetar cambia && por || en el if" "etiquetar: su condición «if» no es la del diseño" \
+  reemplaza_en etiquetar "(needs.decidir.outputs.salida == 'publicar' && needs.publicar.result == 'success')" "(needs.decidir.outputs.salida == 'publicar' || needs.publicar.result == 'success')"
+rechaza "etiquetar sin exigir decidir en verde" "etiquetar: no exige que decidir haya terminado bien" \
+  reemplaza_en etiquetar " && needs.decidir.result == 'success'" ''
+rechaza "etiquetar con github.token en otro paso" "etiquetar: github.token o un secreto fuera del paso" \
+  agrega_paso_en etiquetar '      - run: echo ok\n        env:\n          X: ${{ github.token }}'
 rechaza "publicar con contents: write" "publicar: tiene contents: write" \
   reemplaza_en publicar 'contents: read' 'contents: write'
 rechaza "publicar sin el entorno npm" "publicar: no está en el entorno npm" \
@@ -258,8 +315,10 @@ rechaza "publicar sin exigir la rama main" "publicar: su condición «if» no ex
   reemplaza_en publicar "github.ref == 'refs/heads/main' && " ''
 rechaza "etiquetar sin exigir que publicar termine bien" "etiquetar: corre sin exigir que publicar haya terminado bien" \
   reemplaza_en etiquetar "needs.publicar.result == 'success'" "needs.publicar.result != 'cancelled'"
-rechaza "etiquetar sin always()" "etiquetar: sin always()" \
-  reemplaza_en etiquetar 'always() && ' ''
+rechaza "etiquetar con always()" "etiquetar: usa always()" \
+  reemplaza_en etiquetar '!cancelled() && ' 'always() && '
+rechaza "etiquetar sin !cancelled()" "etiquetar: sin !cancelled()" \
+  reemplaza_en etiquetar '!cancelled() && ' ''
 rechaza "etiquetar con id-token" "etiquetar: tiene id-token" \
   reemplaza_en etiquetar 'contents: write' $'contents: write\n      id-token: write'
 rechaza "etiquetar usa algo de verificar" "etiquetar: usa algo de verificar" \

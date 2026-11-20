@@ -315,6 +315,9 @@ jobs:
           NOMBRE: ${{ needs.decidir.outputs.nombre }}
           VERSION: ${{ needs.decidir.outputs.version }}
           HUELLA: ${{ needs.decidir.outputs.huella_publicar }}
+          SHA256: ${{ needs.verificar.outputs.sha256 }}
+          # La procedencia es parte de lo que se promete (ADR 0042): si npm no puede generarla, la publicación falla.
+          NPM_CONFIG_PROVENANCE: 'true'
         run: |
           if ! printf '%s' "$HUELLA" | grep -Eq '^[0-9a-f]{64}$'; then
             echo "::error::decidir no entregó la huella del script de publicación."
@@ -327,6 +330,8 @@ jobs:
             exit 1
           fi
           printf '%s  %s\n' "$HUELLA" release-publish.mjs | sha256sum --check --strict
+          cd "$RUNNER_TEMP/paquete"
+          printf '%s  %s\n' "$SHA256" "$NOMBRE-$VERSION.tgz" | sha256sum --check --strict
           cd "$GITHUB_WORKSPACE"
           node "$RUNNER_TEMP/scripts/release-publish.mjs" \
             "$RUNNER_TEMP/paquete/$NOMBRE-$VERSION.tgz" "$NOMBRE" "$VERSION"
@@ -355,26 +360,23 @@ jobs:
   etiquetar:
     name: ui-release · etiquetar
     needs: [decidir, publicar]
-    # always(): corre aunque `verificar` y `publicar` se omitan (salida `etiquetar`). Con `publicar` rechazado o fallido
-    # no etiqueta (002-04).
-    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.decidir.outputs.salida == 'etiquetar' || (needs.decidir.outputs.salida == 'publicar' && needs.publicar.result == 'success')) }}
+    # !cancelled(): corre aunque `verificar` y `publicar` se omitan (salida `etiquetar`), pero no si se cancela la ejecución.
+    # Con `decidir` fallido, o `publicar` rechazado, fallido o cancelado, no etiqueta (002-04).
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.decidir.result == 'success' && (needs.decidir.outputs.salida == 'etiquetar' || (needs.decidir.outputs.salida == 'publicar' && needs.publicar.result == 'success')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ needs.decidir.outputs.node }}
-          package-manager-cache: false
-
+      # Sin `setup-node`: esa acción recibe `github.token` por omisión, y aquí el token escribe en el repositorio. El
+      # script solo usa módulos de Node, así que sirve el Node que trae el runner.
       - name: Descargar los scripts y las notas de decidir
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-scripts
           path: ${{ runner.temp }}/scripts
 
-      # El token solo está en este paso. La etiqueta se crea en el commit de esta ejecución (github.sha), que tiene que
+      # El token solo está en este paso (ni en el `env:` del trabajo ni en ninguna acción). La etiqueta se crea en el commit de esta ejecución (github.sha), que tiene que
       # ser el que decidió `decidir`; si ya existe en otro commit, release-tag.mjs falla y no la mueve.
       - name: Crear la etiqueta y la release
         env:
@@ -400,7 +402,7 @@ jobs:
             exit 1
           fi
           printf '%s  %s\n%s  %s\n' "$HUELLA_ETIQUETAR" release-tag.mjs "$HUELLA_NOTAS" notas.md | sha256sum --check --strict
-          node release-tag.mjs "$NOMBRE" "$VERSION" "$GITHUB_SHA" notas.md
+          node "$RUNNER_TEMP/scripts/release-tag.mjs" "$NOMBRE" "$VERSION" "$GITHUB_SHA" "$RUNNER_TEMP/scripts/notas.md"
 
       - name: Resumen
         if: ${{ !cancelled() }}
