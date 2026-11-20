@@ -64,7 +64,9 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          cache-dependency-path: backend/bff/pom.xml
+          cache-dependency-path: |
+            backend/bff/pom.xml
+            backend/bff/.mvn/wrapper/maven-wrapper.properties
 
       # Las pruebas de la migración usan Testcontainers con el Docker del ejecutor.
       - name: Compilación, formato, arquitectura y pruebas (Q01–Q03)

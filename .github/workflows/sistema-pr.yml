@@ -50,6 +50,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Sin caché del binario de gitleaks (issue 239): la acción lo restaura de la caché sin comprobar su huella y no
+      # tiene opción para apagarla. Lo guarda en <tmpdir>/gitleaks-<versión>, y @actions/cache solo restaura una entrada
+      # cuya versión sale de esa ruta. Con un tmpdir aleatorio por ejecución, ninguna entrada que alguien haya creado
+      # antes coincide, y la acción descarga el binario. Cada ejecución guarda, con el alcance de su PR, una entrada
+      # de unos 5 MB que nadie vuelve a restaurar.
+      - name: Directorio temporal aleatorio para gitleaks
+        run: echo "TMPDIR=$(mktemp -d "$RUNNER_TEMP/gitleaks.XXXXXXXX")" >> "$GITHUB_ENV"
+
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,12 +70,30 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # El checkout es el merge del PR con main; con fetch-depth 2 trae también su primer padre, la punta de main, de la
+      # que sale la prueba de la caché de Maven.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Pruebas de aplica.sh
         run: bash .github/scripts/test/aplica.test.sh
+
+      # Las reglas de la caché de Maven (issue 239): quién la escribe, quién la lee y que el verify de los PR no cambie.
+      # Corre la prueba de la base (HEAD^1), como aplica.sh, para que un PR no debilite la prueba sin querer al relajar
+      # un workflow, y después la del PR, para que una prueba rota no se integre en verde; las dos leen los workflows
+      # del PR. No impide que un PR quite este paso: esa barrera es la revisión humana (doc. 04 §9). En el PR que la
+      # agrega, la base aún no la tiene y corre solo la del PR.
+      - name: Pruebas de la caché de Maven (239)
+        run: |
+          if git cat-file -e HEAD^1:.github/scripts/test/maven-cache.test.sh 2> /dev/null; then
+            git show HEAD^1:.github/scripts/test/maven-cache.test.sh > "$RUNNER_TEMP/maven-cache.test.sh"
+            bash "$RUNNER_TEMP/maven-cache.test.sh" "$GITHUB_WORKSPACE/.github/workflows"
+          else
+            echo "La base aún no tiene la prueba (el PR que la agrega)."
+          fi
+          bash .github/scripts/test/maven-cache.test.sh
 
       # Los trabajos de ui-release.yml con permisos (id-token, contents: write) no hacen checkout, no instalan nada y solo
       # ejecutan scripts de `decidir` con su huella comprobada (feature 002, criterio 002-08).

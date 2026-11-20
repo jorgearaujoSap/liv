@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** `00_Decisiones_y_Hoja_de_Ruta.md` (ADR 0004, 0010, 0011) · `01_Arquitectura_de_Software.md`
-> **Versión:** 1.2 — 2026-11-20, §12 con el agente que aprueba la publicación de `liv-components` con la confirmación de la persona en el chat (ADR 0043). La 1.1 (2026-11-19) trajo §11 y §12 con la publicación automática (ADR 0042, feature 002). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.3 — 2026-11-20, §11 con el riesgo residual de envenenar la caché de `main` (issue 239). La 1.2 (2026-11-20) trajo §12 con el agente que aprueba la publicación de `liv-components` con la confirmación de la persona en el chat (ADR 0043). La 1.1 (2026-11-19) trajo §11 y §12 con la publicación automática (ADR 0042, feature 002). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Advertencia:** el marco normativo se resume para fines de diseño y debe validarlo el área jurídica.
 
 ---
@@ -221,6 +221,16 @@ Suite obligatoria con Testcontainers: un usuario de la administración A no pued
 | Publicación de `liv-components` en npm | Publicación de confianza de npm (OIDC) con el *workflow* `ui-release.yml` **y el entorno `npm` exigidos**; sin ninguna clave de npm guardada. El entorno solo admite `main` y pide la aprobación de una persona. El trabajo que publica tiene `id-token: write`, pero no hace `checkout`, no instala las dependencias del proyecto y solo ejecuta *scripts* de otro trabajo que no instala nada; publica con `--ignore-scripts` el `.tgz` verificado, con Node y npm en versiones exactas y sin caché. Después de la primera publicación, la persona activa en npm «exigir 2FA y no permitir *tokens*» y crea el *ruleset* que protege las etiquetas `ui-v*` contra la actualización y el borrado (configuración manual, con su evidencia en 002-02). Sin publicación a mano (ADR 0042) | Cada versión de la librería |
 
 Umbral bloqueante: ninguna vulnerabilidad crítica o alta sin corregir o sin excepción documentada con fecha de vencimiento.
+
+**Riesgo residual: envenenar la caché de `main`.** Los PR leen las cachés que se guardaron con el alcance de `main`. Un trabajo que corre en `main` y ejecuta código de terceros (`maven-cache-main.yml` corre el `verify`, con los *plugins* y las dependencias de Maven) tiene el *token* de la caché de Actions y, en teoría, podría guardar en `main` una clave que todavía no existe y que un PR restauraría después. Hoy ese riesgo ya existía, en menor escala. Controles:
+
+- solo `maven-cache-main.yml` escribe la caché de Maven en `main`, con `contents: read`, sin secretos y sin ningún permiso de escritura;
+- ningún trabajo con permisos de escritura usa cachés, y fuera de los PR ningún otro workflow usa `actions/cache` (`.github/scripts/test/maven-cache.test.sh`, 239-02);
+- las claves de Maven incluyen el hash del `pom.xml` y del `maven-wrapper.properties`; las de una versión nueva se crean con el código ya integrado;
+- `maven-cache-main.yml` no guarda el JDK (`cache-jdk: false`), un ejecutable que restaurarían los PR sin comprobar su huella. Los `verify` de los PR no lo desactivan: sin un productor en `main` no hay una entrada que restaurar, y la protección es que ningún trabajo de `main` la crea;
+- `sistema · secretos` no restaura el binario de gitleaks de la caché. La acción lo restaura sin comprobar su huella y no tiene ninguna opción para apagarlo (ni se puede con una variable de entorno de la caché: el ejecutor la sobrescribe), pero lo guarda en `<tmpdir>/gitleaks-<versión>` y `@actions/cache` solo restaura la entrada cuya versión sale de esa ruta. El *workflow* le da un `TMPDIR` aleatorio por ejecución, así que ninguna entrada creada antes coincide y la acción descarga el binario. Costo: cada ejecución guarda, con el alcance de su PR, una entrada de unos 5 MB que nadie vuelve a restaurar.
+
+Sin cubrir: **la distribución de Maven del *wrapper***. `setup-java` la guarda aparte (`~/.m2/wrapper/dists`) con una clave que sale de todos los `maven-wrapper.properties` del repositorio, y la restauran todos los `verify`, sin comprobar su huella. No se puede apagar sin apagar la caché de dependencias.
 
 ---
 

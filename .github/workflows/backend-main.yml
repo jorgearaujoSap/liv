@@ -81,14 +81,14 @@ jobs:
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
 
-      # Java para el Maven del proyecto, que corre openapi-diff.
+      # Java para el Maven del proyecto, que corre openapi-diff. Sin caché de Maven (issue 239): este trabajo tiene
+      # contents: write y no ejecuta artefactos que haya escrito otro trabajo. La caché de Maven de main la escribe
+      # solo maven-cache-main.yml (doc. 04 §9). Son unos 13 MB de descarga.
       - if: steps.judge.outputs.enabled == 'true'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '21'
-          cache: maven
-          cache-dependency-path: ${{ matrix.project }}/pom.xml
 
       # La aprobación de un cambio incompatible es la etiqueta del PR que se integró en este commit.
       - name: Etiqueta contrato-incompatible del PR integrado
