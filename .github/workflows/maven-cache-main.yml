@@ -9,10 +9,11 @@
 # Cada trabajo de comprobación restaura la caché sin guardar y corre verify sin conexión (-o) y con
 # -Dmaven.test.failure.ignore=true (una prueba inestable no se confunde con una caché incompleta): si a la caché le
 # falta algo, falla. Corre todos los días aunque la caché ya exista; cuesta un verify por proyecto.
-# setup-java guarda además, con claves aparte, la distribución de Maven del wrapper (~/.m2/wrapper/dists, clave del
-# maven-wrapper.properties). Si solo esa se pierde, el trabajo que llena acierta con la clave principal y no la
-# reconstruye: la comprobación falla, y se arregla borrando la caché principal (gh cache delete) y lanzando el workflow.
-# El JDK no se guarda (cache-jdk: false). Una entrada dañada con la clave exacta también se borra a mano.
+# setup-java guarda además, con claves aparte, la distribución de Maven del wrapper (~/.m2/wrapper/dists, clave de los
+# maven-wrapper.properties de todo el repositorio). Cada trabajo de llenado ejecuta mvnw -v sin condición para bajar esa
+# distribución si falta, así que una corrida programada también la reconstruye. La comprobación usa MVNW_REPOURL con una
+# dirección que no responde: sin la distribución en la caché, mvnw no la descarga y el trabajo falla.
+# El JDK no se guarda (cache-jdk: false). Una entrada dañada con la clave exacta se borra a mano (gh cache delete).
 # Un workflow_dispatch desde otra rama comparte el grupo de concurrency y puede desplazar a la corrida de main en
 # espera; la siguiente corrida programada la recupera.
 # Nada de aquí es un check obligatorio: corre después de integrar y no bloquea ningún PR. Los nombres de los
@@ -70,6 +71,10 @@ jobs:
             backend/pom.xml
             backend/.mvn/wrapper/maven-wrapper.properties
 
+      # Baja la distribución de Maven del wrapper si falta, para que setup-java guarde su caché aparte aunque el verify se omita.
+      - name: Distribución de Maven del wrapper
+        run: sh mvnw -B -v
+
       # `sh` porque mvnw aún no tiene permiso de ejecución en Git, como en backend-pr.
       - name: Llenar la caché (verify, como backend-pr)
         if: steps.java.outputs.cache-hit != 'true'
@@ -100,13 +105,11 @@ jobs:
             backend/.mvn/wrapper/maven-wrapper.properties
           cache-read-only: true
 
-      # La distribución de Maven del wrapper también tiene que venir de la caché: mvnw la descarga de Maven Central
-      # aunque Maven corra con -o.
-      - name: La distribución de Maven del wrapper está en la caché
-        run: test -d "$HOME/.m2/wrapper/dists" || { echo "::error::Falta ~/.m2/wrapper/dists, la caché del wrapper no se restauró."; exit 1; }
-
-      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla.
+      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla. MVNW_REPOURL apunta a una
+      # dirección que no responde: si falta la distribución de Maven del wrapper, mvnw tampoco la descarga de Maven Central.
       - name: Verify sin conexión con la caché restaurada
+        env:
+          MVNW_REPOURL: http://127.0.0.1:9
         run: sh mvnw -B -ntp -o -Dmaven.test.failure.ignore=true verify
 
   bff:
@@ -132,6 +135,10 @@ jobs:
           cache-dependency-path: |
             backend/bff/pom.xml
             backend/bff/.mvn/wrapper/maven-wrapper.properties
+
+      # Baja la distribución de Maven del wrapper si falta, para que setup-java guarde su caché aparte aunque el verify se omita.
+      - name: Distribución de Maven del wrapper
+        run: ./mvnw -B -v
 
       # Las pruebas de la migración usan Testcontainers con el Docker del ejecutor.
       - name: Llenar la caché (verify, como bff-pr)
@@ -163,11 +170,9 @@ jobs:
             backend/bff/.mvn/wrapper/maven-wrapper.properties
           cache-read-only: true
 
-      # La distribución de Maven del wrapper también tiene que venir de la caché: mvnw la descarga de Maven Central
-      # aunque Maven corra con -o.
-      - name: La distribución de Maven del wrapper está en la caché
-        run: test -d "$HOME/.m2/wrapper/dists" || { echo "::error::Falta ~/.m2/wrapper/dists, la caché del wrapper no se restauró."; exit 1; }
-
-      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla.
+      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla. MVNW_REPOURL apunta a una
+      # dirección que no responde: si falta la distribución de Maven del wrapper, mvnw tampoco la descarga de Maven Central.
       - name: Verify sin conexión con la caché restaurada
+        env:
+          MVNW_REPOURL: http://127.0.0.1:9
         run: ./mvnw -B -ntp -o -Dmaven.test.failure.ignore=true verify

@@ -10,6 +10,9 @@
 # relajar un workflow, y la del PR. Lee los workflows del árbol de trabajo, que son los del PR. No impide que un PR
 # quite el paso de sistema-pr.yml: esa barrera es la revisión humana (doc. 04 §9). Los textos que las mutaciones
 # buscan en los workflows no son valores que un PR legítimo cambie (SHA, tiempos): salen del propio archivo.
+# Un PR que cambia a la vez un workflow y algo que una regla exige de él (el nombre de un trabajo, un trabajo que una
+# mutación necesita, el `if` del verify) no pasa la prueba de la base: se divide en dos PR, primero la prueba y después
+# el workflow.
 #
 # Uso: bash .github/scripts/test/maven-cache.test.sh [carpeta-de-workflows]
 # Sale con 0 si todo pasa y con 1 si algo falla.
@@ -75,6 +78,15 @@ ruta_cache() {
     END { print out }'
 }
 
+# Eventos (las claves de «on:») del workflow $1, ordenados y cada uno seguido de un espacio.
+eventos() {
+  leer "$1" | awk '/^on:/ { d = 1; next } d && /^[A-Za-z]/ { exit } d && !/^ *#/ { print }' \
+    | grep -E '^  [A-Za-z_]+:' | sed -E 's/^  ([A-Za-z_]+):.*/\1/' | sort | tr '\n' ' '
+}
+
+# Permisos de escritura en cualquiera de sus formas (también «{ contents: write }»).
+ESCRIBE='(^|[^A-Za-z-])write([^A-Za-z-]|$)|write-all'
+
 # Comando de mvnw de la entrada estándar (una línea «run: … mvnw …»).
 comando() { grep -E '^ +(- )?run: .*mvnw' | sed -E 's/^ +(- )?run: //'; }
 
@@ -104,22 +116,26 @@ revisar() {
   for f in "$d"/*.yml; do
     base=$(basename "$f")
     top=$(leer "$f" | awk '/^permissions:/ { d = 1; print; next } d && /^[A-Za-z]/ { exit } d && !/^ *#/ { print }' \
-      | sed -E 's/[[:space:]]+#.*$//' | tr -d "'\"")
+      | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//' | tr -d "'\"")
+    # Un workflow es «de PR» solo si ese es su único evento: con push, schedule o workflow_dispatch también corre fuera de los PR.
     pr_wf=0
-    leer "$f" | grep -Eq '^  pull_request(_target)?:' && pr_wf=1
+    [ "$(eventos "$f")" = "pull_request " ] && pr_wf=1
     for job in $(trabajos "$f"); do
       contenido=$(bloque "$f" "$job")
       # Sin comentarios al final de línea ni comillas: «contents: 'write' # x» también es escritura.
-      limpio=$(sed -E 's/[[:space:]]+#.*$//' <<<"$contenido" | tr -d "'\"")
+      limpio=$(sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//' <<<"$contenido" | tr -d "'\"")
       # Permisos efectivos: los del trabajo o, si no declara ninguno, los del workflow (y sin ellos, los de escritura por omisión).
       escritura=0
-      grep -Eq ': *write$|write-all' <<<"$limpio" && escritura=1
+      grep -Eq "$ESCRIBE" <<<"$limpio" && escritura=1
       if ! grep -Eq '^    permissions:' <<<"$limpio"; then
-        { [ -z "$top" ] || grep -Eq ': *write$|write-all' <<<"$top"; } && escritura=1
+        { [ -z "$top" ] || grep -Eq "$ESCRIBE" <<<"$top"; } && escritura=1
       fi
       # 239-02: un trabajo con permisos de escritura no ejecuta nada que otro trabajo haya podido escribir en la caché.
       if [ "$escritura" -eq 1 ] && grep -Eq '^ +(cache|cache-dependency-path|cache-path):|^ +cache-jdk: *true|^ +package-manager-cache: *true|actions/cache(/restore|/save)?@' <<<"$limpio"; then
         echo "$base · $job: tiene permisos de escritura y usa caché"
+      fi
+      if [ "$escritura" -eq 1 ] && [ "$(grep -c 'actions/setup-node@' <<<"$limpio")" -ne "$(grep -Ec '^ +package-manager-cache: false$' <<<"$limpio")" ]; then
+        echo "$base · $job: tiene permisos de escritura y algún setup-node no desactiva la caché (package-manager-cache: false)"
       fi
       # Fuera de los PR solo maven-cache-main.yml escribe cachés: nada de actions/cache en los demás.
       if [ "$pr_wf" -eq 0 ] && [ "$base" != maven-cache-main.yml ] && grep -Eq 'actions/cache(/restore|/save)?@' <<<"$limpio"; then
@@ -146,7 +162,7 @@ revisar() {
   done
 
   # --- el verify de cada PR y su pareja en maven-cache-main.yml (239-03) ---
-  local par p pr cmd dir vb cmds rp ps sha filler comprobar fb cb id pasoj n
+  local par p pr cmd dir vb cmds rp ps sha filler comprobar fb cb id pasoj pasov n
   for par in 'backend|backend-pr.yml|sh mvnw -B -ntp verify|backend' 'bff|bff-pr.yml|./mvnw -B -ntp verify|backend/bff'; do
     IFS='|' read -r p pr cmd dir <<<"$par"
     if [ ! -f "$d/$pr" ]; then echo "falta $pr"; continue; fi
@@ -165,6 +181,8 @@ revisar() {
     grep -Eiq 'MAVEN_OPTS|MAVEN_ARGS|MAVEN_CONFIG|skipTests|maven[.]test[.]skip|GITHUB_ENV|^ +env:' <<<"$vb" \
       && echo "$pr · verify: cambia Maven con variables de entorno o env"
     leer "$d/$pr" | grep -v '^ *#' | grep -Eq '^env:' && echo "$pr: tiene env a nivel del workflow"
+    leer "$d/$pr" | grep -v '^ *#' | grep -Eq '^ +shell:' && echo "$pr: cambia la shell (pierde -e y pipefail)"
+    [ "$(eventos "$d/$pr")" = "pull_request " ] || echo "$pr: no corre solo con pull_request, y su verify guardaría la caché de Maven en otros eventos"
     ps=$(pasos_con 'actions/setup-java@' <<<"$vb")
     rp=$(ruta_cache <<<"$ps")
     [ "$rp" = "$dir/pom.xml,$dir/.mvn/wrapper/maven-wrapper.properties" ] \
@@ -180,8 +198,12 @@ revisar() {
     fb=$(pasos_con 'actions/setup-java@' <<<"$filler")
     [ "$(ruta_cache <<<"$fb")" = "$rp" ] || echo "maven-cache-main.yml · $p: su cache-dependency-path no es el del verify de $pr"
     [ "$(grep -o 'setup-java@[0-9a-f]\{40\}' <<<"$fb")" = "$sha" ] || echo "maven-cache-main.yml · $p: su setup-java no es el de $pr"
-    pasoj=$(pasos_con 'mvnw' <<<"$filler")
+    pasoj=$(pasos_con 'verify' <<<"$filler")
     cmds=$(comando <<<"$pasoj")
+    # Baja la distribución de Maven del wrapper sin condición, para que su caché se reconstruya sola.
+    pasov=$(pasos_con 'mvnw .*-v$' <<<"$filler")
+    { grep -Eq '^ +(- )?run: .*mvnw -B -v$' <<<"$pasov" && ! grep -Eq '^ +if:' <<<"$pasov"; } \
+      || echo "maven-cache-main.yml · $p: no baja la distribución del wrapper sin condición (mvnw -B -v)"
     grep -q -- '-Dmaven.test.failure.ignore=true' <<<"$cmds" || echo "maven-cache-main.yml · $p: su verify no usa -Dmaven.test.failure.ignore=true"
     [ "${cmds/ -Dmaven.test.failure.ignore=true/}" = "$cmd" ] || echo "maven-cache-main.yml · $p: su verify no es el de $pr (es «$cmds»)"
     id=$(grep -Eo '^ +(- )?id: [A-Za-z0-9_-]+' <<<"$fb" | sed -E 's/.*id: //')
@@ -201,6 +223,8 @@ revisar() {
     n=${n/ -Dmaven.test.failure.ignore=true/}
     [ "$n" = "$cmd" ] && [[ "$cmds" == *" -o "* ]] && [[ "$cmds" == *"-Dmaven.test.failure.ignore=true"* ]] \
       || echo "maven-cache-main.yml · $p-comprobar: su verify no es el de $pr sin conexión (-o) y con -Dmaven.test.failure.ignore=true (es «$cmds»)"
+    pasos_con 'mvnw' <<<"$comprobar" | grep -Eq '^ +MVNW_REPOURL: ' \
+      || echo "maven-cache-main.yml · $p-comprobar: su verify no usa MVNW_REPOURL, y mvnw podría bajar Maven de Maven Central"
     # Sin JDK en la caché de main: los ejecutables que restauran los PR no los guarda este workflow.
     [ "$(grep -c 'actions/setup-java@' <<<"$filler")" -eq "$(grep -Ec '^ +cache-jdk: false$' <<<"$filler")" ] \
       || echo "maven-cache-main.yml · $p: algún setup-java no tiene cache-jdk: false"
@@ -208,6 +232,14 @@ revisar() {
       || echo "maven-cache-main.yml · $p-comprobar: algún setup-java no tiene cache-jdk: false"
     grep -q 'continue-on-error' <<<"$comprobar" && echo "maven-cache-main.yml · $p-comprobar: tiene continue-on-error"
   done
+
+  # --- gitleaks sin la caché de su binario (la acción no la comprueba ni tiene opción para apagarla) ---
+  local sec linea_tmp linea_gl
+  sec=$(bloque "$d/sistema-pr.yml" secrets)
+  linea_tmp=$(grep -n 'TMPDIR=.*mktemp -d' <<<"$sec" | head -1 | cut -d: -f1)
+  linea_gl=$(grep -n 'gitleaks-action@' <<<"$sec" | head -1 | cut -d: -f1)
+  { [ -n "$linea_tmp" ] && [ -n "$linea_gl" ] && [ "$linea_tmp" -lt "$linea_gl" ]; } \
+    || echo "sistema-pr.yml · secrets: gitleaks sin un directorio temporal aleatorio (TMPDIR) antes de la acción: restauraría su binario de la caché"
 
   # --- maven-cache-main.yml solo corre en main, con permisos de lectura (239-04) ---
   local on_block claves perms conc otro
@@ -331,7 +363,13 @@ copia_como_yaml() { cp "$1/$2" "$1/otro.yaml"; }
 CACHE_SOLO_LECTURA=$'      - uses: actions/setup-java@0000000000000000000000000000000000000000\n        with:\n          cache: maven\n          cache-read-only: true'
 escritura_con_comentario() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml contracts 'contents: write' 'contents: write # releases'; }
 escritura_entre_comillas() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml contracts 'contents: write' "contents: 'write'"; }
+escritura_con_espacios() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml contracts 'contents: write' 'contents: write   '; }
 encabezado_con_comentario() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml - '  contracts:' '  contracts: # releases'; }
+evento_extra_y_cache() { reemplaza "$1" backend-contracts-pr.yml - '  pull_request:' $'  push:\n  pull_request:' && agrega "$1" backend-contracts-pr.yml test "      - uses: actions/cache@$SHA_NULO"; }
+escritura_en_linea() {
+  agrega "$1" backend-main.yml schemas "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml schemas '    permissions:' '    permissions: { contents: write } #' \
+    && reemplaza "$1" backend-main.yml schemas '      contents: write' ''
+}
 escritura_del_workflow() { agrega "$1" backend-pr.yml cambios "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-pr.yml - '  contents: read' '  contents: write'; }
 
 # 239-02: los trabajos con permisos de escritura no usan la caché; la leen o no la usan, nunca la escriben.
@@ -351,6 +389,26 @@ rechaza "trabajo con encabezado con comentario" "backend-main.yml · contracts: 
   encabezado_con_comentario
 rechaza "escritura heredada del workflow" "backend-pr.yml · cambios: tiene permisos de escritura y usa caché" \
   escritura_del_workflow
+rechaza "escritura con espacios al final" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  escritura_con_espacios
+rechaza "escritura en un mapa en línea" "backend-main.yml · schemas: tiene permisos de escritura y usa caché" \
+  escritura_en_linea
+rechaza "workflow de PR que también corre con push y usa actions/cache" "backend-contracts-pr.yml · test: un workflow que no es de PR usa actions/cache" \
+  evento_extra_y_cache
+rechaza "backend-pr que también corre con push" "backend-pr.yml: no corre solo con pull_request" \
+  reemplaza backend-pr.yml - '  pull_request:' $'  push:\n  pull_request:'
+rechaza "setup-node con caché en un trabajo de escritura" "ui-release.yml · publicar: tiene permisos de escritura y algún setup-node no desactiva la caché" \
+  reemplaza ui-release.yml publicar 'package-manager-cache: false' ''
+rechaza "verify de bff-pr con otra shell" "bff-pr.yml: cambia la shell" \
+  reemplaza bff-pr.yml verify '        run: ./mvnw' $'        shell: bash {0}\n        run: ./mvnw'
+rechaza "gitleaks sin tmpdir aleatorio" "sistema-pr.yml · secrets: gitleaks sin un directorio temporal aleatorio" \
+  reemplaza sistema-pr.yml secrets 'TMPDIR=' 'OTRA='
+rechaza "caché de backend sin bajar el wrapper" "maven-cache-main.yml · backend: no baja la distribución del wrapper sin condición" \
+  reemplaza maven-cache-main.yml backend 'sh mvnw -B -v' 'echo omitido'
+rechaza "caché de bff con la distribución del wrapper condicionada" "maven-cache-main.yml · bff: no baja la distribución del wrapper sin condición" \
+  reemplaza maven-cache-main.yml bff '      - name: Distribución de Maven del wrapper' $'      - name: Distribución de Maven del wrapper\n        if: false'
+rechaza "comprobar caché de backend sin MVNW_REPOURL" "maven-cache-main.yml · backend-comprobar: su verify no usa MVNW_REPOURL" \
+  reemplaza maven-cache-main.yml backend-comprobar '          MVNW_REPOURL: ' '          OTRA: '
 rechaza "actions/cache en un workflow que no es de PR" "backend-main.yml · schemas: un workflow que no es de PR usa actions/cache" \
   agrega backend-main.yml schemas "      - uses: actions/cache/save@$SHA_NULO"
 rechaza "un workflow .yaml" "hay un workflow .yaml" \
