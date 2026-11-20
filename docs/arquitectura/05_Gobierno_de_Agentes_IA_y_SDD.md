@@ -324,7 +324,7 @@ Se revisan en cada retrospectiva para detectar *vibe coding* a tiempo.
 | Dependencias agregadas "porque funcionó" | Prohibición sin ADR (§4.2) + *dependency review* |
 | Cambios colaterales fuera de la rebanada | Lo demás se propone como *issue* y se crea con la aprobación de la persona (`liv-backlog`) |
 | Resolver un pendiente jurídico con un supuesto silencioso | Regla G8 y §2 |
-| El agente se aprueba a sí mismo | Revisores distintos e integración solo humana (G7). Excepción: la sesión que preparó la versión de `liv-components` puede ejecutar su aprobación en el entorno `npm`, solo con la confirmación de la persona (ADR 0043) |
+| El agente se aprueba a sí mismo | Revisores distintos e integración solo humana (G7). Excepción: una sesión interactiva abierta y conducida por la persona (aunque haya preparado la versión de `liv-components`), nunca una abierta con un *brief*, puede ejecutar su aprobación en el entorno `npm`, solo con la confirmación de la persona (ADR 0043) |
 | Documentación desactualizada | Actualización en el mismo PR como parte del terminado |
 | Contexto perdido entre sesiones | `spec.md`, los *issues* de las rebanadas y `ESTADO.md` |
 | Atajos que se acumulan sin que nadie los vea | *Issues* `deuda`, tope de cinco abiertos y revisión al cerrar cada feature (§7.2) |
