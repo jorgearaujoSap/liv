@@ -1,6 +1,6 @@
 # ADR-0040 · SDD por rebanadas verticales: spec corta por feature, backlog de rebanadas y esfuerzo según lo que cuesta cambiar
 
-- **Estado:** Aceptado (2026-11-18, por el responsable del proyecto); complementado por el ADR 0041 (el agente mantiene el tablero y mueve a «Lista» con el visto bueno de la persona en el chat); modificado en parte por el ADR 0043, propuesto el 2026-11-20 (la aprobación de la publicación de `liv-components` la decide la persona y la ejecuta el agente con su confirmación)
+- **Estado:** Aceptado (2026-11-18, por el responsable del proyecto); complementado por el ADR 0041 (el agente mantiene el tablero y mueve a «Lista» con el visto bueno de la persona en el chat); modificado en parte por el ADR 0043, aceptado el 2026-11-20 (la aprobación de la publicación de `liv-components` la decide la persona y la ejecuta el agente con su confirmación)
 - **Fecha:** 2026-11-18
 - **Decisores:** responsable del proyecto, en la sesión del 2026-11-18, con las observaciones del desarrollador que trabajó del 2026-11-08 al 2026-11-18 (`AGENTS.md` §4.3, «quien dirige el trabajo decide»)
 - **Documentos relacionados:**

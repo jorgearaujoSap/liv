@@ -86,7 +86,7 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
   - una sola en `backend/`;
   - una sola de `ui/` y una sola de `frontend/`;
   - el entorno local, exclusivo: lo usa una sesión a la vez.
-- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»). Si se acepta el ADR 0043, un agente puede ejecutar la aprobación de una publicación de `liv-components` solo con la confirmación de la persona en el chat (`AGENTS.md` §4.5).
+- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»). Desde el ADR 0043, un agente puede ejecutar la aprobación de una publicación de `liv-components` solo con la confirmación de la persona en el chat (`AGENTS.md` §4.5).
 - **Al cerrar:**
   - se marcan las tareas y los criterios con sus pruebas;
   - se registran en `plan.md` los «Ajustes de la H3», como en la 007;
@@ -274,7 +274,7 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-20
 
-- **ADR 0043 propuesto** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042): por decisión de la persona en el chat, un agente podrá aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución concreta; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Mientras no esté aceptado e integrado, sigue vigente la regla del ADR 0042.
+- **ADR 0043 aceptado por la persona** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042 y modifica en parte al ADR 0040): un agente puede aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat, completos, la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución y esa acción en el chat, sin ir a GitHub; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Comparar con la página de la ejecución es una comprobación opcional. **Revisión:** el diseño con un dato oculto leído en la página pasó tres rondas de revisión adversarial (con altos en cada una) y la persona lo descartó; **el mecanismo simplificado que se aceptó no tuvo una nueva revisión**, por decisión de la persona. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Rige cuando la persona integra el PR de la raíz (#245); el de `ui/` (#246) se integra después.
 
 ### 2026-11-19
 
