@@ -11,11 +11,13 @@
 # falta algo, falla. Corre todos los días aunque la caché ya exista; cuesta un verify por proyecto.
 # setup-java guarda además, con claves aparte, la distribución de Maven del wrapper (~/.m2/wrapper/dists, clave de los
 # maven-wrapper.properties de todo el repositorio). Cada trabajo de llenado ejecuta mvnw -v sin condición para bajar esa
-# distribución si falta, así que una corrida programada también la reconstruye. La comprobación impide que mvnw la
-# descargue: http_proxy y https_proxy apuntan a una dirección que no responde (127.0.0.1:9), así que wget y curl fallan,
-# y MVNW_REPOURL es la base real de distributionUrl (la del maven-wrapper.properties), porque mvnw calcula con ella la
-# carpeta ~/.m2/wrapper/dists/<versión>/<hash> y con otra dirección el hash cambia y no encuentra la distribución que
-# sí restauró la caché. Sin la distribución en la caché, mvnw intenta descargarla, no puede y el trabajo falla.
+# distribución si falta, así que una corrida programada también la reconstruye. La comprobación exige que esa
+# distribución haya salido de la caché (~/.m2/wrapper/dists/apache-maven-<versión>/<hash>/bin/mvn existe antes del verify),
+# y además http_proxy y https_proxy apuntan a una dirección que no responde (127.0.0.1:9), así que wget y curl no
+# descargan. No se usa MVNW_REPOURL: mvnw calcula con él el hash de esa carpeta, y con otra dirección que la de
+# distributionUrl no encuentra la distribución restaurada (falló así en la ejecución 44826240878); con la misma, no
+# cambia nada. La prueba rechaza MVNW_REPOURL, no_proxy, MVNW_USERNAME y MVNW_PASSWORD, que anularían los proxies o
+# darían a mvnw otro descargador.
 # El JDK no se guarda (cache-jdk: false). Una entrada dañada con la clave exacta se borra a mano (gh cache delete).
 # Un workflow_dispatch desde otra rama comparte el grupo de concurrency y puede desplazar a la corrida de main en
 # espera; la siguiente corrida programada la recupera.
@@ -108,12 +110,16 @@ jobs:
             backend/.mvn/wrapper/maven-wrapper.properties
           cache-read-only: true
 
-      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla. Si falta la distribución de
-      # Maven del wrapper, mvnw tampoco la descarga: los proxies no responden. MVNW_REPOURL es la base real de
-      # distributionUrl, para que el hash de ~/.m2/wrapper/dists no cambie.
+      # La distribución de Maven del wrapper tiene que venir de la caché; esto no depende de cómo la descargaría mvnw.
+      - name: La distribución de Maven del wrapper viene de la caché
+        run: |
+          v=$(sed -n 's|^distributionUrl=.*/apache-maven-\([0-9][^/]*\)-bin\.zip$|\1|p' .mvn/wrapper/maven-wrapper.properties)
+          ls "$HOME/.m2/wrapper/dists/apache-maven-$v"/*/bin/mvn || { echo "::error::Falta la distribución de Maven $v del wrapper en la caché."; exit 1; }
+
+      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla. Los proxies no responden, así
+      # que wget y curl tampoco descargan nada si mvnw lo intentara.
       - name: Verify sin conexión con la caché restaurada
         env:
-          MVNW_REPOURL: https://repo.maven.apache.org/maven2
           http_proxy: http://127.0.0.1:9
           https_proxy: http://127.0.0.1:9
         run: sh mvnw -B -ntp -o -Dmaven.test.failure.ignore=true verify
@@ -176,12 +182,16 @@ jobs:
             backend/bff/.mvn/wrapper/maven-wrapper.properties
           cache-read-only: true
 
-      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla. Si falta la distribución de
-      # Maven del wrapper, mvnw tampoco la descarga: los proxies no responden. MVNW_REPOURL es la base real de
-      # distributionUrl, para que el hash de ~/.m2/wrapper/dists no cambie.
+      # La distribución de Maven del wrapper tiene que venir de la caché; esto no depende de cómo la descargaría mvnw.
+      - name: La distribución de Maven del wrapper viene de la caché
+        run: |
+          v=$(sed -n 's|^distributionUrl=.*/apache-maven-\([0-9][^/]*\)-bin\.zip$|\1|p' .mvn/wrapper/maven-wrapper.properties)
+          ls "$HOME/.m2/wrapper/dists/apache-maven-$v"/*/bin/mvn || { echo "::error::Falta la distribución de Maven $v del wrapper en la caché."; exit 1; }
+
+      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla. Los proxies no responden, así
+      # que wget y curl tampoco descargan nada si mvnw lo intentara.
       - name: Verify sin conexión con la caché restaurada
         env:
-          MVNW_REPOURL: https://repo.maven.apache.org/maven2
           http_proxy: http://127.0.0.1:9
           https_proxy: http://127.0.0.1:9
         run: ./mvnw -B -ntp -o -Dmaven.test.failure.ignore=true verify
