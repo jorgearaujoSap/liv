@@ -30,6 +30,7 @@ _Features completadas, en orden de implementación._
   - abrir la preparación de una vigencia (V‑06), con su lista de nueve puntos (Doc. 01 §6.1).
 
   Hoy solo se verifica el punto 1 de la lista: los demás muestran «Opción aún no disponible» hasta que existan sus opciones. Incluye el esquema `tax` con RLS y permisos por columna, el contrato `tax.yaml` 1.1.0, la auditoría de creación y apertura, `liv-components` 0.4.0 y 0.5.0 y las pruebas de navegador. La habilitación con doble firma, *Lista* y el cierre pasan a la 1.5.1. Los ajustes de la H3 están en su `plan.md`.
+- ✅ **[002 · Publicación automática de `liv-components`](../features/002-publicacion-automatica-ui/spec.md)** — hecha el 2026-11-20. Al integrar el *commit* que sube la versión, `ui-release.yml` verifica, espera la aprobación de una persona en el entorno `npm`, publica con la publicación de confianza de npm (OIDC, sin clave guardada y con procedencia) y crea la etiqueta y la *release*; sin publicación a mano (ADR 0042). `liv-components` 0.5.1 fue la primera versión publicada así.
 - ✅ **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031): *walking skeleton* en local con las pruebas de navegador en verde, CI de cada proyecto obligatorio en `main` y F0‑02, F0‑10 y F0‑11 hechos. Los entregables y sus pendientes, que no bloquean el cierre, siguen en `ESTADO.md` §3.
 
 ## Siguiente 🔜
