@@ -86,7 +86,7 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
   - una sola en `backend/`;
   - una sola de `ui/` y una sola de `frontend/`;
   - el entorno local, exclusivo: lo usa una sesión a la vez.
-- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»).
+- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»). Si se acepta el ADR 0043, un agente puede ejecutar la aprobación de una publicación de `liv-components` solo con la confirmación de la persona en el chat (`AGENTS.md` §4.5).
 - **Al cerrar:**
   - se marcan las tareas y los criterios con sus pruebas;
   - se registran en `plan.md` los «Ajustes de la H3», como en la 007;
