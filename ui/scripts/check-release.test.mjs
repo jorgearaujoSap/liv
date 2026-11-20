@@ -167,7 +167,7 @@ describe('check-release --ci · cada fallo da su mensaje (002-04)', () => {
   });
 });
 
-describe('check-release sin --ci · publicación a mano, como hasta ahora', () => {
+describe('check-release sin --ci · ejecución local, sin publicar', () => {
   it('una versión lista pasa', () => {
     assert.deepEqual(problemsOf({}, { ci: false }).problems, []);
   });

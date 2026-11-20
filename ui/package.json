@@ -10,8 +10,6 @@
     "version:minor": "cd projects/liv-components && npm version minor --no-git-tag-version",
     "version:major": "cd projects/liv-components && npm version major --no-git-tag-version",
     "release:check": "node scripts/check-release.mjs",
-    "prerelease": "npm run release:check && npm run lint && npm test",
-    "release": "npm run build && npm publish ./dist/liv-components",
     "format": "prettier --write \"projects/**/*.{ts,html,css}\"",
     "format:check": "prettier --check \"projects/**/*.{ts,html,css}\"",
     "lint": "ng lint",

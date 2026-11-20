@@ -17,7 +17,6 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 | `npm run pack` | Compila y genera `dist/liv-components-<versión>.tgz`, para revisar el contenido antes de publicar |
 | `npm run version:patch` / `version:minor` / `version:major` | Sube la versión de la librería (`projects/liv-components/package.json`) |
 | `npm run release:check` | Verifica que la versión se puede publicar, sin publicar nada. Con `-- --ci [--paquete <archivo.tgz>]` hace las verificaciones del CI, sin `npm whoami` ni la rama local |
-| `npm run release` | Solo la [publicación a mano transitoria](#publicación-a-mano-hasta-la-primera-publicación-del-workflow): verifica, revisa el *lint*, compila y publica en npm. Un agente nunca la ejecuta |
 | `npm test` | Pruebas de los componentes (Vitest con jsdom), incluida la accesibilidad con axe |
 | `npm run storybook` | Catálogo de componentes en <http://localhost:6006> (Storybook). Storybook 10 exige la opción `browserTarget` de su objetivo en `angular.json`: no la quites |
 | `npm run build-storybook` | Compila el catálogo en `dist/storybook` |
@@ -30,9 +29,7 @@ Una versión publicada en npm **no se puede cambiar ni volver a publicar** con e
 
 **No hay publicación a mano, ni de emergencia:** si GitHub Actions no está disponible, se espera.
 
-**Un agente nunca** aprueba, rechaza, cancela, dispara ni vuelve a ejecutar una publicación o el *workflow*; no crea, mueve ni borra las etiquetas `ui-v*` ni sus *releases*; no cambia la protección del entorno `npm`, los *rulesets*, el publicador de confianza ni la configuración del paquete en npm (`npm owner`, `npm access`, `npm dist-tag`, `npm deprecate`, `npm unpublish`); y no publica con un comando. **Ni aunque la persona se lo pida** (`AGENTS.md` de la raíz, §4.5). Todo eso, y cada «Re-run», lo hace una persona.
-
-> **Hasta la primera versión que publique el *workflow*** sigue vigente la [publicación a mano](#publicación-a-mano-hasta-la-primera-publicación-del-workflow) del final de esta sección. Mientras el *workflow* siga en `--dry-run` (hasta el PR 3 de la rebanada R3 de la feature 002), **aprobar en el entorno `npm` solo ejecuta `npm publish --dry-run`: no publica ni etiqueta**, y el resumen lo dice. Desde la primera versión que publique el *workflow*, la subsección de publicación a mano ya no se usa.
+**Un agente nunca** aprueba, rechaza, cancela, dispara ni vuelve a ejecutar una publicación o el *workflow*; no crea, mueve ni borra las etiquetas `ui-v*` ni sus *releases*; no cambia la protección del entorno `npm`, los *rulesets*, el publicador de confianza ni la configuración del paquete en npm (`npm owner`, `npm access`, `npm dist-tag`, `npm deprecate`, `npm unpublish`); y no publica con un comando, tampoco con la sesión de npm de la persona. **Ni aunque la persona se lo pida** (`AGENTS.md` de la raíz, §4.5). Todo eso, y cada «Re-run», lo hace una persona.
 
 ```mermaid
 flowchart LR
@@ -80,7 +77,7 @@ Cuando `publicar` termina, `etiquetar` crea la etiqueta `ui-vX.Y.Z` en el *commi
 
 ### 3. Si algo falla
 
-Los errores de `decidir`, `publicar` y `etiquetar` terminan con la sección de esta guía que los resuelve; en `verificar`, el registro marca el paso que falló y esta guía dice qué hacer. Nada de lo que sigue publica dos veces: «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. Los «Re-run», como las aprobaciones, los hace una persona.
+Los errores de `decidir`, `publicar` y `etiquetar` terminan con la sección de esta guía que los resuelve; en `verificar`, el registro marca el paso que falló y esta guía dice qué hacer. Ninguno de estos reintentos publica dos veces. Con la versión **aún no** publicada, «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. **Con la versión ya en npm**, usa «Re-run failed jobs»: `publicar` compara la integridad publicada con la del `.tgz` verificado, mientras que «Re-run all jobs» salta directo a «etiquetar» y no la compara. Los «Re-run», como las aprobaciones, los hace una persona.
 
 #### Si falla «decidir»
 
@@ -92,8 +89,9 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 | La versión es menor que la última publicada y no se publicó | Sube la versión por encima de la última en un PR nuevo |
 | npm o Git no respondieron, o no se pudo leer un archivo de `ui/` o el *commit* padre | Espera y usa «Re-run failed jobs». Si se repite, una persona revisa el mensaje |
 | La versión del paquete no es X.Y.Z, el paquete no se llama `liv-components`, o falta el *commit* padre (el *checkout* debe ser de dos *commits*) | Corrige el `package.json` de la librería en un PR de `ui/`. Si es el *checkout*, es un fallo del *workflow*: avisa al responsable |
-| La etiqueta `ui-vX.Y.Z` ya existe en otro *commit* | **No se mueve.** Una persona con permiso revisa quién la creó y por qué. Si fue un error, la versión se descarta y se sube una nueva en un PR nuevo |
+| La etiqueta `ui-vX.Y.Z` ya existe en otro *commit* | **No se mueve.** Si la versión **no** está publicada, una persona revisa quién la creó y por qué, y la versión se descarta: se sube una nueva en un PR nuevo. Si **ya está publicada**, sigue «[Si falla «etiquetar»](#si-falla-etiquetar)» |
 | npm registra que la versión se publicó desde otro *commit* | Igual que la anterior: no se etiqueta este *commit* |
+| Falta la sección `## [X.Y.Z]` del `CHANGELOG.md`, o está vacía (`release-notes`, que genera el texto de la *release*) | Si la versión **no** está publicada, agrégala en un PR nuevo que **suba otra vez la versión**: solo el *commit* que sube la versión la publica. Si **ya está publicada**, la persona agrega esa sección en un PR sin subir la versión y crea la *release* a mano como en «Si ya pasaron 30 días», con el texto de la sección que quedó en `main` |
 | `.nvmrc` o `packageManager` no son una versión exacta que sirva para la publicación de confianza | Corrígelos en un PR de `ui/` (Node 22.14 o mayor, npm 11.5.1 o mayor) |
 
 «Nada que publicar» **no es un fallo**: el *commit* no subió la versión, o la versión ya está publicada. Si el mensaje dice que la versión «está pendiente en la ejecución del *commit* que la subió», busca esa ejecución y apruébala o recházala.
@@ -102,7 +100,7 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 
 *Lint*, formato, pruebas, Storybook, empaquetado, la sección del `CHANGELOG.md`, el número de versión o el campo `repository` fallan **ya en el PR** (`ui · verify`). Si llegó a `main` y falla aquí:
 
-1. Si el error fue de la infraestructura (una descarga, un servidor), usa «Re-run failed jobs».
+1. Si el error fue de la infraestructura (una descarga, un servidor), usa «Re-run failed jobs». Si el mensaje dice que el *checkout* está en otro *commit* del que decidió `decidir`, **no reintentes**: una persona lo revisa.
 2. Si es del código, corrígelo en un PR nuevo que **suba otra vez la versión** (el siguiente número) con su sección del `CHANGELOG.md`: solo el *commit* que sube la versión la publica, así que el arreglo sin subir no publicaría nada.
 
 #### Si falla «publicar»
@@ -119,15 +117,28 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 | `no es mayor que la última publicada` | Se publicó otra versión mayor mientras esperaba. Sube la versión en un PR nuevo |
 | `npm publish falló` con `E403`, `E404` o un error de OIDC | Una persona revisa en npmjs.com el publicador de confianza de `liv-components`: repositorio `jorgearaujoSap/liv`, *workflow* `ui-release.yml` y entorno `npm`. Si venció, se borra y se registra de nuevo; después, «Re-run failed jobs» |
 | Subió el paquete y falló después | «Re-run failed jobs»: `publicar` compara la integridad con la de npm y, si coincide, sigue sin publicar otra vez |
+| Falló `setup-node`, la instalación de npm («npm quedó en X y debía ser Y») o la descarga de un artefacto | «Re-run failed jobs». Si el artefacto venció (30 días), «Re-run all jobs» solo sirve si la ejecución tiene menos de 30 días, y volver a ejecutar `publicar` pide otra aprobación (con su resumen a la vista); si ya no sirve, ve a «[Si falla «etiquetar»](#si-falla-etiquetar)» cuando la versión ya esté en npm, o sube el siguiente número |
+
+**Con la versión ya en npm, «Re-run failed jobs» es la única forma segura de volver a ejecutar:** compara la integridad publicada con la del `.tgz` verificado. «Re-run all jobs» salta directo a «etiquetar» y no la compara.
 
 Si npm responde pero la versión no aparece, no la publiques a mano: espera y comprueba con `npm view liv-components version`.
 
 #### Si falla «etiquetar»
 
-El paquete ya está publicado. Usa «Re-run failed jobs» (o «Re-run all jobs»): crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si GitHub no respondió o respondió algo ilegible, espera y repite.
+El paquete ya está publicado. Usa «Re-run failed jobs» (con la versión ya en npm no uses «Re-run all jobs»: no compara la integridad publicada). Crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si GitHub no respondió o respondió algo ilegible, espera y repite.
 
-- Si la etiqueta ya existe en otro *commit*, falla y **no la mueve**: una persona con permiso la revisa.
+- Si la etiqueta ya existe en otro *commit*, falla y **no la mueve**, y el paquete **ya está publicado**: no se descarta la versión. Una persona administradora (nunca un agente) hace esto, y lo deja anotado en el *issue* de la feature (quién y por qué):
+  1. Mira en npmjs.com, en la página de procedencia de la versión, de qué *commit* salió el paquete. Compáralo con el *commit* de la etiqueta y con el de la ejecución.
+  2. Si el *commit* de la etiqueta es el de la procedencia, la etiqueta es la buena: conserva la etiqueta y crea la *release* como en «Si ya pasaron 30 días».
+  3. Si la etiqueta es ajena **y** el *commit* de la ejecución es el de la procedencia: anota antes, en el *issue*, el SHA de la etiqueta y quién la creó (la página de etiquetas de GitHub lo muestra). Después la persona se agrega a la lista de excepciones del *ruleset* de `ui-v*` (sin desactivarlo), borra la etiqueta y su *release* (que GitHub deja como borrador), se quita de la lista, y usa «Re-run failed jobs».
+  4. Si la etiqueta es ajena y el *commit* de la ejecución **no** es el de la procedencia, no uses «Re-run»: etiquetar `GITHUB_SHA` pondría la etiqueta en un *commit* que no publicó. Crea la etiqueta y la *release* a mano como en «Si ya pasaron 30 días».
+- Si `decidir` no entregó las huellas, la huella de `release-tag.mjs` o de las notas no coincide, el artefacto trae archivos de más, o el *commit* decidido no es el de la ejecución: **no reintentes.** Es la misma señal que en «publicar»: una persona investiga.
 - Si la *release* ya existe con un texto distinto de la sección del `CHANGELOG.md`, no la cambia y deja una anotación de aviso: **una persona** la revisa y, si hace falta, la edita en GitHub; nunca un agente.
+
+**Si ya pasaron 30 días** (ni «Re-run» ni los artefactos sirven) o `decidir` da «nada» porque `main` avanzó, una persona (nunca un agente) crea a mano la etiqueta y la *release*:
+
+- la etiqueta `ui-vX.Y.Z` va **siempre en el *commit* de la procedencia de npm**, aunque `main` haya avanzado, con `git tag ui-vX.Y.Z <commit>` y `git push origin ui-vX.Y.Z` (o la API de GitHub);
+- la *release* se titula `liv-components X.Y.Z`, lleva como texto la sección `## [X.Y.Z]` del `CHANGELOG.md` y **no** se marca como «Latest», porque el repositorio comparte las etiquetas de tres proyectos.
 
 #### Varias versiones seguidas
 
@@ -146,27 +157,6 @@ Cuando la *release* `ui-vX.Y.Z` existe:
 ### Una vez, después de la primera publicación del *workflow*
 
 La persona responsable activa en npm «**Require two-factor authentication and disallow tokens**» en la página de acceso del paquete, y crea en GitHub el *ruleset* de las etiquetas `ui-v*` que bloquea su actualización y su borrado (**no su creación**, para que `etiquetar` pueda crearlas).
-
-### Publicación a mano (hasta la primera publicación del *workflow*)
-
-> Transitoria: la usa una persona con permiso en npm solo hasta que el *workflow* publique su primera versión. Un ajuste de `ui/` retira esta subsección después. Un agente nunca publica.
-
-1. Cuenta en [npmjs.com](https://www.npmjs.com) con 2FA, y permiso de publicación: un responsable ejecuta `npm owner add <tu-usuario-npm> liv-components` (`npm owner ls liv-components` muestra quién puede).
-2. Con el PR de la versión integrado en `main`:
-
-   ```bash
-   git checkout main
-   git pull
-   cd ui
-   npm install
-   npm login
-   npm run release
-   ```
-
-   `npm run release` ejecuta antes `npm run release:check`, que se detiene con un mensaje si no estás en `main` o hay cambios sin *commit* en `ui/`, no has iniciado sesión, no tienes permiso, la versión ya existe o no es mayor que la última publicada, o falta la sección de la versión en `CHANGELOG.md`. Después revisa el *lint*, compila y publica; con 2FA, npm pide el código (`npm publish ./dist/liv-components --otp=<código>`).
-3. Comprueba con `npm view liv-components version`, etiqueta el *commit* publicado (`git tag ui-vX.Y.Z` y `git push origin ui-vX.Y.Z`) y adopta la versión en el frontend como en el paso 4.
-
-Si se publicó algo incorrecto, no intentes reemplazarlo: publica una versión `patch` con la corrección. Retirar una versión (`npm unpublish`) solo es posible en las primeras 72 horas y deja el número inutilizable.
 
 ## Estructura
 
@@ -187,4 +177,4 @@ ui/
 
 ## Estado
 
-Versión 0.4.0 publicada en npm: *tokens* de diseño y 18 componentes de la feature 001 más los de la 007 (`Table`, `ChecklistItem`, `DescriptionItem`, `Panel`, `RadioGroup` y el formateador de fechas de negocio), con pruebas, accesibilidad con axe y su historia de Storybook por variante; `NavItem` con los tipos `Subgroup` y `Nested`, los iconos `plus` y `circle`, `Button` con `disabledReason` y `Dialog` con cuerpo, tamaño y tono. Preparada para 0.5.0 (todavía sin publicar): `Select`, la lista desplegable de selección única sobre el `<select>` nativo, para el diálogo de crear una vigencia de la enmienda 4 de la feature 007. Todavía no hay capturas de referencia de regresión visual (Q14): el catálogo de Storybook es hoy la referencia visual. Ver `CHANGELOG.md`.
+Versión 0.5.0 publicada en npm (a mano, antes de la publicación automática): *tokens* de diseño y los componentes de las features 001 y 007, con pruebas, accesibilidad con axe y su historia de Storybook por variante. La próxima versión es la primera que publica el *workflow*. Todavía no hay capturas de referencia de regresión visual (Q14): el catálogo de Storybook es hoy la referencia visual. Ver `CHANGELOG.md`.
