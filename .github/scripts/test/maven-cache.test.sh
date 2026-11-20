@@ -231,6 +231,7 @@ revisar() {
     # (la del maven-wrapper.properties del proyecto, leída del archivo): con otra, mvnw calcula otro hash para esa carpeta y no
     # encuentra la distribución restaurada (falló así en la ejecución 44826240878). Sin no_proxy ni las variables que le dan
     # a mvnw otro descargador: con ellas, mvnw descargaría Maven aunque los proxies no respondan.
+    grep -Eq '^ {6,}(- )?if:' <<<"$comprobar" && echo "maven-cache-main.yml · $p-comprobar: un paso tiene un «if» y podría omitirse"
     [ "$(pasos_con 'mvnw' <<<"$comprobar" | grep -c '^      - ')" -eq 1 ] \
       || echo "maven-cache-main.yml · $p-comprobar: tiene que haber un solo paso que corra mvnw"
     pasov=$(pasos_con 'mvnw' <<<"$comprobar")
@@ -242,7 +243,8 @@ revisar() {
         || echo "maven-cache-main.yml · $p-comprobar: su verify no pone $n hacia una dirección que no responde (http://127.0.0.1:9), y mvnw podría bajar Maven de Maven Central"
     done
     pasov=$(pasos_con 'wrapper/dists' <<<"$comprobar")
-    { grep -Eq '^ +run: ' <<<"$pasov" && grep -Eq 'ls .*wrapper/dists/apache-maven-.*/bin/mvn' <<<"$pasov" && grep -q 'exit 1' <<<"$pasov"; } \
+    { grep -Eq '^ +run: ' <<<"$pasov" && grep -Fq 'test -n "$v" || { ' <<<"$pasov" \
+      && grep -Eq '^ +ls "[$]HOME/[.]m2/wrapper/dists/apache-maven-[$]v"/[*]/bin/mvn [|][|] [{] .*exit 1; [}]$' <<<"$pasov"; } \
       || echo "maven-cache-main.yml · $p-comprobar: no exige que la distribución de Maven del wrapper esté en ~/.m2/wrapper/dists antes del verify"
     [ "$(grep -n 'wrapper/dists' <<<"$comprobar" | head -1 | cut -d: -f1)" -lt "$(grep -n 'mvnw -B' <<<"$comprobar" | head -1 | cut -d: -f1)" ] \
       || echo "maven-cache-main.yml · $p-comprobar: la distribución del wrapper se comprueba después del verify, no antes"
@@ -294,8 +296,8 @@ revisar() {
   done
   leer "$mc" | grep -v '^ *#' | grep -E '^ +(- )?uses: ' | grep -Ev '@[0-9a-f]{40}( |$)' | grep -q . \
     && echo "maven-cache-main.yml: una acción no está fijada por SHA"
-  leer "$mc" | grep -v '^ *#' | grep -Eiq 'MVNW_USERNAME|MVNW_PASSWORD|no_proxy' \
-    && echo "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD o no_proxy, que anulan los proxies o le dan a mvnw otro descargador"
+  leer "$mc" | grep -v '^ *#' | sed -E 's/[[:space:]]+#.*$//' | grep -Eiq 'MVNW_USERNAME|MVNW_PASSWORD|no_proxy|MAVEN_USER_HOME' \
+    && echo "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD, no_proxy o MAVEN_USER_HOME, que anulan los proxies, le dan a mvnw otro descargador o cambian la carpeta de la distribución"
   leer "$mc" | grep -v '^ *#' | grep -Eq '^env:' && echo "maven-cache-main.yml: tiene env a nivel del workflow, que llegaría a todos los pasos"
   return 0
 }
@@ -437,11 +439,11 @@ rechaza "comprobar caché de backend con MVNW_REPOURL de otra dirección" "maven
   reemplaza maven-cache-main.yml backend-comprobar '          MVNW_REPOURL: ' '          MVNW_REPOURL: http://127.0.0.1:9 # '
 rechaza "comprobar caché de bff con MVNW_REPOURL de otra dirección" "maven-cache-main.yml · bff-comprobar: su MVNW_REPOURL no es la base de distributionUrl" \
   reemplaza maven-cache-main.yml bff-comprobar '          MVNW_REPOURL: ' '          MVNW_REPOURL: https://repo1.example.org/maven2 # '
-rechaza "comprobar caché de bff con no_proxy en el paso" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD o no_proxy" \
+rechaza "comprobar caché de bff con no_proxy en el paso" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD, no_proxy o MAVEN_USER_HOME" \
   reemplaza maven-cache-main.yml bff-comprobar '          http_proxy: ' $'          no_proxy: "*"\n          http_proxy: '
-rechaza "comprobar caché de backend con NO_PROXY en el trabajo" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD o no_proxy" \
+rechaza "comprobar caché de backend con NO_PROXY en el trabajo" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD, no_proxy o MAVEN_USER_HOME" \
   reemplaza maven-cache-main.yml backend-comprobar '    timeout-minutes: ' $'    env:\n      NO_PROXY: repo.maven.apache.org\n    timeout-minutes: '
-rechaza "comprobar caché de bff con MVNW_USERNAME y MVNW_PASSWORD" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD o no_proxy" \
+rechaza "comprobar caché de bff con MVNW_USERNAME y MVNW_PASSWORD" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD, no_proxy o MAVEN_USER_HOME" \
   reemplaza maven-cache-main.yml bff-comprobar '          http_proxy: ' $'          MVNW_USERNAME: x\n          MVNW_PASSWORD: y\n          http_proxy: '
 rechaza "maven-cache-main con env a nivel del workflow" "maven-cache-main.yml: tiene env a nivel del workflow" \
   reemplaza maven-cache-main.yml - 'concurrency:' $'env:\n  X: y\nconcurrency:'
@@ -451,6 +453,16 @@ rechaza "comprobar caché de bff sin http_proxy" "maven-cache-main.yml · bff-co
   reemplaza maven-cache-main.yml bff-comprobar '          http_proxy: ' '          otra_proxy: '
 rechaza "comprobar caché de bff con un proxy que sí responde" "maven-cache-main.yml · bff-comprobar: su verify no pone https_proxy" \
   reemplaza maven-cache-main.yml bff-comprobar '          https_proxy: ' '          https_proxy: http://proxy.example.org:3128 # '
+rechaza "comprobar caché de backend con MAVEN_USER_HOME" "maven-cache-main.yml: usa MVNW_USERNAME, MVNW_PASSWORD, no_proxy o MAVEN_USER_HOME" \
+  reemplaza maven-cache-main.yml backend-comprobar '          http_proxy: ' $'          MAVEN_USER_HOME: /tmp/otra\n          http_proxy: '
+rechaza "comprobar caché de bff con el paso de la distribución desactivado" "maven-cache-main.yml · bff-comprobar: un paso tiene un «if»" \
+  reemplaza maven-cache-main.yml bff-comprobar '      - name: La distribución de Maven del wrapper viene de la caché' $'      - name: La distribución de Maven del wrapper viene de la caché\n        if: false'
+rechaza "comprobar caché de backend con el verify desactivado" "maven-cache-main.yml · backend-comprobar: un paso tiene un «if»" \
+  reemplaza maven-cache-main.yml backend-comprobar '      - name: Verify sin conexión con la caché restaurada' $'      - name: Verify sin conexión con la caché restaurada\n        if: false'
+rechaza "comprobar caché de bff con || true en la distribución del wrapper" "maven-cache-main.yml · bff-comprobar: no exige que la distribución de Maven del wrapper esté" \
+  reemplaza maven-cache-main.yml bff-comprobar 'bin/mvn || {' 'bin/mvn || true || {'
+rechaza "comprobar caché de backend sin leer la versión del wrapper" "maven-cache-main.yml · backend-comprobar: no exige que la distribución de Maven del wrapper esté" \
+  reemplaza maven-cache-main.yml backend-comprobar 'test -n "$v" || { ' 'true || { '
 rechaza "comprobar caché de backend sin exigir la distribución del wrapper" "maven-cache-main.yml · backend-comprobar: no exige que la distribución de Maven del wrapper esté" \
   reemplaza maven-cache-main.yml backend-comprobar 'ls "$HOME/.m2' 'echo "$HOME/.m2'
 rechaza "comprobar caché de bff que no falla sin la distribución del wrapper" "maven-cache-main.yml · bff-comprobar: no exige que la distribución de Maven del wrapper esté" \
@@ -571,6 +583,20 @@ rechaza "maven-cache-main con una acción sin SHA" "maven-cache-main.yml: una ac
   reemplaza maven-cache-main.yml backend "$SHA_CHECKOUT" 'actions/checkout@v7'
 rechaza "maven-cache-main sin el trabajo backend" "maven-cache-main.yml: falta el trabajo backend" \
   reemplaza maven-cache-main.yml - '  backend:' '  principal:'
+
+# La base de MVNW_REPOURL se lee del maven-wrapper.properties de cada proyecto, no está escrita en la prueba: con otra
+# base en esos archivos, el workflow real deja de cumplir la regla.
+raiz_otra="$tmp/raiz"
+for dir in backend backend/bff; do
+  mkdir -p "$raiz_otra/$dir/.mvn/wrapper"
+  tr -d '\r' < "$RAIZ/$dir/.mvn/wrapper/maven-wrapper.properties" | sed 's|https://[^/]*/maven2|https://espejo.example.org/maven2|' > "$raiz_otra/$dir/.mvn/wrapper/maven-wrapper.properties"
+done
+salida=$(RAIZ="$raiz_otra" revisar "$real")
+if grep -qF -- "su MVNW_REPOURL no es la base de distributionUrl" <<<"$salida"; then
+  ok "rechaza: otra base de distributionUrl en los maven-wrapper.properties"
+else
+  falla "rechaza: otra base de distributionUrl en los maven-wrapper.properties" "revisar() dijo: ${salida:-nada}"
+fi
 
 # ---------------------------------------------------------------------------------------------------------------
 echo
