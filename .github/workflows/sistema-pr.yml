@@ -89,7 +89,7 @@ jobs:
         run: |
           if git cat-file -e HEAD^1:.github/scripts/test/maven-cache.test.sh 2> /dev/null; then
             git show HEAD^1:.github/scripts/test/maven-cache.test.sh > "$RUNNER_TEMP/maven-cache.test.sh"
-            bash "$RUNNER_TEMP/maven-cache.test.sh" "$GITHUB_WORKSPACE/.github/workflows"
+            bash "$RUNNER_TEMP/maven-cache.test.sh" "$GITHUB_WORKSPACE/.github/workflows" "$GITHUB_WORKSPACE"
           else
             echo "La base aún no tiene la prueba (el PR que la agrega)."
           fi
