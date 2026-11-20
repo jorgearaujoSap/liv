@@ -2,7 +2,7 @@
 # Compuertas cubiertas hoy: Q01 (lint, formato y empaquetado). Pruebas, historias, regresión visual y
 # accesibilidad (Q02, Q14) se agregan con el primer componente (tarea T03 de la feature 001).
 # Este workflow nunca publica en npm: publica `ui-release.yml` al integrar el PR que sube la versión, con la aprobación de
-# una persona (AGENTS.md §4.5, ADR 0042); hasta el PR 3 de la R3 de la feature 002 ese workflow solo hace --dry-run. Si el PR sube la versión de la librería,
+# una persona (AGENTS.md §4.5, ADR 0042). Si el PR sube la versión de la librería,
 # corre además `release:check --ci` (feature 002, 002-10).
 # Corre en todos los PR, sin filtro de rutas: «ui · cambios» decide si «ui · verify» corre o se omite
 # (.github/scripts/aplica.sh). Los nombres de los trabajos son los de los checks obligatorios del ruleset «main»:
