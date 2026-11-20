@@ -77,7 +77,7 @@ Cuando `publicar` termina, `etiquetar` crea la etiqueta `ui-vX.Y.Z` en el *commi
 
 ### 3. Si algo falla
 
-Los errores de `decidir`, `publicar` y `etiquetar` terminan con la sección de esta guía que los resuelve; en `verificar`, el registro marca el paso que falló y esta guía dice qué hacer. Nada de lo que sigue publica dos veces: «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. Los «Re-run», como las aprobaciones, los hace una persona.
+Los errores de `decidir`, `publicar` y `etiquetar` terminan con la sección de esta guía que los resuelve; en `verificar`, el registro marca el paso que falló y esta guía dice qué hacer. Ninguno de estos reintentos publica dos veces. Con la versión **aún no** publicada, «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. **Con la versión ya en npm**, usa «Re-run failed jobs»: `publicar` compara la integridad publicada con la del `.tgz` verificado, mientras que «Re-run all jobs» salta directo a «etiquetar» y no la compara. Los «Re-run», como las aprobaciones, los hace una persona.
 
 #### Si falla «decidir»
 
@@ -91,7 +91,7 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 | La versión del paquete no es X.Y.Z, el paquete no se llama `liv-components`, o falta el *commit* padre (el *checkout* debe ser de dos *commits*) | Corrige el `package.json` de la librería en un PR de `ui/`. Si es el *checkout*, es un fallo del *workflow*: avisa al responsable |
 | La etiqueta `ui-vX.Y.Z` ya existe en otro *commit* | **No se mueve.** Si la versión **no** está publicada, una persona revisa quién la creó y por qué, y la versión se descarta: se sube una nueva en un PR nuevo. Si **ya está publicada**, sigue «[Si falla «etiquetar»](#si-falla-etiquetar)» |
 | npm registra que la versión se publicó desde otro *commit* | Igual que la anterior: no se etiqueta este *commit* |
-| Falta la sección `## [X.Y.Z]` del `CHANGELOG.md`, o está vacía (`release-notes`, que genera el texto de la *release*) | Si la versión **no** está publicada, agrégala en un PR nuevo que **suba otra vez la versión**: solo el *commit* que sube la versión la publica. Si **ya está publicada**, la persona crea la *release* a mano como en «[Si falla «etiquetar»](#si-falla-etiquetar)» |
+| Falta la sección `## [X.Y.Z]` del `CHANGELOG.md`, o está vacía (`release-notes`, que genera el texto de la *release*) | Si la versión **no** está publicada, agrégala en un PR nuevo que **suba otra vez la versión**: solo el *commit* que sube la versión la publica. Si **ya está publicada**, la persona agrega esa sección en un PR sin subir la versión y crea la *release* a mano como en «Si ya pasaron 30 días», con el texto de la sección que quedó en `main` |
 | `.nvmrc` o `packageManager` no son una versión exacta que sirva para la publicación de confianza | Corrígelos en un PR de `ui/` (Node 22.14 o mayor, npm 11.5.1 o mayor) |
 
 «Nada que publicar» **no es un fallo**: el *commit* no subió la versión, o la versión ya está publicada. Si el mensaje dice que la versión «está pendiente en la ejecución del *commit* que la subió», busca esa ejecución y apruébala o recházala.
@@ -117,7 +117,7 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 | `no es mayor que la última publicada` | Se publicó otra versión mayor mientras esperaba. Sube la versión en un PR nuevo |
 | `npm publish falló` con `E403`, `E404` o un error de OIDC | Una persona revisa en npmjs.com el publicador de confianza de `liv-components`: repositorio `jorgearaujoSap/liv`, *workflow* `ui-release.yml` y entorno `npm`. Si venció, se borra y se registra de nuevo; después, «Re-run failed jobs» |
 | Subió el paquete y falló después | «Re-run failed jobs»: `publicar` compara la integridad con la de npm y, si coincide, sigue sin publicar otra vez |
-| Falló `setup-node`, la instalación de npm («npm quedó en X y debía ser Y») o la descarga de un artefacto | «Re-run failed jobs». Si el artefacto venció (30 días), «Re-run all jobs» solo sirve si la ejecución tiene menos de 30 días; si no, ve a «[Si falla «etiquetar»](#si-falla-etiquetar)» cuando la versión ya esté en npm, o sube el siguiente número |
+| Falló `setup-node`, la instalación de npm («npm quedó en X y debía ser Y») o la descarga de un artefacto | «Re-run failed jobs». Si el artefacto venció (30 días), «Re-run all jobs» solo sirve si la ejecución tiene menos de 30 días, y volver a ejecutar `publicar` pide otra aprobación (con su resumen a la vista); si ya no sirve, ve a «[Si falla «etiquetar»](#si-falla-etiquetar)» cuando la versión ya esté en npm, o sube el siguiente número |
 
 **Con la versión ya en npm, «Re-run failed jobs» es la única forma segura de volver a ejecutar:** compara la integridad publicada con la del `.tgz` verificado. «Re-run all jobs» salta directo a «etiquetar» y no la compara.
 
@@ -125,19 +125,27 @@ Si npm responde pero la versión no aparece, no la publiques a mano: espera y co
 
 #### Si falla «etiquetar»
 
-El paquete ya está publicado. Usa «Re-run failed jobs» (si `publicar` llegó a correr, no uses «Re-run all jobs»: no compara la integridad publicada). Crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si GitHub no respondió o respondió algo ilegible, espera y repite.
+El paquete ya está publicado. Usa «Re-run failed jobs» (con la versión ya en npm no uses «Re-run all jobs»: no compara la integridad publicada). Crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si GitHub no respondió o respondió algo ilegible, espera y repite.
 
 - Si la etiqueta ya existe en otro *commit*, falla y **no la mueve**, y el paquete **ya está publicado**: no se descarta la versión. Una persona administradora (nunca un agente) hace esto, y lo deja anotado en el *issue* de la feature (quién y por qué):
-  1. Mira en npmjs.com, en la página de procedencia de la versión, de qué *commit* salió el paquete, y compáralo con el *commit* de la etiqueta.
-  2. Si coinciden, la etiqueta es la buena: conserva la etiqueta y crea la *release* como en el siguiente apartado.
-  3. Si no coinciden, la etiqueta es ajena: la persona se agrega a la lista de excepciones del *ruleset* de `ui-v*` (sin desactivarlo), borra la etiqueta y su *release* (que GitHub deja como borrador), se quita de la lista, y usa «Re-run failed jobs».
-- Si la huella de `release-tag.mjs` o de las notas no coincide, el artefacto trae archivos de más, o el *commit* decidido no es el de la ejecución: **no reintentes.** Es la misma señal que en «publicar»: una persona investiga.
+  1. Mira en npmjs.com, en la página de procedencia de la versión, de qué *commit* salió el paquete. Compáralo con el *commit* de la etiqueta y con el de la ejecución.
+  2. Si el *commit* de la etiqueta es el de la procedencia, la etiqueta es la buena: conserva la etiqueta y crea la *release* como en «Si ya pasaron 30 días».
+  3. Si la etiqueta es ajena **y** el *commit* de la ejecución es el de la procedencia: anota antes, en el *issue*, el SHA de la etiqueta y quién la creó (la página de etiquetas de GitHub lo muestra). Después la persona se agrega a la lista de excepciones del *ruleset* de `ui-v*` (sin desactivarlo), borra la etiqueta y su *release* (que GitHub deja como borrador), se quita de la lista, y usa «Re-run failed jobs».
+  4. Si la etiqueta es ajena y el *commit* de la ejecución **no** es el de la procedencia, no uses «Re-run»: etiquetar `GITHUB_SHA` pondría la etiqueta en un *commit* que no publicó. Crea la etiqueta y la *release* a mano como en «Si ya pasaron 30 días».
+- Si `decidir` no entregó las huellas, la huella de `release-tag.mjs` o de las notas no coincide, el artefacto trae archivos de más, o el *commit* decidido no es el de la ejecución: **no reintentes.** Es la misma señal que en «publicar»: una persona investiga.
 - Si la *release* ya existe con un texto distinto de la sección del `CHANGELOG.md`, no la cambia y deja una anotación de aviso: **una persona** la revisa y, si hace falta, la edita en GitHub; nunca un agente.
 
-**Si ya pasaron 30 días** (ni «Re-run» ni los artefactos sirven) o `decidir` da «nada» porque `main` avanzó, una persona crea a mano la etiqueta y la *release*:
+**Si ya pasaron 30 días** (ni «Re-run» ni los artefactos sirven) o `decidir` da «nada» porque `main` avanzó, una persona (nunca un agente) crea a mano la etiqueta y la *release*:
 
-- la etiqueta `ui-vX.Y.Z` va en el *commit* de la procedencia de npm, **nunca en la punta de `main`**, con `git tag ui-vX.Y.Z <commit>` y `git push origin ui-vX.Y.Z` (o la API de GitHub);
+- la etiqueta `ui-vX.Y.Z` va **siempre en el *commit* de la procedencia de npm**, aunque `main` haya avanzado, con `git tag ui-vX.Y.Z <commit>` y `git push origin ui-vX.Y.Z` (o la API de GitHub);
 - la *release* se titula `liv-components X.Y.Z`, lleva como texto la sección `## [X.Y.Z]` del `CHANGELOG.md` y **no** se marca como «Latest», porque el repositorio comparte las etiquetas de tres proyectos.
+
+#### Varias versiones seguidas
+
+GitHub deja una sola ejecución en espera por grupo. **Aprueba o rechaza antes de integrar otra subida de versión.** Si se integran dos subidas antes de aprobar la primera, la primera se cancela:
+
+- si pasa, la versión saltada se publica con «Re-run» de su ejecución cancelada, **antes** de aprobar la siguiente. Como solo cabe una ejecución en espera por grupo, ese «Re-run» puede cancelar la siguiente: si pasa, vuelve a ejecutar la siguiente cuando la saltada esté publicada;
+- si ya se aprobó la siguiente, la saltada ya no se puede publicar (sería menor que la última): sus cambios salen con la siguiente y se anotan en el `CHANGELOG.md`.
 
 ### 4. Adoptar la versión en el frontend
 
