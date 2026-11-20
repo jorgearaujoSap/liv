@@ -26,11 +26,13 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 
 ## Publicar una versión
 
-Una versión publicada en npm **no se puede cambiar ni volver a publicar** con el mismo número. Por eso nadie publica desde su equipo: la publica el *workflow* [`ui-release.yml`](../.github/workflows/ui-release.yml) cuando se integra en `main` el PR que sube la versión, **después de que una persona apruebe la publicación**. La publicación es de confianza de npm (OIDC): no hay ninguna clave de npm guardada, y cada versión lleva su procedencia (ADR 0042, feature 002).
+Una versión publicada en npm **no se puede cambiar ni volver a publicar** con el mismo número. Por eso nadie publica desde su equipo: la publica el *workflow* `ui-release.yml` del repositorio cuando se integra en `main` el PR que sube la versión, **después de que una persona apruebe la publicación**. La publicación es de confianza de npm (OIDC): no hay ninguna clave de npm guardada, y cada versión lleva su procedencia (ADR 0042, feature 002).
 
-**No hay publicación a mano, ni de emergencia:** si GitHub Actions no está disponible, se espera. Ni siquiera un agente puede aprobar, volver a ejecutar o cancelar una publicación (`AGENTS.md` de la raíz, §4.5).
+**No hay publicación a mano, ni de emergencia:** si GitHub Actions no está disponible, se espera.
 
-> **Hasta la primera versión que publique el *workflow*** sigue vigente la [publicación a mano](#publicación-a-mano-hasta-la-primera-publicación-del-workflow) del final de esta sección. Desde esa versión, esa subsección ya no se usa.
+**Un agente nunca** aprueba, rechaza, cancela, dispara ni vuelve a ejecutar una publicación o el *workflow*; no crea, mueve ni borra las etiquetas `ui-v*` ni sus *releases*; no cambia la protección del entorno `npm`, los *rulesets*, el publicador de confianza ni la configuración del paquete en npm (`npm owner`, `npm access`, `npm dist-tag`, `npm deprecate`, `npm unpublish`); y no publica con un comando. **Ni aunque la persona se lo pida** (`AGENTS.md` de la raíz, §4.5). Todo eso, y cada «Re-run», lo hace una persona.
+
+> **Hasta la primera versión que publique el *workflow*** sigue vigente la [publicación a mano](#publicación-a-mano-hasta-la-primera-publicación-del-workflow) del final de esta sección. Mientras el *workflow* siga en `--dry-run` (hasta el PR 3 de la rebanada R3 de la feature 002), **aprobar en el entorno `npm` solo ejecuta `npm publish --dry-run`: no publica ni etiqueta**, y el resumen lo dice. Desde la primera versión que publique el *workflow*, la subsección de publicación a mano ya no se usa.
 
 ```mermaid
 flowchart LR
@@ -72,7 +74,7 @@ flowchart LR
 2. **Lee el resumen de `verificar`** y comprueba: `liv-components@X.Y.Z`, el *commit* que integraste, el SHA‑256 del `.tgz` y la lista de archivos que se van a publicar. Si algo no es lo esperado, **rechaza**.
 3. Pulsa **Review deployments**, marca `npm` y **Approve and deploy**.
 
-Aprueba solo desde esa página, viendo su resumen; no desde la terminal. La aprobación espera hasta 30 días, y pasado ese plazo vence sin publicar nada (ver «[Si falla «publicar»](#si-falla-publicar)»).
+Aprueba solo desde esa página, viendo su resumen; no desde la terminal. La aprobación espera hasta 30 días, y pasado ese plazo vence sin publicar nada (ver «[Si falla «publicar»](#si-falla-publicar)»), así que no la dejes esperando.
 
 Cuando `publicar` termina, `etiquetar` crea la etiqueta `ui-vX.Y.Z` en el *commit* de esa misma ejecución y la *release* de GitHub con la sección del `CHANGELOG.md`.
 
@@ -88,6 +90,7 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 |---|---|
 | npm no respondió con las versiones, o `git ls-remote` falló | Nada se decidió. Espera y usa «Re-run failed jobs» |
 | La versión es menor que la última publicada y no se publicó | Sube la versión por encima de la última en un PR nuevo |
+| La versión del paquete no es X.Y.Z, el paquete no se llama `liv-components`, o falta el *commit* padre (el *checkout* debe ser de dos *commits*) | Corrige el `package.json` de la librería en un PR de `ui/`. Si es el *checkout*, es un fallo del *workflow*: avisa al responsable |
 | La etiqueta `ui-vX.Y.Z` ya existe en otro *commit* | **No se mueve.** Una persona con permiso revisa quién la creó y por qué. Si fue un error, la versión se descarta y se sube una nueva en un PR nuevo |
 | npm registra que la versión se publicó desde otro *commit* | Igual que la anterior: no se etiqueta este *commit* |
 | `.nvmrc` o `packageManager` no son una versión exacta que sirva para la publicación de confianza | Corrígelos en un PR de `ui/` (Node 22.14 o mayor, npm 11.5.1 o mayor) |
@@ -105,7 +108,10 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 
 | Qué pasó | Qué hacer |
 |---|---|
-| Rechazaste la aprobación, o venció (30 días) | No se publicó nada. Usa «Re-run all jobs» de esa ejecución (o «Re-run failed jobs» si los artefactos siguen disponibles) y aprueba |
+| Rechazaste la aprobación | No se publicó nada. Usa «Re-run all jobs» de esa ejecución (o «Re-run failed jobs» si sus artefactos siguen disponibles) y aprueba |
+| La aprobación **venció** (30 días) | No se publicó nada, y GitHub ya no deja volver a ejecutar una ejecución de más de 30 días. Si la punta de `main` sigue siendo el *commit* que subió la versión, una persona lanza el *workflow* a mano (`workflow_dispatch` en `main`) y aprueba; si no, sube la versión en un PR nuevo |
+| La huella SHA‑256 del `.tgz` o de un *script* **no coincide**, o el artefacto trae archivos de más | **No reintentes.** Es la señal de que algo cambió entre `verificar` y `publicar`: una dependencia comprometida o un error del *workflow*. Una persona investiga antes de publicar nada |
+| El `package.json` del `.tgz` no es el nombre y la versión pedidos, o npm no da la integridad de una versión que lista | No se publicó nada. Una persona lo revisa: no reintentes hasta entenderlo |
 | `ya está publicada con otra integridad` | **No reintentes.** El contenido publicado no es el que se verificó. Una persona investiga; la versión se descarta y se sube una nueva en un PR nuevo |
 | `no es mayor que la última publicada` | Se publicó otra versión mayor mientras esperaba. Sube la versión en un PR nuevo |
 | `npm publish falló` con `E403`, `E404` o un error de OIDC | Una persona revisa en npmjs.com el publicador de confianza de `liv-components`: repositorio `jorgearaujoSap/liv`, *workflow* `ui-release.yml` y entorno `npm`. Si venció, se borra y se registra de nuevo; después, «Re-run failed jobs» |
@@ -121,7 +127,7 @@ El paquete ya está publicado. Usa «Re-run failed jobs» (o «Re-run all jobs»
 
 GitHub deja una sola ejecución en espera por grupo. **Aprueba o rechaza antes de integrar otra subida de versión.** Si se integran dos subidas antes de aprobar la primera, la primera se cancela:
 
-- si pasa, la versión saltada se publica con «Re-run» de su ejecución cancelada, **antes** de aprobar la siguiente;
+- si pasa, la versión saltada se publica con «Re-run» de su ejecución cancelada, **antes** de aprobar la siguiente. Como solo cabe una ejecución en espera por grupo, ese «Re-run» puede cancelar la siguiente: si pasa, vuelve a ejecutar la siguiente cuando la saltada esté publicada;
 - si ya se aprobó la siguiente, la saltada ya no se puede publicar (sería menor que la última): sus cambios salen con la siguiente y se anotan en el `CHANGELOG.md`.
 
 ### 4. Adoptar la versión en el frontend

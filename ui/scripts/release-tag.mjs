@@ -23,6 +23,9 @@ const NOTES_PATH = /^(?!-)[\w./\\:-]+$/;
 // A tag can point to another tag; real ones have one level. More than this is not a normal tag.
 const MAX_TAG_DEPTH = 5;
 
+// Where the person finds how to resolve each failure (feature 002, 002-04).
+const GUIDE = 'Guía: ui/README.md › «Publicar una versión» › «Si falla «etiquetar»».';
+
 class TagError extends Error {}
 
 function fail(message) {
@@ -44,8 +47,9 @@ export function parseArgs(argv, env) {
   if (name !== LIBRARY_NAME) fail(`Solo se etiqueta ${LIBRARY_NAME}, no "${name}".`);
   if (!EXACT_VERSION.test(version)) fail(`La versión "${version}" no es X.Y.Z.`);
   if (!COMMIT_SHA.test(commit)) fail(`"${commit}" no es un commit de 40 caracteres hexadecimales.`);
-  if (!REPOSITORY.test(repository))
+  if (!REPOSITORY.test(repository) || repository.split('/').some((part) => /^\.+$/.test(part))) {
     fail(`GITHUB_REPOSITORY ("${repository}") no es <dueño>/<repositorio>.`);
+  }
   if (!NOTES_PATH.test(notes)) fail(`"${notes}" no es la ruta de un archivo de notas.`);
   return { name, version, commit, repository, notes, tag: `ui-v${version}` };
 }
@@ -60,11 +64,16 @@ function isNotFound(result) {
 }
 
 function parseJson(text, what) {
+  let parsed;
   try {
-    return JSON.parse(text);
+    parsed = JSON.parse(text);
   } catch {
     return fail(`GitHub respondió algo ilegible sobre ${what}.`);
   }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return fail(`GitHub respondió algo ilegible sobre ${what}.`);
+  }
+  return parsed;
 }
 
 /**
@@ -117,18 +126,27 @@ function ensureTag({ run, repository, tag, commit }) {
   return `La etiqueta ${tag} ya existe en el commit de esta ejecución.`;
 }
 
-function releaseExists({ run, repository, tag }) {
+function readRelease({ run, repository, tag }) {
   const release = run('gh', ['api', `repos/${repository}/releases/tags/${tag}`]);
-  if (isNotFound(release)) return false;
+  if (isNotFound(release)) return null;
   if (release.status !== 0) {
     fail(`GitHub no respondió si existe la release ${tag} (${failure(release)}).`);
   }
-  return true;
+  return parseJson(release.stdout, `la release ${tag}`);
+}
+
+/** What it says of a release that already exists: it never changes it, but it says if its text differs. */
+function existingRelease(release, tag, content) {
+  const same = String(release.body ?? '').trim() === content.trim();
+  return same
+    ? `La release ${tag} ya existe.`
+    : `La release ${tag} ya existe, con un texto distinto de la sección del CHANGELOG.md. No se cambia: revísala.`;
 }
 
 /** Creates the release of the tag with the notes, or confirms that it exists. Returns what it did. */
-function ensureRelease({ run, repository, tag, name, version, notes }) {
-  if (releaseExists({ run, repository, tag })) return `La release ${tag} ya existe.`;
+function ensureRelease({ run, repository, tag, name, version, notes, content }) {
+  const existing = readRelease({ run, repository, tag });
+  if (existing !== null) return existingRelease(existing, tag, content);
   const created = run('gh', [
     'release',
     'create',
@@ -136,6 +154,8 @@ function ensureRelease({ run, repository, tag, name, version, notes }) {
     '--repo',
     repository,
     '--verify-tag',
+    // The tags of the three projects share this repository: this release must not become its "Latest".
+    '--latest=false',
     '--notes-file',
     notes,
     '--title',
@@ -143,7 +163,8 @@ function ensureRelease({ run, repository, tag, name, version, notes }) {
   ]);
   if (created.status === 0) return `Release ${tag} creada.`;
   // Two runs at once: the other one created it between the read and the create. Read it again.
-  if (releaseExists({ run, repository, tag })) return `La release ${tag} ya existe.`;
+  const raced = readRelease({ run, repository, tag });
+  if (raced !== null) return existingRelease(raced, tag, content);
   return fail(`No se pudo crear la release ${tag} (${failure(created)}).`);
 }
 
@@ -157,7 +178,7 @@ export function tag({ argv, env, run, readFile }) {
     fail(`No se pudo leer ${args.notes}: ${singleLine(cause.message)}. No se etiqueta.`);
   }
   if (!content.trim()) fail(`Las notas ${args.notes} están vacías. No se etiqueta.`);
-  return [ensureTag({ run, ...args }), ensureRelease({ run, ...args })];
+  return [ensureTag({ run, ...args }), ensureRelease({ run, ...args, content })];
 }
 
 export function main({ argv, env, run, readFile, log, error }) {
@@ -166,7 +187,7 @@ export function main({ argv, env, run, readFile, log, error }) {
     return 0;
   } catch (cause) {
     if (!(cause instanceof TagError)) throw cause;
-    const message = singleLine(cause.message);
+    const message = singleLine(`${cause.message} ${GUIDE}`);
     // Escaped as a GitHub Actions annotation, so GitHub's output cannot carry another workflow command.
     error(env.GITHUB_ACTIONS === 'true' ? `::error::${message.replace(/%/g, '%25')}` : message);
     return 1;

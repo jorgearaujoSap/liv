@@ -21,6 +21,9 @@ const EXACT_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 // A plain relative or absolute path: no shell syntax, no option-like start.
 const TARBALL_PATH = /^(?!-)[\w./\\:-]+\.tgz$/;
 
+// Where the person finds how to resolve each failure (feature 002, 002-04).
+const GUIDE = 'Guía: ui/README.md › «Publicar una versión» › «Si falla «publicar»».';
+
 class PublishError extends Error {}
 
 function fail(message) {
@@ -254,7 +257,7 @@ export function main({ argv, run, readFile, env, log, error }) {
     if (!(cause instanceof PublishError)) throw cause;
     // In --dry-run (rebanada R2) a failure must not read as a real publish that failed.
     const mode = argv.at(-1) === '--dry-run' ? 'DRY-RUN: no publica. ' : '';
-    const message = singleLine(`${mode}${cause.message}`);
+    const message = singleLine(`${mode}${cause.message} ${GUIDE}`);
     // Escaped as a GitHub Actions annotation, so npm's output cannot carry another workflow command.
     error(env.GITHUB_ACTIONS === 'true' ? `::error::${message.replace(/%/g, '%25')}` : message);
     return 1;

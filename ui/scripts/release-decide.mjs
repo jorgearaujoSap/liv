@@ -20,6 +20,8 @@ export const MIN_NPM = '11.5.1';
 // X.Y.Z as SemVer defines it: no leading zeros, no pre-release or build suffix.
 export const EXACT_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const COMMIT_SHA = /^[0-9a-f]{40}$/;
+// Where the person finds how to resolve each failure (feature 002, 002-04).
+const GUIDE = 'Guía: ui/README.md › «Publicar una versión» › «Si falla «decidir»».';
 
 /** A check that failed with a message that says how to fix it. */
 export class ReleaseError extends Error {}
@@ -235,7 +237,7 @@ export function decide({ run, readFile }) {
       return {
         ...facts,
         salida: 'etiquetar',
-        mensaje: `${name}@${version} ya está publicada por este commit y falta su etiqueta o su release: se crea lo que falte.`,
+        mensaje: `${name}@${version} ya está publicada por este commit y falta su etiqueta o su release: se crea lo que falte, si falta algo.`,
       };
     }
 
@@ -267,11 +269,8 @@ export function decide({ run, readFile }) {
 export function main({ run, readFile, env, log, error, appendFile = appendFileSync }) {
   const decision = decide({ run, readFile });
   if (decision.salida === 'error') {
-    error(
-      env.GITHUB_ACTIONS === 'true'
-        ? errorAnnotation(decision.mensaje)
-        : singleLine(decision.mensaje),
-    );
+    const message = `${decision.mensaje} ${GUIDE}`;
+    error(env.GITHUB_ACTIONS === 'true' ? errorAnnotation(message) : singleLine(message));
   } else {
     log(singleLine(decision.mensaje));
   }

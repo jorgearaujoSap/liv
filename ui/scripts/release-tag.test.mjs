@@ -23,13 +23,15 @@ const CREATE_REF =
   `-f sha=${COMMIT}`;
 const RELEASE = 'gh api repos/jorgearaujoSap/liv/releases/tags/ui-v0.6.0';
 const CREATE_RELEASE =
-  `gh release create ui-v0.6.0 --repo jorgearaujoSap/liv --verify-tag --notes-file ${NOTES} ` +
+  `gh release create ui-v0.6.0 --repo jorgearaujoSap/liv --verify-tag --latest=false --notes-file ${NOTES} ` +
   '--title liv-components 0.6.0';
 const NOT_FOUND = result(1, '{"message":"Not Found"}', 'gh: Not Found (HTTP 404)');
 const SERVER_ERROR = result(1, '', 'gh: Server Error (HTTP 500)');
 
 const commitRef = (sha) => result(0, JSON.stringify({ object: { type: 'commit', sha } }));
-const readFile = fakeFiles({ [NOTES]: '### Añadido\n\n- Un componente.\n' });
+const NOTES_TEXT = '### Añadido\n\n- Un componente.\n';
+const readFile = fakeFiles({ [NOTES]: NOTES_TEXT });
+const release = (body = NOTES_TEXT) => result(0, JSON.stringify({ tag_name: 'ui-v0.6.0', body }));
 
 function setup(responses) {
   const { run, calls } = fakeRun(responses);
@@ -66,9 +68,18 @@ describe('release-tag · crea la etiqueta en el commit de esta ejecución (002-0
   });
 
   it('existe en este commit y la release también: no crea nada (volver a ejecutar todo)', () => {
-    const { messages, calls } = runTag({ [REF]: commitRef(COMMIT), [RELEASE]: result(0, '{}') });
+    const { messages, calls } = runTag({ [REF]: commitRef(COMMIT), [RELEASE]: release() });
     assert.deepEqual(calls, [REF, RELEASE]);
     assert.match(messages[1], /^La release ui-v0\.6\.0 ya existe/);
+  });
+
+  it('la release ya existe con otro texto: no la cambia y lo dice', () => {
+    const { messages, calls } = runTag({
+      [REF]: commitRef(COMMIT),
+      [RELEASE]: release('otro texto'),
+    });
+    assert.deepEqual(calls, [REF, RELEASE]);
+    assert.match(messages[1], /ya existe, con un texto distinto.* No se cambia/);
   });
 
   it('existe en otro commit: falla y no la mueve ni crea la release', () => {
@@ -101,7 +112,7 @@ describe('release-tag · crea la etiqueta en el commit de esta ejecución (002-0
         0,
         JSON.stringify({ object: { type: 'commit', sha: COMMIT } }),
       ),
-      [RELEASE]: result(0, '{}'),
+      [RELEASE]: release(),
     });
     assert.equal(calls.length, 3);
   });
@@ -120,7 +131,7 @@ describe('release-tag · carrera entre dos ejecuciones', () => {
     const { messages } = runTag({
       [REF]: () => (reads++ === 0 ? NOT_FOUND : commitRef(COMMIT)),
       [CREATE_REF]: result(1, '', 'gh: Reference already exists (HTTP 422)'),
-      [RELEASE]: result(0, '{}'),
+      [RELEASE]: release(),
     });
     assert.match(messages[0], /ya existe en el commit de esta ejecución/);
   });
@@ -149,7 +160,7 @@ describe('release-tag · carrera entre dos ejecuciones', () => {
     let reads = 0;
     const { messages } = runTag({
       [REF]: commitRef(COMMIT),
-      [RELEASE]: () => (reads++ === 0 ? NOT_FOUND : result(0, '{}')),
+      [RELEASE]: () => (reads++ === 0 ? NOT_FOUND : release()),
       [CREATE_RELEASE]: result(1, '', 'HTTP 422: Validation Failed'),
     });
     assert.match(messages[1], /ya existe/);
@@ -181,6 +192,13 @@ describe('release-tag · una respuesta que no es «no existe» nunca se toma por
   it('GitHub responde algo ilegible: falla', () => {
     const { run } = setup({ [REF]: result(0, 'no es json') });
     assert.throws(() => tag({ argv: ARGS, env: ENV, run, readFile }), /ilegible/);
+  });
+
+  it('GitHub responde null o algo que no es un objeto: falla con un mensaje, no con una traza', () => {
+    for (const body of ['null', '[]', '"texto"']) {
+      const { run } = setup({ [REF]: result(0, body) });
+      assert.throws(() => tag({ argv: ARGS, env: ENV, run, readFile }), /ilegible/);
+    }
   });
 
   it('GitHub responde un error de servidor al leer la release: falla sin crearla', () => {
@@ -229,6 +247,8 @@ describe('release-tag · argumentos y notas', () => {
     assert.throws(bad(['liv-components', '0.6.0', COMMIT.toUpperCase(), NOTES]), /no es un commit/);
     assert.throws(bad(ARGS, {}), /GITHUB_REPOSITORY/);
     assert.throws(bad(ARGS, { GITHUB_REPOSITORY: 'uno/dos/tres' }), /GITHUB_REPOSITORY/);
+    assert.throws(bad(ARGS, { GITHUB_REPOSITORY: '../..' }), /GITHUB_REPOSITORY/);
+    assert.throws(bad(ARGS, { GITHUB_REPOSITORY: 'dueno/..' }), /GITHUB_REPOSITORY/);
     assert.throws(bad(['liv-components', '0.6.0', COMMIT, '--title']), /no es la ruta/);
     assert.throws(bad(['liv-components', '0.6.0', COMMIT, 'a; rm -rf']), /no es la ruta/);
     assert.throws(bad(ARGS.slice(0, 3)), /Uso:/);
@@ -265,7 +285,7 @@ describe('release-tag · línea de comandos', () => {
   }
 
   it('termina en 0 y cuenta lo que hizo', () => {
-    const { status, logs } = runMain({ [REF]: commitRef(COMMIT), [RELEASE]: result(0, '{}') });
+    const { status, logs } = runMain({ [REF]: commitRef(COMMIT), [RELEASE]: release() });
     assert.equal(status, 0);
     assert.equal(logs.length, 2);
   });
@@ -280,6 +300,7 @@ describe('release-tag · línea de comandos', () => {
     assert.match(errors[0], /^::error::/);
     assert.equal(errors[0].includes('\n'), false);
     assert.match(errors[0], /%250A/);
+    assert.match(errors[0], /Si falla «etiquetar»/);
   });
 
   it('un error que no es de la lógica se propaga', () => {

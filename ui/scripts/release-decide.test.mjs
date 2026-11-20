@@ -195,6 +195,44 @@ describe('release-decide · salidas de la tabla del diseño técnico (002-05, 00
     assert.equal(decision.salida, 'error');
     assert.match(decision.mensaje, /npm no respondió de qué commit/);
   });
+
+  it('error: la etiqueta ya está en este commit, pero npm dice que se publicó desde otro', () => {
+    const decision = decide(
+      scenario({
+        version: '0.5.0',
+        parentVersion: '0.4.0',
+        tags: tagAt('0.5.0', HEAD),
+        gitHead: result(0, `"${OTHER}"\n`),
+      }),
+    );
+    assert.equal(decision.salida, 'error');
+    assert.match(decision.mensaje, /se publicó desde el commit b{40}, no desde este/);
+  });
+
+  it('error: la etiqueta ya está en este commit y npm no responde de qué commit se publicó', () => {
+    const decision = decide(
+      scenario({
+        version: '0.5.0',
+        parentVersion: '0.4.0',
+        tags: tagAt('0.5.0', HEAD),
+        gitHead: result(1, '', 'ETIMEDOUT'),
+      }),
+    );
+    assert.equal(decision.salida, 'error');
+    assert.match(decision.mensaje, /npm no respondió de qué commit/);
+  });
+
+  it('un error de decidir apunta a su sección de la guía', () => {
+    const errors = [];
+    const code = main({
+      ...scenario({ npmView: result(1, '', 'ETIMEDOUT') }),
+      env: {},
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
+    assert.equal(code, 1);
+    assert.match(errors[0], /Si falla «decidir»/);
+  });
 });
 
 describe('release-decide · npm sin respuesta nunca es «nada que publicar» (002-05)', () => {
