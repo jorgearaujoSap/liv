@@ -63,6 +63,14 @@ huella_antes() {
 # Condición de `etiquetar` según el diseño técnico (spec.md): con la salida `etiquetar`, o tras un `publicar` en verde.
 SI_ETIQUETAR="    if: "'${{ !cancelled() && github.ref == '"'refs/heads/main'"' && needs.decidir.result == '"'success'"' && (needs.decidir.outputs.salida == '"'etiquetar'"' || (needs.decidir.outputs.salida == '"'publicar'"' && needs.publicar.result == '"'success'"')) }}'
 
+# Dice si ninguna comprobación de sha256sum viene después de la línea que ejecuta el script $1 (el paso la cierra antes).
+huella_despues_de_todo() {
+  awk -v re="node .*$1" '
+    $0 ~ re && !ejecuta { ejecuta = NR }
+    /sha256sum --check/ { ultimo = NR }
+    END { exit !(ejecuta && ultimo < ejecuta) }'
+}
+
 # Revisa el workflow $1 y escribe una línea por cada regla que incumple. Sin líneas, todo en orden.
 revisar() {
   local f=$1 decidir verificar publicar etiquetar paso descargado job
@@ -99,10 +107,10 @@ revisar() {
     # Todo script se ejecuta desde el artefacto de decidir, bajado a $RUNNER_TEMP/scripts.
     while IFS= read -r linea; do
       case "$linea" in
-        *'node "$RUNNER_TEMP/scripts/'*) ;;
+        'node "$RUNNER_TEMP/scripts/release-publish.mjs"'* | 'node "$RUNNER_TEMP/scripts/release-tag.mjs"'*) ;;
         *) echo "$job: ejecuta un script que no es del artefacto de decidir: $linea" ;;
       esac
-    done < <(grep -E '^ +node ' <<<"$contenido")
+    done < <(grep -E '^ +node ' <<<"$contenido" | sed -E 's/^ +//')
     # La comprobación de la huella o del SHA-256 no puede quedar anulada con `|| true` o parecido.
     if grep -E 'sha256sum --check.*([|][|]|;)' <<<"$contenido" | grep -q .; then
       echo "$job: la comprobación de sha256sum puede quedar anulada (|| o ;)"
@@ -116,13 +124,29 @@ revisar() {
     grep -Eq '^    permissions:$' <<<"$contenido" || echo "$job: no declara sus permisos"
     grep -Eq 'write-all|read-all|permissions: *(write|read)' <<<"$contenido" && echo "$job: permisos demasiado amplios"
     grep -Eq '^    env:' <<<"$contenido" && echo "$job: tiene env a nivel del trabajo"
-    if grep -E '\$\{\{' <<<"$contenido" | grep -Ev '^ +[A-Za-z0-9_-]+: ' | grep -q .; then
-      echo "$job: interpola una expresión \${{ }} dentro de un run"
+    if grep -E '\$\{\{' <<<"$contenido" | grep -Ev '^ +(- )?[A-Za-z0-9_-]+: ' | grep -q .; then
+      echo "$job: interpola una expresión \${{ }} dentro de un run (o en un valor de varias líneas)"
     fi
     if grep -E '\$\{\{' <<<"$contenido" | grep -Eq '^ +(- )?run: '; then
       echo "$job: interpola una expresión \${{ }} en la línea de un run"
     fi
   done
+
+  # --- nada de lo que corre con permisos puede seguir tras un fallo, ni cambiar la shell ---
+  for job in verificar publicar etiquetar; do
+    contenido=$(bloque "$f" "$job")
+    grep -Eq 'continue-on-error|set \+e|set \+o errexit|trap ' <<<"$contenido" \
+      && echo "$job: puede seguir tras un fallo (continue-on-error, set +e o trap)"
+    grep -E 'shell:' <<<"$contenido" | grep -Ev 'shell: bash$' | grep -q . && echo "$job: cambia la shell de bash (pierde -e y pipefail)"
+  done
+
+  # --- todo el archivo: el token, los secretos y los env de primer nivel ---
+  local archivo
+  archivo=$(leer "$f" | grep -v '^ *#')
+  grep -Eq '^env:' <<<"$archivo" && echo "el workflow tiene env a nivel del archivo (llegaría a todos los trabajos)"
+  [ "$(cuenta 'github[.]token' <<<"$archivo")" -eq 1 ] || echo "github.token debe aparecer una sola vez en el archivo (en el paso de etiquetar)"
+  grep -Eq 'secrets[.]|toJSON[(]github' <<<"$archivo" && echo "el workflow usa secrets. o toJSON(github), que llevan el token o una clave"
+  grep -q 'GH_TOKEN: ${{ github.token }}$' <<<"$archivo" || echo "el token de etiquetar no es github.token"
 
   # --- publicar ---
   grep -Eq '^    environment: npm$' <<<"$publicar" || echo "publicar: no está en el entorno npm"
@@ -149,6 +173,10 @@ revisar() {
   grep -Eq '"[$]SHA256" "[$]NOMBRE-[$]VERSION[.]tgz" [|] sha256sum --check --strict$' <<<"$paso" \
     || echo "publicar: no comprueba el SHA-256 del .tgz en el mismo paso que lo publica"
   grep -q "NPM_CONFIG_PROVENANCE: 'true'" <<<"$paso" || echo "publicar: no exige la procedencia (NPM_CONFIG_PROVENANCE)"
+  [ "$(grep -ic 'provenance' <<<"$publicar")" -eq 1 ] || echo "publicar: la procedencia se define más de una vez"
+  grep -q '"[$]RUNNER_TEMP/paquete/[$]NOMBRE-[$]VERSION[.]tgz" "[$]NOMBRE" "[$]VERSION"' <<<"$paso" \
+    || echo "publicar: no publica el .tgz que se comprobó (RUNNER_TEMP/paquete/NOMBRE-VERSION.tgz)"
+  huella_despues_de_todo 'release-publish[.]mjs' <<<"$paso" || echo "publicar: hay una comprobación de sha256sum después de ejecutar el script"
 
   # --- etiquetar ---
   grep -q 'contents: write' <<<"$etiquetar" || echo "etiquetar: no tiene contents: write"
@@ -176,6 +204,10 @@ revisar() {
   grep -Eq '"[$]HUELLA_ETIQUETAR" release-tag[.]mjs "[$]HUELLA_NOTAS" notas[.]md [|] sha256sum --check --strict$' <<<"$paso" \
     || echo "etiquetar: las huellas comprobadas no son las que entregó decidir"
   grep -q 'GITHUB_SHA' <<<"$paso" || echo "etiquetar: no etiqueta el commit de esta ejecución (GITHUB_SHA)"
+  grep -q '"[$]COMMIT" != "[$]GITHUB_SHA"' <<<"$paso" || echo "etiquetar: no comprueba que el commit decidido sea el de esta ejecución"
+  grep -q 'release-tag[.]mjs" "[$]NOMBRE" "[$]VERSION" "[$]GITHUB_SHA"' <<<"$paso" \
+    || echo "etiquetar: no pasa GITHUB_SHA a release-tag.mjs como commit"
+  huella_despues_de_todo 'release-tag[.]mjs' <<<"$paso" || echo "etiquetar: hay una comprobación de sha256sum después de ejecutar el script"
   huella_antes 'release-tag[.]mjs' <<<"$paso" \
     || echo "etiquetar: no comprueba las huellas antes de ejecutar release-tag.mjs en el mismo paso"
 
@@ -307,6 +339,24 @@ rechaza "etiquetar sin exigir decidir en verde" "etiquetar: no exige que decidir
   reemplaza_en etiquetar " && needs.decidir.result == 'success'" ''
 rechaza "etiquetar con github.token en otro paso" "etiquetar: github.token o un secreto fuera del paso" \
   agrega_paso_en etiquetar '      - run: echo ok\n        env:\n          X: ${{ github.token }}'
+rechaza "publicar con set +e antes de comprobar" "publicar: puede seguir tras un fallo" \
+  reemplaza_en publicar 'cd "$RUNNER_TEMP/scripts"' 'set +e; cd "$RUNNER_TEMP/scripts"'
+rechaza "publicar con continue-on-error" "publicar: puede seguir tras un fallo" \
+  reemplaza_en publicar '    timeout-minutes: 15' '    timeout-minutes: 15\n    continue-on-error: true'
+rechaza "etiquetar con otra shell" "etiquetar: cambia la shell de bash" \
+  agrega_paso_en etiquetar '      - name: x\n        shell: bash {0}\n        run: echo ok'
+rechaza "etiquetar con un PAT" "el workflow usa secrets." \
+  reemplaza_en etiquetar 'GH_TOKEN: ${{ github.token }}' 'GH_TOKEN: ${{ secrets.RELEASE_PAT }}'
+rechaza "publicar ejecuta un script con .." "publicar: ejecuta un script que no es del artefacto de decidir" \
+  agrega_paso_en publicar '      - run: |\n          node "$RUNNER_TEMP/scripts/../paquete/x.mjs"'
+rechaza "etiquetar no pasa GITHUB_SHA como commit" "etiquetar: no pasa GITHUB_SHA a release-tag.mjs como commit" \
+  reemplaza_en etiquetar '"$VERSION" "$GITHUB_SHA"' '"$VERSION" "$COMMIT"'
+rechaza "etiquetar sin comparar el commit decidido" "etiquetar: no comprueba que el commit decidido sea el de esta ejecución" \
+  reemplaza_en etiquetar '[ "$COMMIT" != "$GITHUB_SHA" ]' '[ "$COMMIT" != "$COMMIT" ]'
+rechaza "publicar con la procedencia definida otra vez" "publicar: la procedencia se define más de una vez" \
+  reemplaza_en publicar "NPM_CONFIG_PROVENANCE: 'true'" "NPM_CONFIG_PROVENANCE: 'true'\n          npm_config_provenance: x"
+rechaza "publicar publica otro .tgz" "publicar: no publica el .tgz que se comprobó" \
+  reemplaza_en publicar '"$RUNNER_TEMP/paquete/$NOMBRE-$VERSION.tgz" "$NOMBRE"' '"$RUNNER_TEMP/paquete/otro.tgz" "$NOMBRE"'
 rechaza "publicar con contents: write" "publicar: tiene contents: write" \
   reemplaza_en publicar 'contents: read' 'contents: write'
 rechaza "publicar sin el entorno npm" "publicar: no está en el entorno npm" \
