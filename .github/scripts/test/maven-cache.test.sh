@@ -6,8 +6,10 @@
 # workflows y falla si alguna de esas reglas deja de cumplirse. No ejecuta nada: para comprobar que cada regla muerde,
 # arma copias de los workflows con un defecto y exige que la regla las rechace (modelo: ui-release.test.sh).
 #
-# La ejecuta sistema-pr.yml desde la punta de la base (HEAD^1), para que un PR no pueda debilitarla y relajar un workflow
-# a la vez. Lee los workflows del árbol de trabajo, que son los del PR.
+# La ejecuta sistema-pr.yml dos veces: la de la punta de la base (HEAD^1), para que un PR no la debilite sin querer al
+# relajar un workflow, y la del PR. Lee los workflows del árbol de trabajo, que son los del PR. No impide que un PR
+# quite el paso de sistema-pr.yml: esa barrera es la revisión humana (doc. 04 §9). Los textos que las mutaciones
+# buscan en los workflows no son valores que un PR legítimo cambie (SHA, tiempos): salen del propio archivo.
 #
 # Uso: bash .github/scripts/test/maven-cache.test.sh [carpeta-de-workflows]
 # Sale con 0 si todo pasa y con 1 si algo falla.
@@ -28,14 +30,18 @@ leer() { tr -d '\r' < "$1"; }
 
 # Identificadores de los trabajos del workflow $1.
 trabajos() {
-  leer "$1" | awk '/^jobs:/ { d = 1; next } d && /^  [A-Za-z0-9_-]+:[ ]*$/ { sub(/^  /, ""); sub(/:.*/, ""); print }'
+  leer "$1" | awk '
+    /^jobs:/ { d = 1; next }
+    { l = $0; sub(/[ \t]+#.*$/, "", l); sub(/[ \t]+$/, "", l); gsub(/["\047]/, "", l) }
+    d && l ~ /^  [A-Za-z0-9_-]+:$/ { sub(/^  /, "", l); sub(/:.*/, "", l); print l }'
 }
 
 # Líneas del trabajo $2 del workflow $1 (entre su encabezado de dos espacios y el siguiente), sin los comentarios.
 bloque() {
   leer "$1" | awk -v job="  $2:" '
     /^jobs:/ { enjobs = 1; next }
-    enjobs && $0 == job { dentro = 1; next }
+    { l = $0; sub(/[ \t]+#.*$/, "", l); sub(/[ \t]+$/, "", l); gsub(/["\047]/, "", l) }
+    enjobs && l == job { dentro = 1; next }
     dentro && /^  [A-Za-z0-9_-]+:/ { exit }
     dentro && !/^ *#/ { print }'
 }
@@ -93,17 +99,35 @@ revisar() {
   local mc="$d/maven-cache-main.yml"
 
   # --- toda la carpeta: quién escribe la caché y quién no ---
+  local top limpio escritura pr_wf
+  ls "$d"/*.yaml > /dev/null 2>&1 && echo "hay un workflow .yaml: las reglas solo leen los .yml"
   for f in "$d"/*.yml; do
     base=$(basename "$f")
+    top=$(leer "$f" | awk '/^permissions:/ { d = 1; print; next } d && /^[A-Za-z]/ { exit } d && !/^ *#/ { print }' \
+      | sed -E 's/[[:space:]]+#.*$//' | tr -d "'\"")
+    pr_wf=0
+    leer "$f" | grep -Eq '^  pull_request(_target)?:' && pr_wf=1
     for job in $(trabajos "$f"); do
       contenido=$(bloque "$f" "$job")
+      # Sin comentarios al final de línea ni comillas: «contents: 'write' # x» también es escritura.
+      limpio=$(sed -E 's/[[:space:]]+#.*$//' <<<"$contenido" | tr -d "'\"")
+      # Permisos efectivos: los del trabajo o, si no declara ninguno, los del workflow (y sin ellos, los de escritura por omisión).
+      escritura=0
+      grep -Eq ': *write$|write-all' <<<"$limpio" && escritura=1
+      if ! grep -Eq '^    permissions:' <<<"$limpio"; then
+        { [ -z "$top" ] || grep -Eq ': *write$|write-all' <<<"$top"; } && escritura=1
+      fi
       # 239-02: un trabajo con permisos de escritura no ejecuta nada que otro trabajo haya podido escribir en la caché.
-      if grep -Eq ': *write$|write-all' <<<"$contenido" && grep -Eq '^ +(cache|cache-dependency-path):|actions/cache@' <<<"$contenido"; then
+      if [ "$escritura" -eq 1 ] && grep -Eq '^ +(cache|cache-dependency-path|cache-path):|^ +cache-jdk: *true|^ +package-manager-cache: *true|actions/cache(/restore|/save)?@' <<<"$limpio"; then
         echo "$base · $job: tiene permisos de escritura y usa caché"
+      fi
+      # Fuera de los PR solo maven-cache-main.yml escribe cachés: nada de actions/cache en los demás.
+      if [ "$pr_wf" -eq 0 ] && [ "$base" != maven-cache-main.yml ] && grep -Eq 'actions/cache(/restore|/save)?@' <<<"$limpio"; then
+        echo "$base · $job: un workflow que no es de PR usa actions/cache"
       fi
       while IFS= read -r -d $'\036' paso; do
         grep -q 'actions/setup-java@' <<<"$paso" || continue
-        grep -Eq '^ +cache:' <<<"$paso" || continue
+        grep -Eq '^ +cache: |^ +cache-jdk: *true' <<<"$paso" || continue
         if escribe_cache "$base:$job"; then
           grep -q 'cache-read-only' <<<"$paso" && echo "$base · $job: el trabajo que escribe la caché no puede ser de solo lectura"
         else
@@ -122,7 +146,7 @@ revisar() {
   done
 
   # --- el verify de cada PR y su pareja en maven-cache-main.yml (239-03) ---
-  local par p pr cmd dir vb cmds rp ps sha filler comprobar fb cb id pasoj
+  local par p pr cmd dir vb cmds rp ps sha filler comprobar fb cb id pasoj n
   for par in 'backend|backend-pr.yml|sh mvnw -B -ntp verify|backend' 'bff|bff-pr.yml|./mvnw -B -ntp verify|backend/bff'; do
     IFS='|' read -r p pr cmd dir <<<"$par"
     if [ ! -f "$d/$pr" ]; then echo "falta $pr"; continue; fi
@@ -132,6 +156,15 @@ revisar() {
     grep -Eq 'continue-on-error|retry|nick-fields|wretry' <<<"$vb" && echo "$pr · verify: puede seguir tras un fallo o reintentar"
     grep -E '^ +(- )?run: ' <<<"$vb" | grep -Eq '[|][|]|;' && echo "$pr · verify: un run con || o ; puede seguir tras un fallo"
     grep -q 'maven.test.failure.ignore' <<<"$vb" && echo "$pr · verify: ignora los fallos de las pruebas"
+    # El trabajo no se omite ni cambia de comportamiento por fuera del comando: su «if» es el de aplica.sh, el paso del
+    # verify no tiene «if» y nada cambia Maven con variables de entorno.
+    grep -Fxq "    if: \${{ always() && (needs.cambios.result != 'success' || needs.cambios.outputs.aplica != 'false') }}" <<<"$vb" \
+      || echo "$pr · verify: su condición «if» no es la de aplica.sh (un trabajo omitido cuenta como aprobado)"
+    pasoj=$(pasos_con 'mvnw' <<<"$vb")
+    grep -Eq '^ +if:' <<<"$pasoj" && echo "$pr · verify: el paso del verify tiene un «if»"
+    grep -Eiq 'MAVEN_OPTS|MAVEN_ARGS|MAVEN_CONFIG|skipTests|maven[.]test[.]skip|GITHUB_ENV|^ +env:' <<<"$vb" \
+      && echo "$pr · verify: cambia Maven con variables de entorno o env"
+    leer "$d/$pr" | grep -v '^ *#' | grep -Eq '^env:' && echo "$pr: tiene env a nivel del workflow"
     ps=$(pasos_con 'actions/setup-java@' <<<"$vb")
     rp=$(ruta_cache <<<"$ps")
     [ "$rp" = "$dir/pom.xml,$dir/.mvn/wrapper/maven-wrapper.properties" ] \
@@ -162,8 +195,17 @@ revisar() {
     [ "$(ruta_cache <<<"$cb")" = "$rp" ] || echo "maven-cache-main.yml · $p-comprobar: su cache-dependency-path no es el del verify de $pr"
     [ "$(grep -o 'setup-java@[0-9a-f]\{40\}' <<<"$cb")" = "$sha" ] || echo "maven-cache-main.yml · $p-comprobar: su setup-java no es el de $pr"
     grep -Eq '^ +cache-read-only: true$' <<<"$cb" || echo "maven-cache-main.yml · $p-comprobar: no restaura con cache-read-only: true"
+    # Sin conexión (-o) y con -Dmaven.test.failure.ignore=true: una prueba inestable no se confunde con una caché incompleta.
     cmds=$(comando <<<"$comprobar")
-    [ "${cmds/ -o / }" = "$cmd" ] && [ "$cmds" != "$cmd" ] || echo "maven-cache-main.yml · $p-comprobar: su verify no es el de $pr sin conexión (-o) (es «$cmds»)"
+    n=${cmds/ -o / }
+    n=${n/ -Dmaven.test.failure.ignore=true/}
+    [ "$n" = "$cmd" ] && [[ "$cmds" == *" -o "* ]] && [[ "$cmds" == *"-Dmaven.test.failure.ignore=true"* ]] \
+      || echo "maven-cache-main.yml · $p-comprobar: su verify no es el de $pr sin conexión (-o) y con -Dmaven.test.failure.ignore=true (es «$cmds»)"
+    # Sin JDK en la caché de main: los ejecutables que restauran los PR no los guarda este workflow.
+    [ "$(grep -c 'actions/setup-java@' <<<"$filler")" -eq "$(grep -Ec '^ +cache-jdk: false$' <<<"$filler")" ] \
+      || echo "maven-cache-main.yml · $p: algún setup-java no tiene cache-jdk: false"
+    [ "$(grep -c 'actions/setup-java@' <<<"$comprobar")" -eq "$(grep -Ec '^ +cache-jdk: false$' <<<"$comprobar")" ] \
+      || echo "maven-cache-main.yml · $p-comprobar: algún setup-java no tiene cache-jdk: false"
     grep -q 'continue-on-error' <<<"$comprobar" && echo "maven-cache-main.yml · $p-comprobar: tiene continue-on-error"
   done
 
@@ -208,12 +250,15 @@ fallos=0
 ok() { total=$((total + 1)); echo "ok    - $1"; }
 falla() { total=$((total + 1)); fallos=$((fallos + 1)); echo "FALLA - $1"; echo "        $2"; }
 
-# Reemplaza en el trabajo $2 del archivo $1 (con «-» para todo el archivo) el texto $3 por $4 (literal; todas las apariciones).
+# Reemplaza en el trabajo $2 del archivo $1 (con «-» para todo el archivo) el texto $3 por $4 (literal; todas las
+# apariciones). Los textos viajan por el entorno: así no dependen de cómo el awk del ejecutor lee las opciones -v.
 muta() {
   local archivo=$1 job=$2 desde=$3 hasta=$4 destino="$tmp/mutado.yml"
-  leer "$archivo" | awk -v job="  $job:" -v todo="$([ "$job" = - ] && echo 1 || echo 0)" -v desde="$desde" -v hasta="$hasta" '
+  leer "$archivo" | JOB="  $job:" TODO="$([ "$job" = - ] && echo 1 || echo 0)" DESDE="$desde" HASTA="$hasta" awk '
+    BEGIN { job = ENVIRON["JOB"]; todo = ENVIRON["TODO"]; desde = ENVIRON["DESDE"]; hasta = ENVIRON["HASTA"] }
     /^jobs:/ { enjobs = 1 }
-    enjobs && $0 == job { dentro = 1; print; next }
+    { l = $0; sub(/[ \t]+#.*$/, "", l); sub(/[ \t]+$/, "", l) }
+    enjobs && l == job { dentro = 1; print; next }
     dentro && /^  [A-Za-z0-9_-]+:/ { dentro = 0 }
     {
       linea = $0
@@ -233,7 +278,8 @@ muta() {
 # Agrega el texto $3 (líneas completas) justo después de «    steps:» del trabajo $2 del archivo $1.
 agrega_paso() {
   local archivo=$1 job=$2 texto=$3 destino="$tmp/mutado.yml"
-  leer "$archivo" | awk -v job="  $job:" -v texto="$texto" '
+  leer "$archivo" | JOB="  $job:" TEXTO="$texto" awk '
+    BEGIN { job = ENVIRON["JOB"]; texto = ENVIRON["TEXTO"] }
     /^jobs:/ { enjobs = 1 }
     enjobs && $0 == job { dentro = 1 }
     dentro && /^    steps:$/ { print; print texto; dentro = 0; hecho = 1; next }
@@ -241,6 +287,12 @@ agrega_paso() {
     END { if (!hecho) exit 3 }' > "$destino" || { echo "ERROR del arnés: no hay «steps:» en $job de $archivo" >&2; exit 2; }
   cp "$destino" "$archivo"
 }
+
+# Los SHA de las acciones salen del propio workflow: la prueba no congela los que hay hoy, para que subir una acción no
+# la rompa.
+SHA_JAVA=$(grep -ho 'actions/setup-java@[0-9a-f]\{40\}' "$real/maven-cache-main.yml" | head -1)
+SHA_CHECKOUT=$(grep -ho 'actions/checkout@[0-9a-f]\{40\}' "$real/maven-cache-main.yml" | head -1)
+SHA_NULO=0000000000000000000000000000000000000000
 
 # Los workflows reales cumplen todas las reglas.
 salida=$(revisar "$real")
@@ -274,20 +326,45 @@ rechaza() {
 reemplaza() { muta "$1/$2" "$3" "$4" "$5"; }
 agrega() { agrega_paso "$1/$2" "$3" "$4"; }
 quita_archivo() { rm -f "$1/$2"; }
+copia_como_yaml() { cp "$1/$2" "$1/otro.yaml"; }
+# Los defectos que esconden la escritura: un comentario, comillas o un encabezado con comentario.
+CACHE_SOLO_LECTURA=$'      - uses: actions/setup-java@0000000000000000000000000000000000000000\n        with:\n          cache: maven\n          cache-read-only: true'
+escritura_con_comentario() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml contracts 'contents: write' 'contents: write # releases'; }
+escritura_entre_comillas() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml contracts 'contents: write' "contents: 'write'"; }
+encabezado_con_comentario() { agrega "$1" backend-main.yml contracts "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-main.yml - '  contracts:' '  contracts: # releases'; }
+escritura_del_workflow() { agrega "$1" backend-pr.yml cambios "$CACHE_SOLO_LECTURA" && reemplaza "$1" backend-pr.yml - '  contents: read' '  contents: write'; }
 
 # 239-02: los trabajos con permisos de escritura no usan la caché; la leen o no la usan, nunca la escriben.
 rechaza "publicar contratos con caché de Maven" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
-  agrega backend-main.yml contracts $'      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad\n        with:\n          cache: maven\n          cache-read-only: true'
-rechaza "un trabajo de escritura con actions/cache" "backend-main.yml · schemas: tiene permisos de escritura y usa caché" \
-  agrega backend-main.yml schemas '      - uses: actions/cache@0000000000000000000000000000000000000000'
+  agrega backend-main.yml contracts "$CACHE_SOLO_LECTURA"
+rechaza "un trabajo de escritura con actions/cache" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  agrega backend-main.yml contracts "      - uses: actions/cache@$SHA_NULO"
+rechaza "un trabajo de escritura con actions/cache/restore" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  agrega backend-main.yml contracts "      - uses: actions/cache/restore@$SHA_NULO"
+rechaza "un trabajo de escritura con cache-jdk" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  agrega backend-main.yml contracts $'      - uses: actions/setup-java@0000000000000000000000000000000000000000\n        with:\n          cache-jdk: true\n          cache-read-only: true'
+rechaza "escritura con un comentario al final" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  escritura_con_comentario
+rechaza "escritura entre comillas" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  escritura_entre_comillas
+rechaza "trabajo con encabezado con comentario" "backend-main.yml · contracts: tiene permisos de escritura y usa caché" \
+  encabezado_con_comentario
+rechaza "escritura heredada del workflow" "backend-pr.yml · cambios: tiene permisos de escritura y usa caché" \
+  escritura_del_workflow
+rechaza "actions/cache en un workflow que no es de PR" "backend-main.yml · schemas: un workflow que no es de PR usa actions/cache" \
+  agrega backend-main.yml schemas "      - uses: actions/cache/save@$SHA_NULO"
+rechaza "un workflow .yaml" "hay un workflow .yaml" \
+  copia_como_yaml backend-main.yml
 rechaza "pruebas del comparador guarda caché" "backend-contracts-pr.yml · test: setup-java con caché de Maven sin cache-read-only: true" \
   reemplaza backend-contracts-pr.yml test '          cache-read-only: true' ''
 rechaza "pruebas del comparador con cache-read-only: false" "backend-contracts-pr.yml · test: setup-java con caché de Maven sin cache-read-only: true" \
   reemplaza backend-contracts-pr.yml test 'cache-read-only: true' 'cache-read-only: false'
 rechaza "otro workflow fuera de PR con caché que escribe" "backend-main.yml · schemas: setup-java con caché de Maven sin cache-read-only: true" \
-  agrega backend-main.yml schemas $'      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad\n        with:\n          cache: maven'
+  agrega backend-main.yml schemas $'      - uses: actions/setup-java@0000000000000000000000000000000000000000\n        with:\n          cache: maven'
 rechaza "el trabajo que llena la caché en solo lectura" "maven-cache-main.yml · backend: el trabajo que escribe la caché no puede ser de solo lectura" \
   reemplaza maven-cache-main.yml backend '          cache: maven' $'          cache: maven\n          cache-read-only: true'
+rechaza "el verify de un PR en solo lectura" "backend-pr.yml · verify: el trabajo que escribe la caché no puede ser de solo lectura" \
+  reemplaza backend-pr.yml verify '          cache: maven' $'          cache: maven\n          cache-read-only: true'
 
 # 239-03: el verify de los PR no cambia (salvo su clave) y los checks obligatorios conservan su nombre.
 rechaza "verify de bff-pr con otro comando" "bff-pr.yml · verify: el comando no es exactamente" \
@@ -295,15 +372,25 @@ rechaza "verify de bff-pr con otro comando" "bff-pr.yml · verify: el comando no
 rechaza "verify de backend-pr con otro comando" "backend-pr.yml · verify: el comando no es exactamente" \
   reemplaza backend-pr.yml verify 'sh mvnw -B -ntp verify' 'sh mvnw -B -ntp -o verify'
 rechaza "verify de bff-pr con continue-on-error en el paso" "bff-pr.yml · verify: puede seguir tras un fallo o reintentar" \
-  reemplaza bff-pr.yml verify '        run: ./mvnw -B -ntp verify' $'        continue-on-error: true\n        run: ./mvnw -B -ntp verify'
+  reemplaza bff-pr.yml verify '        run: ./mvnw' $'        continue-on-error: true\n        run: ./mvnw'
 rechaza "verify de backend-pr con continue-on-error en el trabajo" "backend-pr.yml · verify: puede seguir tras un fallo o reintentar" \
-  reemplaza backend-pr.yml verify '    timeout-minutes: 20' $'    timeout-minutes: 20\n    continue-on-error: true'
+  reemplaza backend-pr.yml verify '    timeout-minutes: ' $'    continue-on-error: true\n    timeout-minutes: '
 rechaza "verify de bff-pr con reintento" "bff-pr.yml · verify: puede seguir tras un fallo o reintentar" \
   reemplaza bff-pr.yml verify './mvnw -B -ntp verify' './mvnw -B -ntp verify # retry'
 rechaza "verify de backend-pr con || true" "backend-pr.yml · verify: un run con || o ; puede seguir tras un fallo" \
   reemplaza backend-pr.yml verify 'sh mvnw -B -ntp verify' 'sh mvnw -B -ntp verify || true'
+rechaza "verify de backend-pr con ; después del comando" "backend-pr.yml · verify: un run con || o ; puede seguir tras un fallo" \
+  reemplaza backend-pr.yml verify 'sh mvnw -B -ntp verify' 'sh mvnw -B -ntp verify; true'
 rechaza "verify de bff-pr con las pruebas ignoradas" "bff-pr.yml · verify: ignora los fallos de las pruebas" \
   reemplaza bff-pr.yml verify './mvnw -B -ntp verify' './mvnw -B -ntp -Dmaven.test.failure.ignore=true verify'
+rechaza "verify de bff-pr con if: false en el paso" "bff-pr.yml · verify: el paso del verify tiene un «if»" \
+  reemplaza bff-pr.yml verify '        run: ./mvnw' $'        if: false\n        run: ./mvnw'
+rechaza "verify de backend-pr omitido por su condición" "backend-pr.yml · verify: su condición «if» no es la de aplica.sh" \
+  reemplaza backend-pr.yml verify 'always() && (needs' 'false && (needs'
+rechaza "verify de backend-pr con MAVEN_ARGS" "backend-pr.yml · verify: cambia Maven con variables de entorno o env" \
+  reemplaza backend-pr.yml verify '    timeout-minutes: ' $'    env:\n      MAVEN_ARGS: -DskipTests\n    timeout-minutes: '
+rechaza "bff-pr con env a nivel del workflow" "bff-pr.yml: tiene env a nivel del workflow" \
+  reemplaza bff-pr.yml - 'concurrency:' $'env:\n  MAVEN_ARGS: -DskipTests\nconcurrency:'
 rechaza "verify de backend-pr sin el wrapper en la clave" "backend-pr.yml · verify: la clave de la caché no es el pom.xml y el maven-wrapper.properties" \
   reemplaza backend-pr.yml verify '            backend/.mvn/wrapper/maven-wrapper.properties' ''
 rechaza "verify de bff-pr con otra clave" "bff-pr.yml · verify: la clave de la caché no es el pom.xml y el maven-wrapper.properties" \
@@ -319,17 +406,27 @@ rechaza "quita sistema-pr.yml" "falta el trabajo del check obligatorio «sistema
 rechaza "caché de backend con otra clave" "maven-cache-main.yml · backend: su cache-dependency-path no es el del verify de backend-pr.yml" \
   reemplaza maven-cache-main.yml backend '            backend/.mvn/wrapper/maven-wrapper.properties' ''
 rechaza "caché de bff con otro SHA de setup-java" "maven-cache-main.yml · bff: su setup-java no es el de bff-pr.yml" \
-  reemplaza maven-cache-main.yml bff 'setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad' 'setup-java@0000000000000000000000000000000000000000'
+  reemplaza maven-cache-main.yml bff "$SHA_JAVA" "actions/setup-java@$SHA_NULO"
+rechaza "comprobar caché de backend con otro SHA de setup-java" "maven-cache-main.yml · backend-comprobar: su setup-java no es el de backend-pr.yml" \
+  reemplaza maven-cache-main.yml backend-comprobar "$SHA_JAVA" "actions/setup-java@$SHA_NULO"
 rechaza "caché de bff con otro comando" "maven-cache-main.yml · bff: su verify no es el de bff-pr.yml" \
-  reemplaza maven-cache-main.yml bff './mvnw -B -ntp -Dmaven.test.failure.ignore=true verify' './mvnw -B -ntp -Dmaven.test.failure.ignore=true install'
+  reemplaza maven-cache-main.yml bff 'ignore=true verify' 'ignore=true install'
 rechaza "caché de backend sin ignorar las pruebas" "maven-cache-main.yml · backend: su verify no usa -Dmaven.test.failure.ignore=true" \
   reemplaza maven-cache-main.yml backend ' -Dmaven.test.failure.ignore=true' ''
 rechaza "caché de backend sin omitir el verify con cache-hit" "maven-cache-main.yml · backend: su verify no se omite con if: steps" \
   reemplaza maven-cache-main.yml backend "!= 'true'" "== 'true'"
 rechaza "caché de bff sin id de setup-java" "maven-cache-main.yml · bff: su verify no se omite con if: steps" \
   reemplaza maven-cache-main.yml bff '      - id: java' '      - name: java'
+rechaza "caché de backend con continue-on-error" "maven-cache-main.yml · backend: tiene continue-on-error" \
+  reemplaza maven-cache-main.yml backend '    timeout-minutes: ' $'    continue-on-error: true\n    timeout-minutes: '
+rechaza "caché de backend con el JDK en la caché" "maven-cache-main.yml · backend: algún setup-java no tiene cache-jdk: false" \
+  reemplaza maven-cache-main.yml backend '          cache-jdk: false' ''
+rechaza "comprobar caché de bff con el JDK en la caché" "maven-cache-main.yml · bff-comprobar: algún setup-java no tiene cache-jdk: false" \
+  reemplaza maven-cache-main.yml bff-comprobar '          cache-jdk: false' ''
 rechaza "comprobar caché de backend con conexión" "maven-cache-main.yml · backend-comprobar: su verify no es el de backend-pr.yml sin conexión" \
-  reemplaza maven-cache-main.yml backend-comprobar ' -o verify' ' verify'
+  reemplaza maven-cache-main.yml backend-comprobar ' -o ' ' '
+rechaza "comprobar caché de backend sin ignorar las pruebas" "maven-cache-main.yml · backend-comprobar: su verify no es el de backend-pr.yml sin conexión" \
+  reemplaza maven-cache-main.yml backend-comprobar ' -Dmaven.test.failure.ignore=true' ''
 rechaza "comprobar caché de bff que guarda caché" "maven-cache-main.yml · bff-comprobar: no restaura con cache-read-only: true" \
   reemplaza maven-cache-main.yml bff-comprobar '          cache-read-only: true' ''
 rechaza "comprobar caché de bff sin needs" "maven-cache-main.yml · bff-comprobar: no depende de bff (needs)" \
@@ -337,7 +434,7 @@ rechaza "comprobar caché de bff sin needs" "maven-cache-main.yml · bff-comprob
 rechaza "comprobar caché de backend con otra clave" "maven-cache-main.yml · backend-comprobar: su cache-dependency-path no es el del verify de backend-pr.yml" \
   reemplaza maven-cache-main.yml backend-comprobar '            backend/pom.xml' '            backend/otro.xml'
 rechaza "comprobar caché de bff con continue-on-error" "maven-cache-main.yml · bff-comprobar: tiene continue-on-error" \
-  reemplaza maven-cache-main.yml bff-comprobar '        run: ./mvnw -B -ntp -o verify' $'        continue-on-error: true\n        run: ./mvnw -B -ntp -o verify'
+  reemplaza maven-cache-main.yml bff-comprobar '        run: ./mvnw' $'        continue-on-error: true\n        run: ./mvnw'
 
 # 239-04: maven-cache-main.yml solo corre en main, con contents: read.
 rechaza "maven-cache-main con pull_request" "maven-cache-main.yml: se dispara con" \
@@ -353,19 +450,19 @@ rechaza "maven-cache-main sin la rama main en la comprobación" "maven-cache-mai
 rechaza "maven-cache-main con contents: write" "maven-cache-main.yml: los permisos del workflow no son solo contents: read" \
   reemplaza maven-cache-main.yml - '  contents: read' '  contents: write'
 rechaza "maven-cache-main con permisos más amplios en un trabajo" "maven-cache-main.yml · bff: amplía los permisos más allá de contents: read" \
-  reemplaza maven-cache-main.yml bff '    timeout-minutes: 30' $'    timeout-minutes: 30\n    permissions:\n      contents: read\n      actions: write'
+  reemplaza maven-cache-main.yml bff '    timeout-minutes: ' $'    permissions:\n      contents: read\n      actions: write\n    timeout-minutes: '
 rechaza "maven-cache-main con id-token: write en un trabajo" "maven-cache-main.yml: tiene permisos de escritura" \
-  reemplaza maven-cache-main.yml backend-comprobar '    timeout-minutes: 20' $'    timeout-minutes: 20\n    permissions:\n      id-token: write'
+  reemplaza maven-cache-main.yml backend-comprobar '    timeout-minutes: ' $'    permissions:\n      id-token: write\n    timeout-minutes: '
 rechaza "maven-cache-main sin timeout" "maven-cache-main.yml · backend: no tiene timeout-minutes" \
-  reemplaza maven-cache-main.yml backend '    timeout-minutes: 30' ''
+  reemplaza maven-cache-main.yml backend '    timeout-minutes: ' '    # timeout-minutes: '
 rechaza "maven-cache-main que cancela la ejecución en curso" "maven-cache-main.yml: la concurrency cancela la ejecución en curso" \
   reemplaza maven-cache-main.yml - 'cancel-in-progress: false' 'cancel-in-progress: true'
 rechaza "maven-cache-main sin grupo de concurrency propio" "maven-cache-main.yml: no tiene su propio grupo de concurrency" \
   reemplaza maven-cache-main.yml - 'group: maven-cache-main' 'group: otro'
 rechaza "otro workflow con el grupo de maven-cache-main" "backend-main.yml: comparte el grupo de concurrency de maven-cache-main.yml" \
-  reemplaza backend-main.yml - 'group: backend-main' 'group: maven-cache-main'
+  reemplaza backend-main.yml - '  group: ' '  group: maven-cache-main # '
 rechaza "maven-cache-main con una acción sin SHA" "maven-cache-main.yml: una acción no está fijada por SHA" \
-  reemplaza maven-cache-main.yml backend 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' 'actions/checkout@v7'
+  reemplaza maven-cache-main.yml backend "$SHA_CHECKOUT" 'actions/checkout@v7'
 rechaza "maven-cache-main sin el trabajo backend" "maven-cache-main.yml: falta el trabajo backend" \
   reemplaza maven-cache-main.yml - '  backend:' '  principal:'
 

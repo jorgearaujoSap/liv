@@ -225,10 +225,14 @@ Umbral bloqueante: ninguna vulnerabilidad crítica o alta sin corregir o sin exc
 **Riesgo residual: envenenar la caché de `main`.** Los PR leen las cachés que se guardaron con el alcance de `main`. Un trabajo que corre en `main` y ejecuta código de terceros (`maven-cache-main.yml` corre el `verify`, con los *plugins* y las dependencias de Maven) tiene el *token* de la caché de Actions y, en teoría, podría guardar en `main` una clave que todavía no existe y que un PR restauraría después. Hoy ese riesgo ya existía, en menor escala. Controles:
 
 - solo `maven-cache-main.yml` escribe la caché de Maven en `main`, con `contents: read`, sin secretos y sin ningún permiso de escritura;
-- ningún trabajo de `main` con `contents: write` ni `id-token: write` usa cachés (`maven-cache.test.sh`, 239-02);
-- las claves de Maven incluyen el hash del `pom.xml` y del `maven-wrapper.properties`; las claves de una versión nueva se crean con el código ya integrado.
+- ningún trabajo con permisos de escritura usa cachés, y fuera de los PR ningún otro workflow usa `actions/cache` (`.github/scripts/test/maven-cache.test.sh`, 239-02);
+- las claves de Maven incluyen el hash del `pom.xml` y del `maven-wrapper.properties`; las de una versión nueva se crean con el código ya integrado;
+- `maven-cache-main.yml` no guarda el JDK (`cache-jdk: false`), un ejecutable que restaurarían los PR sin comprobar su huella.
 
-Sin cubrir: la acción de gitleaks (`sistema · secretos`) restaura su binario de la caché con la clave `gitleaks-cache-<versión>-linux-x64`, sin comprobar su huella, y no tiene ninguna opción para apagar esa caché (ni se puede apagar con una variable de entorno del paso: el ejecutor sobrescribe la dirección del servicio de cachés). Hoy esa clave solo se guarda con el alcance de un PR. Si se envenenara con el alcance de `main`, un PR restauraría un binario ajeno en un trabajo con `pull-requests: read`. Queda como riesgo aceptado hasta cambiar la acción por el binario de gitleaks con su SHA‑256 fijado.
+Sin cubrir:
+
+- **La distribución de Maven del *wrapper*.** `setup-java` la guarda aparte (`~/.m2/wrapper/dists`) con una clave que solo sale del `maven-wrapper.properties`, y la restauran todos los `verify`, sin comprobar su huella. No se puede apagar sin apagar la caché de dependencias.
+- **La caché de la acción de gitleaks** (`sistema · secretos`, un check obligatorio). La acción restaura su binario con la clave `gitleaks-cache-8.24.3-linux-x64`, sin comprobar su huella, y no tiene ninguna opción para apagarla (tampoco con una variable de entorno del paso: el ejecutor sobrescribe la dirección del servicio de cachés). Hoy esa clave solo se guarda con el alcance de un PR. Si alguien la creara con el alcance de `main`, todos los PR nuevos ejecutarían ese binario, que podría salir siempre en verde y apagar el escaneo de secretos. Es una desviación del diseño de la rebanada 239 (que pedía desactivar esa caché) y queda como riesgo aceptado, a falta de la decisión de la persona, hasta cambiar la acción por el binario de gitleaks con su SHA‑256 fijado, o sembrar esa clave desde un trabajo de confianza de `main`.
 
 ---
 

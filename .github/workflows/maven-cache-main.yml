@@ -6,8 +6,15 @@
 # los providers de Surefire y lo que descarga Spotless). setup-java la guarda al final del trabajo, con el alcance de
 # main, que leen todos los PR. Con -Dmaven.test.failure.ignore=true, solo aquí: una prueba inestable no deja main sin
 # caché, y el verify del PR es el que juzga. Si la caché ya existe, no corre verify.
-# Cada trabajo de comprobación restaura la caché sin guardar y corre verify sin conexión (-o): si la caché está
-# incompleta, falla.
+# Cada trabajo de comprobación restaura la caché sin guardar y corre verify sin conexión (-o) y con
+# -Dmaven.test.failure.ignore=true (una prueba inestable no se confunde con una caché incompleta): si a la caché le
+# falta algo, falla. Corre todos los días aunque la caché ya exista; cuesta un verify por proyecto.
+# setup-java guarda además, con claves aparte, la distribución de Maven del wrapper (~/.m2/wrapper/dists, clave del
+# maven-wrapper.properties). Si solo esa se pierde, el trabajo que llena acierta con la clave principal y no la
+# reconstruye: la comprobación falla, y se arregla borrando la caché principal (gh cache delete) y lanzando el workflow.
+# El JDK no se guarda (cache-jdk: false). Una entrada dañada con la clave exacta también se borra a mano.
+# Un workflow_dispatch desde otra rama comparte el grupo de concurrency y puede desplazar a la corrida de main en
+# espera; la siguiente corrida programada la recupera.
 # Nada de aquí es un check obligatorio: corre después de integrar y no bloquea ningún PR. Los nombres de los
 # trabajos no están en el ruleset «main».
 # Programado todos los días: si la caché se pierde (se expulsa a los 7 días sin uso), la próxima corrida la reconstruye.
@@ -56,6 +63,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          # Sin el JDK en la caché de main: es un ejecutable que restaurarían los PR y nada comprueba su huella.
+          cache-jdk: false
           cache: maven
           cache-dependency-path: |
             backend/pom.xml
@@ -84,15 +93,21 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache-jdk: false
           cache: maven
           cache-dependency-path: |
             backend/pom.xml
             backend/.mvn/wrapper/maven-wrapper.properties
           cache-read-only: true
 
+      # La distribución de Maven del wrapper también tiene que venir de la caché: mvnw la descarga de Maven Central
+      # aunque Maven corra con -o.
+      - name: La distribución de Maven del wrapper está en la caché
+        run: test -d "$HOME/.m2/wrapper/dists" || { echo "::error::Falta ~/.m2/wrapper/dists, la caché del wrapper no se restauró."; exit 1; }
+
       # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla.
       - name: Verify sin conexión con la caché restaurada
-        run: sh mvnw -B -ntp -o verify
+        run: sh mvnw -B -ntp -o -Dmaven.test.failure.ignore=true verify
 
   bff:
     name: bff · caché de Maven
@@ -112,6 +127,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache-jdk: false
           cache: maven
           cache-dependency-path: |
             backend/bff/pom.xml
@@ -140,12 +156,18 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache-jdk: false
           cache: maven
           cache-dependency-path: |
             backend/bff/pom.xml
             backend/bff/.mvn/wrapper/maven-wrapper.properties
           cache-read-only: true
 
+      # La distribución de Maven del wrapper también tiene que venir de la caché: mvnw la descarga de Maven Central
+      # aunque Maven corra con -o.
+      - name: La distribución de Maven del wrapper está en la caché
+        run: test -d "$HOME/.m2/wrapper/dists" || { echo "::error::Falta ~/.m2/wrapper/dists, la caché del wrapper no se restauró."; exit 1; }
+
       # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla.
       - name: Verify sin conexión con la caché restaurada
-        run: ./mvnw -B -ntp -o verify
+        run: ./mvnw -B -ntp -o -Dmaven.test.failure.ignore=true verify

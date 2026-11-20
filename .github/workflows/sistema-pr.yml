@@ -73,17 +73,19 @@ jobs:
         run: bash .github/scripts/test/aplica.test.sh
 
       # Las reglas de la caché de Maven (issue 239): quién la escribe, quién la lee y que el verify de los PR no cambie.
-      # La prueba es la de la base (HEAD^1), como aplica.sh, para que un PR no pueda debilitarla y relajar un workflow a
-      # la vez; lee los workflows del PR. En el PR que la agrega, la base aún no la tiene y corre la del PR.
+      # Corre la prueba de la base (HEAD^1), como aplica.sh, para que un PR no debilite la prueba sin querer al relajar
+      # un workflow, y después la del PR, para que una prueba rota no se integre en verde; las dos leen los workflows
+      # del PR. No impide que un PR quite este paso: esa barrera es la revisión humana (doc. 04 §9). En el PR que la
+      # agrega, la base aún no la tiene y corre solo la del PR.
       - name: Pruebas de la caché de Maven (239)
         run: |
           if git cat-file -e HEAD^1:.github/scripts/test/maven-cache.test.sh 2> /dev/null; then
             git show HEAD^1:.github/scripts/test/maven-cache.test.sh > "$RUNNER_TEMP/maven-cache.test.sh"
             bash "$RUNNER_TEMP/maven-cache.test.sh" "$GITHUB_WORKSPACE/.github/workflows"
           else
-            echo "La base aún no tiene la prueba (el PR que la agrega): se usa la del PR."
-            bash .github/scripts/test/maven-cache.test.sh
+            echo "La base aún no tiene la prueba (el PR que la agrega)."
           fi
+          bash .github/scripts/test/maven-cache.test.sh
 
       # Los trabajos de ui-release.yml con permisos (id-token, contents: write) no hacen checkout, no instalan nada y solo
       # ejecutan scripts de `decidir` con su huella comprobada (feature 002, criterio 002-08).
