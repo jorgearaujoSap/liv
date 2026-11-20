@@ -14,12 +14,14 @@
 # mutación necesita, el `if` del verify) no pasa la prueba de la base: se divide en dos PR, primero la prueba y después
 # el workflow.
 #
-# Uso: bash .github/scripts/test/maven-cache.test.sh [carpeta-de-workflows]
+# Uso: bash .github/scripts/test/maven-cache.test.sh [carpeta-de-workflows [raíz-del-repositorio]]
+# La raíz (por omisión, tres carpetas arriba de este script) es de donde se leen los maven-wrapper.properties.
 # Sale con 0 si todo pasa y con 1 si algo falla.
 set -u
 
 aqui=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 real=${1:-"$aqui/../../workflows"}
+RAIZ=${2:-"$aqui/../../.."}
 if [ ! -f "$real/maven-cache-main.yml" ]; then
   echo "FALTA $real/maven-cache-main.yml: no hay nada que probar." >&2
   exit 1
@@ -162,7 +164,7 @@ revisar() {
   done
 
   # --- el verify de cada PR y su pareja en maven-cache-main.yml (239-03) ---
-  local par p pr cmd dir vb cmds rp ps sha filler comprobar fb cb id pasoj pasov n
+  local par p pr cmd dir vb cmds rp ps sha filler comprobar fb cb id pasoj pasov n base
   for par in 'backend|backend-pr.yml|sh mvnw -B -ntp verify|backend' 'bff|bff-pr.yml|./mvnw -B -ntp verify|backend/bff'; do
     IFS='|' read -r p pr cmd dir <<<"$par"
     if [ ! -f "$d/$pr" ]; then echo "falta $pr"; continue; fi
@@ -223,8 +225,17 @@ revisar() {
     n=${n/ -Dmaven.test.failure.ignore=true/}
     [ "$n" = "$cmd" ] && [[ "$cmds" == *" -o "* ]] && [[ "$cmds" == *"-Dmaven.test.failure.ignore=true"* ]] \
       || echo "maven-cache-main.yml · $p-comprobar: su verify no es el de $pr sin conexión (-o) y con -Dmaven.test.failure.ignore=true (es «$cmds»)"
-    pasos_con 'mvnw' <<<"$comprobar" | grep -Eq '^ +MVNW_REPOURL: ' \
-      || echo "maven-cache-main.yml · $p-comprobar: su verify no usa MVNW_REPOURL, y mvnw podría bajar Maven de Maven Central"
+    # Sin descargas: http_proxy y https_proxy no responden, y MVNW_REPOURL es la base real de distributionUrl (la del
+    # maven-wrapper.properties del proyecto, leída del archivo). Con otra, mvnw calcula otro hash para
+    # ~/.m2/wrapper/dists, no encuentra la distribución que restauró la caché e intenta bajarla.
+    base=$(sed -n 's|^distributionUrl=\(.*\)/org/apache/maven/.*$|\1|p' "$RAIZ/$dir/.mvn/wrapper/maven-wrapper.properties" | tr -d '\r')
+    pasov=$(pasos_con 'mvnw' <<<"$comprobar")
+    { [ -n "$base" ] && grep -Fxq "          MVNW_REPOURL: $base" <<<"$pasov"; } \
+      || echo "maven-cache-main.yml · $p-comprobar: su MVNW_REPOURL no es la base de distributionUrl de $dir/.mvn/wrapper/maven-wrapper.properties (es «$base»): con otra, el hash de la distribución restaurada cambia y mvnw la baja"
+    for n in http_proxy https_proxy; do
+      grep -Fxq "          $n: http://127.0.0.1:9" <<<"$pasov" \
+        || echo "maven-cache-main.yml · $p-comprobar: su verify no pone $n hacia una dirección que no responde (http://127.0.0.1:9), y mvnw podría bajar Maven de Maven Central"
+    done
     # Sin JDK en la caché de main: los ejecutables que restauran los PR no los guarda este workflow.
     [ "$(grep -c 'actions/setup-java@' <<<"$filler")" -eq "$(grep -Ec '^ +cache-jdk: false$' <<<"$filler")" ] \
       || echo "maven-cache-main.yml · $p: algún setup-java no tiene cache-jdk: false"
@@ -407,8 +418,18 @@ rechaza "caché de backend sin bajar el wrapper" "maven-cache-main.yml · backen
   reemplaza maven-cache-main.yml backend 'sh mvnw -B -v' 'echo omitido'
 rechaza "caché de bff con la distribución del wrapper condicionada" "maven-cache-main.yml · bff: no baja la distribución del wrapper sin condición" \
   reemplaza maven-cache-main.yml bff '      - name: Distribución de Maven del wrapper' $'      - name: Distribución de Maven del wrapper\n        if: false'
-rechaza "comprobar caché de backend sin MVNW_REPOURL" "maven-cache-main.yml · backend-comprobar: su verify no usa MVNW_REPOURL" \
+rechaza "comprobar caché de backend sin MVNW_REPOURL" "maven-cache-main.yml · backend-comprobar: su MVNW_REPOURL no es la base de distributionUrl" \
   reemplaza maven-cache-main.yml backend-comprobar '          MVNW_REPOURL: ' '          OTRA: '
+rechaza "comprobar caché de backend con MVNW_REPOURL de otra dirección" "maven-cache-main.yml · backend-comprobar: su MVNW_REPOURL no es la base de distributionUrl" \
+  reemplaza maven-cache-main.yml backend-comprobar '          MVNW_REPOURL: ' '          MVNW_REPOURL: http://127.0.0.1:9 # '
+rechaza "comprobar caché de bff con MVNW_REPOURL de otra dirección" "maven-cache-main.yml · bff-comprobar: su MVNW_REPOURL no es la base de distributionUrl" \
+  reemplaza maven-cache-main.yml bff-comprobar '          MVNW_REPOURL: ' '          MVNW_REPOURL: https://repo1.example.org/maven2 # '
+rechaza "comprobar caché de backend sin https_proxy" "maven-cache-main.yml · backend-comprobar: su verify no pone https_proxy" \
+  reemplaza maven-cache-main.yml backend-comprobar '          https_proxy: ' '          otra_proxy: '
+rechaza "comprobar caché de bff sin http_proxy" "maven-cache-main.yml · bff-comprobar: su verify no pone http_proxy" \
+  reemplaza maven-cache-main.yml bff-comprobar '          http_proxy: ' '          otra_proxy: '
+rechaza "comprobar caché de bff con un proxy que sí responde" "maven-cache-main.yml · bff-comprobar: su verify no pone https_proxy" \
+  reemplaza maven-cache-main.yml bff-comprobar '          https_proxy: ' '          https_proxy: http://proxy.example.org:3128 # '
 rechaza "actions/cache en un workflow que no es de PR" "backend-main.yml · schemas: un workflow que no es de PR usa actions/cache" \
   agrega backend-main.yml schemas "      - uses: actions/cache/save@$SHA_NULO"
 rechaza "un workflow .yaml" "hay un workflow .yaml" \
