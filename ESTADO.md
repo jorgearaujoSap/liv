@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-> **Última actualización:** 2026-11-19
+> **Última actualización:** 2026-11-20
 > **Regla:** este archivo se actualiza al arrancar o cerrar una feature, con las decisiones del equipo, el estado de Figma y los próximos pasos, y con una línea de la bitácora por cada ajuste de la raíz (`AGENTS.md` §7). El avance de las rebanadas lo lleva el *Project* de GitHub, y sus PR no tocan este archivo (ADR 0040).
 > **Estados usados:** ✅ Hecho · 🔄 En curso · ⏳ Pendiente · ⛔ Bloqueado
 
@@ -271,6 +271,10 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 7. Bitácora
 
 Registro cronológico de lo realizado. Lo más reciente va primero.
+
+### 2026-11-20
+
+- **ADR 0043 propuesto** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042): por decisión de la persona en el chat, un agente podrá aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución concreta; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Mientras no esté aceptado e integrado, sigue vigente la regla del ADR 0042.
 
 ### 2026-11-19
 

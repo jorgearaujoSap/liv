@@ -2,7 +2,7 @@
 
 > **Proyecto:** Liquidación del impuesto anual de vehículos automotores
 > **Depende de:** toda la serie 00–04 (ADR 0014)
-> **Versión:** 1.2 — 2026-11-18, SDD por rebanadas verticales (ADR 0040): §1, §2, §3, §4.1, §5, §6, §7, §9, §10, §11, §12 y §13. La 1.1 (2026-11-08) agregó el orquestador (ADR 0033). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
+> **Versión:** 1.3 — 2026-11-20, §4.2 con el agente que aprueba la publicación de `liv-components` con la confirmación de la persona en el chat (ADR 0043). La 1.2 (2026-11-18) trajo el SDD por rebanadas verticales (ADR 0040): §1, §2, §3, §4.1, §5, §6, §7, §9, §10, §11, §12 y §13. La 1.1 (2026-11-08) agregó el orquestador (ADR 0033). La versión 1.0 se **aprobó** el 2026-11-01 (ADR 0001–0020 aceptados)
 > **Propósito:** definir cómo trabajan los agentes de IA en el proyecto para que aceleren el desarrollo sin generar deuda técnica: qué pueden hacer, en qué orden, con qué límites y cómo se verifica su trabajo.
 
 ---
@@ -148,7 +148,7 @@ Estas reglas están en `AGENTS.md`, en la raíz, que es la fuente única de regl
 | Crear componentes visuales fuera de `liv-components`, o redefinir los estilos de un componente de la librería desde una pantalla | ADR 0018: rompería la línea única de componentes |
 | Modificar un componente existente de `liv-components` o actualizar sus capturas de referencia | Afecta todas las pantallas; requiere aprobación del líder de frontend y de un responsable funcional |
 | Usar o pedir datos reales de contribuyentes o credenciales de entornos reales | Ley 1581 y seguridad |
-| Integrar a `main`, publicar versiones o desplegar | Gate H3. Nunca lo hace un agente, ni con permiso de la persona: aprobar, rechazar, cancelar, disparar o volver a ejecutar una publicación o un despliegue; crear, mover o borrar las etiquetas `ui-v*`; cambiar lo que los protege (entorno `npm`, *rulesets*, publicador de confianza, configuración del paquete en npm); y publicar con un comando (`AGENTS.md` §4.5, ADR 0042) |
+| Integrar a `main`, publicar versiones o desplegar | Gate H3. Integrar a `main` es siempre de una persona. Un agente nunca, ni con permiso de la persona: mover o borrar las etiquetas `ui-v*`; cambiar lo que protege la publicación (entorno `npm`, *rulesets*, publicador de confianza, configuración del paquete en npm); publicar o desplegar con un comando; y aprobar, volver a ejecutar o disparar la publicación o el despliegue de otro proyecto. Para `liv-components`, el agente puede aprobar o volver a ejecutar `ui-release.yml` y crear la etiqueta o la *release* que falte **solo después** de mostrar en el chat los datos de la ejecución y de que la persona confirme esa ejecución concreta; rechazar y cancelar, a pedido de la persona (`AGENTS.md` §4.5, ADR 0042 y 0043) |
 
 ---
 

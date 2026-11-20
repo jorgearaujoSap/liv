@@ -1,6 +1,6 @@
 # ADR-0042 · Publicación automática de `liv-components`: al integrar, con aprobación humana y sin clave guardada
 
-- **Estado:** Aceptado (2026-11-19, en la H1 de la feature 002)
+- **Estado:** Aceptado (2026-11-19, en la H1 de la feature 002); reemplazado en parte por el ADR 0043 (un agente puede aprobar o volver a ejecutar la publicación con la confirmación de la persona en el chat)
 - **Fecha:** 2026-11-18
 - **Decisores:** responsable del proyecto (`AGENTS.md` §4.3, «quien dirige el trabajo decide»)
 - **Documentos relacionados:**

@@ -32,7 +32,7 @@ _Cada proyecto se construye desde su propia carpeta; el detalle está en su `REA
 | Construir y probar todo | `./mvnw verify` | `npm run lint`, `npm test`, `npm run build` | `npm run lint`, `npm run pack` |
 | Solo pruebas | `./mvnw test` | `npm test` | — (con el primer componente) |
 | Formato | `./mvnw spotless:apply` / `spotless:check` | `npm run format` / `npm run format:check` | `npm run format` / `npm run format:check` |
-| Arrancar en local / publicar | `./mvnw spring-boot:run` | `npm start` | `npm run storybook`; se publica al integrar el PR que sube la versión: `ui-release.yml`, con la aprobación de un humano (ADR 0042) |
+| Arrancar en local / publicar | `./mvnw spring-boot:run` | `npm start` | `npm run storybook`; se publica al integrar el PR que sube la versión: `ui-release.yml`, con la aprobación de una persona, en la página de la ejecución o confirmada en el chat al agente (ADR 0042 y 0043) |
 
 El entorno local completo con Docker Compose llega con F0‑06.
 
@@ -74,4 +74,4 @@ La lista completa es `AGENTS.md` §4.5. Los más importantes:
 - No editar una migración aplicada, ni cambiar seguridad, RLS, CI o umbrales de calidad sin aprobación.
 - No usar datos reales de contribuyentes ni credenciales de entornos reales.
 - No crear pantallas sin diseño aprobado ni componentes visuales fuera de `liv-components`.
-- No integrar a `main` ni aprobar una publicación o un despliegue: solo un humano. Publica y despliega el *workflow*, nunca un agente con un comando.
+- No integrar a `main`: solo una persona. Publica y despliega el *workflow*, nunca un agente con un comando. Un agente solo aprueba o vuelve a ejecutar la publicación de `liv-components` después de mostrar los datos de la ejecución en el chat y de que la persona confirme esa ejecución (`AGENTS.md` §4.5, ADR 0043); cualquier otra publicación o despliegue, no.
