@@ -54,7 +54,7 @@ Todo está en el [`README.md`](../README.md) de la raíz, «Ejecutar LIV en loca
 
 ## 6. Quién decide y qué accesos necesitas
 
-**Decides tú.** Quien dirige el trabajo —la persona que interactúa con el agente y le da las instrucciones— da todas las aprobaciones humanas: la H1, el visto bueno de cada rebanada, la H3 y las de `AGENTS.md` §4.5 (dependencias, CI, reglas, protección de `main`). Revisas e integras tus propios PR. Un agente nunca aprueba ni integra (`AGENTS.md` §4.3, excepción «quien dirige el trabajo decide»).
+**Decides tú.** Quien dirige el trabajo —la persona que interactúa con el agente y le da las instrucciones— da todas las aprobaciones humanas: la H1, el visto bueno de cada rebanada, la H3 y las de `AGENTS.md` §4.5 (dependencias, CI, reglas, protección de `main`). Revisas e integras tus propios PR. Un agente nunca aprueba ni integra (`AGENTS.md` §4.3, excepción «quien dirige el trabajo decide»); solo ejecuta por ti, con tu confirmación en el chat, las acciones de la publicación de `liv-components` que lista `AGENTS.md` §4.5 (ADR 0043).
 
 Los accesos los da el dueño actual del repositorio, una sola vez:
 
@@ -62,7 +62,7 @@ Los accesos los da el dueño actual del repositorio, una sola vez:
 |---|---|
 | Colaborador del repositorio en GitHub, con rol de administrador | Abrir PR, hacer la H3 e integrarlos, y cambiar la protección de `main` cuando una tarea lo pida (como T10) |
 | Archivo de Figma LIV‑Diseño | Leer los diseños aprobados y diseñar las pantallas nuevas |
-| Entorno `npm` de GitHub (`liv-components`) | Solo si vas a aprobar la publicación de versiones de la librería: el responsable te agrega como revisor del entorno `npm`. No hace falta cuenta ni permiso en npm: publica el *workflow* (ADR 0042) |
+| Entorno `npm` de GitHub (`liv-components`) | Solo si vas a aprobar la publicación de versiones de la librería: el responsable te agrega como revisor del entorno `npm`. No hace falta cuenta ni permiso en npm: publica el *workflow* (ADR 0042). Puedes aprobar desde la página de la ejecución o confirmándole al agente en el chat, con los datos a la vista, sin ir a GitHub (ADR 0043; `ui/README.md` › «Publicar una versión» › «Aprobar desde el chat») |
 
 Nunca uses datos reales de contribuyentes ni credenciales de entornos reales: en local, los usuarios y claves de prueba están en [`backend/dev/README.md`](../backend/dev/README.md).
 

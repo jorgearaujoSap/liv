@@ -86,7 +86,7 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
   - una sola en `backend/`;
   - una sola de `ui/` y una sola de `frontend/`;
   - el entorno local, exclusivo: lo usa una sesión a la vez.
-- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»).
+- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»). Desde el ADR 0043, un agente puede ejecutar la aprobación de una publicación de `liv-components` solo con la confirmación de la persona en el chat (`AGENTS.md` §4.5).
 - **Al cerrar:**
   - se marcan las tareas y los criterios con sus pruebas;
   - se registran en `plan.md` los «Ajustes de la H3», como en la 007;
@@ -274,9 +274,10 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-20
 
+- **ADR 0043 aceptado por la persona** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042 y modifica en parte al ADR 0040): un agente puede aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat, completos, la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución y esa acción en el chat, sin ir a GitHub; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Comparar con la página de la ejecución es una comprobación opcional. **Revisión:** el diseño con un dato oculto leído en la página pasó tres rondas de revisión adversarial (con altos en cada una) y la persona lo descartó; **el mecanismo simplificado que se aceptó no tuvo una nueva revisión**, por decisión de la persona. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Rige cuando la persona integra el PR de la raíz (#245); el de `ui/` (#246) se integra después.
 - **Feature 002 cerrada.** `liv-components` 0.5.1 es la primera versión que publica el *workflow* `ui-release.yml`: `decidir` y `verificar` en verde, `publicar` en «Waiting» en el entorno `npm`, aprobada por una persona, y `etiquetar` creó `ui-v0.5.1` y su *release*. Procedencia verificada (`npm audit signatures`), sin claves de npm guardadas, *ruleset* de `ui-v*` activo y «Require two-factor authentication and disallow tokens» activado por la persona. «Re-run all jobs» no publicó dos veces (002-06). Los diez criterios de `spec.md` quedan marcados con su evidencia.
   - Se construyó en cinco PR de la R3: reglas (#238), `release-tag` y guía (#240), activación y la prueba de 002-08 (#242), la guía sin publicación a mano y sin `npm run release` (#241) y la versión 0.5.1 (#243). Cada uno pasó la revisión adversarial.
-  - Quedan: la *release* marcada «Latest», el modo local de `release:check`, y el ADR para que el agente apruebe con confirmación en el chat (#244, en preparación). La 008 se retoma.
+  - Quedan: la *release* marcada «Latest», el modo local de `release:check`, y el ADR 0043 para que el agente apruebe con confirmación en el chat (#244, aceptado en el PR #245). La 008 se retoma.
 
 ### 2026-11-19
 
