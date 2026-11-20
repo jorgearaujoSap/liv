@@ -1,0 +1,288 @@
+#!/usr/bin/env bash
+# Pruebas de .github/workflows/ui-release.yml (feature 002, criterio 002-08, y los controles de 002-07 que se ven en el
+# archivo).
+#
+# `publicar` tiene `id-token: write` y `etiquetar` tiene `contents: write`: no pueden ejecutar nada que haya pasado por
+# un trabajo que instaló las dependencias del proyecto. Esta prueba lee el workflow y falla si `publicar` tiene
+# `checkout`, `npm ci`, caché, un script que no venga del artefacto de `decidir` con su huella comprobada en el mismo
+# paso, o le falta `--ignore-scripts`; y las mismas reglas para `etiquetar`. No ejecuta el workflow: lo lee, y para
+# comprobar que cada regla muerde, arma copias del workflow con un defecto y exige que la regla las rechace.
+#
+# Uso: bash .github/scripts/test/ui-release.test.sh
+# Sale con 0 si todo pasa y con 1 si algo falla.
+set -u
+
+aqui=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+workflow="$aqui/../../workflows/ui-release.yml"
+if [ ! -f "$workflow" ]; then
+  echo "FALTA $workflow: no hay nada que probar." >&2
+  exit 1
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# Lee el archivo sin los retornos de carro (en Windows, Git puede dejar CRLF).
+leer() { tr -d '\r' < "$1"; }
+
+# Líneas del trabajo $2 (entre su encabezado de dos espacios y el siguiente trabajo), sin los comentarios.
+bloque() {
+  leer "$1" | awk -v job="  $2:" '
+    $0 == job { dentro = 1; next }
+    dentro && /^  [A-Za-z_-]+:/ { exit }
+    dentro && !/^ *#/ { print }'
+}
+
+# Pasos (que empiezan con «      - ») del bloque de la entrada estándar donde alguna línea cumple la expresión $1.
+pasos_con() {
+  awk -v re="$1" '
+    /^      - / { if (hit) printf "%s", buf; buf = ""; hit = 0 }
+    { buf = buf $0 "\n"; if ($0 ~ re) hit = 1 }
+    END { if (hit) printf "%s", buf }'
+}
+
+# Nombres de los artefactos que descarga el bloque de la entrada estándar.
+descargas() {
+  awk '
+    /download-artifact@/ { activo = 1; next }
+    activo && /^ +name: / { sub(/^ +name: /, ""); print; activo = 0 }
+    /^      - / { activo = 0 }'
+}
+
+# Cuántas veces aparece la expresión $1 en la entrada estándar.
+cuenta() { grep -Ec -- "$1" || true; }
+
+# Dice si, en el paso de la entrada estándar, la comprobación de la huella va antes de ejecutar el script $1.
+huella_antes() {
+  awk -v re="node .*$1" '
+    /sha256sum --check --strict/ && !visto { visto = NR }
+    $0 ~ re && !ejecuta { ejecuta = NR }
+    END { exit !(visto && ejecuta && visto < ejecuta) }'
+}
+
+# Revisa el workflow $1 y escribe una línea por cada regla que incumple. Sin líneas, todo en orden.
+revisar() {
+  local f=$1 decidir verificar publicar etiquetar paso descargado job
+  decidir=$(bloque "$f" decidir)
+  verificar=$(bloque "$f" verificar)
+  publicar=$(bloque "$f" publicar)
+  etiquetar=$(bloque "$f" etiquetar)
+
+  for job in decidir verificar publicar etiquetar; do
+    local contenido
+    contenido=$(bloque "$f" "$job")
+    [ -n "$contenido" ] || echo "falta el trabajo $job"
+    # 002-07, control 3: cada trabajo exige la rama main.
+    grep -Eq "^    if: .*github\.ref == 'refs/heads/main'" <<<"$contenido" \
+      || echo "$job: su condición «if» no exige github.ref == 'refs/heads/main'"
+  done
+
+  # --- decidir: no instala nada ---
+  grep -Eq 'npm (ci|install)' <<<"$decidir" && echo "decidir: instala dependencias"
+
+  # --- los dos trabajos con permisos: ni checkout, ni instalar, ni caché ---
+  for job in publicar etiquetar; do
+    contenido=$(bloque "$f" "$job")
+    grep -q 'actions/checkout' <<<"$contenido" && echo "$job: hace checkout"
+    # Solo se permite instalar npm mismo, con --global, en `publicar`.
+    if grep -E 'npm (ci|install|i |add)' <<<"$contenido" | grep -v -- '--global' | grep -q .; then
+      echo "$job: instala dependencias del proyecto"
+    fi
+    grep -Eq '^ +(cache|cache-dependency-path):|package-manager-cache: *[^f ]|actions/cache@' <<<"$contenido" \
+      && echo "$job: usa caché"
+    [ "$(cuenta 'actions/setup-node@' <<<"$contenido")" -eq "$(cuenta 'package-manager-cache: false' <<<"$contenido")" ] \
+      || echo "$job: algún setup-node no desactiva la caché (package-manager-cache: false)"
+    grep -q 'dry-run' <<<"$contenido" && echo "$job: aún tiene --dry-run"
+    # Todo script se ejecuta desde el artefacto de decidir, bajado a $RUNNER_TEMP/scripts.
+    while IFS= read -r linea; do
+      case "$linea" in
+        *'RUNNER_TEMP/scripts/'*) ;;
+        *) [ "$job" = etiquetar ] && [[ "$linea" == *'node release-tag.mjs'* ]] && continue
+           echo "$job: ejecuta un script que no es del artefacto de decidir: $linea" ;;
+      esac
+    done < <(grep -E '^ +node ' <<<"$contenido")
+    # Los valores de otros trabajos llegan por `env:`, nunca dentro del cuerpo de un `run:`.
+    if grep -E '\$\{\{' <<<"$contenido" | grep -Ev '^ +[A-Za-z0-9_-]+: .*\$\{\{' | grep -q .; then
+      echo "$job: interpola una expresión \${{ }} fuera de env, with o if"
+    fi
+  done
+
+  # --- publicar ---
+  grep -Eq '^    environment: npm$' <<<"$publicar" || echo "publicar: no está en el entorno npm"
+  grep -q 'id-token: write' <<<"$publicar" || echo "publicar: no tiene id-token: write"
+  grep -q 'contents: write' <<<"$publicar" && echo "publicar: tiene contents: write"
+  grep -q -- '--ignore-scripts' <<<"$publicar" || echo "publicar: falta --ignore-scripts"
+  grep -Eq 'GH_TOKEN|github\.token|secrets\.' <<<"$publicar" && echo "publicar: usa un token o un secreto"
+  while IFS= read -r descargado; do
+    case "$descargado" in
+      release-scripts | paquete) ;;
+      *) echo "publicar: descarga un artefacto que no es release-scripts ni paquete: $descargado" ;;
+    esac
+  done < <(descargas <<<"$publicar")
+  grep -q 'needs\.verificar\.outputs\.sha256' <<<"$publicar" || echo "publicar: no comprueba el SHA-256 de verificar"
+  [ "$(grep -o 'needs\.verificar\.outputs\.[a-z0-9_]*' <<<"$publicar" | sort -u | grep -vc 'outputs\.sha256$')" -eq 0 ] \
+    || echo "publicar: toma de verificar algo que no es el SHA-256 del paquete"
+  paso=$(pasos_con 'node .*release-publish[.]mjs' <<<"$publicar")
+  [ -n "$paso" ] || echo "publicar: no ejecuta release-publish.mjs"
+  grep -q 'huella_publicar' <<<"$paso" || echo "publicar: no usa la huella de decidir para release-publish.mjs"
+  huella_antes 'release-publish[.]mjs' <<<"$paso" \
+    || echo "publicar: no comprueba la huella (sha256sum --check --strict) antes de ejecutar release-publish.mjs en el mismo paso"
+
+  # --- etiquetar ---
+  grep -q 'contents: write' <<<"$etiquetar" || echo "etiquetar: no tiene contents: write"
+  grep -q 'id-token' <<<"$etiquetar" && echo "etiquetar: tiene id-token"
+  grep -Eq '^    environment:' <<<"$etiquetar" && echo "etiquetar: está en un entorno"
+  grep -q "needs\.publicar\.result == 'success'" <<<"$etiquetar" \
+    || echo "etiquetar: corre sin exigir que publicar haya terminado bien"
+  grep -q "needs\.decidir\.outputs\.salida == 'etiquetar'" <<<"$etiquetar" \
+    || echo "etiquetar: no corre cuando decidir da etiquetar"
+  grep -q 'always()' <<<"$etiquetar" || echo "etiquetar: sin always() no corre cuando publicar se omite"
+  grep -q 'needs\.verificar' <<<"$etiquetar" && echo "etiquetar: usa algo de verificar"
+  [ "$(descargas <<<"$etiquetar" | sort -u | tr '\n' ' ')" = "release-scripts " ] \
+    || echo "etiquetar: debe descargar solo el artefacto release-scripts"
+  [ "$(cuenta 'GH_TOKEN' <<<"$etiquetar")" -eq 1 ] || echo "etiquetar: el token debe aparecer en un solo lugar"
+  paso=$(pasos_con 'GH_TOKEN' <<<"$etiquetar")
+  grep -q 'node release-tag\.mjs' <<<"$paso" || echo "etiquetar: el token no está solo en el paso que ejecuta release-tag.mjs"
+  grep -q 'huella_etiquetar' <<<"$paso" && grep -q 'huella_notas' <<<"$paso" \
+    || echo "etiquetar: no usa las huellas de decidir para release-tag.mjs y las notas"
+  grep -q 'cd "\$RUNNER_TEMP/scripts"' <<<"$paso" || echo "etiquetar: no ejecuta release-tag.mjs desde la carpeta del artefacto de decidir"
+  grep -q 'GITHUB_SHA' <<<"$paso" || echo "etiquetar: no etiqueta el commit de esta ejecución (GITHUB_SHA)"
+  huella_antes 'release-tag[.]mjs' <<<"$paso" \
+    || echo "etiquetar: no comprueba las huellas antes de ejecutar release-tag.mjs en el mismo paso"
+
+  # --- permisos de todo el archivo ---
+  [ "$(cuenta 'id-token: write' < <(leer "$f" | grep -v '^ *#'))" -eq 1 ] || echo "id-token: write debe aparecer solo en publicar"
+  [ "$(cuenta 'contents: write' < <(leer "$f" | grep -v '^ *#'))" -eq 1 ] || echo "contents: write debe aparecer solo en etiquetar"
+}
+
+# ---------------------------------------------------------------------------------------------------------------
+total=0
+fallos=0
+ok() { total=$((total + 1)); echo "ok    - $1"; }
+falla() { total=$((total + 1)); fallos=$((fallos + 1)); echo "FALLA - $1"; echo "        $2"; }
+
+# Reemplaza en el trabajo $2 de la copia $1 el texto $3 por $4 (texto literal; todas las apariciones).
+muta() {
+  local copia=$1 job=$2 desde=$3 hasta=$4 destino="$tmp/mutado.yml"
+  leer "$copia" | awk -v job="  $job:" -v desde="$desde" -v hasta="$hasta" '
+    $0 == job { dentro = 1; print; next }
+    dentro && /^  [A-Za-z_-]+:/ { dentro = 0 }
+    {
+      linea = $0
+      if (dentro) {
+        while ((i = index(linea, desde)) > 0) {
+          linea = substr(linea, 1, i - 1) hasta substr(linea, i + length(desde))
+          cambios++
+          if (index(hasta, desde) > 0) break
+        }
+      }
+      print linea
+    }
+    END { if (!cambios) exit 3 }' > "$destino" || { echo "ERROR del arnés: no se encontró «$desde» en $job" >&2; exit 2; }
+  cp "$destino" "$copia"
+}
+
+# Agrega el texto $3 (líneas completas) justo después de «    steps:» del trabajo $2 de la copia $1.
+agrega_paso() {
+  local copia=$1 job=$2 texto=$3 destino="$tmp/mutado.yml"
+  leer "$copia" | awk -v job="  $job:" -v texto="$texto" '
+    $0 == job { dentro = 1 }
+    dentro && /^    steps:$/ { print; print texto; dentro = 0; hecho = 1; next }
+    { print }
+    END { if (!hecho) exit 3 }' > "$destino" || { echo "ERROR del arnés: no hay «steps:» en $job" >&2; exit 2; }
+  cp "$destino" "$copia"
+}
+
+# El workflow real cumple todas las reglas.
+salida=$(revisar "$workflow")
+if [ -z "$salida" ]; then
+  ok "ui-release.yml cumple las reglas de publicar y etiquetar (002-08, 002-07)"
+else
+  falla "ui-release.yml cumple las reglas de publicar y etiquetar (002-08, 002-07)" "$salida"
+fi
+
+# Cada defecto, aplicado a una copia, tiene que ser rechazado por su regla.
+# $1: nombre; $2: fragmento que debe aparecer entre los reportes; el resto: la mutación (función y argumentos).
+rechaza() {
+  local nombre=$1 esperado=$2
+  shift 2
+  local copia="$tmp/copia.yml"
+  leer "$workflow" > "$copia"
+  "$@" "$copia" || exit 2
+  local salida
+  salida=$(revisar "$copia")
+  if grep -qF -- "$esperado" <<<"$salida"; then
+    ok "rechaza: $nombre"
+  else
+    falla "rechaza: $nombre" "esperaba «$esperado» y revisar() dijo: ${salida:-nada}"
+  fi
+}
+
+# Las mutaciones reciben la copia como último argumento (rechaza() la agrega).
+reemplaza_en() { muta "${@: -1}" "$1" "$2" "$3"; }
+agrega_paso_en() { agrega_paso "${@: -1}" "$1" "$2"; }
+
+rechaza "publicar con checkout" "publicar: hace checkout" \
+  agrega_paso_en publicar '      - uses: actions/checkout@0000000000000000000000000000000000000000'
+rechaza "etiquetar con checkout" "etiquetar: hace checkout" \
+  agrega_paso_en etiquetar '      - uses: actions/checkout@0000000000000000000000000000000000000000'
+rechaza "publicar con npm ci" "publicar: instala dependencias del proyecto" \
+  agrega_paso_en publicar '      - run: npm ci'
+rechaza "etiquetar con npm install" "etiquetar: instala dependencias del proyecto" \
+  agrega_paso_en etiquetar '      - run: npm install left-pad'
+rechaza "publicar con caché de setup-node" "publicar: algún setup-node no desactiva la caché" \
+  reemplaza_en publicar 'package-manager-cache: false' 'package-manager-cache: true'
+rechaza "publicar con cache: npm" "publicar: usa caché" \
+  agrega_paso_en publicar $'      - uses: actions/setup-node@0\n        with:\n          cache: npm'
+rechaza "publicar sin --ignore-scripts" "publicar: falta --ignore-scripts" \
+  reemplaza_en publicar '--ignore-scripts' '--foreground-scripts'
+rechaza "publicar con --dry-run" "publicar: aún tiene --dry-run" \
+  reemplaza_en publicar '"$NOMBRE" "$VERSION"' '"$NOMBRE" "$VERSION" --dry-run'
+rechaza "publicar baja otro artefacto" "publicar: descarga un artefacto que no es release-scripts ni paquete" \
+  reemplaza_en publicar 'name: paquete' 'name: dependencias'
+rechaza "publicar ejecuta un script de otra carpeta" "publicar: ejecuta un script que no es del artefacto de decidir" \
+  reemplaza_en publicar 'node "$RUNNER_TEMP/scripts/release-publish.mjs"' 'node "$RUNNER_TEMP/paquete/release-publish.mjs"'
+rechaza "publicar sin comprobar la huella" "publicar: no comprueba la huella" \
+  reemplaza_en publicar 'sha256sum --check --strict' 'sha256sum --check'
+rechaza "publicar sin la huella de decidir" "publicar: no usa la huella de decidir" \
+  reemplaza_en publicar 'huella_publicar' 'huella_otra'
+rechaza "publicar toma algo de verificar que no es el SHA-256" "publicar: toma de verificar algo que no es el SHA-256" \
+  reemplaza_en publicar 'HUELLA: ${{ needs.decidir.outputs.huella_publicar }}' 'HUELLA: ${{ needs.verificar.outputs.huella }}'
+rechaza "publicar interpola una expresión en el cuerpo de un run" "publicar: interpola una expresión" \
+  agrega_paso_en publicar '      - run: echo ${{ needs.decidir.outputs.version }}'
+rechaza "publicar con contents: write" "publicar: tiene contents: write" \
+  reemplaza_en publicar 'contents: read' 'contents: write'
+rechaza "publicar sin el entorno npm" "publicar: no está en el entorno npm" \
+  reemplaza_en publicar 'environment: npm' 'environment: otro'
+rechaza "publicar sin exigir la rama main" "publicar: su condición «if» no exige" \
+  reemplaza_en publicar "github.ref == 'refs/heads/main' && " ''
+rechaza "etiquetar sin exigir que publicar termine bien" "etiquetar: corre sin exigir que publicar haya terminado bien" \
+  reemplaza_en etiquetar "needs.publicar.result == 'success'" "needs.publicar.result != 'cancelled'"
+rechaza "etiquetar sin always()" "etiquetar: sin always()" \
+  reemplaza_en etiquetar 'always() && ' ''
+rechaza "etiquetar con id-token" "etiquetar: tiene id-token" \
+  reemplaza_en etiquetar 'contents: write' $'contents: write\n      id-token: write'
+rechaza "etiquetar usa algo de verificar" "etiquetar: usa algo de verificar" \
+  reemplaza_en etiquetar 'HUELLA_NOTAS: ${{ needs.decidir.outputs.huella_notas }}' 'HUELLA_NOTAS: ${{ needs.verificar.outputs.sha256 }}'
+rechaza "etiquetar descarga el paquete de verificar" "etiquetar: debe descargar solo el artefacto release-scripts" \
+  reemplaza_en etiquetar 'name: release-scripts' 'name: paquete'
+rechaza "etiquetar sin comprobar las huellas" "etiquetar: no comprueba las huellas" \
+  reemplaza_en etiquetar 'sha256sum --check --strict' 'sha256sum --check'
+rechaza "etiquetar no etiqueta el commit de esta ejecución" "etiquetar: no etiqueta el commit de esta ejecución" \
+  reemplaza_en etiquetar 'GITHUB_SHA' 'COMMIT_OTRO'
+rechaza "etiquetar con el token en otro paso" "etiquetar: el token debe aparecer en un solo lugar" \
+  agrega_paso_en etiquetar $'      - run: echo ok\n        env:\n          GH_TOKEN: x'
+rechaza "decidir instala dependencias" "decidir: instala dependencias" \
+  agrega_paso_en decidir '      - run: npm ci'
+rechaza "otro trabajo con id-token" "id-token: write debe aparecer solo en publicar" \
+  reemplaza_en verificar 'contents: read' $'contents: read\n      id-token: write'
+rechaza "verificar sin exigir la rama main" "verificar: su condición «if» no exige" \
+  reemplaza_en verificar "github.ref == 'refs/heads/main' && " ''
+
+# ---------------------------------------------------------------------------------------------------------------
+echo
+if [ "$fallos" -ne 0 ]; then
+  echo "$fallos de $total pruebas fallaron."
+  exit 1
+fi
+echo "$total pruebas en verde."

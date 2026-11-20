@@ -68,3 +68,8 @@ jobs:
 
       - name: Pruebas de aplica.sh
         run: bash .github/scripts/test/aplica.test.sh
+
+      # Los trabajos de ui-release.yml con permisos (id-token, contents: write) no hacen checkout, no instalan nada y solo
+      # ejecutan scripts de `decidir` con su huella comprobada (feature 002, criterio 002-08).
+      - name: Pruebas del workflow ui-release (002-08)
+        run: bash .github/scripts/test/ui-release.test.sh

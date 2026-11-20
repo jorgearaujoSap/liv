@@ -1,17 +1,20 @@
 # Publicación de liv-components al integrar en main (feature 002, ADR 0042, doc. 04 §9). Solo orquesta los scripts de
-# ui/scripts/ (release-decide, release-notes, check-release --ci, release-publish): la lógica vive allí, con sus pruebas.
+# ui/scripts/ (release-decide, release-notes, check-release --ci, release-publish, release-tag): la lógica vive allí,
+# con sus pruebas. Cómo se aprueba y qué hacer con cada fallo: ui/README.md › «Publicar una versión».
 #
-# ESTA VERSIÓN (R2) NO PUBLICA NADA: `publicar` solo ejecuta `npm publish --dry-run`. La publicación real y la etiqueta
-# llegan en la R3, después de registrar el publicador de confianza en npm y de cambiar las reglas.
-#
-# Flujo: decidir (¿este commit subió la versión?) → verificar (lint, formato, pruebas, Storybook, empaquetado, notas) →
-# publicar (entorno protegido `npm`, que espera la aprobación de una persona). Un cambio que no sube la versión termina
-# en «decidir» con «nada»: no pide aprobación ni queda en espera detrás de otra ejecución (002-05).
+# Flujo: decidir (¿este commit subió la versión?) → verificar (lint, formato, pruebas, Storybook, empaquetado) →
+# publicar (entorno protegido `npm`, que espera la aprobación de una persona; OIDC, sin clave guardada) → etiquetar
+# (la etiqueta ui-vX.Y.Z en el commit de esta ejecución y su release). Un cambio que no sube la versión termina en
+# «decidir» con «nada»: no pide aprobación ni queda en espera detrás de otra ejecución (002-05). Si `decidir` da
+# `etiquetar` (volver a ejecutar todo después de publicar), solo corre `etiquetar`: crea lo que falte.
 #
 # Tres controles contra la publicación desde otra rama (002-07), que valen aunque una rama cambie este archivo:
-#   1. npm solo acepta este workflow con el entorno `npm` (publicador de confianza; se registra antes de la R3);
+#   1. npm solo acepta este workflow con el entorno `npm` (publicador de confianza);
 #   2. el entorno `npm` solo admite la rama main y pide la aprobación de sus revisores;
 #   3. cada trabajo exige `github.ref == 'refs/heads/main'`.
+# Separación de permisos (002-08): `publicar` (id-token) y `etiquetar` (contents: write) no hacen checkout, no instalan
+# las dependencias del proyecto y solo ejecutan scripts que salieron de `decidir`, que no instala nada, comprobando su
+# huella (salida de `decidir`) en el mismo paso que los ejecuta. .github/scripts/test/ui-release.test.sh lo exige.
 # Los valores (versión, commit, hash, versiones de Node y npm) pasan solo por `env:`, nunca interpolados en `run:`.
 # Aprobar o rechazar la publicación antes de integrar otra versión de la librería (spec.md › Diseño técnico).
 name: ui-release
@@ -34,8 +37,9 @@ defaults:
     shell: bash
 
 jobs:
-  # Decide qué hace la ejecución. No instala nada: lee el árbol de Git, npm y las etiquetas remotas, y sus scripts son
-  # los que viajan a `publicar`. Sin `concurrency`, para que un cambio que no publica nunca quede en espera.
+  # Decide qué hace la ejecución. No instala nada: lee el árbol de Git, npm y las etiquetas remotas. De aquí salen los
+  # scripts de `publicar` y `etiquetar` y las notas de la release, con sus huellas como salidas del trabajo (nunca solo
+  # dentro de un artefacto). Sin `concurrency`, para que un cambio que no publica nunca quede en espera.
   decidir:
     name: ui-release · decidir
     if: github.ref == 'refs/heads/main'
@@ -50,8 +54,9 @@ jobs:
       commit: ${{ steps.decide.outputs.commit }}
       node: ${{ steps.decide.outputs.node }}
       npm: ${{ steps.decide.outputs.npm }}
-      # SHA-256 del script que ejecutará `publicar`: sale de aquí, que no instala nada, y `verificar` no puede alterarlo.
-      huella_publicar: ${{ steps.huella.outputs.publicar }}
+      huella_publicar: ${{ steps.huellas.outputs.publicar }}
+      huella_etiquetar: ${{ steps.huellas.outputs.etiquetar }}
+      huella_notas: ${{ steps.huellas.outputs.notas }}
     steps:
       # fetch-depth 2: release-decide compara la versión con la del commit padre (cada push a main es un commit).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,17 +70,31 @@ jobs:
         working-directory: ui
         run: node scripts/release-decide.mjs
 
-      - name: Huella del script de publicación
-        id: huella
-        if: ${{ steps.decide.outputs.salida == 'publicar' }}
+      # Con `publicar` o `etiquetar`: las notas de la release (la sección de la versión del CHANGELOG.md) y los scripts
+      # que ejecutarán los trabajos con permisos viajan juntos, en un solo artefacto, con la huella de cada uno.
+      - name: Notas de la versión, scripts y huellas
+        id: huellas
+        if: ${{ steps.decide.outputs.salida == 'publicar' || steps.decide.outputs.salida == 'etiquetar' }}
         working-directory: ui
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
         run: |
-          huella=$(sha256sum scripts/release-publish.mjs | cut -d ' ' -f 1)
-          if ! printf '%s' "$huella" | grep -Eq '^[0-9a-f]{64}$'; then
-            echo "::error::No se pudo calcular la huella del script de publicación."
-            exit 1
-          fi
-          echo "publicar=$huella" >> "$GITHUB_OUTPUT"
+          salida="$RUNNER_TEMP/release-scripts"
+          mkdir "$salida"
+          node scripts/release-notes.mjs "$VERSION" "$salida/notas.md"
+          cp scripts/release-publish.mjs scripts/release-tag.mjs "$salida/"
+          for archivo in release-publish.mjs release-tag.mjs notas.md; do
+            huella=$(sha256sum "$salida/$archivo" | cut -d ' ' -f 1)
+            if ! printf '%s' "$huella" | grep -Eq '^[0-9a-f]{64}$'; then
+              echo "::error::No se pudo calcular la huella de $archivo."
+              exit 1
+            fi
+            case "$archivo" in
+              release-publish.mjs) echo "publicar=$huella" >> "$GITHUB_OUTPUT" ;;
+              release-tag.mjs) echo "etiquetar=$huella" >> "$GITHUB_OUTPUT" ;;
+              notas.md) echo "notas=$huella" >> "$GITHUB_OUTPUT" ;;
+            esac
+          done
 
       - name: Resumen
         if: ${{ !cancelled() }}
@@ -91,21 +110,26 @@ jobs:
             echo '~~~~'
             if [ "$SALIDA" = etiquetar ]; then
               echo
-              echo "La etiqueta y la release las crea la R3 (feature 002); esta versión del workflow no las crea."
+              echo "Solo corre «etiquetar»: crea la etiqueta y la release que falten, sin publicar otra vez."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # El script de `publicar` viaja desde aquí, que no instaló nada, nunca desde `verificar`, que instala las
-      # dependencias del proyecto (002-08). release-tag.mjs se agrega en la R3.
-      - name: Subir los scripts de publicación
-        if: ${{ steps.decide.outputs.salida == 'publicar' }}
+      # El artefacto lo usan `publicar` (release-publish.mjs) y `etiquetar` (release-tag.mjs y notas.md): nunca viene
+      # de `verificar`, que instala las dependencias del proyecto (002-08).
+      - name: Subir los scripts y las notas
+        if: ${{ steps.decide.outputs.salida == 'publicar' || steps.decide.outputs.salida == 'etiquetar' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-scripts
-          path: ui/scripts/release-publish.mjs
+          path: ${{ runner.temp }}/release-scripts
           if-no-files-found: error
           # Una aprobación puede esperar hasta 30 días y «Re-run» necesita los artefactos.
           retention-days: 30
+
+      - name: Dónde se resuelve este fallo
+        if: ${{ failure() }}
+        run: |
+          echo "::error::Falló un paso de «decidir». Guía: README.md de liv-components › «Publicar una versión» › «Si falla «decidir»»."
 
   # Instala las dependencias, verifica y empaqueta. Sin `id-token`: no puede publicar. Lo que construye es lo que se
   # publicará, así que el resumen enseña a quien aprueba el nombre, el commit, el SHA-256 y los archivos del .tgz.
@@ -146,7 +170,7 @@ jobs:
           node-version-file: ui/.nvmrc
           package-manager-cache: false
 
-      # Sin scripts de instalación de las dependencias (R1 lo comprobó en Windows; aquí, en ubuntu).
+      # Sin scripts de instalación de las dependencias (comprobado en ubuntu en la R2).
       - name: Instalar dependencias (versiones exactas del lock)
         run: npm ci --ignore-scripts
 
@@ -170,11 +194,6 @@ jobs:
       - name: Verificar la versión y el paquete
         run: npm run release:check -- --ci
 
-      - name: Notas de la versión
-        env:
-          VERSION: ${{ needs.decidir.outputs.version }}
-        run: node scripts/release-notes.mjs "$VERSION" "$RUNNER_TEMP/notas.md"
-
       - name: Preparar el paquete y su resumen
         id: paquete
         env:
@@ -186,7 +205,6 @@ jobs:
           salida="$RUNNER_TEMP/paquete"
           mkdir "$salida"
           cp "dist/$archivo" "$salida/$archivo"
-          cp "$RUNNER_TEMP/notas.md" "$salida/notas.md"
           sha=$(sha256sum "$salida/$archivo" | cut -d ' ' -f 1)
           if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{64}$'; then
             echo "::error::No se pudo calcular el SHA-256 del paquete."
@@ -216,10 +234,15 @@ jobs:
           # Una aprobación puede esperar hasta 30 días y «Re-run» necesita los artefactos.
           retention-days: 30
 
+      - name: Dónde se resuelve este fallo
+        if: ${{ failure() }}
+        run: |
+          echo "::error::Falló un paso de «verificar». Guía: README.md de liv-components › «Publicar una versión» › «Si falla «verificar»»."
+
   # Espera la aprobación del entorno `npm`. Es el único trabajo con `id-token: write`: no hace checkout, no instala las
   # dependencias del proyecto y no ejecuta nada que haya pasado por un trabajo que las instaló (002-08).
   publicar:
-    name: ui-release · publicar (dry-run)
+    name: ui-release · publicar
     needs: [decidir, verificar]
     if: github.ref == 'refs/heads/main' && needs.decidir.outputs.salida == 'publicar'
     runs-on: ubuntu-24.04
@@ -227,7 +250,7 @@ jobs:
     environment: npm
     permissions:
       contents: read
-      # La publicación de confianza (OIDC); en la R2 no se usa porque solo hay --dry-run.
+      # La publicación de confianza (OIDC): npm intercambia este token por uno de publicación, sin clave guardada.
       id-token: write
     # Una publicación a la vez, sin cancelar la que ya corre.
     concurrency:
@@ -284,10 +307,10 @@ jobs:
           printf '%s  %s\n' "$SHA256" "$archivo" | sha256sum --check --strict
 
       # El script se descarga por nombre y `verificar`, que ejecuta código de las dependencias, también puede subir
-      # artefactos de esta ejecución: por eso solo corre si es el que midió `decidir` (002-08). La comprobación y la
-      # ejecución van en el mismo paso, sin nada en medio. La R3 agrega release-tag.mjs a un manifiesto de huellas.
-      # Solo --dry-run en la R2: el script comprueba la integridad contra npm y ejecuta `npm publish --dry-run`.
-      - name: Publicar en seco (DRY-RUN)
+      # artefactos de esta ejecución: por eso solo corre si es el que midió `decidir` (002-08). La comprobación de los
+      # archivos y de la huella y la ejecución van en el mismo paso, sin nada en medio. El script comprueba la
+      # integridad contra npm (no publica dos veces) y ejecuta `npm publish --ignore-scripts` del .tgz.
+      - name: Publicar en npm
         env:
           NOMBRE: ${{ needs.decidir.outputs.nombre }}
           VERSION: ${{ needs.decidir.outputs.version }}
@@ -298,14 +321,15 @@ jobs:
             exit 1
           fi
           cd "$RUNNER_TEMP/scripts"
-          if [ "$(find . -mindepth 1 | wc -l)" -ne 1 ] || [ ! -f release-publish.mjs ] || [ -L release-publish.mjs ]; then
-            echo "::error::El artefacto de scripts debe tener solo el archivo release-publish.mjs."
+          if [ "$(find . -mindepth 1 | wc -l)" -ne 3 ] || [ ! -f release-publish.mjs ] || [ -L release-publish.mjs ] \
+            || [ ! -f release-tag.mjs ] || [ -L release-tag.mjs ] || [ ! -f notas.md ] || [ -L notas.md ]; then
+            echo "::error::El artefacto de scripts debe tener solo release-publish.mjs, release-tag.mjs y notas.md."
             exit 1
           fi
           printf '%s  %s\n' "$HUELLA" release-publish.mjs | sha256sum --check --strict
           cd "$GITHUB_WORKSPACE"
           node "$RUNNER_TEMP/scripts/release-publish.mjs" \
-            "$RUNNER_TEMP/paquete/$NOMBRE-$VERSION.tgz" "$NOMBRE" "$VERSION" --dry-run
+            "$RUNNER_TEMP/paquete/$NOMBRE-$VERSION.tgz" "$NOMBRE" "$VERSION"
 
       - name: Resumen
         if: ${{ !cancelled() }}
@@ -315,8 +339,83 @@ jobs:
           ESTADO: ${{ job.status }}
         run: |
           {
-            echo "### DRY-RUN: no publica"
+            echo "### Publicación de \`$NOMBRE@$VERSION\`"
             echo
-            echo "Se probó la publicación de \`$NOMBRE@$VERSION\` con \`npm publish --dry-run\`. Resultado: \`$ESTADO\`."
-            echo "Esta versión del workflow no publica en npm ni crea etiquetas (feature 002, R2)."
+            echo "Resultado: \`$ESTADO\`. Comprueba con \`npm view $NOMBRE version\`; la etiqueta y la release las crea «etiquetar»."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dónde se resuelve este fallo
+        if: ${{ failure() }}
+        run: |
+          echo "::error::Falló un paso de «publicar». Guía: README.md de liv-components › «Publicar una versión» › «Si falla «publicar»»."
+
+  # Crea la etiqueta ui-vX.Y.Z en el commit de ESTA ejecución y su release. Corre después de publicar, o sola si
+  # `decidir` dio `etiquetar` (volver a ejecutar todo con la versión ya publicada). Es el único trabajo con
+  # `contents: write`: no hace checkout, no instala nada, y su script y sus notas vienen de `decidir` (002-03, 002-08).
+  etiquetar:
+    name: ui-release · etiquetar
+    needs: [decidir, publicar]
+    # always(): corre aunque `verificar` y `publicar` se omitan (salida `etiquetar`). Con `publicar` rechazado o fallido
+    # no etiqueta (002-04).
+    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.decidir.outputs.salida == 'etiquetar' || (needs.decidir.outputs.salida == 'publicar' && needs.publicar.result == 'success')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ needs.decidir.outputs.node }}
+          package-manager-cache: false
+
+      - name: Descargar los scripts y las notas de decidir
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-scripts
+          path: ${{ runner.temp }}/scripts
+
+      # El token solo está en este paso. La etiqueta se crea en el commit de esta ejecución (github.sha), que tiene que
+      # ser el que decidió `decidir`; si ya existe en otro commit, release-tag.mjs falla y no la mueve.
+      - name: Crear la etiqueta y la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOMBRE: ${{ needs.decidir.outputs.nombre }}
+          VERSION: ${{ needs.decidir.outputs.version }}
+          COMMIT: ${{ needs.decidir.outputs.commit }}
+          HUELLA_ETIQUETAR: ${{ needs.decidir.outputs.huella_etiquetar }}
+          HUELLA_NOTAS: ${{ needs.decidir.outputs.huella_notas }}
+        run: |
+          if [ "$COMMIT" != "$GITHUB_SHA" ]; then
+            echo "::error::decidir decidió sobre $COMMIT y esta ejecución es de $GITHUB_SHA."
+            exit 1
+          fi
+          if ! printf '%s' "$HUELLA_ETIQUETAR" | grep -Eq '^[0-9a-f]{64}$' || ! printf '%s' "$HUELLA_NOTAS" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "::error::decidir no entregó las huellas del script de etiquetas y de las notas."
+            exit 1
+          fi
+          cd "$RUNNER_TEMP/scripts"
+          if [ "$(find . -mindepth 1 | wc -l)" -ne 3 ] || [ ! -f release-publish.mjs ] || [ -L release-publish.mjs ] \
+            || [ ! -f release-tag.mjs ] || [ -L release-tag.mjs ] || [ ! -f notas.md ] || [ -L notas.md ]; then
+            echo "::error::El artefacto de scripts debe tener solo release-publish.mjs, release-tag.mjs y notas.md."
+            exit 1
+          fi
+          printf '%s  %s\n%s  %s\n' "$HUELLA_ETIQUETAR" release-tag.mjs "$HUELLA_NOTAS" notas.md | sha256sum --check --strict
+          node release-tag.mjs "$NOMBRE" "$VERSION" "$GITHUB_SHA" notas.md
+
+      - name: Resumen
+        if: ${{ !cancelled() }}
+        env:
+          NOMBRE: ${{ needs.decidir.outputs.nombre }}
+          VERSION: ${{ needs.decidir.outputs.version }}
+          ESTADO: ${{ job.status }}
+        run: |
+          {
+            echo "### Etiqueta y release de \`$NOMBRE@$VERSION\`"
+            echo
+            echo "Resultado: \`$ESTADO\`. La etiqueta es \`ui-v$VERSION\`, en el commit de esta ejecución."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dónde se resuelve este fallo
+        if: ${{ failure() }}
+        run: |
+          echo "::error::Falló un paso de «etiquetar». Guía: README.md de liv-components › «Publicar una versión» › «Si falla «etiquetar»»."
