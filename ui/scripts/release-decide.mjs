@@ -229,18 +229,13 @@ export function decide({ run, readFile }) {
         };
       }
       if (foreignTag) fail(foreignTagError(version, tagCommit, commit));
-      if (tagCommit === commit) {
-        return {
-          ...facts,
-          salida: 'nada',
-          mensaje: `Nada que hacer: ${name}@${version} ya está publicada y etiquetada en este commit.`,
-        };
-      }
       checkPublishedFrom(run, name, version, commit);
+      // Also with the tag already on this commit: the release may be missing (a re-run of every job after a
+      // failed `etiquetar`). release-tag.mjs creates only what is missing and changes nothing that exists.
       return {
         ...facts,
         salida: 'etiquetar',
-        mensaje: `${name}@${version} ya está publicada por este commit y falta su etiqueta: se etiqueta.`,
+        mensaje: `${name}@${version} ya está publicada por este commit y falta su etiqueta o su release: se crea lo que falte.`,
       };
     }
 

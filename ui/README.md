@@ -16,8 +16,8 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 | `npm run build` | Compila la librería en `dist/liv-components` |
 | `npm run pack` | Compila y genera `dist/liv-components-<versión>.tgz`, para revisar el contenido antes de publicar |
 | `npm run version:patch` / `version:minor` / `version:major` | Sube la versión de la librería (`projects/liv-components/package.json`) |
-| `npm run release:check` | Verifica que la versión se puede publicar, sin publicar nada |
-| `npm run release` | Verifica, revisa el *lint*, compila y publica en npm |
+| `npm run release:check` | Verifica que la versión se puede publicar, sin publicar nada. Con `-- --ci [--paquete <archivo.tgz>]` hace las verificaciones del CI, sin `npm whoami` ni la rama local |
+| `npm run release` | Solo la [publicación a mano transitoria](#publicación-a-mano-hasta-la-primera-publicación-del-workflow): verifica, revisa el *lint*, compila y publica en npm. Un agente nunca la ejecuta |
 | `npm test` | Pruebas de los componentes (Vitest con jsdom), incluida la accesibilidad con axe |
 | `npm run storybook` | Catálogo de componentes en <http://localhost:6006> (Storybook). Storybook 10 exige la opción `browserTarget` de su objetivo en `angular.json`: no la quites |
 | `npm run build-storybook` | Compila el catálogo en `dist/storybook` |
@@ -26,18 +26,23 @@ Workspace de la librería de componentes del sistema LIV, que se publica en npm 
 
 ## Publicar una versión
 
-Una versión publicada en npm **no se puede cambiar ni volver a publicar** con el mismo número. Por eso la publicación tiene un orden fijo: la versión nueva se prepara en un PR, se integra en `main` y solo después se publica desde `main`.
+Una versión publicada en npm **no se puede cambiar ni volver a publicar** con el mismo número. Por eso nadie publica desde su equipo: la publica el *workflow* [`ui-release.yml`](../.github/workflows/ui-release.yml) cuando se integra en `main` el PR que sube la versión, **después de que una persona apruebe la publicación**. La publicación es de confianza de npm (OIDC): no hay ninguna clave de npm guardada, y cada versión lleva su procedencia (ADR 0042, feature 002).
 
-### Antes de la primera vez (una sola vez por persona)
+**No hay publicación a mano, ni de emergencia:** si GitHub Actions no está disponible, se espera. Ni siquiera un agente puede aprobar, volver a ejecutar o cancelar una publicación (`AGENTS.md` de la raíz, §4.5).
 
-1. Ten una cuenta en [npmjs.com](https://www.npmjs.com) con verificación en dos pasos (2FA) activa.
-2. Pide a un responsable actual del paquete que te dé permiso de publicación:
+> **Hasta la primera versión que publique el *workflow*** sigue vigente la [publicación a mano](#publicación-a-mano-hasta-la-primera-publicación-del-workflow) del final de esta sección. Desde esa versión, esa subsección ya no se usa.
 
-   ```bash
-   npm owner add <tu-usuario-npm> liv-components
-   ```
-
-   Para ver quién puede publicar: `npm owner ls liv-components`.
+```mermaid
+flowchart LR
+  A["1. PR de ui/<br/>sube la versión"] --> B["integrar en main"]
+  B --> C["decidir<br/>¿subió la versión?"]
+  C -->|no| N["nada que publicar"]
+  C -->|sí| D["verificar<br/>lint · pruebas · paquete"]
+  D --> E["2. esperar la aprobación<br/>(entorno npm)"]
+  E --> F["publicar en npm"]
+  F --> G["etiquetar<br/>ui-vX.Y.Z + release"]
+  G --> H["4. adoptar en el frontend"]
+```
 
 ### 1. Preparar la versión (en una rama, por PR)
 
@@ -52,58 +57,104 @@ Una versión publicada en npm **no se puede cambiar ni volver a publicar** con e
    | Cambio incompatible: se quita o renombra un componente, *input*, *token* o variante | `npm run version:major` | 0.1.0 → 1.0.0 |
 
    Mientras la versión empiece por `0.`, un cambio incompatible sube el número del medio (`minor`) y se anuncia en el `CHANGELOG.md`.
-4. Agrega en `CHANGELOG.md` la sección `## [X.Y.Z] — AAAA-MM-DD` con lo que cambia. La publicación falla si falta.
-5. Verifica el paquete: `npm run lint` y `npm run pack`. Revisa que el `.tgz` de `dist/` tenga lo esperado.
-6. Abre el PR **solo con `ui/`**. El PR se revisa e integra como cualquier otro.
+4. Agrega en `CHANGELOG.md` la sección `## [X.Y.Z] — AAAA-MM-DD` con lo que cambia. **Esa sección es el texto de la *release* en GitHub.**
+5. Verifica el paquete: `npm run lint`, `npm run pack` y, con el `.tgz` ya generado, `npm run release:check -- --ci`. El CI del PR (`ui · verify`) corre `release:check --ci` cuando el PR sube la versión: si falta la sección del `CHANGELOG.md`, la versión no es mayor que la publicada o falta el campo `repository` del paquete, el PR no se puede integrar.
+6. Abre el PR **solo con `ui/`**. Se revisa e integra como cualquier otro. Los PR de la librería no publican nada por sí solos: solo el *commit* que sube la versión pone en marcha la publicación.
+7. **Antes de integrar otra subida de versión, aprueba o rechaza la que está esperando** (ver «[Varias versiones seguidas](#varias-versiones-seguidas)»).
 
-### 2. Publicar (después de integrar el PR)
+### 2. Aprobar la publicación (una persona)
 
-```bash
-git checkout main
-git pull
-cd ui
-npm install
-npm login
-npm run release
-```
+**Quién:** los revisores del entorno `npm` de GitHub: el responsable del proyecto y quien él designe. Un agente nunca aprueba.
 
-`npm run release` primero ejecuta `npm run release:check`, que **detiene la publicación** con un mensaje que explica qué hacer si:
+**Dónde:** en la página de la ejecución. Al integrar el PR, el *workflow* `ui-release` queda en «Waiting»:
 
-- no estás en `main` o hay cambios sin commit en `ui/`;
-- no has iniciado sesión en npm (`npm login`);
-- tu usuario no tiene permiso de publicación (te dice el `npm owner add` que debe ejecutar un responsable);
-- la versión ya existe en npm o no es mayor que la última publicada;
-- falta la sección de la versión en `CHANGELOG.md`.
+1. Abre **Actions › ui-release** y entra a la ejecución del *commit* que subió la versión.
+2. **Lee el resumen de `verificar`** y comprueba: `liv-components@X.Y.Z`, el *commit* que integraste, el SHA‑256 del `.tgz` y la lista de archivos que se van a publicar. Si algo no es lo esperado, **rechaza**.
+3. Pulsa **Review deployments**, marca `npm` y **Approve and deploy**.
 
-Después revisa el *lint*, compila y publica. Si tienes 2FA, npm abre el navegador o pide el código de 6 dígitos. Si no lo pide, publica con el código directamente:
+Aprueba solo desde esa página, viendo su resumen; no desde la terminal. La aprobación espera hasta 30 días, y pasado ese plazo vence sin publicar nada (ver «[Si falla «publicar»](#si-falla-publicar)»).
 
-```bash
-npm publish ./dist/liv-components --otp=<código>
-```
+Cuando `publicar` termina, `etiquetar` crea la etiqueta `ui-vX.Y.Z` en el *commit* de esa misma ejecución y la *release* de GitHub con la sección del `CHANGELOG.md`.
 
-### 3. Después de publicar
+### 3. Si algo falla
+
+Cada trabajo dice en su registro qué paso falló y enlaza aquí. Nada de lo que sigue publica dos veces: «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. Los «Re-run», como las aprobaciones, los hace una persona.
+
+#### Si falla «decidir»
+
+La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
+
+| Mensaje | Qué hacer |
+|---|---|
+| npm no respondió con las versiones, o `git ls-remote` falló | Nada se decidió. Espera y usa «Re-run failed jobs» |
+| La versión es menor que la última publicada y no se publicó | Sube la versión por encima de la última en un PR nuevo |
+| La etiqueta `ui-vX.Y.Z` ya existe en otro *commit* | **No se mueve.** Una persona con permiso revisa quién la creó y por qué. Si fue un error, la versión se descarta y se sube una nueva en un PR nuevo |
+| npm registra que la versión se publicó desde otro *commit* | Igual que la anterior: no se etiqueta este *commit* |
+| `.nvmrc` o `packageManager` no son una versión exacta que sirva para la publicación de confianza | Corrígelos en un PR de `ui/` (Node 22.14 o mayor, npm 11.5.1 o mayor) |
+
+«Nada que publicar» **no es un fallo**: el *commit* no subió la versión, o la versión ya está publicada. Si el mensaje dice que la versión «está pendiente en la ejecución del *commit* que la subió», busca esa ejecución y apruébala o recházala.
+
+#### Si falla «verificar»
+
+*Lint*, formato, pruebas, Storybook, empaquetado, la sección del `CHANGELOG.md`, el número de versión o el campo `repository` fallan **ya en el PR** (`ui · verify`). Si llegó a `main` y falla aquí:
+
+1. Si el error fue de la infraestructura (una descarga, un servidor), usa «Re-run failed jobs».
+2. Si es del código, corrígelo en un PR nuevo que **suba otra vez la versión** (el siguiente número) con su sección del `CHANGELOG.md`: solo el *commit* que sube la versión la publica, así que el arreglo sin subir no publicaría nada.
+
+#### Si falla «publicar»
+
+| Qué pasó | Qué hacer |
+|---|---|
+| Rechazaste la aprobación, o venció (30 días) | No se publicó nada. Usa «Re-run all jobs» de esa ejecución (o «Re-run failed jobs» si los artefactos siguen disponibles) y aprueba |
+| `ya está publicada con otra integridad` | **No reintentes.** El contenido publicado no es el que se verificó. Una persona investiga; la versión se descarta y se sube una nueva en un PR nuevo |
+| `no es mayor que la última publicada` | Se publicó otra versión mayor mientras esperaba. Sube la versión en un PR nuevo |
+| `npm publish falló` con `E403`, `E404` o un error de OIDC | Una persona revisa en npmjs.com el publicador de confianza de `liv-components`: repositorio `jorgearaujoSap/liv`, *workflow* `ui-release.yml` y entorno `npm`. Si venció, se borra y se registra de nuevo; después, «Re-run failed jobs» |
+| Subió el paquete y falló después | «Re-run failed jobs»: `publicar` compara la integridad con la de npm y, si coincide, sigue sin publicar otra vez |
+
+Si npm responde pero la versión no aparece, no la publiques a mano: espera y comprueba con `npm view liv-components version`.
+
+#### Si falla «etiquetar»
+
+El paquete ya está publicado. Usa «Re-run failed jobs» (o «Re-run all jobs»): crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si la etiqueta ya existe en otro *commit*, falla y **no la mueve**: una persona con permiso la revisa.
+
+#### Varias versiones seguidas
+
+GitHub deja una sola ejecución en espera por grupo. **Aprueba o rechaza antes de integrar otra subida de versión.** Si se integran dos subidas antes de aprobar la primera, la primera se cancela:
+
+- si pasa, la versión saltada se publica con «Re-run» de su ejecución cancelada, **antes** de aprobar la siguiente;
+- si ya se aprobó la siguiente, la saltada ya no se puede publicar (sería menor que la última): sus cambios salen con la siguiente y se anotan en el `CHANGELOG.md`.
+
+### 4. Adoptar la versión en el frontend
+
+Cuando la *release* `ui-vX.Y.Z` existe:
 
 1. Comprueba la publicación: `npm view liv-components version` debe responder la versión nueva.
-2. Etiqueta el commit publicado y súbela:
+2. En el frontend, en otra rama y otro PR: cambia la versión de `liv-components` en `frontend/package.json` (versión exacta, sin `^`), ejecuta `npm install`, verifica (`npm run lint`, `npm test`, `npm run build`) y sube `package.json` y `package-lock.json`. El resto del equipo recibe la versión nueva con su próximo `npm install`.
+
+### Una vez, después de la primera publicación del *workflow*
+
+La persona responsable activa en npm «**Require two-factor authentication and disallow tokens**» en la página de acceso del paquete, y crea en GitHub el *ruleset* de las etiquetas `ui-v*` que bloquea su actualización y su borrado (**no su creación**, para que `etiquetar` pueda crearlas).
+
+### Publicación a mano (hasta la primera publicación del *workflow*)
+
+> Transitoria: la usa una persona con permiso en npm solo hasta que el *workflow* publique su primera versión. Un ajuste de `ui/` retira esta subsección después. Un agente nunca publica.
+
+1. Cuenta en [npmjs.com](https://www.npmjs.com) con 2FA, y permiso de publicación: un responsable ejecuta `npm owner add <tu-usuario-npm> liv-components` (`npm owner ls liv-components` muestra quién puede).
+2. Con el PR de la versión integrado en `main`:
 
    ```bash
-   git tag ui-vX.Y.Z
-   git push origin ui-vX.Y.Z
+   git checkout main
+   git pull
+   cd ui
+   npm install
+   npm login
+   npm run release
    ```
 
-3. En el frontend, en otra rama y otro PR: cambia la versión de `liv-components` en `frontend/package.json` (versión exacta, sin `^`), ejecuta `npm install`, verifica (`npm run lint`, `npm test`, `npm run build`) y sube `package.json` y `package-lock.json`. El resto del equipo recibe la versión nueva con su próximo `npm install`.
+   `npm run release` ejecuta antes `npm run release:check`, que se detiene con un mensaje si no estás en `main` o hay cambios sin *commit* en `ui/`, no has iniciado sesión, no tienes permiso, la versión ya existe o no es mayor que la última publicada, o falta la sección de la versión en `CHANGELOG.md`. Después revisa el *lint*, compila y publica; con 2FA, npm pide el código (`npm publish ./dist/liv-components --otp=<código>`).
+3. Comprueba con `npm view liv-components version`, etiqueta el *commit* publicado (`git tag ui-vX.Y.Z` y `git push origin ui-vX.Y.Z`) y adopta la versión en el frontend como en el paso 4.
 
-### Si algo sale mal
-
-| Mensaje | Causa | Solución |
-|---|---|---|
-| `You cannot publish over the previously published versions` | La versión ya existe | Sube la versión (`npm run version:patch`/`minor`/`major`), actualiza el `CHANGELOG.md` e intégralo por PR |
-| `E403 … You do not have permission to publish` | Tu usuario no es responsable del paquete | Un responsable ejecuta `npm owner add <tu-usuario> liv-components` |
-| `ENEEDAUTH` / `E401` | No has iniciado sesión | `npm login` |
-| `EOTP` | Falta el código de verificación en dos pasos | `npm publish ./dist/liv-components --otp=<código>` |
-| Se publicó algo incorrecto | — | No intentes reemplazarlo: publica una versión `patch` con la corrección. Retirar una versión (`npm unpublish`) solo es posible en las primeras 72 horas y deja el número inutilizable |
-
-Cuando exista el CI (F0‑07), la publicación la hará el *pipeline* de este proyecto al subir la etiqueta `ui-vX.Y.Z`, con un *token* de npm guardado como secreto, y las mismas verificaciones.
+Si se publicó algo incorrecto, no intentes reemplazarlo: publica una versión `patch` con la corrección. Retirar una versión (`npm unpublish`) solo es posible en las primeras 72 horas y deja el número inutilizable.
 
 ## Estructura
 

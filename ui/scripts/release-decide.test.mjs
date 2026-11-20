@@ -109,11 +109,13 @@ describe('release-decide · salidas de la tabla del diseño técnico (002-05, 00
     assert.equal(decision.salida, 'etiquetar');
   });
 
-  it('nada: ya publicada, este commit la subió y la etiqueta está en este commit', () => {
+  it('etiquetar: ya publicada, este commit la subió y la etiqueta ya está en este commit (falta la release)', () => {
     const decision = decide(
       scenario({ version: '0.5.0', parentVersion: '0.4.0', tags: tagAt('0.5.0', HEAD) }),
     );
-    assert.equal(decision.salida, 'nada');
+    assert.equal(decision.salida, 'etiquetar');
+    assert.equal(decision.commit, HEAD);
+    assert.match(decision.mensaje, /falta su etiqueta o su release/);
   });
 
   it('nada: ya publicada y este commit no subió la versión (cambio de ui/ sin versión)', () => {
