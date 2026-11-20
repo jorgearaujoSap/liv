@@ -230,9 +230,9 @@ Ejemplos: corregir un texto o un estilo que no coincide con Figma, sin cambiar t
 - Crear una pantalla sin diseño de Figma aprobado (salvo la excepción de §6.2).
 - Crear componentes visuales fuera de `liv-components`, redefinir sus estilos desde una pantalla, o modificar un componente existente o sus capturas de referencia.
 - Usar datos reales de contribuyentes o credenciales de entornos reales.
-- Integrar a `main`, publicar versiones o desplegar.
+- Integrar a `main`, publicar versiones o desplegar. **Ningún agente aprueba una publicación ni un despliegue**, aunque tenga a mano la sesión de `gh` de la persona (ADR 0042): la aprobación es de una persona, desde la página de la ejecución y viendo su resumen. Solo el *workflow* publica y despliega, nunca un agente con un comando.
 - Romper la independencia entre `backend/`, `frontend/` y `ui/` (§4.6).
-- Publicar `liv-components` en npm.
+- Aprobar la publicación de `liv-components` en npm. La hace el *workflow* `ui-release.yml` al integrar el *commit* que sube la versión, y **una persona** la aprueba en el entorno protegido `npm` de GitHub; no hay publicación a mano, ni de emergencia (ADR 0042). Un agente puede preparar la versión y su `CHANGELOG.md`, pero nunca la aprueba ni ejecuta `npm publish`. **Hasta que se integre el PR que activa la publicación automática (feature 002, R3), sigue vigente la publicación a mano de `ui/README.md` › «Publicar una versión», que hace una persona.**
 
 ### 4.6 Backend, frontend y librería: proyectos autónomos y separables
 
@@ -243,7 +243,7 @@ Ejemplos: corregir un texto o un estilo que no coincide con Figma, sin cambiar t
 - Los *scripts* de desarrollo de `tools/dev/` (levantar y detener todo en local) no son una herramienta de build: solo ejecutan los comandos propios de cada proyecto, y ningún proyecto depende de ellos.
 - Cada proyecto tiene su `README.md`, `AGENTS.md`, configuración de *lint*, formato y ganchos, `Dockerfile`, entorno de desarrollo, versión y `CHANGELOG.md`.
 - Entre backend y frontend, el único contrato es el **OpenAPI**: el backend lo publica versionado desde `backend/contracts/openapi/`; el frontend usa una copia fijada en `frontend/api-spec/` que actualiza con su propio *script*. El frontend **nunca** lee `../backend`.
-- La librería se comparte **solo como paquete npm** (`liv-components`): el frontend la declara con versión exacta y la recibe con `npm install`; para adoptar una versión nueva se cambia el número y se suben `package.json` y `package-lock.json`. El frontend **nunca** lee `../ui`. Solo un humano publica en npm, desde `main` y después de integrar el PR que sube la versión; el proceso paso a paso y sus verificaciones automáticas están en `ui/README.md` › "Publicar una versión".
+- La librería se comparte **solo como paquete npm** (`liv-components`): el frontend la declara con versión exacta y la recibe con `npm install`; para adoptar una versión nueva se cambia el número y se suben `package.json` y `package-lock.json`. El frontend **nunca** lee `../ui`. Publica el *workflow* `ui-release.yml` al integrar en `main` el PR que sube la versión, y **un humano aprueba la publicación** en el entorno protegido `npm` de GitHub (ADR 0042); el proceso paso a paso está en `ui/README.md` › "Publicar una versión". Hasta que se active la publicación automática, publica a mano una persona, como dice esa guía.
 - Un PR toca un solo proyecto. Si una feature cambia varios, van en PR separados: primero el backend con el contrato y la librería con su versión publicada, luego el frontend que los adopta.
 - CI, versiones (`backend-vX.Y.Z`, `frontend-vX.Y.Z`, `ui-vX.Y.Z`) y despliegues o publicaciones son independientes.
 - `e2e/`, `perf/` e `infra/` usan los proyectos solo como imágenes publicadas y por HTTP. Mientras no haya producción, `e2e/` corre contra el entorno local de desarrollo, también solo por HTTP (ADR 0030).
