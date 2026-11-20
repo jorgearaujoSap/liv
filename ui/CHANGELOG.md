@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+## [0.5.1] — 2026-11-20
+
+Sin cambios en los componentes ni en los *tokens*: es la primera versión que publica el *workflow* `ui-release.yml` (ADR 0042), con la aprobación de una persona y con procedencia. El paquete agrega el campo `repository`; el resto de los cambios son de la publicación automática y de la guía del proyecto.
+
 ### Agregado
 
 - *Scripts* de la publicación automática (feature 002, rebanada R1, ADR 0042), en Node y sin dependencias, con sus pruebas `node --test` (`npm run test:scripts`, que ahora también corre `npm test`). Los usa `ui-release.yml`, que publica con la aprobación de una persona.
@@ -12,7 +16,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
   - `scripts/release-publish.mjs`: publica el `.tgz` verificado sin publicar dos veces. Antes comprueba que el `package.json` del `.tgz` sea el nombre y la versión pedidos, con un lector de tar propio y estricto: aplica las cabeceras pax como npm y rechaza otros tipos de entrada, rutas que no sean `package/…`, sumas de control equivocadas y contenido después del fin del archivo. Con la misma integridad, sigue; con otra, falla; solo publica si npm responde E404 y la versión es mayor que la última publicada, y siempre con `--ignore-scripts`. No importa ningún otro archivo del proyecto: viaja solo.
   - `npm run release:check -- --ci [--paquete <archivo.tgz>]`: las verificaciones de publicación para el CI, sin `npm whoami`, `npm owner` ni la rama local. Agrega las de `release-decide` (versiones exactas de Node y npm) y lee el `package.json` empaquetado: nombre, versión y campo `repository`.
   - `scripts/release-tag.mjs` (feature 002, rebanada R3): crea la etiqueta `ui-vX.Y.Z` en el *commit* de la ejecución por la API de GitHub (`gh api`) y después la *release* con `--verify-tag` y `--notes-file`, sin publicar dos veces. Si la etiqueta ya existe en el mismo *commit*, sigue; si existe en otro (también anotada), falla y no la mueve. Si la *release* ya existe, sigue sin cambiarla (avisa si su texto difiere de la sección del `CHANGELOG.md`), y la crea sin marcarla como «Latest» del repositorio (`--latest=false`). Cualquier respuesta de GitHub que no sea un «no existe» claro falla, y una carrera entre dos ejecuciones se resuelve leyendo de nuevo. No importa nada que no sea Node: viaja solo, como artefacto de `decidir`.
-- El campo `repository` del paquete (`git+https://github.com/jorgearaujoSap/liv.git`, `directory: ui/projects/liv-components`), que exige la publicación de confianza de npm. Llega a npm con la próxima versión.
+- El campo `repository` del paquete (`git+https://github.com/jorgearaujoSap/liv.git`, `directory: ui/projects/liv-components`), que exige la publicación de confianza de npm. Llega a npm con esta versión.
 
 ### Cambiado
 
