@@ -94,7 +94,8 @@ jobs:
             echo "$PROJECT no tiene comparador: no hay pruebas que correr."
           fi
 
-      # Java para el Maven del proyecto, que corre openapi-diff.
+      # Java para el Maven del proyecto, que corre openapi-diff. Solo lee la caché (issue 239): si la guardara, el
+      # verify de este mismo PR restauraría una caché incompleta con la clave de su pom.xml.
       - if: steps.project.outputs.enabled == 'true'
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -102,6 +103,7 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: ${{ matrix.project }}/pom.xml
+          cache-read-only: true
 
       - name: Pruebas de los scripts del PR
         if: steps.project.outputs.enabled == 'true'

@@ -63,7 +63,9 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          cache-dependency-path: backend/pom.xml
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/.mvn/wrapper/maven-wrapper.properties
 
       # `sh` porque mvnw aún no tiene permiso de ejecución en Git; se corrige en el primer PR del backend.
       - name: Compilación, formato, arquitectura y pruebas (Q01–Q03)

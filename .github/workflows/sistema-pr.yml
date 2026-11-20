@@ -62,12 +62,28 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # El checkout es el merge del PR con main; con fetch-depth 2 trae también su primer padre, la punta de main, de la
+      # que sale la prueba de la caché de Maven.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Pruebas de aplica.sh
         run: bash .github/scripts/test/aplica.test.sh
+
+      # Las reglas de la caché de Maven (issue 239): quién la escribe, quién la lee y que el verify de los PR no cambie.
+      # La prueba es la de la base (HEAD^1), como aplica.sh, para que un PR no pueda debilitarla y relajar un workflow a
+      # la vez; lee los workflows del PR. En el PR que la agrega, la base aún no la tiene y corre la del PR.
+      - name: Pruebas de la caché de Maven (239)
+        run: |
+          if git cat-file -e HEAD^1:.github/scripts/test/maven-cache.test.sh 2> /dev/null; then
+            git show HEAD^1:.github/scripts/test/maven-cache.test.sh > "$RUNNER_TEMP/maven-cache.test.sh"
+            bash "$RUNNER_TEMP/maven-cache.test.sh" "$GITHUB_WORKSPACE/.github/workflows"
+          else
+            echo "La base aún no tiene la prueba (el PR que la agrega): se usa la del PR."
+            bash .github/scripts/test/maven-cache.test.sh
+          fi
 
       # Los trabajos de ui-release.yml con permisos (id-token, contents: write) no hacen checkout, no instalan nada y solo
       # ejecutan scripts de `decidir` con su huella comprobada (feature 002, criterio 002-08).

@@ -1,0 +1,151 @@
+# Caché de Maven de main (doc. 04 §9, issue 239): el único productor de la caché de Maven en main. Los verify de los PR
+# (backend-pr y bff-pr) la restauran con la misma clave, que sale del pom.xml y del maven-wrapper.properties del
+# proyecto, y solo ellos guardan cachés (con el alcance de su PR). Los demás trabajos fuera de un PR la leen con
+# cache-read-only o no la usan.
+# Cada trabajo de caché corre el mismo verify que su PR, para que la caché tenga todo lo que verify descarga (también
+# los providers de Surefire y lo que descarga Spotless). setup-java la guarda al final del trabajo, con el alcance de
+# main, que leen todos los PR. Con -Dmaven.test.failure.ignore=true, solo aquí: una prueba inestable no deja main sin
+# caché, y el verify del PR es el que juzga. Si la caché ya existe, no corre verify.
+# Cada trabajo de comprobación restaura la caché sin guardar y corre verify sin conexión (-o): si la caché está
+# incompleta, falla.
+# Nada de aquí es un check obligatorio: corre después de integrar y no bloquea ningún PR. Los nombres de los
+# trabajos no están en el ruleset «main».
+# Programado todos los días: si la caché se pierde (se expulsa a los 7 días sin uso), la próxima corrida la reconstruye.
+# La prueba de .github/scripts/test/maven-cache.test.sh vigila estas reglas.
+name: maven-cache-main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/pom.xml'
+      - 'backend/bff/pom.xml'
+      - 'backend/.mvn/wrapper/maven-wrapper.properties'
+      - 'backend/bff/.mvn/wrapper/maven-wrapper.properties'
+      - '.github/workflows/maven-cache-main.yml'
+  schedule:
+    - cron: '23 6 * * *'
+  # Solo desde main: cada trabajo exige la rama main.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# En fila y sin cancelar la ejecución en curso: cancelarla a medias dejaría la caché sin guardar. GitHub deja una
+# sola en espera; la siguiente construye sobre el árbol de main, así que converge.
+concurrency:
+  group: maven-cache-main
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: backend · caché de Maven
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/.mvn/wrapper/maven-wrapper.properties
+
+      # `sh` porque mvnw aún no tiene permiso de ejecución en Git, como en backend-pr.
+      - name: Llenar la caché (verify, como backend-pr)
+        if: steps.java.outputs.cache-hit != 'true'
+        run: sh mvnw -B -ntp -Dmaven.test.failure.ignore=true verify
+
+  backend-comprobar:
+    name: backend · comprobar caché
+    needs: backend
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/.mvn/wrapper/maven-wrapper.properties
+          cache-read-only: true
+
+      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla.
+      - name: Verify sin conexión con la caché restaurada
+        run: sh mvnw -B -ntp -o verify
+
+  bff:
+    name: bff · caché de Maven
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend/bff
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: |
+            backend/bff/pom.xml
+            backend/bff/.mvn/wrapper/maven-wrapper.properties
+
+      # Las pruebas de la migración usan Testcontainers con el Docker del ejecutor.
+      - name: Llenar la caché (verify, como bff-pr)
+        if: steps.java.outputs.cache-hit != 'true'
+        run: ./mvnw -B -ntp -Dmaven.test.failure.ignore=true verify
+
+  bff-comprobar:
+    name: bff · comprobar caché
+    needs: bff
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend/bff
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: |
+            backend/bff/pom.xml
+            backend/bff/.mvn/wrapper/maven-wrapper.properties
+          cache-read-only: true
+
+      # Sin conexión: si a la caché le falta algo, Maven no lo descarga y el trabajo falla.
+      - name: Verify sin conexión con la caché restaurada
+        run: ./mvnw -B -ntp -o verify
