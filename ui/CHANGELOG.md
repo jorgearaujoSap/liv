@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Cambiado
+
+- `README.md` › «Publicar una versión» (con la sección nueva «Aprobar desde el chat»), `AGENTS.md` (fila «Publicación») y la *skill* `liv-componente`, por el ADR 0043: un agente puede aprobar la publicación, volver a ejecutar el *workflow* y crear la etiqueta o la *release* que falte solo después de mostrar en el chat los datos de la ejecución y de que la persona confirme esa ejecución concreta; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida, mover o borrar una etiqueta `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o la configuración del paquete en npm, y publicar con un comando. Solo documentación: no cambia el código, los componentes, los *tokens* ni la versión.
+
 ## [0.5.1] — 2026-11-20
 
 Sin cambios en los componentes ni en los *tokens*: es la primera versión que publica el *workflow* `ui-release.yml` (ADR 0042), con la aprobación de una persona y con procedencia. El paquete agrega el campo `repository`; el resto de los cambios son de la publicación automática y de la guía del proyecto.
