@@ -6,7 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ### Cambiado
 
-- `README.md` › «Publicar una versión» (con la sección nueva «Aprobar desde el chat»), `AGENTS.md` (fila «Publicación») y la *skill* `liv-componente`, por el ADR 0043: un agente puede aprobar la publicación, volver a ejecutar el *workflow* y crear la etiqueta o la *release* que falte solo después de mostrar en el chat los datos de la acción y de que la persona confirme esa ejecución concreta con un dato que lee en la página; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida, mover o borrar una etiqueta `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o la configuración del paquete en npm, y publicar con un comando. Solo documentación: no cambia el código, los componentes, los *tokens* ni la versión.
+- `README.md` › «Publicar una versión» (con la sección nueva «Aprobar desde el chat»), `AGENTS.md` (fila «Publicación») y la *skill* `liv-componente`, por el ADR 0043: un agente puede aprobar la publicación, volver a ejecutar el *workflow* y crear la etiqueta o la *release* que falte solo después de mostrar en el chat, completos, los datos de la acción y de que la persona confirme en el chat esa ejecución concreta, sin ir a GitHub; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida, mover o borrar una etiqueta `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o la configuración del paquete en npm, y publicar con un comando. Solo documentación: no cambia el código, los componentes, los *tokens* ni la versión.
 
 ## [0.5.1] — 2026-11-20
 
