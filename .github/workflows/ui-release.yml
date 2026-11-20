@@ -160,7 +160,7 @@ jobs:
         run: |
           actual=$(git rev-parse HEAD)
           if [ "$actual" != "$COMMIT" ]; then
-            echo "::error::El checkout está en $actual y decidir decidió sobre $COMMIT. Vuelve a ejecutar."
+            echo "::error::El checkout está en $actual y decidir decidió sobre $COMMIT. No reintentes: una persona lo revisa."
             exit 1
           fi
 
