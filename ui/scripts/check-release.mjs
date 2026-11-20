@@ -1,8 +1,8 @@
 // Pre-release checks for liv-components. Each failed check explains how to fix it; nothing is published
 // until all pass.
 //
-//   node scripts/check-release.mjs                  manual publish: npm runs it before `npm run release`
-//                                                   ("prerelease" script), on the publisher's machine.
+//   node scripts/check-release.mjs                  local run (`npm run release:check`): a person previews the
+//                                                   checks, also npm whoami and owner. It never publishes.
 //   node scripts/check-release.mjs --ci [--paquete <file.tgz>]
 //                                                   CI (feature 002, 002-10): no npm whoami, npm owner or
 //                                                   local branch. It also checks what `decidir` will check
