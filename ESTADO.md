@@ -24,12 +24,12 @@ El avance de cada rebanada está en el *Project* [`liv-project`](https://github.
 
 | Feature | Estado | Siguiente paso |
 |---|---|---|
-| **002 · Publicación automática de `liv-components`** | ✅ Hecha el 2026-11-20 (H1 del 2026-11-19, PR #228; construida en los PR #234, #235, #237, #238, #240, #241, #242 y #243). `liv-components` 0.5.1 la publicó el *workflow* con la aprobación de una persona, procedencia y la etiqueta `ui-v0.5.1`; ADR 0042 aceptado, sin publicación a mano | Decidir lo que dejó: la *release* quedó «Latest», el modo local de `release:check` y el ADR de confirmación en el chat (#244) |
-| **008 · Configuración de jurisdicción (1.5.9)** | ⏳ Por retomar: la 002 ya cerró y la pausa del 2026-11-19 terminó. Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior | Al retomarla: agrupar sus 78 tareas en rebanadas (*issues* `feature:008`), con R1 como esqueleto. Sus componentes nuevos de `liv-components` se publican ahora con el *workflow* y la aprobación de una persona |
+| **002 · Publicación automática de `liv-components`** | ✅ Hecha el 2026-11-20 (H1 del 2026-11-19, PR #228; construida en los PR #234, #235, #237, #238, #240, #241, #242 y #243). `liv-components` 0.5.1 la publicó el *workflow* con la aprobación de una persona, procedencia y la etiqueta `ui-v0.5.1`; ADR 0042 aceptado, sin publicación a mano | Nada de la feature. El ADR 0043 (aprobar desde el chat, #244) se integró en los PR #245 y #246. Quedan dos puntos sin decidir, en §6: la *release* `ui-v0.5.1` marcada «Latest» y el modo local de `release:check` |
+| **008 · Configuración de jurisdicción (1.5.9)** | ⏳ **Siguiente feature, sin empezar a construir.** La 002 cerró y la pausa del 2026-11-19 terminó. Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior; sin código ni *issues* `feature:008` todavía | Seguir la guía de traspaso de abajo: agrupar sus 78 tareas en rebanadas, la primera como esqueleto, y crear sus *issues* `feature:008` con el visto bueno de la persona. Sus componentes nuevos de `liv-components` los publica el *workflow* con la aprobación de una persona |
 
 #### Plan anterior de la 008 (ADR 0033, referencia)
 
-Esta tabla y la guía de abajo describen la 008 con oleadas y tareas. Se conservan como referencia para convertirla en rebanadas; ya no se actualizan.
+Esta tabla describe la 008 con oleadas y tareas. Se conserva como referencia para convertirla en rebanadas y ya no se actualiza. La guía de abajo sí está al día con el método nuevo.
 
 | Tarea | Proyecto | Sesión / rama | Depende de | Estado | Espera de la persona |
 |---|---|---|---|---|---|
@@ -46,16 +46,20 @@ Esta tabla y la guía de abajo describen la 008 con oleadas y tareas. Se conserv
 
 ### Cómo continuar la feature 008 (guía de traspaso)
 
-> **Método anterior.** Esta guía describe la 008 con oleadas y tareas (ADR 0033). Desde el ADR 0040, la 008 es el piloto de SDD por rebanadas verticales: sus 78 tareas se agrupan en rebanadas del backlog en el siguiente cambio, y su spec, su diseño y las decisiones H2‑1 a H2‑24 se conservan.
+Esta guía es para quien retome la 008 sin el historial de las sesiones anteriores, sea una persona o un agente. Todo lo necesario está en el repositorio y en el *Project* [`liv-project`](https://github.com/users/jorgearaujoSap/projects/1). Está al día el 2026-11-20.
 
-Esta guía es para quien retome la 008 sin el historial de las sesiones anteriores. Todo lo necesario está en el repositorio.
+**Dónde está la 008 hoy:**
+- la spec (H1), el diseño en Figma y el plan, con las decisiones H2‑1 a H2‑24, están aprobados con el método anterior (ADR 0033);
+- todavía no tiene código, ni *issues* `feature:008`, ni tabla de rebanadas en `spec.md`.
+
+Desde el ADR 0040 se construye por **rebanadas verticales**. La spec, el diseño y las decisiones se conservan tal cual. Las 78 tareas de `tasks.md`, con su mapa de 37 PR en seis oleadas, son la materia prima para armar las rebanadas, no un plan que se sigue al pie de la letra.
 
 **Vocabulario mínimo:**
-- **H1, H2 y H3:** las aprobaciones de la persona. H1 aprueba la spec, H2 el plan y H3 cada PR antes de integrarlo (`AGENTS.md` §4.2).
+- **H1 y H3:** las aprobaciones de la persona. La H1 aprueba la spec y la H3 revisa e integra cada PR. Entre las dos, la persona da en el chat el visto bueno que pasa cada rebanada a «Lista» (`AGENTS.md` §4.2). La H2 del método anterior ya no existe, pero sus decisiones H2‑1 a H2‑24 siguen vigentes.
+- **Rebanada:** una pieza que atraviesa datos, API y pantalla y se ve funcionando en local. La primera es el **esqueleto**: el camino más delgado de punta a punta de la 1.5.9.
 - **T1 a T78:** las tareas de `tasks.md`.
-- **R1, R2a, B1, C2a, U1, F0, E1 y los demás:** los PR del mapa. R es la raíz; B y C, `backend/`; U, `ui/`; F, `frontend/`; E, `e2e/`.
-- **Oleada:** un grupo de PR que se trabaja a la vez.
-- **C10:** el PR que abre la opción 1.5.9 en el menú; hasta entonces sus pantallas muestran «Próximamente».
+- **R1, R2a, B1, C2a, U1, F0, E1 y los demás:** los PR del plan anterior. R es la raíz; B y C, `backend/`; U, `ui/`; F, `frontend/`; E, `e2e/`. La «R1» del plan anterior es un PR de documentos, no la primera rebanada.
+- **C10:** el cambio que abre la opción 1.5.9 en el menú. Hasta entonces sus pantallas muestran «Próximamente».
 - ***Worktree*:** la copia aislada del repositorio donde trabaja cada sesión.
 - **Reglas comunes a todas las tareas:** al inicio de `tasks.md`.
 
@@ -63,33 +67,62 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
 
 | Qué | Dónde |
 |---|---|
+| Método | `AGENTS.md` §4 y §10, `CLAUDE.md` y las *skills* `liv-sdd-feature` (arranque, backlog, rebanadas y cierre), `liv-backlog` (*issues* y tablero) y `liv-orquestador` (varias rebanadas a la vez) |
 | Spec (H1, 48 criterios, enmiendas 1 y 2) | `spec/features/008-configuracion-jurisdiccion/spec.md` |
-| Plan (H2, decisiones H2‑1 a H2‑24, revisión y verificación acotada) | `spec/features/008-configuracion-jurisdiccion/plan.md` |
+| Plan (decisiones H2‑1 a H2‑24, revisión y verificación acotada) | `spec/features/008-configuracion-jurisdiccion/plan.md` |
 | Tareas (T1 a T78 en 37 PR, orden de integración, olas, recursos, lo que hace la persona, puntos interpretados) | `spec/features/008-configuracion-jurisdiccion/tasks.md` |
+| Backlog | *Issues* con la etiqueta `feature:008` en el *Project* `liv-project` (por crear) |
 | Diseño aprobado | LIV‑Diseño, `03 Pantallas` › «1.5.9 · Configuración de jurisdicción» (`92:4179`); componentes nuevos en `02 Componentes` (`88:506`, `88:524`, `88:578`, `89:611`, `90:565`). La lista de nodos por pantalla está en `plan.md`, «Diseño de interfaz» |
-| Modelo a seguir | La feature 007 (`spec/features/007-vigencias-fiscales/`): una opción del menú de punta a punta, con sus «Ajustes de la H3» en `plan.md` |
+| Modelo a seguir | La feature 007 (`spec/features/007-vigencias-fiscales/`), una opción del menú de punta a punta, con sus «Ajustes de la H3» en `plan.md`. La 002 (`spec/features/002-publicacion-automatica-ui/`) es la primera feature con el método nuevo |
 
 **Siguiente paso, en orden**
 
-1. **Confirmar los «Puntos del plan que estas tareas interpretan»** de `tasks.md`. Lo más importante es el punto 1, el orden de C10 (la opción 1.5.9 abierta en el menú). La recomendación es la de la 007: el frontend se integra primero y queda en «Próximamente», se valida todo en local con C10 aplicado (T74) y C10 se integra al final.
-2. **Oleada 1:** una sesión para R1 (T1 a T4) y otra para R2a y después R2b (T5 a T10). R1 puede ir en paralelo con R2a; R2b empieza después de R2a, en serie, porque se escribe sobre su rama.
-3. **Seguir el orden de integración de `tasks.md` al pie de la letra.** En la 007 se integraron PR antes de tiempo (B10 antes que B7 y F9b, y el contrato 4B1 antes que 4B2). No hubo daño porque no hay producción, pero hay que evitarlo.
+1. **Leer** este archivo, `AGENTS.md` §4, la spec, el plan y `tasks.md` de la 008, y la *skill* `liv-sdd-feature`.
+2. **Confirmar con la persona los «Puntos del plan que estas tareas interpretan»** de `tasks.md`. El más importante es el punto 1, el orden de C10. La recomendación es la de la 007: el frontend se integra con la opción en «Próximamente», todo se valida en local con C10 aplicado (T74) y C10 se integra al final.
+3. **Proponer las rebanadas**, agrupando T1 a T78. Cada rebanada dice:
+   - qué tareas cubre;
+   - qué proyectos toca y si toca una zona roja;
+   - sus nodos de Figma o «sin pantalla»;
+   - su parte del contrato;
+   - los criterios de `spec.md` que cumple.
 
-**Cómo se trabaja** (*skill* `liv-orquestador`, ADR 0033; `AGENTS.md` §10 y `CLAUDE.md`)
+   Los documentos y los ADR 0036 a 0039 de la oleada 1 van primero, porque fijan las reglas que usan las rebanadas.
+4. **Con el visto bueno de la persona en el chat,** crear los *issues* `feature:008` (*skill* `liv-backlog`) y agregar la tabla de rebanadas a `spec.md` en un PR pequeño de la raíz.
+5. **Preparar con el nivel alto el detalle de cada rebanada con zona roja.** La 008 toca `backend/**/liv/jurisdiction/**`, `backend/contracts/**`, las migraciones y `docs/funcional/anexos/**`. Después se construye cada rebanada.
+6. **Respetar el orden de integración** que fijen las rebanadas. En la 007 se integraron PR antes de tiempo: B10 antes que B7 y F9b, y el contrato 4B1 antes que 4B2. No hubo daño porque no hay producción, pero hay que evitarlo.
 
-- **Una sesión de orquestador** (nivel alto) coordina y es la única que escribe `ESTADO.md`, el *roadmap*, el glosario, las marcas de `tasks.md` y los criterios de `spec.md`.
-- **Cada PR se hace en su propia sesión**, con su *worktree*: nivel estándar para implementar y nivel alto para spec, plan y revisiones críticas.
-  - El encargo de cada sesión cita la tarea de `tasks.md`, los nodos de Figma, las decisiones que aplican, TDD, la revisión (dos `liv-revisor-critico` ciegos y las cuatro lentes en `backend/**/liv/jurisdiction/**`, contratos, migraciones y `ui/**`) y lo que no toca.
-  - La sesión abre el PR con el CI en verde y reporta.
+**Cómo se trabaja** (ADR 0040 y 0041; `AGENTS.md` §4 y §10; `CLAUDE.md`)
+
+- **Una sesión por rebanada**, o por PR si la rebanada se reparte, cada una en su *worktree*:
+  - se construye con el nivel estándar;
+  - el nivel alto prepara las rebanadas con zona roja, hace la revisión adversarial y coordina;
+  - para avanzar varias rebanadas a la vez, una sesión coordinadora usa `liv-orquestador`. Esa sesión no implementa.
+- **El encargo de cada sesión cita:**
+  - el *issue* de la rebanada y sus tareas de `tasks.md`;
+  - los nodos de Figma;
+  - las decisiones que aplican;
+  - qué pruebas van primero;
+  - la revisión que lleva;
+  - lo que no toca.
+
+  La sesión abre el PR con el CI en verde y reporta.
+- **Revisión adversarial** (dos `liv-revisor-critico` ciegos, con un máximo de dos rondas) solo en los PR que tocan una zona roja, una regla con código o un documento funcional. Las cuatro lentes del método anterior ya no se usan.
+- **Prueba primero** solo en el código de las reglas con código (en la 008, las `CJxx`) y en los casos *golden*. Lo demás entra con sus pruebas en el mismo PR.
+- **El tablero lo mantiene el agente.** Mover una rebanada a «Lista» y crear *issues* nuevos los hace con la autorización de la persona en el chat.
+- **Quién escribe qué:**
+  - los PR de las rebanadas no tocan `ESTADO.md`, `spec.md` ni el glosario;
+  - esos archivos cambian en el PR de la tabla de rebanadas, en PR pequeños de la raíz cuando cambia un criterio o el diseño técnico, y en el PR de cierre.
 - **Límites:**
-  - como máximo tres sesiones a la vez;
-  - una sola en `backend/`;
-  - una sola de `ui/` y una sola de `frontend/`;
+  - como máximo tres rebanadas en curso, una por proyecto;
   - el entorno local, exclusivo: lo usa una sesión a la vez.
-- **Ningún agente integra, aprueba, publica en npm ni acepta un ADR.** Todo eso lo hace la persona (`tasks.md`, «Lo que hace la persona»). Desde el ADR 0043, un agente puede ejecutar la aprobación de una publicación de `liv-components` solo con la confirmación de la persona en el chat (`AGENTS.md` §4.5).
-- **Al cerrar:**
-  - se marcan las tareas y los criterios con sus pruebas;
-  - se registran en `plan.md` los «Ajustes de la H3», como en la 007;
+- **Ningún agente integra a `main`, acepta un ADR ni publica con un comando.**
+  - `liv-components` 0.6.0, con `Checkbox`, `TextArea`, `FileField` y `Tab`, la publica `ui-release.yml` al integrar el PR que sube la versión, con la aprobación de una persona en el entorno `npm` o confirmada en el chat (ADR 0042 y 0043; `ui/README.md` › «Publicar una versión»).
+  - Las tareas de `tasks.md` que dicen que la persona publica a mano o corre `npm run release:check` en `main` quedaron viejas.
+- **Al cerrar** (*skill* `liv-sdd-feature`, «Cierre»):
+  - los criterios de `spec.md` se marcan con su prueba;
+  - las pruebas de navegador de los caminos principales quedan en verde;
+  - se revisa la deuda y se abre la opción en el menú;
+  - se registran los cambios en la sección «Cambios» de `spec.md`;
   - se ponen al día el glosario, el *roadmap* y este archivo.
 
 **Lecciones de la 007 que conviene repetir**
@@ -111,10 +144,13 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
   - el frontend con `ng serve --port 4300` y `NG_CLI_ANALYTICS=false`.
 - **Docker Desktop:** si no arranca por *sockets* viejos, se renombran `%LOCALAPPDATA%\Docker\run` y `%LOCALAPPDATA%\docker-secrets-engine` (bitácora del 2026-11-14).
 - **`ESTADO.md`:** se guarda con fin de línea CRLF. Se agrega con `git -c core.autocrlf=false add ESTADO.md` y se comprueba con `git diff --cached --numstat` que solo cambian las líneas editadas.
-- **Publicar `liv-components`:**
-  - desde `main` y en `ui/`, con el Angular CLI sin analítica, para que no modifique `ui/angular.json`;
-  - `npm login`, `npm run release` y después la etiqueta `ui-vX.Y.Z`;
+- **Publicar `liv-components`:** nunca a mano (ADR 0042).
+  - El PR de `ui/` sube la versión y su sección del `CHANGELOG.md`.
+  - Al integrarlo, `ui-release.yml` espera la aprobación en el entorno `npm`, cuyos revisores son `jorgearaujoSap` y `sapenlinea`. Después publica, etiqueta `ui-vX.Y.Z` y crea la *release*.
   - npm puede tardar unos minutos en mostrar la versión nueva.
+- **Caché de Maven del CI (#239):**
+  - la llena solo `maven-cache-main.yml`, en `main`, al cambiar un `pom.xml` o el *wrapper* y todos los días;
+  - si un `verify` de PR falla con un «no encontrado» de Maven Central en un PR que no cambia el `pom.xml`, se anota en #239. La medición corre hasta el 2026-12-04.
 
 ---
 
@@ -125,12 +161,12 @@ Esta guía es para quien retome la 008 sin el historial de las sesiones anterior
 | `docs/funcional/`: `01_Menu_y_Cargue_Tablas_Base_Liquidacion.md` · `02_…` · `03_…` · `04_…` · `05_…` · `ERD_…` | ✅ Existente | Doc. 01 0.6, Doc. 02 0.4, Doc. 05 0.2 y ERD 2.4 (80 tablas), por la feature 007 (2026-11-16); Doc. 03 0.5 (feature 005) y Doc. 04 0.3 (2026-11-12, pendientes 8 y 9 de la feature 006) |
 | `docs/funcional/anexos/`: `config_jurisdiccion_plantilla_2026.yaml` · `config_jurisdiccion_52356_2026.yaml` · `Prevalidacion_Tablas_Base_Gravable_2026.xlsx` · `Formatos_Intercambio_Recaudo.xlsx` | ✅ Existente | Esquema 1.1 desde la feature 005 |
 | `README.md` | ✅ Creado: mapa del repositorio | — |
-| `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.1 (2026-11-11) |
-| `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.4 (2026-11-16, glosario de la feature 007) |
-| `docs/arquitectura/02_Seguridad.md` | ✅ Aprobado | 1.0 |
+| `docs/arquitectura/00_Decisiones_y_Hoja_de_Ruta.md` | ✅ Aprobado | 1.3 (2026-11-20, §6 con el ADR 0043) |
+| `docs/arquitectura/01_Arquitectura_de_Software.md` | ✅ Aprobado | 1.6 (2026-11-19, §11.1 con la publicación automática de `liv-components`) |
+| `docs/arquitectura/02_Seguridad.md` | ✅ Aprobado | 1.3 (2026-11-20, §11 con el riesgo de envenenar la caché de `main`, #239) |
 | `docs/arquitectura/03_Escalabilidad_y_Operacion.md` | ✅ Aprobado | 1.1 (2026-11-11) |
-| `docs/arquitectura/04_Calidad_Testing_y_CI.md` | ✅ Aprobado | 1.0 |
-| `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` | ✅ Aprobado | 1.0 |
+| `docs/arquitectura/04_Calidad_Testing_y_CI.md` | ✅ Aprobado | 1.4 (2026-11-20, §9 con `maven-cache-main.yml`, #239) |
+| `docs/arquitectura/05_Gobierno_de_Agentes_IA_y_SDD.md` | ✅ Aprobado | 1.3 (2026-11-20, §4.2 con el ADR 0043) |
 | `AGENTS.md` | ✅ Creado: reglas y metodología para cualquier agente de IA; fuente única de reglas | — |
 | `CLAUDE.md` | ✅ Importa `AGENTS.md` y agrega solo lo específico de Claude Code | — |
 | `ESTADO.md` (este archivo) | ✅ Creado | — |
@@ -213,48 +249,47 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 6. Próximos pasos
 
 1. **Método de trabajo (ADR 0040 y 0041):**
-   - la feature 002 está hecha (2026-11-20): la 008 deja de estar en pausa;
-   - al retomar la 008, convertirla en rebanadas;
-   - integrar los PR de las referencias de cada proyecto (`backend/`, `frontend/`, `ui/` y `e2e/`), que llevan el método nuevo a sus `AGENTS.md` y *skills*;
+   - la feature 002 está hecha (2026-11-20) y la 008 es la siguiente: se convierte en rebanadas con la guía de traspaso (§1);
    - en el *Project*, el filtro `is:issue is:open` de *Auto-add to project*, que pone la persona.
 
-   Ya están al día las reglas de la raíz, sus *skills*, la plantilla de feature, la plantilla de PR y los documentos de arquitectura.
-2. Publicar `liv-components` ya no necesita un permiso de npm por persona: publica el *workflow* (ADR 0042), con la aprobación de los revisores del entorno `npm` (`jorgearaujoSap` y `sapenlinea`). Más adelante conviene una organización de npm del equipo.
-3. Antes de entregar el proyecto al desarrollador: los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
-4. **Fase 0 cerrada el 2026-11-12** (ADR 0031). La Fase 1 está en curso (§1, «Trabajo en curso»). Quedan de la feature 006, sin fecha:
+   Ya están al día las reglas de la raíz y de cada proyecto (PR #222 y #225 a #230), sus *skills*, la plantilla de feature, la plantilla de PR y los documentos de arquitectura.
+2. Publicar `liv-components` ya no necesita un permiso de npm por persona: publica el *workflow* (ADR 0042), con la aprobación de los revisores del entorno `npm` (`jorgearaujoSap` y `sapenlinea`), en la página de la ejecución o confirmada en el chat al agente (ADR 0043). Más adelante conviene una organización de npm del equipo. Quedan sin decidir de la 002: la *release* `ui-v0.5.1` marcada «Latest» y el modo local de `release:check`.
+3. **CI de Maven (#239, hecho el 2026-11-20):** medir hasta el 2026-12-04 los fallos de resolución de dependencias en `bff-pr` y `backend-pr`. Si hay alguno en un PR que no cambió el `pom.xml`, se abre la rebanada del reintento.
+4. Antes de entregar el proyecto al desarrollador: los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
+5. **Fase 0 cerrada el 2026-11-12** (ADR 0031). La Fase 1 está en curso (§1, «Trabajo en curso»). Quedan de la feature 006, sin fecha:
    - los pendientes 8 y 9 del Doc. 04 §14 (CA‑4.07 y el método del redondeo «al peso»), que decide el responsable funcional;
    - propuestas de las H3: una huella de los valores esperados de las *golden* en el CI y dividir las clases de prueba de más de 400 líneas.
    La T24 de la feature 001 queda para antes de *staging*.
-5. Seguimiento de la feature 005, sin fecha:
+6. Seguimiento de la feature 005, sin fecha:
    - hecho el 2026-11-11: el comentario del *backend* (#165) y las reglas nuevas en `AGENTS.md` §5.1 y §5.2 (#166), ya integrados; y las referencias viejas de los documentos de arquitectura y la constitución (#167, a la espera de la H3 de la persona);
    - la marca «Latest» de la *release* `jsonschema-config-jurisdiccion-v1.1` en GitHub no la causan los *scripts* de `publish` (ya pasan `--latest=false`, y sus pruebas lo exigen): es el criterio por fecha de GitHub, que marca la más reciente cuando ninguna está fijada. Nada en el repositorio usa `releases/latest`. Opciones, sin aplicar y a decisión de la persona: dejarlo así, o fijar una *release* a propósito con `gh release edit <etiqueta> --latest` (p. ej. la primera `backend-vX.Y.Z`);
    - verificar contra la fuente oficial la UVT 2026, las tasas de usura y la fórmula de intereses (pendientes del Doc. 05 §11, jurídica).
-6. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
-7. `liv-components` (el frontend usa la 0.5.0):
+7. Pendientes de las decisiones: región de AWS con jurídica (P1), disponibilidad, RPO y RTO de la entidad (P6) y tabla de retención documental (P7); validar la paleta de color con el responsable funcional.
+8. `liv-components` (el frontend usa la 0.5.0):
    - decidir los tres puntos abiertos de T05 (bitácora del 2026-11-02): el estilo de texto de la etiqueta de sección, el recorte de textos y las opciones deshabilitadas del menú;
    - usar en el frontend el tercer nivel del menú (`NavItem` con `Subgroup` y `Nested`, desde la 0.3.0) cuando haya opciones 1.5.x y 1.6.x;
    - **backlog de componentes:** `Tooltip`, primero en Figma; mientras tanto, `IconButton` usa `title` nativo.
-8. Identidad, decisiones pendientes del responsable:
+9. Identidad, decisiones pendientes del responsable:
    - un trabajo de CI que construya la imagen de Keycloak, ejecute `backend/identity/theme/check.sh`, la revise con Trivy y la publique;
    - si la imagen `node` que compila el tema queda cubierta por "Tailwind CLI" en el ADR 0023;
    - la CSP del *realm* (`browserSecurityHeaders`, doc. 02 §8);
    - que `RealKeycloak` use la imagen de LIV.
-9. BFF, decisiones pendientes del responsable (`plan.md` de la feature 001, «Ajustes de T16», «Ajustes de T17» y «Ajustes de T18»):
+10. BFF, decisiones pendientes del responsable (`plan.md` de la feature 001, «Ajustes de T16», «Ajustes de T17» y «Ajustes de T18»):
    - **T16:** la publicación de la imagen del BFF y la etiqueta `bff-vX.Y.Z`; aceptar Spring Boot 4.1.2, adoptado cuando tenía menos de dos semanas de publicado; las dependencias de prueba del BFF;
    - **T17:** si `spring-boot-starter-session-jdbc` queda cubierto por el ADR 0023; los motivos con que se registra el cierre de una sesión (`EndSession`); el sitio común del proveedor de identidad;
    - **T18:** el prefijo `__Host-` de la cookie CSRF; los códigos de error del proveedor que terminan la sesión; la revocación con `invalid_grant`.
-10. Contratos (ADR 0027), configuración pendiente del responsable:
+11. Contratos (ADR 0027), configuración pendiente del responsable:
    - activar las *releases* inmutables y un *ruleset* para las etiquetas `contract-*`;
    - fijar `distributionSha256Sum` en el *wrapper* de Maven;
    - exigir el *check* de cambios incompatibles en contratos (Q08, `docs/arquitectura/04`), si se retoma la idea de hacer obligatorios los *checks* de cada proyecto.
-11. T24 de la feature 001, antes de producción (`tasks.md`):
+12. T24 de la feature 001, antes de producción (`tasks.md`):
    - imágenes publicadas de la API, el BFF con sus migraciones, el frontend y la identidad;
    - el trabajo de CI de la imagen del frontend, que necesita aprobación;
    - `infra/` solo con imágenes y TLS, y el e2e contra ellas y en CI (F0‑12);
    - la CSP con *nonce* del frontend y la prueba visual del panel de marca;
    - las variables `LIV_BFF_TRUSTED_PROXIES` y `LIV_BFF_REPLICAS` del despliegue.
 
-12. Seguimiento de la feature 007 (vigencias), sin fecha:
+13. Seguimiento de la feature 007 (vigencias), sin fecha:
    - **Arreglo del *layout* (barra exterior y espacio vacío):** hecho e integrado (#213 y su prueba de navegador #214, 2026-11-16).
    - **`dev.admin.sistema`:** es del desarrollador y su segundo factor no se reinicia. Las validaciones usan los usuarios `e2e.*` o uno propio. Falta escribirlo en `backend/dev/README.md` (flujo directo, `backend/`).
    - **ERD, regla 3:** debe decir que la RLS de `tax.administration_fiscal_year` solo admite *Planeada* → *En preparación*; la 1.5.1 impone las demás transiciones, por ejemplo con un disparador.
@@ -274,7 +309,20 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 
 ### 2026-11-20
 
-- **ADR 0043 aceptado por la persona** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042 y modifica en parte al ADR 0040): un agente puede aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat, completos, la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución y esa acción en el chat, sin ir a GitHub; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Comparar con la página de la ejecución es una comprobación opcional. **Revisión:** el diseño con un dato oculto leído en la página pasó tres rondas de revisión adversarial (con altos en cada una) y la persona lo descartó; **el mecanismo simplificado que se aceptó no tuvo una nueva revisión**, por decisión de la persona. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Rige cuando la persona integra el PR de la raíz (#245); el de `ui/` (#246) se integra después.
+- **`ESTADO.md` al día para que cualquier persona retome la 008:** la guía de traspaso de §1 pasa al método de rebanadas. Dice:
+  - dónde está la 008;
+  - el vocabulario;
+  - los pasos para armar sus rebanadas y sus *issues*;
+  - cómo se trabaja y cómo se publica `liv-components` sin publicación a mano.
+
+  También quedan al día las versiones de los documentos de arquitectura (§2) y los próximos pasos (§6).
+- **#239, la caché de Maven del CI** (rebanada suelta con zona roja, PR #248 y #249; diseño en su *issue*, versión 3, aceptada por la persona sin una tercera ronda de revisión):
+  - **Causa del 404 ocasional de Maven Central en `bff · verify`:** `publicar contratos` guardaba en `main` una caché de 13 MB con la misma clave de los `verify` de PR, así que cada PR descargaba casi todo.
+  - **Arreglo:** ahora la llena solo `maven-cache-main.yml`, con 148 MB para backend y 109 MB para bff. `publicar contratos` ya no usa caché. La clave incluye el *wrapper*, una prueba estructural vigila las reglas y gitleaks ya no restaura su binario de la caché.
+  - **Defecto del primer PR:** la comprobación sin conexión fallaba en falso, porque `MVNW_REPOURL` cambia la carpeta donde `mvnw` busca Maven. Lo corrigió el #249.
+  - **Verificación:** los criterios 239-01 a 239-05 se comprobaron en `main`. Se borró la caché de bff y el *workflow* la reconstruyó.
+  - **Pendiente:** la medición de fallos hasta el 2026-12-04.
+- **ADR 0043 aceptado por la persona** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042 y modifica en parte al ADR 0040): un agente puede aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat, completos, la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución y esa acción en el chat, sin ir a GitHub; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Comparar con la página de la ejecución es una comprobación opcional. **Revisión:** el diseño con un dato oculto leído en la página pasó tres rondas de revisión adversarial (con altos en cada una) y la persona lo descartó; **el mecanismo simplificado que se aceptó no tuvo una nueva revisión**, por decisión de la persona. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Rige desde que la persona integró el PR de la raíz (#245) y después el de `ui/` (#246), el mismo día.
 - **Feature 002 cerrada.** `liv-components` 0.5.1 es la primera versión que publica el *workflow* `ui-release.yml`: `decidir` y `verificar` en verde, `publicar` en «Waiting» en el entorno `npm`, aprobada por una persona, y `etiquetar` creó `ui-v0.5.1` y su *release*. Procedencia verificada (`npm audit signatures`), sin claves de npm guardadas, *ruleset* de `ui-v*` activo y «Require two-factor authentication and disallow tokens» activado por la persona. «Re-run all jobs» no publicó dos veces (002-06). Los diez criterios de `spec.md` quedan marcados con su evidencia.
   - Se construyó en cinco PR de la R3: reglas (#238), `release-tag` y guía (#240), activación y la prueba de 002-08 (#242), la guía sin publicación a mano y sin `npm run release` (#241) y la versión 0.5.1 (#243). Cada uno pasó la revisión adversarial.
   - Quedan: la *release* marcada «Latest», el modo local de `release:check`, y el ADR 0043 para que el agente apruebe con confirmación en el chat (#244, aceptado en el PR #245). La 008 se retoma.
