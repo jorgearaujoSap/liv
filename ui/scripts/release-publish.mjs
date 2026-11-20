@@ -22,7 +22,7 @@ const EXACT_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const TARBALL_PATH = /^(?!-)[\w./\\:-]+\.tgz$/;
 
 // Where the person finds how to resolve each failure (feature 002, 002-04).
-const GUIDE = 'Guía: ui/README.md › «Publicar una versión» › «Si falla «publicar»».';
+const GUIDE = 'Guía: README.md de liv-components › «Publicar una versión» › «Si falla «publicar»».';
 
 class PublishError extends Error {}
 

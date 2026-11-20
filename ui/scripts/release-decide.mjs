@@ -21,7 +21,7 @@ export const MIN_NPM = '11.5.1';
 export const EXACT_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const COMMIT_SHA = /^[0-9a-f]{40}$/;
 // Where the person finds how to resolve each failure (feature 002, 002-04).
-const GUIDE = 'Guía: ui/README.md › «Publicar una versión» › «Si falla «decidir»».';
+const GUIDE = 'Guía: README.md de liv-components › «Publicar una versión» › «Si falla «decidir»».';
 
 /** A check that failed with a message that says how to fix it. */
 export class ReleaseError extends Error {}

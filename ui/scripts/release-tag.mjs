@@ -24,7 +24,8 @@ const NOTES_PATH = /^(?!-)[\w./\\:-]+$/;
 const MAX_TAG_DEPTH = 5;
 
 // Where the person finds how to resolve each failure (feature 002, 002-04).
-const GUIDE = 'Guía: ui/README.md › «Publicar una versión» › «Si falla «etiquetar»».';
+const GUIDE =
+  'Guía: README.md de liv-components › «Publicar una versión» › «Si falla «etiquetar»».';
 
 class TagError extends Error {}
 
@@ -136,17 +137,21 @@ function readRelease({ run, repository, tag }) {
 }
 
 /** What it says of a release that already exists: it never changes it, but it says if its text differs. */
-function existingRelease(release, tag, content) {
-  const same = String(release.body ?? '').trim() === content.trim();
-  return same
-    ? `La release ${tag} ya existe.`
-    : `La release ${tag} ya existe, con un texto distinto de la sección del CHANGELOG.md. No se cambia: revísala.`;
+function existingRelease(release, tag, content, warn) {
+  const normalize = (text) =>
+    String(text ?? '')
+      .replace(/\r\n/g, '\n')
+      .trim();
+  if (normalize(release.body) === normalize(content)) return `La release ${tag} ya existe.`;
+  const message = `La release ${tag} ya existe, con un texto distinto de la sección del CHANGELOG.md. No se cambia: una persona la revisa.`;
+  warn(message);
+  return message;
 }
 
 /** Creates the release of the tag with the notes, or confirms that it exists. Returns what it did. */
-function ensureRelease({ run, repository, tag, name, version, notes, content }) {
+function ensureRelease({ run, repository, tag, name, version, notes, content, warn }) {
   const existing = readRelease({ run, repository, tag });
-  if (existing !== null) return existingRelease(existing, tag, content);
+  if (existing !== null) return existingRelease(existing, tag, content, warn);
   const created = run('gh', [
     'release',
     'create',
@@ -164,12 +169,12 @@ function ensureRelease({ run, repository, tag, name, version, notes, content }) 
   if (created.status === 0) return `Release ${tag} creada.`;
   // Two runs at once: the other one created it between the read and the create. Read it again.
   const raced = readRelease({ run, repository, tag });
-  if (raced !== null) return existingRelease(raced, tag, content);
+  if (raced !== null) return existingRelease(raced, tag, content, warn);
   return fail(`No se pudo crear la release ${tag} (${failure(created)}).`);
 }
 
 /** Returns the messages of what it did; throws TagError if it must fail. */
-export function tag({ argv, env, run, readFile }) {
+export function tag({ argv, env, run, readFile, warn = () => {} }) {
   const args = parseArgs(argv, env);
   let content;
   try {
@@ -178,12 +183,17 @@ export function tag({ argv, env, run, readFile }) {
     fail(`No se pudo leer ${args.notes}: ${singleLine(cause.message)}. No se etiqueta.`);
   }
   if (!content.trim()) fail(`Las notas ${args.notes} están vacías. No se etiqueta.`);
-  return [ensureTag({ run, ...args }), ensureRelease({ run, ...args, content })];
+  return [ensureTag({ run, ...args }), ensureRelease({ run, ...args, content, warn })];
 }
 
 export function main({ argv, env, run, readFile, log, error }) {
   try {
-    for (const message of tag({ argv, env, run, readFile })) log(message);
+    // A release with another text is not an error, but it must show up as a warning annotation.
+    const warn = (message) => {
+      if (env.GITHUB_ACTIONS === 'true')
+        log(`::warning::${singleLine(message).replace(/%/g, '%25')}`);
+    };
+    for (const message of tag({ argv, env, run, readFile, warn })) log(message);
     return 0;
   } catch (cause) {
     if (!(cause instanceof TagError)) throw cause;

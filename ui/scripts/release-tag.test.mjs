@@ -70,7 +70,7 @@ describe('release-tag · crea la etiqueta en el commit de esta ejecución (002-0
   it('existe en este commit y la release también: no crea nada (volver a ejecutar todo)', () => {
     const { messages, calls } = runTag({ [REF]: commitRef(COMMIT), [RELEASE]: release() });
     assert.deepEqual(calls, [REF, RELEASE]);
-    assert.match(messages[1], /^La release ui-v0\.6\.0 ya existe/);
+    assert.equal(messages[1], 'La release ui-v0.6.0 ya existe.');
   });
 
   it('la release ya existe con otro texto: no la cambia y lo dice', () => {
@@ -80,6 +80,26 @@ describe('release-tag · crea la etiqueta en el commit de esta ejecución (002-0
     });
     assert.deepEqual(calls, [REF, RELEASE]);
     assert.match(messages[1], /ya existe, con un texto distinto.* No se cambia/);
+  });
+
+  it('la release ya existe con el mismo texto, aunque con CRLF o espacios al final: no avisa', () => {
+    for (const body of [NOTES_TEXT.replace(/\n/g, '\r\n'), `${NOTES_TEXT}\n\n`]) {
+      const warnings = [];
+      const { run } = setup({ [REF]: commitRef(COMMIT), [RELEASE]: release(body) });
+      const messages = tag({ argv: ARGS, env: ENV, run, readFile, warn: (m) => warnings.push(m) });
+      assert.equal(messages[1], 'La release ui-v0.6.0 ya existe.');
+      assert.deepEqual(warnings, []);
+    }
+  });
+
+  it('la release ya existe con body vacío (null): avisa y no la cambia', () => {
+    const warnings = [];
+    const { run } = setup({
+      [REF]: commitRef(COMMIT),
+      [RELEASE]: result(0, JSON.stringify({ body: null })),
+    });
+    tag({ argv: ARGS, env: ENV, run, readFile, warn: (m) => warnings.push(m) });
+    assert.equal(warnings.length, 1);
   });
 
   it('existe en otro commit: falla y no la mueve ni crea la release', () => {
@@ -163,7 +183,7 @@ describe('release-tag · carrera entre dos ejecuciones', () => {
       [RELEASE]: () => (reads++ === 0 ? NOT_FOUND : release()),
       [CREATE_RELEASE]: result(1, '', 'HTTP 422: Validation Failed'),
     });
-    assert.match(messages[1], /ya existe/);
+    assert.equal(messages[1], 'La release ui-v0.6.0 ya existe.');
   });
 
   it('la release no se crea y sigue sin existir: falla con el motivo', () => {
@@ -301,6 +321,15 @@ describe('release-tag · línea de comandos', () => {
     assert.equal(errors[0].includes('\n'), false);
     assert.match(errors[0], /%250A/);
     assert.match(errors[0], /Si falla «etiquetar»/);
+  });
+
+  it('una release con otro texto sale como anotación ::warning:: en GitHub Actions y termina en 0', () => {
+    const { status, logs } = runMain(
+      { [REF]: commitRef(COMMIT), [RELEASE]: release('otro texto') },
+      { ...ENV, GITHUB_ACTIONS: 'true' },
+    );
+    assert.equal(status, 0);
+    assert.equal(logs.filter((line) => line.startsWith('::warning::')).length, 1);
   });
 
   it('un error que no es de la lógica se propaga', () => {

@@ -80,7 +80,7 @@ Cuando `publicar` termina, `etiquetar` crea la etiqueta `ui-vX.Y.Z` en el *commi
 
 ### 3. Si algo falla
 
-Cada trabajo dice en su registro qué paso falló y enlaza aquí. Nada de lo que sigue publica dos veces: «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. Los «Re-run», como las aprobaciones, los hace una persona.
+Los errores de `decidir`, `publicar` y `etiquetar` terminan con la sección de esta guía que los resuelve; en `verificar`, el registro marca el paso que falló y esta guía dice qué hacer. Nada de lo que sigue publica dos veces: «Re-run failed jobs» y «Re-run all jobs» solo hacen lo que falta. Los «Re-run», como las aprobaciones, los hace una persona.
 
 #### Si falla «decidir»
 
@@ -90,6 +90,7 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 |---|---|
 | npm no respondió con las versiones, o `git ls-remote` falló | Nada se decidió. Espera y usa «Re-run failed jobs» |
 | La versión es menor que la última publicada y no se publicó | Sube la versión por encima de la última en un PR nuevo |
+| npm o Git no respondieron, o no se pudo leer un archivo de `ui/` o el *commit* padre | Espera y usa «Re-run failed jobs». Si se repite, una persona revisa el mensaje |
 | La versión del paquete no es X.Y.Z, el paquete no se llama `liv-components`, o falta el *commit* padre (el *checkout* debe ser de dos *commits*) | Corrige el `package.json` de la librería en un PR de `ui/`. Si es el *checkout*, es un fallo del *workflow*: avisa al responsable |
 | La etiqueta `ui-vX.Y.Z` ya existe en otro *commit* | **No se mueve.** Una persona con permiso revisa quién la creó y por qué. Si fue un error, la versión se descarta y se sube una nueva en un PR nuevo |
 | npm registra que la versión se publicó desde otro *commit* | Igual que la anterior: no se etiqueta este *commit* |
@@ -108,9 +109,11 @@ La ejecución queda en rojo con su mensaje, sin pedir aprobación ni publicar.
 
 | Qué pasó | Qué hacer |
 |---|---|
-| Rechazaste la aprobación | No se publicó nada. Usa «Re-run all jobs» de esa ejecución (o «Re-run failed jobs» si sus artefactos siguen disponibles) y aprueba |
-| La aprobación **venció** (30 días) | No se publicó nada, y GitHub ya no deja volver a ejecutar una ejecución de más de 30 días. Si la punta de `main` sigue siendo el *commit* que subió la versión, una persona lanza el *workflow* a mano (`workflow_dispatch` en `main`) y aprueba; si no, sube la versión en un PR nuevo |
-| La huella SHA‑256 del `.tgz` o de un *script* **no coincide**, o el artefacto trae archivos de más | **No reintentes.** Es la señal de que algo cambió entre `verificar` y `publicar`: una dependencia comprometida o un error del *workflow*. Una persona investiga antes de publicar nada |
+| Rechazaste la aprobación **por error** | No se publicó nada. Usa «Re-run all jobs» de esa ejecución (o «Re-run failed jobs» si sus artefactos siguen disponibles) y aprueba |
+| Rechazaste la aprobación **porque el contenido no era el esperado** | **No la apruebes al reintentar:** el mismo *commit* da el mismo `.tgz`. Una persona investiga y la versión se descarta: sube el siguiente número en un PR nuevo |
+| La aprobación **venció** (30 días) | No se publicó nada, y GitHub ya no deja volver a ejecutar una ejecución de más de 30 días. Si la punta de `main` sigue siendo el *commit* que subió la versión, una persona lanza el *workflow* a mano (`workflow_dispatch` en `main`) y aprueba; si no, sube el siguiente número en un PR nuevo, con su sección del `CHANGELOG.md`: la versión vencida queda sin publicar |
+| La huella SHA‑256 del `.tgz` o de un *script* **no coincide**, o el artefacto de *scripts* trae archivos de más | **No reintentes.** Es la señal de que algo cambió entre `verificar` y `publicar`: una dependencia comprometida o un error del *workflow*. Una persona investiga antes de publicar nada |
+| `verificar` o `decidir` no entregaron un SHA‑256 o una huella válidos, o el artefacto no tiene el `.tgz` | «Re-run all jobs». Si se repite, es un fallo del *workflow*: una persona lo revisa |
 | El `package.json` del `.tgz` no es el nombre y la versión pedidos, o npm no da la integridad de una versión que lista | No se publicó nada. Una persona lo revisa: no reintentes hasta entenderlo |
 | `ya está publicada con otra integridad` | **No reintentes.** El contenido publicado no es el que se verificó. Una persona investiga; la versión se descarta y se sube una nueva en un PR nuevo |
 | `no es mayor que la última publicada` | Se publicó otra versión mayor mientras esperaba. Sube la versión en un PR nuevo |
@@ -121,7 +124,10 @@ Si npm responde pero la versión no aparece, no la publiques a mano: espera y co
 
 #### Si falla «etiquetar»
 
-El paquete ya está publicado. Usa «Re-run failed jobs» (o «Re-run all jobs»): crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si la etiqueta ya existe en otro *commit*, falla y **no la mueve**: una persona con permiso la revisa.
+El paquete ya está publicado. Usa «Re-run failed jobs» (o «Re-run all jobs»): crea la etiqueta o la *release* que falte y no cambia lo que ya existe. Si GitHub no respondió o respondió algo ilegible, espera y repite.
+
+- Si la etiqueta ya existe en otro *commit*, falla y **no la mueve**: una persona con permiso la revisa.
+- Si la *release* ya existe con un texto distinto de la sección del `CHANGELOG.md`, no la cambia y deja una anotación de aviso: **una persona** la revisa y, si hace falta, la edita en GitHub; nunca un agente.
 
 #### Varias versiones seguidas
 
