@@ -10,7 +10,7 @@
 
 | Tema | Estado |
 |---|---|
-| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16. La **002 · Publicación automática de `liv-components`** es la feature en construcción (H1 del 2026-11-19) y la primera con el método nuevo; la 008 · Configuración de jurisdicción (1.5.9) queda en pausa hasta cerrarla |
+| Fase actual | **Fase 0 — Fundaciones: cerrada el 2026-11-12** (ADR 0031). En curso la **Fase 1 — Tablas base y configuración**: la feature 007 · Vigencias fiscales (1.4) se cerró el 2026-11-16. La **002 · Publicación automática de `liv-components`** se cerró el 2026-11-20, la primera feature con el método nuevo (`liv-components` 0.5.1 la publicó el *workflow*); la 008 · Configuración de jurisdicción (1.5.9) se retoma |
 | Método de trabajo | ✅ **SDD por rebanadas verticales** desde el 2026-11-18 (ADR 0040 y 0041): spec corta por feature con una sola aprobación (H1), backlog de rebanadas en GitHub Issues y en el *Project* `liv-project`, que mantiene el agente; revisión adversarial solo en las zonas rojas, las reglas con código y los documentos funcionales, y prueba primero solo en el código de las reglas con código y los casos *golden* (`AGENTS.md` §4) |
 | Código | ✅ Fase 0 cerrada (ADR 0031). Pruebas *golden* de la liquidación y de la cuenta corriente escritas en rojo (feature 006). La feature 001 está hecha de punta a punta: API y BFF con inicio de sesión, permisos, sesión y auditoría; frontend con el inicio de sesión, el menú y las pantallas; `liv-components` 0.5.0 publicada en npm, y pruebas de navegador en local. Primera funcionalidad de negocio: la opción 1.4 (vigencias fiscales, feature 007), con su esquema `tax`, su API, su auditoría y sus pantallas |
 | Documentación funcional (01–05, ERD) | ✅ Existente (insumo del proyecto). El Doc. 05 (Módulo 5, cartera) entró con la feature 005 (2026-11-11) |
@@ -24,8 +24,8 @@ El avance de cada rebanada está en el *Project* [`liv-project`](https://github.
 
 | Feature | Estado | Siguiente paso |
 |---|---|---|
-| **002 · Publicación automática de `liv-components`** | 🔄 En construcción desde la H1 del 2026-11-19 (PR #228): ADR 0042 aceptado, sin publicación a mano. Rebanadas R1 (#231), R2 (#232) y R3 (#233) en el *Project* | El visto bueno de la R1 (los *scripts* de `ui/`). Antes de la R2, la persona crea el entorno `npm`; antes de la R3, registra el publicador de confianza en npm |
-| **008 · Configuración de jurisdicción (1.5.9)** | ⏸️ En pausa hasta cerrar la 002 (decisión de la persona, 2026-11-19). Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior | Al retomarla: agrupar sus 78 tareas en rebanadas (*issues* `feature:008`), con R1 como esqueleto |
+| **002 · Publicación automática de `liv-components`** | ✅ Hecha el 2026-11-20 (H1 del 2026-11-19, PR #228; construida en los PR #234, #235, #237, #238, #240, #241, #242 y #243). `liv-components` 0.5.1 la publicó el *workflow* con la aprobación de una persona, procedencia y la etiqueta `ui-v0.5.1`; ADR 0042 aceptado, sin publicación a mano | Decidir lo que dejó: la *release* quedó «Latest», el modo local de `release:check` y el ADR de confirmación en el chat (#244) |
+| **008 · Configuración de jurisdicción (1.5.9)** | ⏳ Por retomar: la 002 ya cerró y la pausa del 2026-11-19 terminó. Spec (H1), diseño en Figma y decisiones H2‑1 a H2‑24 aprobados con el método anterior | Al retomarla: agrupar sus 78 tareas en rebanadas (*issues* `feature:008`), con R1 como esqueleto. Sus componentes nuevos de `liv-components` se publican ahora con el *workflow* y la aprobación de una persona |
 
 #### Plan anterior de la 008 (ADR 0033, referencia)
 
@@ -213,13 +213,13 @@ Revisadas el 2026-11-01. Detalle en `docs/arquitectura/00_Decisiones_y_Hoja_de_R
 ## 6. Próximos pasos
 
 1. **Método de trabajo (ADR 0040 y 0041):**
-   - construir la feature 002 (rebanadas #231 a #233); la 008 queda en pausa hasta cerrarla;
+   - la feature 002 está hecha (2026-11-20): la 008 deja de estar en pausa;
    - al retomar la 008, convertirla en rebanadas;
    - integrar los PR de las referencias de cada proyecto (`backend/`, `frontend/`, `ui/` y `e2e/`), que llevan el método nuevo a sus `AGENTS.md` y *skills*;
    - en el *Project*, el filtro `is:issue is:open` de *Auto-add to project*, que pone la persona.
 
    Ya están al día las reglas de la raíz, sus *skills*, la plantilla de feature, la plantilla de PR y los documentos de arquitectura.
-2. Mientras no exista la publicación automática (feature 002): dar permiso de publicación de `liv-components` a los desarrolladores que publicarán versiones (`npm owner add <usuario> liv-components`, lo ejecuta el dueño actual). Hoy solo hay un responsable con cuenta personal; más adelante conviene una organización de npm del equipo.
+2. Publicar `liv-components` ya no necesita un permiso de npm por persona: publica el *workflow* (ADR 0042), con la aprobación de los revisores del entorno `npm` (`jorgearaujoSap` y `sapenlinea`). Más adelante conviene una organización de npm del equipo.
 3. Antes de entregar el proyecto al desarrollador: los ganchos del agente y de Git (F0‑03), las verificaciones que faltan en F0‑07. La guía para el desarrollador ya está en `docs/guia-del-desarrollador.md` (2026-11-08). No bloquean el cierre de la Fase 0 (ADR 0031).
 4. **Fase 0 cerrada el 2026-11-12** (ADR 0031). La Fase 1 está en curso (§1, «Trabajo en curso»). Quedan de la feature 006, sin fecha:
    - los pendientes 8 y 9 del Doc. 04 §14 (CA‑4.07 y el método del redondeo «al peso»), que decide el responsable funcional;
@@ -275,6 +275,9 @@ Registro cronológico de lo realizado. Lo más reciente va primero.
 ### 2026-11-20
 
 - **ADR 0043 aceptado por la persona** (*issue* #244, rebanada suelta con zona roja; reemplaza en parte al ADR 0042 y modifica en parte al ADR 0040): un agente puede aprobar o volver a ejecutar la publicación de `liv-components` (y crear la etiqueta o la *release* que falte) solo después de mostrar en el chat, completos, la ejecución, el *commit*, `nombre@versión`, el SHA‑256 del `.tgz` y sus archivos, y de que la persona confirme **esa** ejecución y esa acción en el chat, sin ir a GitHub; rechazar y cancelar, a pedido. Sigue prohibido, aunque la persona lo pida: mover o borrar etiquetas `ui-v*`, cambiar el entorno `npm`, los *rulesets*, el publicador de confianza o el paquete en npm, y publicar con un comando. Comparar con la página de la ejecución es una comprobación opcional. **Revisión:** el diseño con un dato oculto leído en la página pasó tres rondas de revisión adversarial (con altos en cada una) y la persona lo descartó; **el mecanismo simplificado que se aceptó no tuvo una nueva revisión**, por decisión de la persona. Cambian `AGENTS.md` §4.3 y §4.5, los docs. 00 §6, 02 §12 y 05 §4.2, la constitución, la guía del desarrollador, la *skill* `liv-orquestador` y, en `ui/`, `AGENTS.md`, `README.md` y la *skill* `liv-componente`. Rige cuando la persona integra el PR de la raíz (#245); el de `ui/` (#246) se integra después.
+- **Feature 002 cerrada.** `liv-components` 0.5.1 es la primera versión que publica el *workflow* `ui-release.yml`: `decidir` y `verificar` en verde, `publicar` en «Waiting» en el entorno `npm`, aprobada por una persona, y `etiquetar` creó `ui-v0.5.1` y su *release*. Procedencia verificada (`npm audit signatures`), sin claves de npm guardadas, *ruleset* de `ui-v*` activo y «Require two-factor authentication and disallow tokens» activado por la persona. «Re-run all jobs» no publicó dos veces (002-06). Los diez criterios de `spec.md` quedan marcados con su evidencia.
+  - Se construyó en cinco PR de la R3: reglas (#238), `release-tag` y guía (#240), activación y la prueba de 002-08 (#242), la guía sin publicación a mano y sin `npm run release` (#241) y la versión 0.5.1 (#243). Cada uno pasó la revisión adversarial.
+  - Quedan: la *release* marcada «Latest», el modo local de `release:check`, y el ADR 0043 para que el agente apruebe con confirmación en el chat (#244, aceptado en el PR #245). La 008 se retoma.
 
 ### 2026-11-19
 
